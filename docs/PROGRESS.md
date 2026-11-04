@@ -1,5 +1,14 @@
 # Progress log
 
+## 2026-11-04 (later) -- P2 #19 tranche hote : banc perf + baseline
+
+- `scripts/bench_host.py` : garde (distribution p50/p95/p99/max),
+  campagne 8 scenarios, codegen, build `qcc` natif + warnings.
+  Mesure reel x2, etiquete hote-only : garde p99 ~4-7 us, campagne
+  ~14-19 ms, build ~0.7 s 0 warnings. Doc `docs/perf-baseline.md`
+  (methode + table) ; test schema sans seuils flaky. Timings cible
+  post-reboot, jamais melanges. Suite 268/268 verte.
+
 ## 2026-11-04 (later) -- P2 #18 tranche hote : comparaison de builds
 
 - `host/genesis_rt/compare.py` + CLI `genesis-rt compare A B [--json]` :
