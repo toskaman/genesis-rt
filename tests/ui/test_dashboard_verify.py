@@ -58,6 +58,7 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'provenance') return parseProvenance(c.arg);
     if (c.fn === 'source') { const j = JSON.parse(c.arg); return renderSourceHtml(j.files, j.irSha); }
     if (c.fn === 'lab') return renderLabHtml(passportScenarios(JSON.parse(c.arg)));
+    if (c.fn === 'diff') { const j = JSON.parse(c.arg); return renderDiffHtml(j.a, j.b); }
     if (c.fn === 'trace') {
       const t = traceEvents(passportScenarios(JSON.parse(c.arg))[0]);
       return { n: t.events.length, headLen: t.headLen, truncated: t.truncated,
@@ -238,6 +239,33 @@ def test_studio_trace_belt(repo_root, tmp_path):
     (trace,) = _run_js([{"fn": "trace", "arg": text}], tmp_path)
     assert trace["kind"] == "belt" and trace["n"] > 0
     assert {"position", "speed", "jammed"} <= set(trace["keys"])
+
+
+@node
+def test_studio_diff_fixed_and_invalid(amr_ir, tmp_path):
+    clean = _fresh_passport_for(amr_ir, ["nominal_navigation"], tmp_path, "dB")
+    manifest = codegen.generate(amr_ir, tmp_path / "gen-dA")
+    results = faultlab.run_all(amr_ir, ["nominal_navigation"])
+    results[0]["status"] = "fail"  # structural failure, rechained honestly
+    results[0]["checks"] = [{"name": "progress", "passed": False,
+                             "detail": "no motion"}]
+    bad = evidence.build_passport(
+        "run-dA", amr_ir, manifest, results,
+        {"status": "blocked", "verified_on_target": False})
+    evidence.attach_verdict(
+        bad, gate.evaluate(bad, ["nominal_navigation"]))
+    assert evidence.verify_chain(bad) == []
+    bad_text = json.dumps(bad, indent=2, sort_keys=True)
+    assert evidence.verify_chain(json.loads(bad_text)) == []
+    (got,) = _run_js([{"fn": "diff", "arg": json.dumps({"a": bad_text,
+                                                        "b": clean})}],
+                     tmp_path)
+    assert "FIXED" in got and "nominal_navigation" in got
+    evil = bad_text.replace('"status": "fail"', '"status": "pass"', 1)
+    (got,) = _run_js([{"fn": "diff", "arg": json.dumps({"a": evil,
+                                                        "b": clean})}],
+                     tmp_path)
+    assert "INVALID chain" in got and "FIXED" not in got
 
 
 @node

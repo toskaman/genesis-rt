@@ -40,6 +40,7 @@ you the exact commands, and you drop the fresh outputs back here.</p>
 <button role="tab" aria-selected="false" data-tab="twin">Twin</button>
 <button role="tab" aria-selected="false" data-tab="lab">Lab</button>
 <button role="tab" aria-selected="false" data-tab="passport">Passport</button>
+<button role="tab" aria-selected="false" data-tab="diff">Diff</button>
 <button role="tab" aria-selected="false" data-tab="run">Run</button>
 </div>
 
@@ -75,6 +76,15 @@ list its scenarios, seeds and oracle checks.</p></div>
 <input type="file" id="ppfile" accept=".json">
 <div id="pp-out"><p class="note">Open a <code>passport.json</code>. The hash
 chain is re-verified live; a stored PASS is shown only when valid.</p></div>
+</section>
+
+<section class="tabpage" id="tab-diff" role="tabpanel">
+<h2>Broken vs fixed</h2>
+<p class="note">Load two passports (A = before, B = after). Both chains are
+re-verified; the delta table appears only when both are valid.</p>
+<p>A (before): <input type="file" id="diffile-a" accept=".json"></p>
+<p>B (after): <input type="file" id="diffile-b" accept=".json"></p>
+<div id="diff-out"><p class="note">No comparison yet.</p></div>
 </section>
 
 <section class="tabpage" id="tab-run" role="tabpanel">
@@ -271,8 +281,74 @@ function traceEvents(scen) {
   return { events: ticks, headLen: headTicks, truncated: truncated, kind: kind };
 }
 
+/* Broken-vs-fixed delta. Both inputs must be valid passports with
+ * valid chains, otherwise an INVALID banner (never a partial table). */
+function renderDiffHtml(textA, textB) {
+  let a, b;
+  try { a = JSON.parse(textA); b = JSON.parse(textB); }
+  catch (e) { return '<p class="fail">One side is not valid JSON.</p>'; }
+  if (!a.chain || !b.chain) {
+    return '<p class="fail">Both sides must be GENESIS passports.</p>';
+  }
+  const errA = verifyChainText(textA), errB = verifyChainText(textB);
+  if (errA.length || errB.length) {
+    return '<div class="banner fail">INVALID chain: A=' +
+      esc(errA[0] || 'valid') + ' / B=' + esc(errB[0] || 'valid') +
+      ' (no delta on unverified inputs)</div>';
+  }
+  const verdictOf = (p) => {
+    const v = p.chain.find(r => r.kind === 'gate_verdict');
+    return v && v.body ? v.body.verdict : '?';
+  };
+  const va = verdictOf(a), vb = verdictOf(b);
+  const sa = passportScenarios(a), sb = passportScenarios(b);
+  const byName = (list) => {
+    const m = {};
+    for (const s of list) m[s.name] = s;
+    return m;
+  };
+  const ma = byName(sa), mb = byName(sb);
+  const names = [];
+  for (const s of sa.concat(sb)) {
+    if (names.indexOf(s.name) < 0) names.push(s.name);
+  }
+  names.sort();
+  const checksOf = (s) => {
+    const m = {};
+    for (const c of (s ? s.checks : [])) m[c.name] = !!c.passed;
+    return m;
+  };
+  let h = '<div class="banner">A <code>' + esc(a.run_id) + '</code> gate=' +
+    '<b class="' + (va === 'PASS' ? 'pass' : 'fail') + '">' + esc(va) +
+    '</b> → B <code>' + esc(b.run_id) + '</code> gate=' +
+    '<b class="' + (vb === 'PASS' ? 'pass' : 'fail') + '">' + esc(vb) + '</b></div>';
+  h += '<table><tr><th>scenario</th><th>A</th><th>B</th><th>delta</th></tr>';
+  for (const n of names) {
+    const x = ma[n], y = mb[n];
+    const paint = (s) => s ? s.status + ' ' +
+      s.checks.filter(c => c.passed).length + '/' + s.checks.length : '—';
+    let delta, cls;
+    if (!x) { delta = 'NEW in B'; cls = 'pass'; }
+    else if (!y) { delta = 'GONE in B'; cls = 'fail'; }
+    else if (x.status !== 'pass' && y.status === 'pass') { delta = 'FIXED'; cls = 'pass'; }
+    else if (x.status === 'pass' && y.status !== 'pass') { delta = 'BROKE'; cls = 'fail'; }
+    else {
+      const ca = checksOf(x), cb = checksOf(y);
+      const keys = Object.keys(ca).concat(Object.keys(cb).filter(k => !(k in ca)));
+      const flips = keys.filter(k => (ca[k] || false) !== (cb[k] || false));
+      delta = flips.length ? 'checks: ' + flips.map(k =>
+        k + ' ' + (ca[k] ? '✓' : '✗') + '→' + (cb[k] ? '✓' : '✗')).join(', ') : 'same';
+      cls = flips.length ? 'fail' : '';
+    }
+    h += '<tr><td><code>' + esc(n) + '</code></td><td>' + esc(paint(x)) +
+      '</td><td>' + esc(paint(y)) + '</td><td class="' + esc(cls) + '">' + esc(delta) + '</td></tr>';
+  }
+  return h + '</table>';
+}
+
 /* DOM glue. */
-const Studio = { irSha: null, passport: null, scens: [], twin: null, twinIdx: 0, twinTimer: null };
+const Studio = { irSha: null, passport: null, scens: [], twin: null, twinIdx: 0, twinTimer: null,
+                 diffA: null, diffB: null };
 document.querySelectorAll('.tabs button').forEach((b) => {
   b.addEventListener('click', () => {
     document.querySelectorAll('.tabs button').forEach(
@@ -287,6 +363,20 @@ document.getElementById('irfile').addEventListener('change', async (e) => {
   const r = renderIntentHtml(text);
   Studio.irSha = r.ok ? r.sha : null;
   document.getElementById('intent-out').innerHTML = r.html;
+});
+function maybeDiff() {
+  if (Studio.diffA && Studio.diffB) {
+    document.getElementById('diff-out').innerHTML =
+      renderDiffHtml(Studio.diffA, Studio.diffB);
+  }
+}
+document.getElementById('diffile-a').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  Studio.diffA = await f.text(); maybeDiff();
+});
+document.getElementById('diffile-b').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  Studio.diffB = await f.text(); maybeDiff();
 });
 document.getElementById('srcfiles').addEventListener('change', async (e) => {
   const files = [];

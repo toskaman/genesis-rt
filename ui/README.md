@@ -9,7 +9,8 @@ only — no `fetch`, no network, no build step).
 - `studio.html`: six-tab workspace — Intent (IR + live sha256),
   Source (generated C provenance pinned vs the IR), Twin (canvas
   trace replay), Lab (scenario/seeds/checks), Passport (same live
-  verification as the dashboard), Run (exact pipeline commands).
+  verification as the dashboard), Diff (broken-vs-fixed delta),
+  Run (exact pipeline commands).
   Every tab loads real artifacts from disk; Lab/Twin stay empty
   unless the passport chain verifies.
 - `genesis_verify.js`: shared pure core (SHA-256, raw JSON,

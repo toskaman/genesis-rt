@@ -1,5 +1,15 @@
 # Progress log
 
+## 2026-11-04 (later) -- P1 #15 tranche B : Studio Diff (broken vs fixed)
+
+- Onglet Diff : 2 passeports (A/B), chaines re-verifiees, tableau
+  delta (FIXED/BROKE/NEW/GONE/same + flips par check), banniere
+  INVALID si un cote est faux (jamais de delta partiel).
+- Preuve : test node `test_studio_diff_fixed_and_invalid` (echec
+  structurel rechained via l'API evidence -> FIXED ; sabotage ->
+  INVALID) ; smoke standalone node (harnais DOM/canvas jetable) sur
+  les bytes finaux : init + 5 rendus OK. Suite 306/306.
+
 ## 2026-11-04 (later) -- P1 #15 tranche A : Studio (workspace 6 onglets)
 
 - `ui/genesis_verify.js` : coeur pur extrait du dashboard (verbatim,
