@@ -1,6 +1,6 @@
 # Copyright 2026 GENESIS RT contributors
 # SPDX-License-Identifier: Apache-2.0
-"""Command line: `genesis-rt <validate|plan|generate|simulate|faults|evidence|gate|demo|check-env>`."""
+"""Command line: `genesis-rt <validate|plan|generate|simulate|faults|demo|check-env|serve>`."""
 
 from __future__ import annotations
 
@@ -90,7 +90,9 @@ def _cmd_check_env(args: argparse.Namespace) -> int:
 def _cmd_serve(args: argparse.Namespace) -> int:
     from .api import create_app
     import uvicorn  # type: ignore[import-not-found]
-    uvicorn.run(create_app(), host="127.0.0.1", port=args.port)
+    # Single worker: the API serializes pipelines with a per-process lock and
+    # per-run artifacts; multi-worker mode would need an external job queue.
+    uvicorn.run(create_app(), host="127.0.0.1", port=args.port, workers=1)
     return 0
 
 

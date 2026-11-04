@@ -34,7 +34,7 @@ def test_limits_come_from_ir(amr_ir):
     ("magic", 0xDEAD, gp.R_BAD_MAGIC, True),
     ("version", 99, gp.R_BAD_VERSION, True),
     ("size_ok", False, gp.R_BAD_SIZE, True),
-    ("deadline_ms", -1, gp.R_OVERDUE_DEADLINE, False),
+    ("now_ms", 60, gp.R_OVERDUE_DEADLINE, False),
     ("sensor_age_ms", 101, gp.R_STALE_SENSOR, True),
     ("sim_connected", False, gp.R_SIM_DISCONNECTED, True),
     ("linear_mps", 1.21, gp.R_SPEED_OVER_LIMIT, False),
@@ -93,3 +93,72 @@ def test_reset_cannot_request_safe_stop_directly():
     ctx = gp.GuardContext(state=gp.ST_SAFE_STOP, reset_armed=True)
     v = gp.decide(_cmd(req_state=gp.ST_SAFE_STOP), ctx, LIMITS)
     assert (v["decision"], v["reason"]) == (gp.DENY, gp.R_BAD_TRANSITION)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("now_ms", float("inf")),
+    ("deadline_ms", float("-inf")),
+    ("seq", float("inf")),
+    ("sensor_age_ms", float("inf")),
+    ("linear_mps", 10 ** 309),  # float() overflows past ~1.8e308
+    ("angular_radps", 10 ** 309),
+])
+def test_overflow_inputs_denied_not_raised(field, value):
+    """OverflowError paths must DENY MALFORMED, never propagate."""
+    ctx = gp.GuardContext()
+    v = gp.decide(_cmd(**{field: value}), ctx, LIMITS)
+    assert (v["decision"], v["reason"], v["state_out"]) == (gp.DENY, gp.R_MALFORMED, 3)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("magic", -1),
+    ("version", -1),
+    ("seq", -5),
+    ("now_ms", -1),
+    ("deadline_ms", -1),
+    ("req_state", -1),
+    ("sensor_age_ms", -1),  # negative age must not pass as fresh
+    ("magic", 1 << 32),
+    ("version", 1 << 16),
+    ("seq", 1 << 40),
+    ("req_state", 1 << 16),
+    ("sensor_age_ms", 1 << 33),
+    ("seq", True),  # booleans are never valid numerics
+    ("magic", True),
+    ("linear_mps", False),
+])
+def test_out_of_wire_range_denied_malformed(field, value):
+    ctx = gp.GuardContext()
+    v = gp.decide(_cmd(**{field: value}), ctx, LIMITS)
+    assert (v["decision"], v["reason"], v["state_out"]) == (gp.DENY, gp.R_MALFORMED, 3)
+
+
+@pytest.mark.parametrize("bad_limits", [
+    {},
+    {"freshness_limit_ms": 100},  # missing speeds
+    {"freshness_limit_ms": "soon", "max_linear_speed_mps": 1.2,
+     "max_angular_speed_radps": 1.0},
+    {"freshness_limit_ms": 100, "max_linear_speed_mps": None,
+     "max_angular_speed_radps": 1.0},
+    {"freshness_limit_ms": float("inf"), "max_linear_speed_mps": 1.2,
+     "max_angular_speed_radps": 1.0},
+])
+def test_malformed_limits_denied_not_raised(bad_limits):
+    ctx = gp.GuardContext()
+    v = gp.decide(_cmd(), ctx, bad_limits)
+    assert (v["decision"], v["reason"], v["state_out"]) == (gp.DENY, gp.R_MALFORMED, 3)
+
+
+def test_bad_magic_wins_over_nan_c_parity_order():
+    """Check order matches guard_policy.c: magic before NaN."""
+    ctx = gp.GuardContext()
+    v = gp.decide(_cmd(magic=0xDEAD, linear_mps=float("nan")), ctx, LIMITS)
+    assert (v["decision"], v["reason"]) == (gp.DENY, gp.R_BAD_MAGIC)
+
+
+def test_state_out_requires_caller_writeback_documented():
+    """decide() never mutates ctx.state (C parity); caller applies state_out."""
+    ctx = gp.GuardContext()
+    v = gp.decide(_cmd(magic=0xDEAD), ctx, LIMITS)
+    assert v["state_out"] == gp.ST_SAFE_STOP
+    assert ctx.state == gp.ST_NOMINAL  # unchanged until the caller applies it

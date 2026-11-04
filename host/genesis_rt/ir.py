@@ -100,8 +100,9 @@ def validate_ir(data: dict[str, Any]) -> dict[str, Any]:
     _need(not unknown, f"unknown top-level keys: {sorted(unknown)}")
     for key in allowed_top:
         _need(key in data, f"missing required key: {key}")
-    _need(data["schema_version"] == SCHEMA_VERSION,
-          f"schema_version must be {SCHEMA_VERSION}")
+    _need(type(data["schema_version"]) is int
+          and data["schema_version"] == SCHEMA_VERSION,
+          f"schema_version must be exactly {SCHEMA_VERSION} (bool/float rejected)")
 
     m = data["machine"]
     _need(isinstance(m, dict), "machine must be a mapping")
@@ -136,21 +137,21 @@ def validate_ir(data: dict[str, Any]) -> dict[str, Any]:
         _need(s["id"] not in seen_sen, f"duplicate sensor id: {s['id']!r}")
         seen_sen.add(s["id"])
         _need(s["type"] in SENSOR_TYPES, f"unknown sensor type: {s['type']!r}")
-        _need(isinstance(s["freshness_limit_ms"], int)
+        _need(type(s["freshness_limit_ms"]) is int
               and 1 <= s["freshness_limit_ms"] <= 60000,
-              f"sensors[{i}].freshness_limit_ms must be int 1..60000")
+              f"sensors[{i}].freshness_limit_ms must be int 1..60000 (bool rejected)")
 
     c = data["control"]
     _need(isinstance(c, dict)
           and set(c) == {"period_ms", "max_linear_speed_mps",
                          "max_angular_speed_radps", "guarded_state_transitions"},
           f"control keys invalid: {sorted(c) if isinstance(c, dict) else c!r}")
-    _need(isinstance(c["period_ms"], int) and 1 <= c["period_ms"] <= 1000,
-          "control.period_ms must be int 1..1000")
+    _need(type(c["period_ms"]) is int and 1 <= c["period_ms"] <= 1000,
+          "control.period_ms must be int 1..1000 (bool rejected)")
     for key, hi in (("max_linear_speed_mps", 10.0), ("max_angular_speed_radps", 20.0)):
         v = c[key]
-        _need(isinstance(v, (int, float)) and 0.0 < float(v) <= hi,
-              f"control.{key} must be a number in (0, {hi}]")
+        _need(type(v) in (int, float) and 0.0 < float(v) <= hi,
+              f"control.{key} must be a number in (0, {hi}] (bool rejected)")
     _need(c["guarded_state_transitions"] is True,
           "control.guarded_state_transitions must be true")
 

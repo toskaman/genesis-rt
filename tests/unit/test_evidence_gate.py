@@ -89,3 +89,24 @@ def test_gate_fails_closed(amr_ir, tmp_path):
     bad["chain"] = [r for r in bad["chain"] if r["kind"] != "qnx_build"]
     v = gate.evaluate(bad, ["nominal_navigation"])
     assert v["verdict"] == "FAIL"
+
+
+def test_gate_rejects_pipeline_error_record(amr_ir, tmp_path):
+    manifest = codegen.generate(amr_ir, tmp_path / "gen")
+    results = faultlab.run_all(amr_ir, ["nominal_navigation"])
+    p = evidence.build_passport(
+        "run-err", amr_ir, manifest, results,
+        {"status": "blocked", "verified_on_target": False},
+        pipeline_error={"step": "qnx_target", "error": "ValueError: boom"})
+    v = gate.evaluate(p, ["nominal_navigation"])
+    assert v["verdict"] == "FAIL"
+    assert any("qnx_target" in r for r in v["reasons"])
+
+
+def test_gate_rejects_duplicate_kinds(amr_ir, tmp_path):
+    p = _passport(amr_ir, tmp_path)
+    dup = copy.deepcopy(p["chain"][4])
+    p["chain"].append(dup)  # second scenario record, same kind
+    v = gate.evaluate(p, ["nominal_navigation"])
+    assert v["verdict"] == "FAIL"
+    assert any("duplicate" in r for r in v["reasons"])

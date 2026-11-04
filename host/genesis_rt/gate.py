@@ -5,8 +5,9 @@
 PASS requires ALL of: valid hash chain, every required scenario
 present with status "pass", a qnx_build record present (its own
 qnx_verified flag is reported separately and never conflated with
-the host verdict), and no failed/crashed records among required
-scenarios. Anything else => FAIL with explicit reasons.
+the host verdict), no failed/crashed records among required
+scenarios, no pipeline_error record, and no duplicate record kinds.
+Anything else => FAIL with explicit reasons.
 """
 
 from __future__ import annotations
@@ -25,7 +26,19 @@ def evaluate(passport: dict[str, Any], required_scenarios: list[str]) -> dict[st
     if chain_errors:
         reasons.extend(f"chain: {e}" for e in chain_errors)
 
-    by_kind = {r.get("kind"): r for r in chain if isinstance(r, dict)}
+    by_kind: dict[str, Any] = {}
+    for r in chain:
+        if not isinstance(r, dict):
+            continue
+        kind = r.get("kind")
+        if kind in by_kind:
+            reasons.append(f"duplicate record kind: {kind} (refusing ambiguous evidence)")
+        by_kind[kind] = r
+    pipe_err = by_kind.get("pipeline_error")
+    if pipe_err is not None:
+        body = pipe_err.get("body", {}) if isinstance(pipe_err, dict) else {}
+        reasons.append(f"pipeline error in step {body.get('step', '?')}: "
+                       f"{body.get('error', 'unknown error')}")
     qnx_rec = by_kind.get("qnx_build")
     if qnx_rec is None:
         reasons.append("missing qnx_build record")

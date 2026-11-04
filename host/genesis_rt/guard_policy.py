@@ -9,6 +9,17 @@ decision vectors (see tests + target/qnx8/host_tests/guard_vector).
 Fail-closed: any unknown, malformed, stale or out-of-range input is
 denied. Leaving SAFE_STOP requires an explicit supervisor reset, never
 a normal command.
+
+Parity contract (mirrors guard_policy.c exactly):
+- decide() returns state_out but never mutates ctx.state; the CALLER
+  applies it (faultlab loop, genesis_guard.c main loop). This matches
+  the C side, which only mutates last_seq/reset_armed.
+- Integer fields must fit their wire width (uint32/uint16); negative,
+  boolean or out-of-range values are denied MALFORMED (fail-closed).
+  The C struct cannot represent such values, so rejecting them cannot
+  break parity on any input a real sender can produce.
+- Check order is magic -> version -> size -> NaN/Inf -> seq ->
+  deadline -> sensor -> sim -> speed -> angular -> transition.
 """
 
 from __future__ import annotations
@@ -66,7 +77,12 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
         return {"decision": DENY, "reason": reason,
                 "state_out": state_out, "applied": False}
 
+    int_fields = ("magic", "version", "seq", "now_ms", "deadline_ms",
+                  "req_state", "sensor_age_ms")
     try:
+        for _key in int_fields + ("linear_mps", "angular_radps"):
+            if isinstance(cmd[_key], bool):
+                return deny(R_MALFORMED, latch=True)
         magic = int(cmd["magic"])
         version = int(cmd["version"])
         size_ok = bool(cmd["size_ok"])
@@ -78,12 +94,23 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
         req_state = int(cmd["req_state"])
         sensor_age_ms = int(cmd["sensor_age_ms"])
         sim_connected = bool(cmd["sim_connected"])
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError, OverflowError):
         return deny(R_MALFORMED, latch=True)
 
-    if not (linear == linear and angular == angular):  # NaN check
+    wire_ok = (
+        0 <= magic < (1 << 32) and 0 <= version < (1 << 16)
+        and 0 <= seq < (1 << 32) and 0 <= now_ms < (1 << 32)
+        and 0 <= deadline_ms < (1 << 32) and 0 <= req_state < (1 << 16)
+        and 0 <= sensor_age_ms < (1 << 32)
+    )
+    if not wire_ok:
         return deny(R_MALFORMED, latch=True)
-    if abs(linear) == float("inf") or abs(angular) == float("inf"):
+
+    try:
+        freshness = int(limits["freshness_limit_ms"])
+        max_linear = float(limits["max_linear_speed_mps"])
+        max_angular = float(limits["max_angular_speed_radps"])
+    except (KeyError, TypeError, ValueError, OverflowError):
         return deny(R_MALFORMED, latch=True)
 
     if magic != PROTOCOL_MAGIC:
@@ -92,17 +119,21 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
         return deny(R_BAD_VERSION, latch=True)
     if not size_ok:
         return deny(R_BAD_SIZE, latch=True)
+    if not (linear == linear and angular == angular):  # NaN check
+        return deny(R_MALFORMED, latch=True)
+    if abs(linear) == float("inf") or abs(angular) == float("inf"):
+        return deny(R_MALFORMED, latch=True)
     if seq <= ctx.last_seq:
         return deny(R_STALE_SEQ, latch=False)
     if now_ms > deadline_ms:
         return deny(R_OVERDUE_DEADLINE, latch=False)
-    if sensor_age_ms > int(limits["freshness_limit_ms"]):
+    if sensor_age_ms > freshness:
         return deny(R_STALE_SENSOR, latch=True)
     if not sim_connected:
         return deny(R_SIM_DISCONNECTED, latch=True)
-    if abs(linear) > float(limits["max_linear_speed_mps"]):
+    if abs(linear) > max_linear:
         return deny(R_SPEED_OVER_LIMIT, latch=False)
-    if abs(angular) > float(limits["max_angular_speed_radps"]):
+    if abs(angular) > max_angular:
         return deny(R_ANGULAR_OVER_LIMIT, latch=False)
 
     if ctx.state == ST_SAFE_STOP:

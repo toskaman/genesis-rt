@@ -29,6 +29,18 @@ def ir_sha256(ir: dict[str, Any]) -> str:
     return hashlib.sha256(canonical_json(ir).encode("utf-8")).hexdigest()
 
 
+def template_sha256(name: str) -> str:
+    return hashlib.sha256((TEMPLATES_DIR / name).read_bytes()).hexdigest()
+
+
+def _check_genesis_src(genesis_src: str) -> None:
+    """Fail closed on values that could inject make directives or paths."""
+    if not isinstance(genesis_src, str) or not genesis_src:
+        raise ValueError("genesis_src must be a non-empty string")
+    if any(ord(ch) < 0x20 or ch == "\x7f" for ch in genesis_src):
+        raise ValueError("genesis_src must not contain control characters")
+
+
 def _render(name: str, mapping: dict[str, str]) -> str:
     text = (TEMPLATES_DIR / name).read_text(encoding="utf-8")
     return Template(text).substitute(mapping)
@@ -37,6 +49,7 @@ def _render(name: str, mapping: dict[str, str]) -> str:
 def generate(ir: dict[str, Any], out_dir: str | Path,
              genesis_src: str = "../../target/qnx8") -> dict[str, Any]:
     """Render the per-machine build directory. Returns the codegen manifest."""
+    _check_genesis_src(genesis_src)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     limits = guard_limits(ir)
@@ -63,6 +76,8 @@ def generate(ir: dict[str, Any], out_dir: str | Path,
     return {
         "generator_version": GENERATOR_VERSION,
         "template_version": TEMPLATE_VERSION,
+        "templates": {tmpl: template_sha256(tmpl) for tmpl, _ in GENERATED_FILES},
+        "genesis_src": genesis_src,
         "ir_sha256": digest,
         "files": files,
     }

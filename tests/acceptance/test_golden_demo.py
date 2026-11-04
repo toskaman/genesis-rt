@@ -37,7 +37,10 @@ def test_golden_demo_story(tmp_path):
     qnx_body = next(r["body"] for r in passport["chain"] if r["kind"] == "qnx_build")
     if not sdk["sdk_present"]:
         assert qnx_body["status"] == "blocked"
-    assert first["qnx_verified"] is False or sdk["sdk_present"]
+    else:
+        assert qnx_body["status"] == "ok"
+    # Host-only run (no target record) can never be target-verified, SDK or not.
+    assert first["qnx_verified"] is False
 
 
 def test_break_then_fix_cycle(amr_ir, tmp_path):
@@ -45,7 +48,10 @@ def test_break_then_fix_cycle(amr_ir, tmp_path):
     qnx = {"status": "blocked", "verified_on_target": False}
 
     broken_results = faultlab.run_all(amr_ir)
-    broken_results[2] = dict(broken_results[2], status="crash", error="injected crash")
+    idx = next(i for i, r in enumerate(broken_results)
+               if r["scenario"] == "stale_proximity_150ms")
+    broken_results[idx] = dict(broken_results[idx], status="crash",
+                               error="injected crash")
     broken = evidence.build_passport("run-broken", amr_ir, manifest, broken_results, qnx)
     assert gate.evaluate(broken, amr_ir["verification"]["scenarios"])["verdict"] == "FAIL"
 

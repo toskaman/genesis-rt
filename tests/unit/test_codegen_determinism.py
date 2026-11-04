@@ -51,3 +51,22 @@ def test_no_timestamps_in_output(amr_ir, tmp_path):
     year = str(datetime.datetime.now().year)
     assert year not in blob  # would break byte determinism
     assert canonical_json(amr_ir)  # canonical form exists for hashing
+
+
+def test_manifest_records_full_provenance(amr_ir, tmp_path):
+    manifest = codegen.generate(amr_ir, tmp_path, genesis_src="/opt/src")
+    assert manifest["genesis_src"] == "/opt/src"
+    assert set(manifest["templates"]) == {
+        "genesis_config_gen.h.tmpl", "genesis_build_gen.mk.tmpl"}
+    for digest in manifest["templates"].values():
+        assert len(digest) == 64 and all(c in "0123456789abcdef" for c in digest)
+    other = codegen.generate(amr_ir, tmp_path / "b", genesis_src="/other/src")
+    assert other["genesis_src"] != manifest["genesis_src"]
+    assert other["files"] != manifest["files"]  # bytes differ, manifest must say so
+
+
+def test_genesis_src_injection_rejected(amr_ir, tmp_path):
+    import pytest
+    for evil in ("a\nMALICIOUS: all\n\trm -rf /", "a\rb", "a\x00b", "", "a\x7fb"):
+        with pytest.raises(ValueError):
+            codegen.generate(amr_ir, tmp_path / "evil", genesis_src=evil)

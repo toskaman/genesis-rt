@@ -11,10 +11,14 @@ from genesis_rt.planner import PlannerRejection, propose
 
 
 def test_pipeline_pass_host(amr_ir_path, tmp_path):
+    from genesis_rt.build_adapter import probe
     summary = run_pipeline(amr_ir_path, tmp_path)
     assert summary["verdict"] == "PASS"
     assert summary["qnx_verified"] is False
-    assert summary["steps"]["qnx_build"]["status"] in ("blocked", "ok", "error")
+    # A real build error must fail the test, never hide behind the PASS path.
+    expected = "ok" if probe()["sdk_present"] else "blocked"
+    actual = summary["steps"]["qnx_build"]["status"]
+    assert actual == expected, summary["steps"]["qnx_build"].get("reason")
     passport = evidence.load_passport(summary["passport"])
     assert evidence.verify_chain(passport) == []
     assert summary["steps"]["host_cc_check"]["status"] in ("ok", "blocked")

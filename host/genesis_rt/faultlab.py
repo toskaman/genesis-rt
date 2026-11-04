@@ -91,7 +91,10 @@ def run_scenario(ir: dict[str, Any], scenario: str,
                 gap_ticks += 1
                 sim.stopped()
                 t += period
-                trace.append({"t": t, "kind": "planner_gap", "fault": fault})
+                gs = sim.state
+                trace.append({"t": t, "kind": "planner_gap", "fault": fault,
+                              "x": round(gs.x, 4), "y": round(gs.y, 4),
+                              "theta": round(gs.theta, 4)})
                 continue
             gap_ticks = 0
             seq += 1
@@ -142,7 +145,8 @@ def run_scenario(ir: dict[str, Any], scenario: str,
             st = sim.state
             trace.append({"t": t, "kind": "tick", "fault": fault,
                           "decision": verdict["decision"], "reason": verdict["reason"],
-                          "state": ctx.state, "x": round(st.x, 4), "y": round(st.y, 4)})
+                          "state": ctx.state, "x": round(st.x, 4), "y": round(st.y, 4),
+                          "theta": round(st.theta, 4)})
             t += period
     except Exception as exc:  # harness crash => scenario crash, never a pass
         return {"scenario": scenario, "seed": seed, "status": "crash",
@@ -205,12 +209,29 @@ def _o_stale(stats, trace, limits, window):
     ]
 
 
+def _ticks_in(trace, start_ms, end_ms):
+    return [e for e in trace if e.get("kind") == "tick"
+            and start_ms <= e["t"] < end_ms]
+
+
 def _o_crash(stats, trace, limits, window):
     gaps = [e for e in trace if e.get("kind") == "planner_gap"
             and window.start_ms <= e["t"] < window.end_ms]
+    pre = [e for e in trace if e.get("kind") == "tick" and e["t"] < window.start_ms]
+    ticks_during = _ticks_in(trace, window.start_ms, window.end_ms)
+    if pre and gaps:
+        x0, y0, th0 = pre[-1]["x"], pre[-1]["y"], pre[-1]["theta"]
+        max_disp = max([abs(g["x"] - x0) for g in gaps]
+                       + [abs(g["y"] - y0) for g in gaps]
+                       + [abs(g["theta"] - th0) for g in gaps])
+    else:
+        max_disp = float("inf")
+    zero_motion = (len(gaps) > 0 and len(pre) > 0
+                   and len(ticks_during) == 0 and max_disp == 0.0)
     return [
         _c("gap_detected", len(gaps) > 0, f"gap_events={len(gaps)}"),
-        _c("watchdog_zero_motion", True, "harness applies stopped() on every gap tick"),
+        _c("watchdog_zero_motion", zero_motion,
+           f"max_displacement={max_disp} ticks_during_gap={len(ticks_during)}"),
         _c("recovered", stats["final_state"] == gp.ST_NOMINAL,
            f"state={stats['final_state']}"),
         _c("no_collision", not stats["collision"], "collision=false required"),
@@ -232,9 +253,13 @@ def _o_delayed(stats, trace, limits, window):
 def _o_dropped(stats, trace, limits, window):
     gaps = [e for e in trace if e.get("kind") == "planner_gap"
             and window.start_ms <= e["t"] < window.end_ms]
+    ticks_during = _ticks_in(trace, window.start_ms, window.end_ms)
+    allows_during = sum(1 for e in ticks_during if e["decision"] == gp.ALLOW)
+    quiet = len(gaps) > 0 and len(ticks_during) == 0 and allows_during == 0
     return [
         _c("gap_detected", len(gaps) > 0, f"gap_events={len(gaps)}"),
-        _c("no_allow_without_command", True, "dropped ticks never reach the guard"),
+        _c("no_allow_without_command", quiet,
+           f"ticks_during_gap={len(ticks_during)} allows_during_gap={allows_during}"),
         _c("recovered", stats["final_state"] == gp.ST_NOMINAL,
            f"state={stats['final_state']}"),
     ]

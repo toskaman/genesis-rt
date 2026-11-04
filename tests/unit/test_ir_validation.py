@@ -86,3 +86,29 @@ def test_guard_limits_use_strictest_freshness(amr_ir):
     assert limits["freshness_limit_ms"] == 100
     assert limits["max_linear_speed_mps"] == 1.2
     assert limits["period_ms"] == 10
+
+
+def _mutate(amr_ir_dict, path, value):
+    bad = copy.deepcopy(amr_ir_dict)
+    node = bad
+    for key in path[:-1]:
+        node = node[key]
+    node[path[-1]] = value
+    return bad
+
+
+@pytest.mark.parametrize("path,value", [
+    (["schema_version"], True),
+    (["schema_version"], 1.0),
+    (["schema_version"], "1"),
+    (["control", "period_ms"], True),
+    (["control", "max_linear_speed_mps"], True),
+    (["control", "max_angular_speed_radps"], False),
+    (["sensors", 0, "freshness_limit_ms"], True),
+    (["control", "max_linear_speed_mps"], float("nan")),
+    (["control", "max_linear_speed_mps"], float("inf")),
+])
+def test_rejects_bool_and_non_numeric_limits(amr_ir_dict, path, value):
+    """True==1 must not smuggle bools past strict numeric validation."""
+    with pytest.raises(IRValidationError):
+        validate_ir(_mutate(amr_ir_dict, path, value))
