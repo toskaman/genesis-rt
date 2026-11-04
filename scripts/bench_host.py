@@ -58,7 +58,7 @@ def bench_guard(n: int) -> dict:
            "seq": 1, "now_ms": 0, "deadline_ms": 50,
            "linear_mps": 0.5, "angular_radps": 0.0,
            "req_state": gp.ST_NOMINAL, "sensor_age_ms": 0,
-           "sim_connected": True}
+           "sim_connected": True, "estop_engaged": 0}
     ctx = gp.GuardContext()
     samples = []
     for i in range(n):

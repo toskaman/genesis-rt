@@ -56,7 +56,8 @@
       "nominal_navigation",
       "speed_command_over_limit",
       "delayed_command",
-      "belt_jam"
+      "belt_jam",
+      "estop_pressed"
     ],
     "requirements": [
       {"id": "REQ-CONV-01", "claim": "Over-limit belt commands are rejected by the guard.",

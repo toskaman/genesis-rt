@@ -17,29 +17,37 @@ from genesis_rt import guard_policy as gp
 LIMITS = {"period_ms": 10, "max_linear_speed_mps": 1.2,
           "max_angular_speed_radps": 1.0, "freshness_limit_ms": 100}
 
-# (magic, ver, size_ok, seq, now, dl, lin, ang, req, age, sim, rst, state_in, last_seq_override)
+# (magic, ver, size_ok, seq, now, dl, lin, ang, req, age, sim, rst,
+#  state_in, last_seq_override, estop)
+E = 0x47454E31
 VECTORS = [
-    (0x47454E31, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None),
-    (0xDEADBEEF, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None),
-    (0x47454E31, 99, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None),
-    (0x47454E31, 1, 0, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None),
-    (0x47454E31, 1, 1, 1, 100, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None),
-    (0x47454E31, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 150, 1, 0, 1, None),
-    (0x47454E31, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 0, 0, 1, None),
-    (0x47454E31, 1, 1, 1, 0, 50, 5.0, 0.0, 1, 0, 1, 0, 1, None),
-    (0x47454E31, 1, 1, 1, 0, 50, 0.5, -2.0, 1, 0, 1, 0, 1, None),
-    (0x47454E31, 1, 1, 10, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, 10),  # replay
-    (0x47454E31, 1, 1, 1, 0, 50, 0.5, 0.0, 3, 0, 1, 0, 1, None),
-    (0x47454E31, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 3, None),  # locked
-    (0x47454E31, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 1, 3, None),  # reset
-    (0x47454E31, 1, 1, 1, 0, 50, 0.5, 0.0, 2, 0, 1, 0, 1, None),  # degraded
-    (0x47454E31, 1, 1, 1, 0, 50, float("nan"), 0.0, 1, 0, 1, 0, 1, None),
-    (0x47454E31, 1, 1, 1, 0, 50, 0.5, float("inf"), 1, 0, 1, 0, 1, None),
-    (0xDEADBEEF, 1, 1, 1, 0, 50, float("nan"), 0.0, 1, 0, 1, 0, 1, None),
-    (0x47454E31, 1, 1, 0, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, 0xFFFFFFFF),  # wrap
-    (0x47454E31, 1, 1, 50, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, 100),  # old replay
-    (0x47454E31, 1, 1, 100, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, 100),  # dup
-    (0x47454E31, 1, 1, 0x80000000, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, 0),  # jump
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),
+    (0xDEADBEEF, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),
+    (E, 99, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),
+    (E, 1, 0, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),
+    (E, 1, 1, 1, 100, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 150, 1, 0, 1, None, 0),
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 0, 0, 1, None, 0),
+    (E, 1, 1, 1, 0, 50, 5.0, 0.0, 1, 0, 1, 0, 1, None, 0),
+    (E, 1, 1, 1, 0, 50, 0.5, -2.0, 1, 0, 1, 0, 1, None, 0),
+    (E, 1, 1, 10, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, 10, 0),  # replay
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 3, 0, 1, 0, 1, None, 0),
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 3, None, 0),  # locked
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 1, 3, None, 0),  # reset
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 2, 0, 1, 0, 1, None, 0),  # degraded
+    (E, 1, 1, 1, 0, 50, float("nan"), 0.0, 1, 0, 1, 0, 1, None, 0),
+    (E, 1, 1, 1, 0, 50, 0.5, float("inf"), 1, 0, 1, 0, 1, None, 0),
+    (0xDEADBEEF, 1, 1, 1, 0, 50, float("nan"), 0.0, 1, 0, 1, 0, 1, None, 0),
+    (E, 1, 1, 0, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, 0xFFFFFFFF, 0),  # wrap
+    (E, 1, 1, 50, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, 100, 0),  # old replay
+    (E, 1, 1, 100, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, 100, 0),  # dup
+    (E, 1, 1, 0x80000000, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, 0, 0),  # jump
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None, 1),  # estop
+    (E, 1, 1, 1, 0, 50, 9.0, 0.0, 1, 0, 1, 0, 1, None, 1),  # estop>speed
+    (0xDEADBEEF, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None, 1),  # magic>estop
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None, 2),  # estop bad value
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 3, None, 1),  # estop while locked
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 1, 3, None, 1),  # estop blocks reset
 ]
 
 
@@ -60,13 +68,14 @@ def _build_harness(repo_root: Path, tmp_path: Path) -> Path:
 
 def _expected(vector) -> tuple[str, str, int]:
     (magic, ver, size_ok, seq, now, dl, lin, ang, req, age, sim, rst,
-     state_in, last_ov) = vector
+     state_in, last_ov, estop) = vector
     ctx = gp.GuardContext(last_seq=last_ov if last_ov is not None else seq - 1,
                           state=state_in, reset_armed=bool(rst))
     cmd = {"magic": magic, "version": ver, "size_ok": bool(size_ok), "seq": seq,
            "now_ms": now, "deadline_ms": dl, "linear_mps": float(lin),
            "angular_radps": float(ang), "req_state": req,
-           "sensor_age_ms": age, "sim_connected": bool(sim)}
+           "sensor_age_ms": age, "sim_connected": bool(sim),
+           "estop_engaged": estop}
     v = gp.decide(cmd, ctx, LIMITS)
     return v["decision"], v["reason"], v["state_out"]
 
@@ -75,12 +84,13 @@ def test_c_python_conformance(repo_root, tmp_path):
     binary = _build_harness(repo_root, tmp_path)
     lines = ["LIMITS 1.2 1.0 100"]
     for vector in VECTORS:
-        if vector[-1] is not None:
-            lines.append(f"SEQ {vector[-1]}")
+        if vector[-2] is not None:
+            lines.append(f"SEQ {vector[-2]}")
         (magic, ver, size_ok, seq, now, dl, lin, ang, req, age, sim, rst,
-         state_in, _last) = vector
+         state_in, _last, estop) = vector
         lines.append(f"{magic:X} {ver} {size_ok} {seq} {now} {dl} "
-                     f"{lin!r} {ang!r} {req} {age} {sim} {rst} {state_in}")
+                     f"{lin!r} {ang!r} {req} {age} {sim} {rst} {state_in} "
+                     f"{estop}")
     proc = subprocess.run([str(binary)], input="\n".join(lines) + "\n",
                           capture_output=True, text=True, timeout=60)
     assert proc.returncode == 0, proc.stderr

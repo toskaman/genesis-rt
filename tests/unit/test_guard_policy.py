@@ -15,7 +15,7 @@ def _cmd(**over):
             "seq": 1, "now_ms": 0, "deadline_ms": 50,
             "linear_mps": 0.5, "angular_radps": 0.0,
             "req_state": gp.ST_NOMINAL, "sensor_age_ms": 0,
-            "sim_connected": True}
+            "sim_connected": True, "estop_engaged": 0}
     base.update(over)
     return base
 
@@ -37,6 +37,7 @@ def test_limits_come_from_ir(amr_ir):
     ("now_ms", 60, gp.R_OVERDUE_DEADLINE, False),
     ("sensor_age_ms", 101, gp.R_STALE_SENSOR, True),
     ("sim_connected", False, gp.R_SIM_DISCONNECTED, True),
+    ("estop_engaged", 1, gp.R_ESTOP, True),
     ("linear_mps", 1.21, gp.R_SPEED_OVER_LIMIT, False),
     ("linear_mps", -5.0, gp.R_SPEED_OVER_LIMIT, False),
     ("angular_radps", 1.01, gp.R_ANGULAR_OVER_LIMIT, False),
@@ -169,6 +170,42 @@ def test_malformed_limits_denied_not_raised(bad_limits):
     ctx = gp.GuardContext()
     v = gp.decide(_cmd(), ctx, bad_limits)
     assert (v["decision"], v["reason"], v["state_out"]) == (gp.DENY, gp.R_MALFORMED, 3)
+
+
+def test_estop_dominates_speed_but_not_integrity():
+    """ESTOP is the first safety-content check: it wins over speed
+    limits, but a corrupt frame still reports its integrity reason."""
+    ctx = gp.GuardContext()
+    v = gp.decide(_cmd(estop_engaged=1, linear_mps=9.0), ctx, LIMITS)
+    assert (v["decision"], v["reason"], v["state_out"]) == (
+        gp.DENY, gp.R_ESTOP, gp.ST_SAFE_STOP)
+    v = gp.decide(_cmd(estop_engaged=1, magic=0xDEAD), ctx, LIMITS)
+    assert (v["decision"], v["reason"]) == (gp.DENY, gp.R_BAD_MAGIC)
+
+
+def test_estop_latch_needs_supervisor_reset():
+    ctx = gp.GuardContext()
+    v = gp.decide(_cmd(estop_engaged=1), ctx, LIMITS)
+    assert v["state_out"] == gp.ST_SAFE_STOP
+    ctx.state = v["state_out"]  # caller applies the latch
+    v = gp.decide(_cmd(estop_engaged=0), ctx, LIMITS)
+    assert (v["decision"], v["reason"]) == (gp.DENY, gp.R_BAD_TRANSITION)
+    ctx.reset_armed = True  # supervisor path only
+    v = gp.decide(_cmd(estop_engaged=0), ctx, LIMITS)
+    assert (v["decision"], v["reason"], v["state_out"]) == (
+        gp.ALLOW, gp.R_OK, gp.ST_NOMINAL)
+
+
+def test_estop_malformed_values_denied():
+    """Non-0/1 estop bytes are fail-closed; a missing field is too."""
+    ctx = gp.GuardContext()
+    for bad in (True, 2, 256, -1):
+        v = gp.decide(_cmd(estop_engaged=bad), ctx, LIMITS)
+        assert (v["decision"], v["reason"]) == (gp.DENY, gp.R_MALFORMED), bad
+    cmd = _cmd()
+    del cmd["estop_engaged"]
+    v = gp.decide(cmd, ctx, LIMITS)
+    assert (v["decision"], v["reason"]) == (gp.DENY, gp.R_MALFORMED)
 
 
 def test_bad_magic_wins_over_nan_c_parity_order():

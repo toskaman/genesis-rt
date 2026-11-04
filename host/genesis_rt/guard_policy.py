@@ -19,7 +19,9 @@ Parity contract (mirrors guard_policy.c exactly):
   The C struct cannot represent such values, so rejecting them cannot
   break parity on any input a real sender can produce.
 - Check order is magic -> version -> size -> NaN/Inf -> seq ->
-  deadline -> sensor -> sim -> speed -> angular -> transition.
+  deadline -> sensor -> sim -> estop -> speed -> angular -> transition.
+  estop_engaged is strict 0/1 (wire uint8); any other value is
+  MALFORMED, fail-closed.
 - Sequence freshness uses serial-number arithmetic (RFC 1982): with
   uint32 seq, delta = (seq - last_seq) mod 2^32 is accepted iff
   1 <= delta < 2^31. Counter wraparound (2^32-1 -> 0) is accepted;
@@ -59,6 +61,7 @@ R_SPEED_OVER_LIMIT = "SPEED_OVER_LIMIT"
 R_ANGULAR_OVER_LIMIT = "ANGULAR_OVER_LIMIT"
 R_BAD_TRANSITION = "BAD_TRANSITION"
 R_MALFORMED = "MALFORMED"
+R_ESTOP = "ESTOP"
 
 # Allowed state requests carried by a command: NOMINAL or DEGRADED only.
 # SAFE_STOP is entered by denial latching, exited only via supervisor reset.
@@ -77,7 +80,8 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
 
     cmd keys: magic, version, size_ok(bool), seq, now_ms, deadline_ms,
               linear_mps, angular_radps, req_state, sensor_age_ms,
-              sim_connected. Missing/oddly-typed fields => DENY MALFORMED.
+              sim_connected, estop_engaged (int 0/1).
+              Missing/oddly-typed fields => DENY MALFORMED.
     """
     def deny(reason: str, latch: bool) -> dict[str, Any]:
         state_out = ST_SAFE_STOP if latch else ctx.state
@@ -85,7 +89,7 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
                 "state_out": state_out, "applied": False}
 
     int_fields = ("magic", "version", "seq", "now_ms", "deadline_ms",
-                  "req_state", "sensor_age_ms")
+                  "req_state", "sensor_age_ms", "estop_engaged")
     try:
         for _key in int_fields + ("linear_mps", "angular_radps"):
             if isinstance(cmd[_key], bool):
@@ -101,6 +105,7 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
         req_state = int(cmd["req_state"])
         sensor_age_ms = int(cmd["sensor_age_ms"])
         sim_connected = bool(cmd["sim_connected"])
+        estop = int(cmd["estop_engaged"])
     except (KeyError, TypeError, ValueError, OverflowError):
         return deny(R_MALFORMED, latch=True)
 
@@ -108,7 +113,7 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
         0 <= magic < (1 << 32) and 0 <= version < (1 << 16)
         and 0 <= seq < (1 << 32) and 0 <= now_ms < (1 << 32)
         and 0 <= deadline_ms < (1 << 32) and 0 <= req_state < (1 << 16)
-        and 0 <= sensor_age_ms < (1 << 32)
+        and 0 <= sensor_age_ms < (1 << 32) and estop in (0, 1)
     )
     if not wire_ok:
         return deny(R_MALFORMED, latch=True)
@@ -139,6 +144,8 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
         return deny(R_STALE_SENSOR, latch=True)
     if not sim_connected:
         return deny(R_SIM_DISCONNECTED, latch=True)
+    if estop:
+        return deny(R_ESTOP, latch=True)
     if abs(linear) > max_linear:
         return deny(R_SPEED_OVER_LIMIT, latch=False)
     if abs(angular) > max_angular:

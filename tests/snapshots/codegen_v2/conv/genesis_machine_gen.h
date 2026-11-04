@@ -4,7 +4,7 @@
  * GENERATED FILE -- DO NOT EDIT.
  * machine: conveyor-demo-01 (conveyor)
  * generator: 0.1.0, machine templates: 2.0
- * ir_sha256: c938068d4cc9a60cc5718100232c4415f07732f40e5eb03b81035d313d969e90
+ * ir_sha256: b106e4cdbfc6f78b79b1ef0be75fa35d31c845dd8556831a5edb676373945ae1
  *
  * Machine-specific queries derived from Machine IR v2: state machine,
  * command contracts, fault responses, actuator bounds, sensor models,

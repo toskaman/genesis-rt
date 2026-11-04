@@ -28,7 +28,8 @@
       "nominal_navigation",
       "speed_command_over_limit",
       "delayed_command",
-      "belt_jam"
+      "belt_jam",
+      "estop_pressed"
     ]
   }
 }

@@ -4,7 +4,8 @@
  * Shared guard policy implementation. Order of checks MUST match
  * host/genesis_rt/guard_policy.py exactly:
  * magic -> version -> size -> seq -> deadline -> sensor -> sim link ->
- * speed -> angular -> state transition. Fail-closed throughout.
+ * estop -> speed -> angular -> state transition. Fail-closed throughout.
+ * estop_engaged is strict 0/1: any other byte value is MALFORMED.
  *
  * Sequence freshness uses serial-number arithmetic (RFC 1982): with
  * uint32 seq, delta = seq - last_seq (unsigned wraparound) is accepted
@@ -55,6 +56,10 @@ genesis_verdict_t genesis_guard_decide(const genesis_cmd_t *cmd, uint32_t frame_
         return deny(ctx, GENESIS_R_STALE_SENSOR, 1);
     if (!cmd->sim_connected)
         return deny(ctx, GENESIS_R_SIM_DISCONNECTED, 1);
+    if (cmd->estop_engaged > 1)
+        return deny(ctx, GENESIS_R_MALFORMED, 1);
+    if (cmd->estop_engaged)
+        return deny(ctx, GENESIS_R_ESTOP, 1);
     if (fabs((double)cmd->linear_mps) > limits->max_linear_speed_mps)
         return deny(ctx, GENESIS_R_SPEED_OVER_LIMIT, 0);
     if (fabs((double)cmd->angular_radps) > limits->max_angular_speed_radps)
@@ -96,6 +101,7 @@ const char *genesis_reason_str(uint32_t reason) {
     case GENESIS_R_SPEED_OVER_LIMIT: return "SPEED_OVER_LIMIT";
     case GENESIS_R_ANGULAR_OVER_LIMIT: return "ANGULAR_OVER_LIMIT";
     case GENESIS_R_BAD_TRANSITION: return "BAD_TRANSITION";
+    case GENESIS_R_ESTOP: return "ESTOP";
     default: return "MALFORMED";
     }
 }

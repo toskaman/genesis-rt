@@ -22,14 +22,72 @@ def test_conveyor_subset_passes(repo_root):
     ir = load_ir_file(repo_root / "examples" / "conveyor-demo" / "machine-ir.json")
     assert ir["verification"]["scenarios"] == sorted([
         "nominal_navigation", "speed_command_over_limit",
-        "delayed_command", "belt_jam"])  # validate_ir sorts lists
+        "delayed_command", "belt_jam", "estop_pressed"])  # validate_ir sorts
     results = faultlab.run_all(ir)
     assert {r["scenario"] for r in results} == set(
         ir["verification"]["scenarios"])
-    assert all(r["status"] == "pass" for r in results)
+    assert [(r["scenario"], r["status"], r["checks"]) for r in results
+            if r["status"] != "pass"] == []
     jam = next(r for r in results if r["scenario"] == "belt_jam")
     assert {c["name"] for c in jam["checks"]} == {
         "jam_observed", "zero_creep", "recovery", "decided_every_tick"}
+    estop = next(r for r in results if r["scenario"] == "estop_pressed")
+    assert {c["name"] for c in estop["checks"]} == {
+        "all_denied_estop", "safe_stop_latched", "no_motion_while_estop",
+        "reset_armed_once", "recovered_allows"}
+
+
+def _estop_trace(window, decisions=("DENY",), reason="ESTOP", state=3,
+                 frozen=True, kind="diff"):
+    ticks = []
+    for i, t in enumerate(range(window.start_ms, window.end_ms, 20)):
+        snap = {"position": 1.0, "speed": 0.0, "jammed": False} if kind == "belt" \
+            else {"x": 1.0 if frozen or i == 0 else 1.0 + i * 0.01,
+                  "y": 0.0, "theta": 0.0}
+        ticks.append({"t": t, "kind": "tick", "fault": "estop",
+                      "decision": decisions[0] if len(decisions) == 1
+                      else decisions[i % len(decisions)],
+                      "reason": reason, "state": state, **snap})
+    return ticks
+
+
+def test_estop_oracle_catches_allow_and_motion():
+    """An in-window ALLOW fails all_denied_estop; drift fails
+    no_motion_while_estop."""
+    from genesis_rt.faultlab import FaultWindow, _o_estop
+    window = FaultWindow("estop", 1000, 1500)
+    allowed = _estop_trace(window, decisions=("ALLOW",), reason="OK", state=1)
+    stats = {"stop_latched_at": None, "final_state": 1}
+    assert _check_map(_o_estop(stats, allowed, None, window))[
+        "all_denied_estop"].passed is False
+    drifting = _estop_trace(window, frozen=False)
+    stats = {"stop_latched_at": 1000, "final_state": 1}
+    assert _check_map(_o_estop(stats, drifting, None, window))[
+        "no_motion_while_estop"].passed is False
+
+
+def test_estop_oracle_requires_reset_and_recovery():
+    from genesis_rt.faultlab import FaultWindow, _o_estop
+    window = FaultWindow("estop", 1000, 1500)
+    ticks = _estop_trace(window)
+    stats = {"stop_latched_at": 1000, "final_state": 3}
+    assert _check_map(_o_estop(stats, ticks, None, window))[
+        "reset_armed_once"].passed is False
+    assert _check_map(_o_estop(stats, ticks, None, window))[
+        "recovered_allows"].passed is False
+
+
+def test_estop_pressed_passes_on_both_sims(amr_ir, repo_root):
+    """estop is guard-level: identical oracle contract on DiffDriveSim
+    and BeltSim (AMR IR need not declare it)."""
+    from genesis_rt.ir import load_ir_file
+    conv = load_ir_file(repo_root / "examples" / "conveyor-demo" / "machine-ir.json")
+    for ir in (amr_ir, conv):
+        res = faultlab.run_scenario(ir, "estop_pressed")
+        assert res["status"] == "pass", (ir["machine"]["kind"], res["checks"])
+        assert {c["name"] for c in res["checks"]} == {
+            "all_denied_estop", "safe_stop_latched", "no_motion_while_estop",
+            "reset_armed_once", "recovered_allows"}
 
 
 def test_unknown_scenario_rejected(amr_ir):

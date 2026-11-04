@@ -37,7 +37,8 @@ typedef enum {
     GENESIS_R_SPEED_OVER_LIMIT = 8,
     GENESIS_R_ANGULAR_OVER_LIMIT = 9,
     GENESIS_R_BAD_TRANSITION = 10,
-    GENESIS_R_MALFORMED = 11
+    GENESIS_R_MALFORMED = 11,
+    GENESIS_R_ESTOP = 12
 } genesis_reason_t;
 
 /* Command frame: controller -> guard. Packed, fixed 36 bytes. */
@@ -53,7 +54,8 @@ typedef struct {
     float angular_radps;
     uint32_t sensor_age_ms;
     uint8_t sim_connected;
-    uint8_t reserved[3];
+    uint8_t estop_engaged; /* 0/1 only; formerly reserved[0], frame still 36 B */
+    uint8_t reserved[2];
 } genesis_cmd_t;
 
 /* Reply frame: guard -> controller. Fixed 12 bytes. */

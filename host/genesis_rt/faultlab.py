@@ -35,14 +35,14 @@ class Check:
 
 @dataclass
 class FaultWindow:
-    kind: str  # none|over_limit|stale|crash|delayed|dropped|corrupted|disconnect|jam
+    kind: str  # none|over_limit|stale|crash|delayed|dropped|corrupted|disconnect|jam|estop
     start_ms: int = 1000
     end_ms: int = 1150
 
 
 KNOWN_FAULTS = frozenset(
     {"none", "over_limit", "stale", "crash", "delayed", "dropped",
-     "corrupted", "disconnect", "jam"})
+     "corrupted", "disconnect", "jam", "estop"})
 
 
 SCENARIO_WINDOWS = {
@@ -55,6 +55,7 @@ SCENARIO_WINDOWS = {
     "corrupted_message": FaultWindow("corrupted", 1000, 1050),
     "simulator_disconnect": FaultWindow("disconnect", 1000, 1200),
     "belt_jam": FaultWindow("jam", 1000, 1500),
+    "estop_pressed": FaultWindow("estop", 1000, 1500),
 }
 
 
@@ -139,6 +140,7 @@ def run_scenario(ir: dict[str, Any], scenario: str,
                 "req_state": gp.ST_NOMINAL,
                 "sensor_age_ms": sensor_age,
                 "sim_connected": fault != "disconnect",
+                "estop_engaged": 1 if fault == "estop" else 0,
             }
 
             # --- supervisor side: arm a single reset once the fault ends ---
@@ -327,6 +329,40 @@ def _o_belt_jam(stats, trace, limits, window):
     ]
 
 
+def _motion_frozen(first: dict[str, Any], last: dict[str, Any]) -> bool:
+    if "position" in first:  # BeltSim snapshot
+        return bool(first["position"] == last["position"])
+    return bool((first["x"], first["y"], first["theta"])
+                == (last["x"], last["y"], last["theta"]))
+
+
+def _o_estop(stats, trace, limits, window):
+    in_w = _ticks_in(trace, window.start_ms, window.end_ms)
+    bad = [e for e in in_w
+           if e["decision"] != gp.DENY or e["reason"] != gp.R_ESTOP]
+    latched = stats["stop_latched_at"]
+    resets = [e for e in trace if e.get("kind") == "supervisor_reset_armed"]
+    post = [e for e in trace if e.get("kind") == "tick"
+            and e["t"] >= window.end_ms]
+    post_allows = [e for e in post if e["decision"] == gp.ALLOW]
+    frozen = len(in_w) >= 2 and _motion_frozen(in_w[0], in_w[-1])
+    return [
+        _c("all_denied_estop", len(in_w) > 0 and not bad,
+           f"in_window={len(in_w)} non_estop_denials={len(bad)}"),
+        _c("safe_stop_latched",
+           latched is not None and window.start_ms <= latched < window.end_ms,
+           f"latched_at={latched}"),
+        _c("no_motion_while_estop", frozen,
+           f"window_ticks={len(in_w)}"),
+        _c("reset_armed_once",
+           len(resets) == 1 and resets[0]["t"] >= window.end_ms,
+           f"resets={len(resets)}"),
+        _c("recovered_allows",
+           stats["final_state"] == gp.ST_NOMINAL and len(post_allows) > 0,
+           f"state={stats['final_state']} post_allows={len(post_allows)}"),
+    ]
+
+
 _ORACLES: dict[str, Callable[..., list[Check]]] = {
     "nominal_navigation": _o_nominal,
     "speed_command_over_limit": _o_over_limit,
@@ -337,6 +373,7 @@ _ORACLES: dict[str, Callable[..., list[Check]]] = {
     "corrupted_message": _o_corrupted,
     "simulator_disconnect": _o_disconnect,
     "belt_jam": _o_belt_jam,
+    "estop_pressed": _o_estop,
 }
 
 

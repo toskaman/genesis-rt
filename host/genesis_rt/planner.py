@@ -74,6 +74,7 @@ _CONVEYOR_SCENARIOS = (
     "speed_command_over_limit",
     "delayed_command",
     "belt_jam",
+    "estop_pressed",
 )
 _KIND_SCENARIOS = {
     "differential_drive_robot": _AMR_SCENARIOS,

@@ -6,6 +6,7 @@
  *
  * Input line: magic version size_ok seq now_ms deadline_ms linear angular
  *             req_state sensor_age_ms sim_connected reset_armed state_in
+ *             [estop_engaged] (optional 14th field; default 0)
  * Output line: DECISION REASON STATE_OUT  (e.g. "DENY SPEED_OVER_LIMIT 1")
  */
 #include <stdint.h>
@@ -18,6 +19,7 @@ int main(void) {
     genesis_limits_t limits = {1.2, 1.0, 100};
     unsigned magic, version, size_ok, seq, now_ms, deadline_ms;
     unsigned req_state, sensor_age, sim_connected, reset_armed, state_in;
+    unsigned estop;
     int have_limits = 0;
     int seq_override = 0;
     unsigned seq_base = 0;
@@ -46,13 +48,19 @@ int main(void) {
             fflush(stdout);
             continue;
         }
-        if (sscanf(line, "%x %u %u %u %u %u %lf %lf %u %u %u %u %u", &magic, &version,
-                   &size_ok, &seq, &now_ms, &deadline_ms, &linear, &angular,
-                   &req_state, &sensor_age, &sim_connected, &reset_armed,
-                   &state_in) != 13) {
-            printf("DENY MALFORMED 3\n");
-            fflush(stdout);
-            continue;
+        {
+            int n = sscanf(line, "%x %u %u %u %u %u %lf %lf %u %u %u %u %u %u", &magic,
+                           &version, &size_ok, &seq, &now_ms, &deadline_ms, &linear,
+                           &angular, &req_state, &sensor_age, &sim_connected,
+                           &reset_armed, &state_in, &estop);
+            if (n == 13) {
+                estop = 0; /* legacy vectors predate the estop wire */
+            } else if (n != 14 || estop > 255) {
+                /* >255 would truncate on the uint8 cast and fake parity */
+                printf("DENY MALFORMED 3\n");
+                fflush(stdout);
+                continue;
+            }
         }
         genesis_cmd_t cmd;
         cmd.magic = (uint32_t)magic;
@@ -65,7 +73,8 @@ int main(void) {
         cmd.angular_radps = (float)angular;
         cmd.sensor_age_ms = sensor_age;
         cmd.sim_connected = (uint8_t)(sim_connected ? 1 : 0);
-        cmd.reserved[0] = cmd.reserved[1] = cmd.reserved[2] = 0;
+        cmd.estop_engaged = (uint8_t)estop;
+        cmd.reserved[0] = cmd.reserved[1] = 0;
         genesis_guard_ctx_t ctx;
         if (seq_override) {
             ctx.last_seq = seq_base;

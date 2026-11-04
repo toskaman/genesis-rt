@@ -1,5 +1,19 @@
 # Progress log
 
+## 2026-11-04 (later) -- P1 #12 tranche B : estop niveau garde (host + C)
+
+- Fil : `reserved[0]` -> `estop_engaged` strict 0/1, trame 36 o
+  inchangee (`_Static_assert`) ; `R_ESTOP=12`, deny + latch, ordre
+  ... -> sim -> estop -> speed ... dans les deux miroirs.
+- Harnais `guard_vector` : 14e champ optionnel (repli 13, >255
+  refuse) ; 27 vecteurs conformite C/Python verts (estop, dominance
+  vitesse, integrite d'abord, reset bloque si estop).
+- Scenario `estop_pressed` (registre=10) : boucle `fault`, oracle
+  5 checks (tout DENY ESTOP, latch, zero mouvement, reset unique,
+  reprise) ; passe sur les 2 sims (AMR garde ses 8, conveyor -> 5).
+- Preuve : suite 290/290, `qcc -Werror` 10 fichiers 0 warning,
+  faultinject 9/9 inchange (memset zeroise l'estop).
+
 ## 2026-11-04 (later) -- P1 #12 tranche A : conveyor simule (BeltSim + jam)
 
 - `simulator.py` : `BeltSim` (position/vitesse/jammed + aliases

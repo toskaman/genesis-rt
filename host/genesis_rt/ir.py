@@ -46,6 +46,7 @@ SCENARIO_IDS = (
     "corrupted_message",
     "simulator_disconnect",
     "belt_jam",
+    "estop_pressed",
 )
 
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9-_]{0,63}$")
