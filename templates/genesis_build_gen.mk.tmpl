@@ -23,7 +23,7 @@ qnx:
 	$$(QCC) $$(QCC_FLAGS) -o genesis_guard $$(GENESIS_SRC)/common/guard_policy.c $$(GENESIS_SRC)/guard/genesis_guard.c
 	$$(QCC) $$(QCC_FLAGS) -o genesis_controller $$(GENESIS_SRC)/common/guard_policy.c $$(GENESIS_SRC)/controller/genesis_controller.c
 	$$(QCC) $$(QCC_FLAGS) -o genesis_device $$(GENESIS_SRC)/device/genesis_device.c
-	$$(QCC) $$(QCC_FLAGS) -o genesis_status $$(GENESIS_SRC)/status/genesis_status.c
+	$$(QCC) $$(QCC_FLAGS) -o genesis_status $$(GENESIS_SRC)/common/guard_policy.c $$(GENESIS_SRC)/status/genesis_status.c
 	$$(QCC) $$(QCC_FLAGS) -o genesis_supervisor $$(GENESIS_SRC)/supervisor/genesis_supervisor.c
 	$$(QCC) $$(QCC_FLAGS) -o genesis_faultinject $$(GENESIS_SRC)/faultinject/genesis_faultinject.c
 

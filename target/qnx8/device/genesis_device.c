@@ -2,9 +2,12 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * genesis_device: SIMULATED actuator/sensor endpoint.
- * Holds virtual device state (position, velocity, sensor age) and
- * applies only commands forwarded by genesis_guard. No physical motor
- * support exists in this component by design (MVP: simulation only).
+ * Holds virtual device state (position, velocity, sensor age).
+ * NOTE (honest MVP boundary): the guard->device forwarding channel is
+ * not wired yet, so this process currently holds state without
+ * consuming commands; only the guard allow/deny path is live. Wiring
+ * the validated-command channel is tracked P0 work. No physical motor
+ * support exists in this component by design (simulation only).
  */
 #include <stdio.h>
 #include <string.h>

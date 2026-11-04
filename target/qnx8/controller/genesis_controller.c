@@ -23,6 +23,17 @@ static uint64_t now_ms(void) {
     return (uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u;
 }
 
+/* One-shot 2 s guard-call timeout, re-armed before every MsgSend so a
+ * hung server fails loudly instead of wedging the control loop. */
+static int arm_ipc_timeout(void) {
+    struct sigevent ev;
+    uint64_t to = 2000000000ULL;
+    memset(&ev, 0, sizeof ev);
+    ev.sigev_notify = SIGEV_UNBLOCK;
+    return TimerTimeout(CLOCK_MONOTONIC, _NTO_TIMEOUT_SEND | _NTO_TIMEOUT_REPLY,
+                        &ev, &to, NULL);
+}
+
 int main(int argc, char **argv) {
     int period_ms = 10;
     if (argc > 1)
@@ -37,6 +48,9 @@ int main(int argc, char **argv) {
         return 1;
     }
     printf("controller: connected to '%s', period=%dms\n", GENESIS_ATTACH_NAME, period_ms);
+    /* Drift-free schedule: absolute wake-ups, not usleep() chaining. */
+    struct timespec next;
+    clock_gettime(CLOCK_MONOTONIC, &next);
     uint32_t seq = 0;
     for (;;) {
         genesis_cmd_t cmd;
@@ -46,14 +60,23 @@ int main(int argc, char **argv) {
         cmd.req_state = GENESIS_ST_NOMINAL;
         cmd.seq = ++seq;
         cmd.now_ms = (uint32_t)now_ms();
+        /* NOTE: uint32 ms wraps every ~49.7 d; a command straddling the
+         * wrap is denied OVERDUE once, then the stream resumes. A 64-bit
+         * time design is future work (see docs/limitations-and-safety.md). */
         cmd.deadline_ms = cmd.now_ms + (uint32_t)period_ms + 20u;
         cmd.linear_mps = 0.5f; /* virtual corridor cruise */
         cmd.angular_radps = 0.0f;
         cmd.sensor_age_ms = 0;
         cmd.sim_connected = 1;
         genesis_reply_t reply;
-        memset(&reply, 0, sizeof reply);
-        if (MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply) < 0) {
+        /* Fail-closed fill: ALLOW is 0, so a short/empty reply must never
+         * look like an approval. MsgSend returns 0/-1 (no byte count). */
+        memset(&reply, 0xFF, sizeof reply);
+        if (arm_ipc_timeout() != 0) {
+            fprintf(stderr, "controller: TimerTimeout failed: %s\n", strerror(errno));
+            return 1;
+        }
+        if (MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply) != 0) {
             fprintf(stderr, "controller: MsgSend failed: %s\n", strerror(errno));
             return 1;
         }
@@ -61,7 +84,16 @@ int main(int argc, char **argv) {
                reply.decision == GENESIS_ALLOW ? "ALLOW" : "DENY", reply.reason,
                reply.state_out);
         fflush(stdout);
-        usleep((useconds_t)period_ms * 1000u);
+        next.tv_nsec += (long)period_ms * 1000000L;
+        while (next.tv_nsec >= 1000000000L) {
+            next.tv_nsec -= 1000000000L;
+            next.tv_sec++;
+        }
+        if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, NULL) != 0) {
+            fprintf(stderr, "controller: clock_nanosleep failed: %s\n",
+                    strerror(errno));
+            return 1;
+        }
     }
     return 0;
 }

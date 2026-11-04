@@ -11,6 +11,8 @@ htmlcov/
 # Run outputs (samples are committed explicitly under artifacts/samples/)
 artifacts/runs/
 artifacts/*.tmp
+artifacts/target-build/
+artifacts/qemu-boot/
 # Local UI state
 ui/*.local.json
 # Editors / OS

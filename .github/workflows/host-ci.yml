@@ -14,7 +14,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test deps
-        run: pip install pytest pyyaml
+        run: pip install pytest pyyaml fastapi httpx
       - name: Host C policy check
         run: |
           cc -O1 -Wall -Wextra -Itarget/qnx8/include -Itarget/qnx8/common \

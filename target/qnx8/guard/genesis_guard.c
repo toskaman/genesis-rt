@@ -18,6 +18,10 @@
 
 static genesis_limits_t g_limits = {1.2, 1.0, 100};
 static genesis_guard_ctx_t g_ctx = {0, GENESIS_ST_NOMINAL, 0};
+static uint64_t g_allows = 0;
+static uint64_t g_denies = 0;
+static uint32_t g_last_reason = GENESIS_R_OK;
+static uint32_t g_ndropped = 0;
 
 int main(int argc, char **argv) {
     (void)argc;
@@ -30,27 +34,57 @@ int main(int argc, char **argv) {
     printf("guard: attached as '%s' chid=%d\n", GENESIS_ATTACH_NAME, attach->chid);
     fflush(stdout);
     for (;;) {
-        genesis_cmd_t cmd;
-        memset(&cmd, 0, sizeof cmd);
-        int rcvid = MsgReceive(attach->chid, &cmd, sizeof cmd, NULL);
+        union {
+            genesis_cmd_t cmd;
+            genesis_stats_req_t stats;
+            unsigned char raw[64];
+        } msg;
+        struct _msg_info info;
+        memset(&msg, 0, sizeof msg);
+        memset(&info, 0, sizeof info);
+        int rcvid = MsgReceive(attach->chid, &msg, sizeof msg, &info);
         if (rcvid < 0) {
             fprintf(stderr, "guard: MsgReceive failed: %s\n", strerror(errno));
             continue;
         }
         if (rcvid == 0) {
-            /* Pulse: acknowledge, never treat as a command. */
-            MsgReply(rcvid, EOK, NULL, 0);
+            /* Pulse: never reply, never treat as a command. */
+            continue;
+        }
+        /* The policy sees the SENDER's byte count, never our buffer size:
+         * short or overlong frames must hit BAD_SIZE. */
+        uint32_t nbytes = (uint32_t)info.msglen;
+        if (nbytes == (uint32_t)sizeof(msg.stats) &&
+            msg.stats.magic == GENESIS_STATS_MAGIC &&
+            msg.stats.version == GENESIS_STATS_VERSION) {
+            genesis_stats_reply_t s;
+            s.state = g_ctx.state;
+            s.last_reason = g_last_reason;
+            s.last_seq = g_ctx.last_seq;
+            s.ndropped = g_ndropped;
+            s.allows = g_allows;
+            s.denies = g_denies;
+            MsgReply(rcvid, EOK, &s, sizeof s);
             continue;
         }
         genesis_verdict_t v =
-            genesis_guard_decide(&cmd, (uint32_t)sizeof cmd, &g_ctx, &g_limits);
+            genesis_guard_decide(&msg.cmd, nbytes, &g_ctx, &g_limits);
         g_ctx.state = v.state_out;
+        if (v.decision == GENESIS_ALLOW) {
+            g_allows++;
+        } else {
+            g_denies++;
+            g_last_reason = v.reason;
+            if (v.reason == GENESIS_R_BAD_MAGIC || v.reason == GENESIS_R_BAD_VERSION ||
+                v.reason == GENESIS_R_BAD_SIZE || v.reason == GENESIS_R_MALFORMED)
+                g_ndropped++;
+        }
         genesis_reply_t reply;
         reply.decision = v.decision;
         reply.reason = v.reason;
         reply.state_out = v.state_out;
         MsgReply(rcvid, EOK, &reply, sizeof reply);
-        printf("guard: seq=%u decision=%s reason=%s state=%u\n", cmd.seq,
+        printf("guard: seq=%u decision=%s reason=%s state=%u\n", msg.cmd.seq,
                v.decision == GENESIS_ALLOW ? "ALLOW" : "DENY",
                genesis_reason_str(v.reason), v.state_out);
         fflush(stdout);

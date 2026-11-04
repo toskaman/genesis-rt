@@ -17,6 +17,7 @@ import argparse
 import json
 import os
 import platform
+import re
 import socket
 import subprocess
 import sys
@@ -286,41 +287,76 @@ TARGET_MATRIX = [
      " ./genesis_guard > guard.log 2>&1 & sleep 3; ./genesis_faultinject;"
      " echo FI_EXIT=$?; sleep 1; echo ---GUARD-LOG---; cat guard.log;"
      " slay genesis_guard"),
-    ("status_resmgr",
-     "cd /tmp/genesis; sudo -n ./genesis_status > status-root.log 2>&1 & sleep 3;"
-     " cat /dev/genesis/status; echo STATUS_CAT_EXIT=$?;"
-     " sudo -n slay genesis_status"),
+    ("status_live",
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+     " sudo -n slay genesis_status 2>/dev/null; rm -f guard.log;"
+     " ./genesis_guard > guard.log 2>&1 & sleep 2;"
+     " sudo -n ./genesis_status > status-root.log 2>&1 & sleep 2;"
+     " echo ---STATUS-BEFORE---; cat /dev/genesis/status;"
+     " ./genesis_faultinject > fi-status.log 2>&1; echo FI_EXIT=$?;"
+     " echo ---STATUS-AFTER---; cat /dev/genesis/status; echo STATUS_CAT_EXIT=$?;"
+     " slay genesis_guard; sudo -n slay genesis_status"),
     ("controller_flow",
      "cd /tmp/genesis; rm -f guard.log ctrl.log;"
      " ./genesis_guard > guard.log 2>&1 & sleep 2;"
      " ./genesis_controller 100 > ctrl.log 2>&1 & sleep 6;"
      " slay genesis_controller; slay genesis_guard;"
      " grep -c ALLOW guard.log; grep -c DENY guard.log || true"),
-    ("supervisor_set",
-     "cd /tmp/genesis; ./genesis_supervisor > sup.log 2>&1 & sleep 6;"
+    ("supervisor_respawn",
+     "cd /tmp/genesis; slay genesis_supervisor 2>/dev/null;"
+     " slay genesis_guard 2>/dev/null; slay genesis_controller 2>/dev/null;"
+     " slay genesis_device 2>/dev/null; rm -f sup.log; sleep 1;"
+     " ./genesis_supervisor > sup.log 2>&1 & sleep 4;"
+     " slay genesis_device; sleep 6;"
      " pidin -F %n 2>/dev/null | grep -c genesis;"
+     " grep -c RESPAWN sup.log;"
      " slay genesis_supervisor; slay genesis_guard;"
      " slay genesis_controller; slay genesis_device"),
+    ("supervisor_giveup",
+     "cd /tmp/genesis; slay genesis_supervisor 2>/dev/null;"
+     " slay genesis_guard 2>/dev/null; slay genesis_controller 2>/dev/null;"
+     " slay genesis_device 2>/dev/null; rm -f sup2.log; sleep 1;"
+     " ./genesis_supervisor > sup2.log 2>&1 & sleep 4;"
+     " for i in 1 2 3 4; do slay genesis_guard; sleep 6; done; sleep 2;"
+     " pidin -F %n 2>/dev/null | grep -c genesis || true;"
+     " grep -c GIVE_UP sup2.log;"
+     " slay genesis_supervisor 2>/dev/null; slay genesis_guard 2>/dev/null;"
+     " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; true"),
 ]
 
 
 def _matrix_check(name: str, body: str, status: int) -> dict:
-    """Parse one matrix step into a pass/fail check (strict substrings)."""
+    """Parse one matrix step into a pass/fail check (strict assertions)."""
     if name == "target_info":
         ok = status == 0 and "QNX" in body and "x86_64" in body
     elif name == "faultinject":
         # compound exit code is slay's (1 even on success); FI_EXIT is authoritative
-        ok = "ALL 6 CHECKS PASS" in body and "FI_EXIT=0" in body
-    elif name == "status_resmgr":
-        ok = "STATUS_CAT_EXIT=0" in body and "state=" in body
+        ok = ("ALL 9 CHECKS PASS" in body and "FI_EXIT=0" in body
+              and body.count("PASS ") >= 9)
+    elif name == "status_live":
+        # Live telemetry: counters must move with real guard traffic and the
+        # SAFE_STOP latch (left by faultinject) must be visible as state=3.
+        allows = [int(n) for n in re.findall(r"allows=(\d+)", body)]
+        denies = [int(n) for n in re.findall(r"denies=(\d+)", body)]
+        ok = ("STATUS_CAT_EXIT=0" in body and "FI_EXIT=0" in body
+              and "last_reason=BAD_TRANSITION" in body
+              and allows == [0, 1] and denies == [0, 8]
+              and "state=1 " in body.split("---STATUS-AFTER---")[0]
+              and body.rsplit("state=", 1)[1].startswith("3 "))
     elif name == "controller_flow":
         ok = False
         for line in body.splitlines():
             line = line.strip()
             if line.isdigit() and int(line) >= 50:
                 ok = True  # >=50 ALLOW lines in 6 s at 100 ms
-    elif name == "supervisor_set":
-        ok = any(line.strip() == "4" for line in body.splitlines())
+    elif name == "supervisor_respawn":
+        digits = [line.strip() for line in body.splitlines() if line.strip().isdigit()]
+        # set back to 4 after respawn, >=1 RESPAWN marker in sup.log
+        ok = len(digits) >= 2 and digits[0] == "4" and int(digits[1]) >= 1
+    elif name == "supervisor_giveup":
+        digits = [line.strip() for line in body.splitlines() if line.strip().isdigit()]
+        # set halted (0 genesis processes), >=1 GIVE_UP marker in sup2.log
+        ok = len(digits) >= 2 and digits[0] == "0" and int(digits[1]) >= 1
     else:
         ok = False
     return {"name": name, "passed": ok, "detail": body[-500:].strip().replace("\n", " | ")}

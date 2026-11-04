@@ -39,7 +39,7 @@ typedef enum {
     GENESIS_R_MALFORMED = 11
 } genesis_reason_t;
 
-/* Command frame: controller -> guard. Packed, fixed 40 bytes. */
+/* Command frame: controller -> guard. Packed, fixed 36 bytes. */
 #pragma pack(push, 1)
 typedef struct {
     uint32_t magic;
@@ -62,5 +62,31 @@ typedef struct {
     uint32_t state_out;
 } genesis_reply_t;
 #pragma pack(pop)
+
+#define GENESIS_STATS_MAGIC 0x47454E53u /* "GENS" */
+#define GENESIS_STATS_VERSION 1u
+
+/* Telemetry query: status -> guard. Fixed 8 bytes, naturally aligned. */
+typedef struct {
+    uint32_t magic;    /* GENESIS_STATS_MAGIC */
+    uint16_t version;  /* GENESIS_STATS_VERSION */
+    uint16_t reserved;
+} genesis_stats_req_t;
+
+/* Telemetry reply: guard -> status. Fixed 32 bytes, naturally aligned. */
+typedef struct {
+    uint32_t state;        /* current guard state */
+    uint32_t last_reason;  /* reason of the most recent DENY (OK if none) */
+    uint32_t last_seq;     /* last accepted sequence */
+    uint32_t ndropped;     /* frames rejected by integrity checks */
+    uint64_t allows;       /* accepted commands since guard start */
+    uint64_t denies;       /* rejected commands since guard start */
+} genesis_stats_reply_t;
+
+/* Wire sizes are load-bearing (BAD_SIZE policy); pin them at compile time. */
+_Static_assert(sizeof(genesis_cmd_t) == 36, "cmd frame must be 36 bytes");
+_Static_assert(sizeof(genesis_reply_t) == 12, "reply frame must be 12 bytes");
+_Static_assert(sizeof(genesis_stats_req_t) == 8, "stats req must be 8 bytes");
+_Static_assert(sizeof(genesis_stats_reply_t) == 32, "stats reply must be 32 bytes");
 
 #endif /* GENESIS_IPC_H */
