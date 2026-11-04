@@ -265,6 +265,23 @@ def _bad_seed(doc):
     doc["simulation"]["seed"] = -1
 
 
+def _sim_not_only(doc):
+    doc["machine"]["simulation_only"] = False
+
+
+def _policy_beyond_capability(doc):
+    # control policy allows 9.9 m/s but the mps actuators cap at 1.2
+    doc["control"]["max_linear_speed_mps"] = 9.9
+
+
+def _field_beyond_actuator(doc):
+    doc["commands"][0]["fields"][0]["max"] = 9.9
+
+
+def _field_unit_mismatch(doc):
+    doc["commands"][0]["fields"][0]["unit"] = "rad"
+
+
 @pytest.mark.parametrize("fn", [
     _set_version, _unknown_top, _drop_top, _bad_kind, _bad_target, _bad_arch,
     _bad_machine_id, _empty_actuators, _dup_actuator, _overlap_ids, _bad_unit,
@@ -276,7 +293,8 @@ def _bad_seed(doc):
     _bad_tm_source, _dup_tm_id, _bad_tm_rate, _empty_contracts, _bad_if,
     _bad_then, _empty_faults, _bad_fault, _nonsafe_enter, _unknown_enter,
     _bad_scenario, _bad_req_scenario, _long_claim, _bad_dt, _bad_duration,
-    _bad_seed,
+    _bad_seed, _sim_not_only, _policy_beyond_capability,
+    _field_beyond_actuator, _field_unit_mismatch,
 ])
 def test_rejections(amr_v2_dict, fn):
     with pytest.raises(IRValidationError):

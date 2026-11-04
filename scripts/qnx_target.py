@@ -443,7 +443,7 @@ TARGET_MATRIX = [
     ("supervisor_respawn",
      "cd /tmp/genesis; slay genesis_supervisor 2>/dev/null;"
      " slay genesis_guard 2>/dev/null; slay genesis_controller 2>/dev/null;"
-     " slay genesis_device 2>/dev/null; rm -f sup.log; sleep 1;"
+     " slay genesis_device 2>/dev/null; rm -f sup.log sup-*.log; sleep 1;"
      " ./genesis_supervisor > sup.log 2>&1 & sleep 4;"
      " slay genesis_device; sleep 6;"
      " pidin -F %n 2>/dev/null | grep -c genesis;"
@@ -454,13 +454,47 @@ TARGET_MATRIX = [
     ("supervisor_giveup",
      "cd /tmp/genesis; slay genesis_supervisor 2>/dev/null;"
      " slay genesis_guard 2>/dev/null; slay genesis_controller 2>/dev/null;"
-     " slay genesis_device 2>/dev/null; rm -f sup2.log; sleep 1;"
+     " slay genesis_device 2>/dev/null; rm -f sup2.log sup-*.log; sleep 1;"
      " ./genesis_supervisor > sup2.log 2>&1 & sleep 4;"
      " for i in 1 2 3 4; do slay genesis_guard; sleep 6; done; sleep 2;"
      " pidin -F %n 2>/dev/null | grep -c genesis || true;"
      " grep -c GIVE_UP sup2.log;"
      " slay genesis_supervisor 2>/dev/null; slay genesis_guard 2>/dev/null;"
      " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; true"),
+    ("v2_transitions",
+     # §5 native proof: same cruise magnitude, only req_state varies, one
+     # fresh guard per probe (guard ctx persists across probes). The v1
+     # binary holds the fixed table, genesis_guard_v2 the table generated
+     # from the AMR IR v2 (build the v2 dir, copy its genesis_guard aside
+     # as genesis_guard_v2 -- same bytes, staged name -- then put it).
+     # Bidirectional contrast: v1 ALLOWs state 2 where v2 DENYs it (C),
+     # v2 ALLOWs state 3 where v1 DENYs it (B). Suite/limit/estop pin
+     # F-on-v2-binary, A and D natively.
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+     " slay genesis_guard_v2 2>/dev/null; sleep 1;"
+     " test -x ./genesis_guard_v2 || { echo MISSING_V2_GUARD; exit 3; };"
+     " cmp -s ./genesis_guard ./genesis_guard_v2 && echo SAME_BIN || echo DIFF_BIN;"
+     " ./genesis_guard > guard-v1s2.log 2>&1 & sleep 2;"
+     " echo ---V1-STATE2---; ./genesis_faultinject probe state 2;"
+     " slay genesis_guard 2>/dev/null; sleep 1;"
+     " ./genesis_guard > guard-v1s3.log 2>&1 & sleep 2;"
+     " echo ---V1-STATE3---; ./genesis_faultinject probe state 3;"
+     " slay genesis_guard 2>/dev/null; sleep 1;"
+     " ./genesis_guard_v2 > guard-v2s2.log 2>&1 & sleep 2;"
+     " echo ---V2-STATE2---; ./genesis_faultinject probe state 2;"
+     " slay genesis_guard_v2 2>/dev/null; slay genesis_guard 2>/dev/null; sleep 1;"
+     " ./genesis_guard_v2 > guard-v2s3.log 2>&1 & sleep 2;"
+     " echo ---V2-STATE3---; ./genesis_faultinject probe state 3;"
+     " slay genesis_guard_v2 2>/dev/null; slay genesis_guard 2>/dev/null; sleep 1;"
+     " ./genesis_guard_v2 > guard-v2fi.log 2>&1 & sleep 2;"
+     " echo ---V2-SUITE---; ./genesis_faultinject; echo FI_V2_EXIT=$?;"
+     " slay genesis_guard_v2 2>/dev/null; slay genesis_guard 2>/dev/null; sleep 1;"
+     " ./genesis_guard_v2 > guard-v2lim.log 2>&1 & sleep 2;"
+     " echo ---V2-LIMIT---; ./genesis_faultinject probe 1.5;"
+     " slay genesis_guard_v2 2>/dev/null; slay genesis_guard 2>/dev/null; sleep 1;"
+     " ./genesis_guard_v2 > guard-v2est.log 2>&1 & sleep 2;"
+     " echo ---V2-ESTOP---; ./genesis_faultinject probe estop;"
+     " slay genesis_guard_v2 2>/dev/null; slay genesis_guard 2>/dev/null; true"),
 ]
 
 
@@ -558,6 +592,26 @@ def _matrix_check(name: str, body: str, status: int) -> dict:
         digits = [line.strip() for line in body.splitlines() if line.strip().isdigit()]
         # set halted (0 genesis processes), >=1 GIVE_UP marker in sup2.log
         ok = len(digits) >= 2 and digits[0] == "0" and int(digits[1]) >= 1
+    elif name == "v2_transitions":
+        # Bidirectional v1-vs-v2 contrast plus v2 A/B/C/D/F, all native.
+        # Markers must appear in order; each section holds its verdict.
+        tags = ["---V1-STATE2---", "---V1-STATE3---", "---V2-STATE2---",
+                "---V2-STATE3---", "---V2-SUITE---", "---V2-LIMIT---",
+                "---V2-ESTOP---"]
+        wants = ["PROBE state=2 decision=ALLOW",
+                 "PROBE state=3 decision=DENY reason=BAD_TRANSITION",
+                 "PROBE state=2 decision=DENY reason=BAD_TRANSITION",
+                 "PROBE state=3 decision=ALLOW",
+                 "ALL 9 CHECKS PASS",
+                 "decision=DENY reason=SPEED_OVER_LIMIT",
+                 "decision=DENY reason=ESTOP"]
+        idx = [body.find(t) for t in tags]
+        ordered = all(a != -1 and a < b for a, b in zip(idx, idx[1:]))
+        secs = [body[i:j] for i, j in zip(idx, idx[1:] + [len(body)])]
+        ok = (ordered and "DIFF_BIN" in body and "SAME_BIN" not in body
+              and "MISSING_V2_GUARD" not in body and "FI_V2_EXIT=0" in body
+              and secs[4].count("PASS ") >= 9
+              and all(w in s for w, s in zip(wants, secs)))
     else:
         ok = False
     return {"name": name, "passed": ok, "detail": body[-500:].strip().replace("\n", " | ")}

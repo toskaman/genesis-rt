@@ -104,6 +104,44 @@ static int run_probe(int coid, const char *arg) {
     return 0;
 }
 
+/* State-probe mode (IR v2 transitions): send ONE command with
+ * req_state=n at cruise speed and print the guard verdict. Cruise is
+ * always nominal, so the verdict isolates the TRANSITION rule:
+ * identical magnitude, only the requested state varies. Exit 0 when a
+ * reply arrives (whatever the verdict -- the caller asserts it), 2 on
+ * usage/IPC errors. */
+static int run_state_probe(int coid, const char *arg) {
+    if (!(arg[0] >= '0' && arg[0] <= '3' && arg[1] == '\0')) {
+        printf("PROBE usage: genesis_faultinject probe state <0..3>\n");
+        return 2;
+    }
+    float v = FI_CRUISE;
+    genesis_cmd_t cmd;
+    memset(&cmd, 0, sizeof cmd);
+    cmd.magic = GENESIS_PROTOCOL_MAGIC;
+    cmd.version = GENESIS_PROTOCOL_VERSION;
+    cmd.req_state = (uint8_t)(arg[0] - '0');
+    cmd.seq = 1;
+    uint64_t now = now_ms();
+    cmd.now_ms = (uint32_t)now;
+    cmd.deadline_ms = (uint32_t)now + 30u;
+    cmd.linear_mps = v;
+    cmd.angular_radps = 0.0f;
+    cmd.sensor_age_ms = 0;
+    cmd.sim_connected = 1;
+    cmd.estop_engaged = 0;
+    genesis_reply_t reply;
+    memset(&reply, 0xFF, sizeof reply);
+    if (MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply) != 0) {
+        printf("PROBE MsgSend error\n");
+        return 2;
+    }
+    printf("PROBE state=%c decision=%s reason=%s state=%u\n", arg[0],
+           reply.decision == GENESIS_ALLOW ? "ALLOW" : "DENY",
+           genesis_reason_str(reply.reason), reply.state_out);
+    return 0;
+}
+
 /* Bench mode: N sequential nominal MsgSend round trips, CLOCK_MONOTONIC
  * timestamps. Prints one SAMPLE <us> line per trip plus PERF_DONE.
  * Raw data only (no in-C stats): the host analyzes the samples.
@@ -158,8 +196,10 @@ int main(int argc, char **argv) {
         return 2;
     }
     if (argc > 1 && strcmp(argv[1], "probe") == 0) {
+        if (argc == 4 && strcmp(argv[2], "state") == 0)
+            return run_state_probe(coid, argv[3]);
         if (argc != 3) {
-            printf("PROBE usage: genesis_faultinject probe <linear_mps|estop>\n");
+            printf("PROBE usage: genesis_faultinject probe <linear_mps|estop|state n>\n");
             return 2;
         }
         return run_probe(coid, argv[2]);

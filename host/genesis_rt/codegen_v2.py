@@ -25,7 +25,7 @@ from . import codegen as codegen_v1
 from .ir import canonical_json
 from .ir_v2 import validate_v2
 
-TEMPLATE_VERSION = "2.0"
+TEMPLATE_VERSION = "2.1"
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent / "templates"
 
 MACHINE_FILES = (
@@ -60,6 +60,36 @@ def _ordered_unique(items: list[str]) -> list[str]:
 
 def _num(value: Any) -> str:
     return repr(float(value))
+
+
+def _wire_map(states: list[dict[str, Any]]) -> dict[str, int]:
+    """Map v2 state ids to wire-protocol state numbers (genesis_ipc.h).
+
+    initial -> 0 (INIT), safe -> 3 (SAFE_STOP), other states in IR order
+    -> 1 (NOMINAL), 2 (DEGRADED). Only two middle slots exist on the
+    wire, so more than two middle states fail closed here with a loud
+    error instead of an ambiguous runtime mapping. An initial+safe
+    state maps to 0 (boot identity wins).
+    """
+    middle = [s["id"] for s in states
+              if not s["initial"] and not s["safe"]]
+    if len(middle) > 2:
+        raise ValueError(
+            "codegen-v2: states "
+            f"{', '.join(repr(m) for m in middle)} cannot share wire "
+            "states 1..2 (initial->0, safe->3); the v2 runtime supports "
+            "at most two non-initial non-safe states"
+        )
+    wire: dict[str, int] = {}
+    for s in states:
+        if s["safe"]:
+            wire[s["id"]] = 3
+    for s in states:
+        if s["initial"]:
+            wire[s["id"]] = 0
+    for i, mid in enumerate(middle):
+        wire[mid] = 1 + i
+    return wire
 
 
 def _render(name: str, mapping: dict[str, str]) -> str:
@@ -166,6 +196,25 @@ def _build_mapping(v2: dict[str, Any]) -> dict[str, str]:
         for s, sym in zip(v2["sensors"], sens_syms)
     )
 
+    # wire-protocol state map (v2 ordinal -> 0..3), IR order preserved
+    wire = _wire_map(v2["states"])
+    wire_cases = "\n".join(
+        f"    case {sym}: return {wire[sid]};"
+        for sid, sym in zip(states, state_syms)
+    )
+
+    # declared-fault/action macros: let the shared guard source probe
+    # for a fault id or action at compile time (#ifdef) and fall back
+    # when the IR omits it
+    has_fault_macros = "\n".join(
+        f"#define GENESIS_M_HAS_FAULT_{name.upper().replace('-', '_')} 1"
+        for name in faults
+    )
+    has_action_macros = "\n".join(
+        f"#define GENESIS_M_HAS_ACTION_{name.upper().replace('-', '_')} 1"
+        for name in actions
+    )
+
     # telemetry tables (ids are v2 _ID_RE: safe unescaped in C strings)
     tm_rates = "\n".join(
         f"    case {sym}: *rate_out = {_num(t['rate_hz'])}; return 0;"
@@ -195,6 +244,9 @@ def _build_mapping(v2: dict[str, Any]) -> dict[str, str]:
         "enum_sensors": enum_block(sens_syms, "GENESIS_M_SENS_COUNT"),
         "enum_telemetry": enum_block(tm_syms, "GENESIS_M_TM_COUNT"),
         "transition_cases": "\n".join(trans_cases),
+        "wire_cases": wire_cases,
+        "has_fault_macros": has_fault_macros,
+        "has_action_macros": has_action_macros,
         "cmd_field_count_cases": "\n".join(cmd_counts),
         "cmd_bounds_cases": "\n".join(cmd_cases),
         "fault_cases": fault_cases,
@@ -244,8 +296,9 @@ def _link_machine_module(out: Path) -> None:
     """Link genesis_machine_gen.c into the genesis_guard rule.
 
     The shared v1 makefile template is left untouched (v1 dirs have no
-    machine module); v2 dirs patch their own copy. This is a native
-    compile proof only -- no guard call-site yet (wired after P0 #4).
+    machine module); v2 dirs patch their own copy. The guard rule also
+    gains -DGENESIS_MACHINE_V2 so the shared guard_policy.c compiles
+    its generated-table tail; every other rule keeps the fixed v1 tail.
     """
     mk = out / "genesis_build_gen.mk"
     text = mk.read_text(encoding="utf-8")
@@ -256,7 +309,9 @@ def _link_machine_module(out: Path) -> None:
             "v1 template drifted, update codegen-v2 pin"
         )
     patched = text.replace(
-        anchor, anchor + " ./genesis_machine_gen.c", 1
+        anchor, "-DGENESIS_MACHINE_V2 " + anchor + " ./genesis_machine_gen.c", 1
     )
-    marker = "# v2: machine module linked into genesis_guard (compile proof).\n"
+    marker = ("# v2: machine module linked into genesis_guard; the guard rule\n"
+              "# compiles guard_policy.c with -DGENESIS_MACHINE_V2 so the\n"
+              "# generated transition/fault tables drive its decisions.\n")
     mk.write_text(marker + patched, encoding="utf-8", newline="\n")

@@ -16,8 +16,9 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from . import build_adapter, codegen, evidence, faultlab, gate
-from .ir import load_ir_file
+from . import build_adapter, codegen, codegen_v2, evidence, faultlab, gate
+from .ir import IRValidationError, load_ir_file
+from .ir_v2 import load_ir_v2_file
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TARGET_SRC = REPO_ROOT / "target" / "qnx8"
@@ -108,7 +109,19 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
     try:
         _check_cancelled(run_id, run_dir, steps)
         try:
-            ir = load_ir_file(ir_path)
+            raw = json.loads(Path(ir_path).read_text(encoding="utf-8"))
+            version = raw.get("schema_version") if isinstance(raw, dict) else None
+            if version == 2:
+                ir = load_ir_v2_file(ir_path)
+                generate_fn = codegen_v2.generate_v2
+                gen_mod = codegen_v2
+            elif version == 1:
+                ir = load_ir_file(ir_path)
+                generate_fn = codegen.generate
+                gen_mod = codegen
+            else:
+                raise IRValidationError(
+                    f"unsupported schema_version={version!r}")
         except Exception as exc:
             # No valid IR => no passport identity; write failure evidence,
             # re-raise so callers (API 400 mapping, CLI exit 2) stay fail-closed.
@@ -121,13 +134,13 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
         _check_cancelled(run_id, run_dir, steps)
         gen_dir = run_dir / "generated"
         try:
-            manifest = codegen.generate(ir, gen_dir, genesis_src=str(TARGET_SRC))
+            manifest = generate_fn(ir, gen_dir, genesis_src=str(TARGET_SRC))
         except Exception as exc:
             failure = failure or _fail("codegen", exc)
             manifest = {"status": "error", "error": failure["error"],
                         "ir_sha256": codegen.ir_sha256(ir),
-                        "generator_version": codegen.GENERATOR_VERSION,
-                        "template_version": codegen.TEMPLATE_VERSION,
+                        "generator_version": gen_mod.GENERATOR_VERSION,
+                        "template_version": gen_mod.TEMPLATE_VERSION,
                         "files": {}}
             steps["codegen"] = {"status": "error", "error": failure["error"]}
         else:

@@ -177,6 +177,7 @@ def validate_v2(doc: Any) -> dict[str, Any]:
         if not states[ref_id]["safe"]:
             raise _fail("actuators", f"fault_response '{ref_id}' is not a safe state")
     _validate_transitions(doc["transitions"], states)
+    _check_policy_within_capability(doc["control"], actuators)
     commands = _validate_commands(doc["commands"], actuators)
     _validate_telemetry(doc["telemetry"], actuators, sensors, commands)
     _validate_safety_contracts(doc["safety_contracts"])
@@ -201,8 +202,10 @@ def _validate_machine(machine: Any) -> None:
     arch = _need_str(machine, "arch", "machine")
     if arch not in ARCHES:
         raise _fail("machine.arch", f"unsupported arch '{arch}'")
-    if not isinstance(machine.get("simulation_only"), bool):
-        raise _fail("machine", "'simulation_only' must be a boolean")
+    if machine.get("simulation_only") is not True:
+        raise _fail("machine", "'simulation_only' must be true "
+                               "(this toolchain drives virtual devices only; "
+                               "no IR may authorize real hardware)")
 
 
 def _validate_components(
@@ -353,6 +356,29 @@ def _validate_transitions(items: Any, states: dict[str, Any]) -> None:
         seen.add(key)
 
 
+def _check_policy_within_capability(control: dict[str, Any],
+                                      actuators: dict[str, Any]) -> None:
+    """The guard policy must fit inside the physical capability.
+
+    The guard enforces ``control.max_linear_speed_mps``; every mps-unit
+    actuator must be able to honor a policy-allowed command, otherwise a
+    conforming build would saturate (or fault) on legal input. Only the
+    symmetric magnitude is compared: policy p is consistent iff
+    [-p, +p] fits inside every mps actuator's [min, max].
+    """
+    policy = float(control["max_linear_speed_mps"])
+    for aid, act in actuators.items():
+        if act["unit"] != "mps":
+            continue
+        lo = float(act["bounds"]["min"])
+        hi = float(act["bounds"]["max"])
+        if not (-policy >= lo and policy <= hi):
+            raise _fail(
+                "control",
+                f"'max_linear_speed_mps' {policy} exceeds actuator '{aid}' "
+                f"capability [{lo}, {hi}] (policy must fit inside capability)")
+
+
 def _validate_commands(items: Any, actuators: dict[str, Any]) -> dict[str, dict[str, Any]]:
     if not isinstance(items, list) or not items:
         raise _fail("commands", "must be a non-empty list")
@@ -387,6 +413,15 @@ def _validate_commands(items: Any, actuators: dict[str, Any]) -> dict[str, dict[
             hi = _need_num(field, "max", fpath)
             if not lo < hi:
                 raise _fail(fpath, "'min' must be < 'max'")
+            cap = actuators[act]
+            if unit != cap["unit"]:
+                raise _fail(fpath, f"unit '{unit}' mismatches actuator "
+                                   f"'{act}' unit '{cap['unit']}'")
+            if not (float(cap["bounds"]["min"]) <= lo
+                    and hi <= float(cap["bounds"]["max"])):
+                raise _fail(fpath, f"[{lo}, {hi}] exceeds actuator '{act}' "
+                                   f"bounds [{cap['bounds']['min']}, "
+                                   f"{cap['bounds']['max']}]")
         seen[cid] = item
     return seen
 

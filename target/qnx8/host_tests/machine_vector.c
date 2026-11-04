@@ -12,6 +12,7 @@
  *   A <actuator>            -> "<min> <max>" or "ERR"
  *   S <sensor>              -> "<fresh_ms> <rmin> <rmax>" ("NONE" x2 if no range) or "ERR"
  *   M <tm>                  -> "<rate> <name> <source>" or "ERR"
+ *   W <v2state>            -> "<wire 0..3>" or "ERR"
  */
 #include <stdio.h>
 #include "genesis_machine_gen.h"
@@ -92,6 +93,17 @@ int main(void) {
                 continue;
             }
             printf("%.17g %s %s\n", rate, name, src);
+        } else if (line[0] == 'W') {
+            int st, wire;
+            if (sscanf(line + 1, "%d", &st) != 1) {
+                printf("ERR\n");
+                continue;
+            }
+            wire = genesis_machine_wire_of(st);
+            if (wire < 0)
+                printf("ERR\n");
+            else
+                printf("%d\n", wire);
         } else {
             printf("ERR\n");
         }

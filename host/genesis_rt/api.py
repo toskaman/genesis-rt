@@ -69,6 +69,7 @@ def create_app() -> Any:
         raise RuntimeError("API extra missing: pip install -e '.[api]'")
 
     from .ir import IRValidationError, SCENARIO_IDS, validate_ir
+    from .ir_v2 import validate_v2
     from .orchestrator import CancelledRun, PipelineError, request_cancel, run_pipeline
 
     app = FastAPI(title="GENESIS RT orchestrator", version="0.1.0")
@@ -92,7 +93,15 @@ def create_app() -> Any:
         try:
             if req.ir is not None:
                 try:
-                    ir = validate_ir(req.ir)
+                    version = (req.ir.get("schema_version")
+                               if isinstance(req.ir, dict) else None)
+                    if version == 2:
+                        ir = validate_v2(req.ir)
+                    elif version == 1:
+                        ir = validate_ir(req.ir)
+                    else:
+                        raise IRValidationError(
+                            f"unsupported schema_version={version!r}")
                 except IRValidationError as exc:
                     raise HTTPException(400, f"invalid IR: {exc}") from exc
                 raw = json.dumps(ir).encode("utf-8")

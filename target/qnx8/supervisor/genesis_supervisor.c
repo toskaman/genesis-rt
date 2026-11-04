@@ -16,6 +16,7 @@
 
 #ifdef __QNXNTO__
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <spawn.h>
 #include <sys/wait.h>
@@ -28,6 +29,15 @@ static const char *const kChildren[NCHILD] = {
     "./genesis_guard", "./genesis_controller", "./genesis_device"
 };
 static const unsigned kBackoffS[MAX_RESTARTS] = {1, 2, 4};
+/* One log per child (O_APPEND): children must never share the
+ * supervisor's own stdout/stderr. With inherited descriptors, four
+ * writers race on one file offset and a child write can land mid-line
+ * on a RESPAWN/GIVE_UP audit line, destroying the evidence the matrix
+ * asserts (observed natively: "supervisor: RESPA" + guard chatter).
+ * Isolated logs keep sup.log a single-writer audit trail. */
+static const char *const kChildLogs[NCHILD] = {
+    "sup-guard.log", "sup-controller.log", "sup-device.log"
+};
 
 static pid_t g_pids[NCHILD] = {-1, -1, -1};
 static unsigned g_deaths[NCHILD] = {0, 0, 0};
@@ -35,9 +45,19 @@ static unsigned g_deaths[NCHILD] = {0, 0, 0};
 static int spawn_child(int idx) {
     char *const argv[] = {(char *)kChildren[idx], NULL};
     pid_t pid = -1;
-    if (posix_spawn(&pid, kChildren[idx], NULL, NULL, argv, NULL) != 0) {
+    posix_spawn_file_actions_t fa;
+    int rc = posix_spawn_file_actions_init(&fa);
+    if (rc == 0)
+        rc = posix_spawn_file_actions_addopen(&fa, STDOUT_FILENO, kChildLogs[idx],
+                                              O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (rc == 0)
+        rc = posix_spawn_file_actions_adddup2(&fa, STDOUT_FILENO, STDERR_FILENO);
+    if (rc == 0)
+        rc = posix_spawn(&pid, kChildren[idx], &fa, NULL, argv, NULL);
+    posix_spawn_file_actions_destroy(&fa);
+    if (rc != 0) {
         fprintf(stderr, "supervisor: spawn %s failed: %s\n",
-                kChildren[idx], strerror(errno));
+                kChildren[idx], strerror(rc));
         return -1;
     }
     g_pids[idx] = pid;
@@ -96,12 +116,14 @@ int main(void) {
             fprintf(stderr, "supervisor: GIVE_UP %s deaths=%u; "
                             "halting set, safe-stop holds until operator reset\n",
                     kChildren[idx], g_deaths[idx]);
+            fflush(stderr);
             halt_set();
             return 2;
         }
         unsigned wait_s = kBackoffS[g_deaths[idx] - 1];
         fprintf(stderr, "supervisor: RESPAWN %s deaths=%u backoff=%us status=%d\n",
                 kChildren[idx], g_deaths[idx], wait_s, status);
+        fflush(stderr); /* audit lines must survive a SIGTERM before exit */
         sleep(wait_s);
         if (spawn_child(idx) != 0) {
             halt_set();

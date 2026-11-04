@@ -3,7 +3,7 @@
  *
  * GENERATED FILE -- DO NOT EDIT.
  * machine: conveyor-demo-01 (conveyor)
- * generator: 0.1.0, machine templates: 2.0
+ * generator: 0.1.0, machine templates: 2.1
  * ir_sha256: b106e4cdbfc6f78b79b1ef0be75fa35d31c845dd8556831a5edb676373945ae1
  *
  * Machine-specific queries derived from Machine IR v2: state machine,
@@ -64,6 +64,19 @@ typedef enum {
 
 /* 1 when (from_state -> to_state on event) is a declared transition. */
 int genesis_machine_can_transition(int from_state, int to_state, int event);
+
+/* Wire-protocol number (0..3, see genesis_ipc.h) for a v2 state ordinal,
+ * or -1 when unknown. initial -> 0, safe -> 3, middle states -> 1, 2. */
+int genesis_machine_wire_of(int v2_state);
+
+/* One macro per declared fault id, so shared C sources can probe for a
+ * fault at compile time and fall back when the IR omits it. */
+#define GENESIS_M_HAS_FAULT_COMMAND_REJECTED 1
+#define GENESIS_M_HAS_FAULT_SIMULATOR_DISCONNECT 1
+
+/* One macro per declared fault-response action, same probing purpose. */
+#define GENESIS_M_HAS_ACTION_REJECT_COMMAND 1
+#define GENESIS_M_HAS_ACTION_COMMAND_VIRTUAL_STOP 1
 
 /* Number of contract fields for a command, or -1 when unknown. */
 int genesis_machine_cmd_field_count(int cmd);

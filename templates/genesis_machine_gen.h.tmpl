@@ -48,6 +48,17 @@ $enum_telemetry
 /* 1 when (from_state -> to_state on event) is a declared transition. */
 int genesis_machine_can_transition(int from_state, int to_state, int event);
 
+/* Wire-protocol number (0..3, see genesis_ipc.h) for a v2 state ordinal,
+ * or -1 when unknown. initial -> 0, safe -> 3, middle states -> 1, 2. */
+int genesis_machine_wire_of(int v2_state);
+
+/* One macro per declared fault id, so shared C sources can probe for a
+ * fault at compile time and fall back when the IR omits it. */
+$has_fault_macros
+
+/* One macro per declared fault-response action, same probing purpose. */
+$has_action_macros
+
 /* Number of contract fields for a command, or -1 when unknown. */
 int genesis_machine_cmd_field_count(int cmd);
 

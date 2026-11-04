@@ -123,6 +123,20 @@ def test_generated_module_matches_ir(repo_root, tmp_path, example):
     lines.append(f"M {len(v2['telemetry'])}")
     expected.append("ERR")
 
+    # wire map: initial -> 0, safe -> 3, middle states -> 1, 2 in IR order
+    mids = [s["id"] for s in v2["states"]
+            if not s["initial"] and not s["safe"]]
+    for s in v2["states"]:
+        lines.append(f"W {idx['state'][s['id']]}")
+        if s["initial"]:
+            expected.append("0")
+        elif s["safe"]:
+            expected.append("3")
+        else:
+            expected.append(str(1 + mids.index(s["id"])))
+    lines.append(f"W {idx['n_state']}")
+    expected.append("ERR")
+
     got = _query(binary, lines)
     assert len(got) == len(expected), (got, expected)
     for g, e in zip(got, expected):

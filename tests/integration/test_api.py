@@ -48,6 +48,22 @@ def test_missing_payload_is_400(client):
     assert client.post("/runs", json={}).status_code == 400
 
 
+def test_v2_ir_upload_runs_pipeline(client, repo_root):
+    """A schema v2 upload validates, runs, and records schema_version 2."""
+    from pathlib import Path as _Path
+
+    path = repo_root / "examples" / "amr-demo" / "machine-ir-v2.json"
+    v2 = json.loads(path.read_text(encoding="utf-8"))
+    r = client.post("/runs", json={"ir": v2,
+                                   "scenarios": ["nominal_navigation"]})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["verdict"] == "PASS"
+    passport = json.loads(_Path(body["passport"]).read_text(encoding="utf-8"))
+    ir_record = next(e for e in passport["chain"] if e["kind"] == "ir")
+    assert ir_record["body"]["schema_version"] == 2
+
+
 def test_concurrent_uploads_stay_isolated(repo_root, amr_ir_dict, tmp_path, monkeypatch):
     """Two parallel POST /runs => distinct correct passports, no cross-talk."""
     monkeypatch.setattr(api_mod, "ARTIFACTS", tmp_path / "artifacts")

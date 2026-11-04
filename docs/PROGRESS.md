@@ -1,5 +1,27 @@
 # Progress log
 
+## 2026-11-05 -- P0 Wave 1b : Machine IR v2 end-to-end + matrice 12/12
+
+- v2 de bout en bout : `codegen_v2` (wire map, machine module,
+  `-DGENESIS_MACHINE_V2` sur le guard seul), tail v2 dans
+  `guard_policy.c` (transitions generees, latch stale/sim/stop
+  pilotes par l'IR), dispatch v2 CLI/pipeline/API/passeport/Studio.
+- Preuve cible : `faultinject probe state <n>` + step matrice
+  `v2_transitions` (contraste bidirectionnel v1/v2 : state 2 ALLOW/DENY,
+  state 3 DENY/ALLOW ; 9/9 sur le binaire v2 ; limite 1.5 DENY ; estop
+  DENY). `verify` 12/12 PASS natif (QNX 8.0/QEMU TCG `-cpu max`),
+  `qcc` 0 warning (18 binaires), perf 1000/1000 (p50 ~0.27 ms),
+  `demo --target-record --perf-record` -> `QNX_PERFORMANCE_MEASURED`.
+- Incident reproduit + root-cause : `supervisor_respawn` 4|0 (deja vu
+  "non reproduit" le 2026-11-04) : ligne RESPAWN ecrasee mid-line par
+  un enfant (4 writers sur sup.log, offsets races ; preuve :
+  "supervisor: RESPAguard: ..."). Fix : logs par-enfant
+  (`posix_spawn_file_actions`, O_APPEND) + `fflush(stderr)` sur les
+  lignes d'audit ; sup.log redevient un audit trail single-writer.
+  Re-run matrice : 12/12 PASS.
+- Suite hote 351/351. Chiffres canoniques : 351 tests, matrice 12/12,
+  8 binaires stages. Reste : video (fin projet, user), Devpost.
+
 ## 2026-11-04 (later) -- Polish final + audit P5 (video/Devpost au user)
 
 - Docs : README (Studio), jury 11/11 + 310 tests, limitations
@@ -409,7 +431,7 @@
 
 - G0 license/redistribution clean: YES (Apache-2.0, no SDK material in repo)
 - G1 deterministic codegen: YES (tested)
-- G2 QNX native build/run evidenced: YES (qcc 0 warnings, 11/11 on-target)
+- G2 QNX native build/run evidenced: YES (qcc 0 warnings, 12/12 on-target)
 - G3 guard rejects on real target: YES (9/9 IPC checks incl. BAD_SIZE/NaN)
 - G4 QNX-specific sources visible/tested: YES (msg passing, resmgr, timers, supervision)
 - G5 no-test⇒no-pass: YES (tested)

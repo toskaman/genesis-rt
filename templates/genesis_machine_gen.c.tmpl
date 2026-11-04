@@ -19,6 +19,14 @@ $transition_cases
     }
 }
 
+int genesis_machine_wire_of(int v2_state) {
+    switch (v2_state) {
+$wire_cases
+    default:
+        return -1;
+    }
+}
+
 int genesis_machine_cmd_field_count(int cmd) {
     switch (cmd) {
 $cmd_field_count_cases

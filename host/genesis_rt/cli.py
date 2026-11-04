@@ -15,11 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 def _cmd_validate(args: argparse.Namespace) -> int:
     from .ir import IRValidationError, load_ir_file
     from .ir_v2 import load_ir_v2_file
-    if Path(args.ir).suffix.lower() in (".yaml", ".yml"):
-        version = 1  # v1 only; v2 documents are JSON
-    else:
-        raw = json.loads(Path(args.ir).read_text(encoding="utf-8"))
-        version = raw.get("schema_version") if isinstance(raw, dict) else None
+    version = _peek_schema_version(args.ir)
     if version == 1:
         ir = load_ir_file(args.ir)
     elif version == 2:
@@ -42,11 +38,29 @@ def _cmd_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _peek_schema_version(path: str) -> int | None:
+    if Path(path).suffix.lower() in (".yaml", ".yml"):
+        return 1  # v1 only; v2 documents are JSON
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    return raw.get("schema_version") if isinstance(raw, dict) else None
+
+
 def _cmd_generate(args: argparse.Namespace) -> int:
     import os
     from .codegen import generate
-    from .ir import load_ir_file
-    ir = load_ir_file(args.ir)
+    from .ir import IRValidationError, load_ir_file
+    from .ir_v2 import load_ir_v2_file
+    from .codegen_v2 import generate_v2
+    version = _peek_schema_version(args.ir)
+    if version == 1:
+        ir = load_ir_file(args.ir)
+        generate_fn = generate
+    elif version == 2:
+        ir = load_ir_v2_file(args.ir)
+        generate_fn = generate_v2
+    else:
+        raise IRValidationError(
+            f"{args.ir}: unsupported schema_version={version!r}")
     genesis_src = getattr(args, "genesis_src", None)
     if genesis_src is None:
         # Point the makefile at THIS checkout's target sources, whatever
@@ -58,8 +72,8 @@ def _cmd_generate(args: argparse.Namespace) -> int:
                                           ).replace(os.sep, "/")
         else:  # installed layout without target sources: keep default
             genesis_src = "../../target/qnx8"
-    manifest = generate(ir, args.out, genesis_src=genesis_src)
-    print(f"generated: {args.out}")
+    manifest = generate_fn(ir, args.out, genesis_src=genesis_src)
+    print(f"generated: {args.out} (schema v{version})")
     for name, digest in sorted(manifest["files"].items()):
         print(f"  {name}  sha256:{digest[:16]}...")
     return 0

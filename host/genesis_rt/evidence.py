@@ -91,6 +91,7 @@ def build_passport(run_id: str, ir: dict[str, Any],
                    qnx_perf: dict[str, Any] | None = None) -> dict[str, Any]:
     chain: list[dict[str, Any]] = []
     _chain_append(chain, "ir", {"ir_sha256": codegen_manifest["ir_sha256"],
+                                "schema_version": ir.get("schema_version", 1),
                                 "machine": ir["machine"],
                                 "scenarios": ir["verification"]["scenarios"]})
     _chain_append(chain, "codegen", codegen_manifest)

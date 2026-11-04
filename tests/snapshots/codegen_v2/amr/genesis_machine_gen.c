@@ -3,7 +3,7 @@
  *
  * GENERATED FILE -- DO NOT EDIT.
  * machine: amr-demo-01 (differential_drive_robot)
- * generator: 0.1.0, machine templates: 2.0
+ * generator: 0.1.0, machine templates: 2.1
  * ir_sha256: 5639d986d258062fcad450260723a04d9de2b4c5432ddef516e81bffefdbe70f
  */
 #include "genesis_machine_gen.h"
@@ -22,6 +22,16 @@ int genesis_machine_can_transition(int from_state, int to_state, int event) {
         return (to_state == GENESIS_M_STATE_INIT && event == GENESIS_M_EVENT_RESET);
     default:
         return 0;
+    }
+}
+
+int genesis_machine_wire_of(int v2_state) {
+    switch (v2_state) {
+    case GENESIS_M_STATE_INIT: return 0;
+    case GENESIS_M_STATE_RUNNING: return 1;
+    case GENESIS_M_STATE_SAFE_STOP: return 3;
+    default:
+        return -1;
     }
 }
 

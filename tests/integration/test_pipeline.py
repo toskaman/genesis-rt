@@ -76,6 +76,36 @@ def test_cli_generate_src_points_at_target(amr_ir_path, repo_root, tmp_path):
         assert resolved == (repo_root / "target" / "qnx8").resolve()
 
 
+def test_cli_generate_v2_produces_machine_module(repo_root, tmp_path):
+    import os
+    merged = dict(os.environ, PYTHONPATH=str(repo_root / "host"))
+    out = tmp_path / "v2gen"
+    r = subprocess.run(
+        [sys.executable, "-m", "genesis_rt.cli", "generate",
+         str(repo_root / "examples" / "amr-demo" / "machine-ir-v2.json"),
+         "--out", str(out)],
+        capture_output=True, text=True, timeout=60, env=merged)
+    assert r.returncode == 0, r.stderr
+    assert (out / "genesis_machine_gen.c").exists()
+    assert (out / "genesis_machine_gen.h").exists()
+    mk = (out / "genesis_build_gen.mk").read_text(encoding="utf-8")
+    assert "-DGENESIS_MACHINE_V2" in mk
+    assert "schema v2" in r.stdout
+
+
+def test_pipeline_pass_host_v2(repo_root, tmp_path):
+    from genesis_rt.build_adapter import probe
+    v2_path = repo_root / "examples" / "amr-demo" / "machine-ir-v2.json"
+    summary = run_pipeline(v2_path, tmp_path)
+    assert summary["verdict"] == "PASS"
+    passport = evidence.load_passport(summary["passport"])
+    assert evidence.verify_chain(passport) == []
+    ir_record = next(e for e in passport["chain"] if e["kind"] == "ir")
+    assert ir_record["body"]["schema_version"] == 2
+    expected = "ok" if probe()["sdk_present"] else "blocked"
+    assert summary["steps"]["qnx_build"]["status"] == expected
+
+
 def test_gate_blocks_known_bad_revision(amr_ir, tmp_path):
     """Deliberately break a revision: gate must refuse release."""
     from genesis_rt import codegen, faultlab
