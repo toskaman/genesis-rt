@@ -1,5 +1,19 @@
 # Progress log
 
+## 2026-11-04 (later) — QEMU ready, SDK wall mapped
+
+- QEMU 11.1.0 verified at `E:\VMs\qemu\`; env probe + `GENESIS_QEMU`
+  override added (`probe_qemu`, tested).
+- Official QNX path grounded in docs: myQNX account → licence
+  accept/deploy → QSC → SDP 8.0 + `com.qnx.qnx800.quickstart.qemu` →
+  `unpack_qemu_image.sh` → boot. QSC/SDP downloads are login-walled:
+  no legitimate unattended install exists; user click-path documented.
+- Added `scripts/qnx_target.py` (`probe-image`, `boot`) using the official
+  QSTI launch template (ifs.bin kernel, serial console, virtio-net),
+  host-adapted (KVM/WHPX/TCG); transcripts + markers, never assumed pass.
+- Next: user runs §1 of `docs/quickstart-qnx8-qemu.md`, then one command
+  boots QEMU and the on-target genesis runs begin.
+
 ## 2026-11-04 (later) — audit + hygiene
 
 - Swept tracked files: no secrets, no SDK/proprietary material, no run

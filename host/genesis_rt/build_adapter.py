@@ -32,8 +32,25 @@ def _run(argv: list[str], cwd: Path | None = None, timeout: int = 120) -> dict[s
             "stdout": proc.stdout[-8000:], "stderr": proc.stderr[-8000:]}
 
 
+def probe_qemu() -> dict[str, Any]:
+    """Inspect the host for a usable QEMU system emulator."""
+    candidates = [
+        shutil.which("qemu-system-x86_64"),
+        os.environ.get("GENESIS_QEMU"),
+        r"E:\VMs\qemu\qemu-system-x86_64.exe",
+        r"C:\Program Files\qemu\qemu-system-x86_64.exe",
+    ]
+    path = next((c for c in candidates if c and Path(c).exists()), None)
+    result: dict[str, Any] = {"present": bool(path), "path": path, "version": None}
+    if path:
+        ver = _run([path, "--version"], timeout=30)
+        first = ((ver["stdout"] or ver["stderr"]).strip().splitlines() or [None])[0]
+        result["version"] = (first or "")[:200] or None
+    return result
+
+
 def probe() -> dict[str, Any]:
-    """Inspect the host for a usable QNX SDP 8.0 toolchain."""
+    """Inspect the host for a usable QNX SDP 8.0 toolchain (plus QEMU)."""
     qnx_host = os.environ.get("QNX_HOST")
     qnx_target = os.environ.get("QNX_TARGET")
     qcc = shutil.which("qcc") or (f"{qnx_host}/usr/bin/qcc" if qnx_host else None)
@@ -42,6 +59,7 @@ def probe() -> dict[str, Any]:
         "sdk_present": bool(qcc_present and qnx_target and Path(str(qnx_target)).exists()),
         "qnx_host": qnx_host, "qnx_target": qnx_target,
         "qcc": qcc if qcc_present else None, "qcc_version": None,
+        "qemu": probe_qemu(),
     }
     if qcc_present and qcc:
         ver = _run([qcc, "-V"], timeout=30)
