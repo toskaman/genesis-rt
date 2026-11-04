@@ -1,5 +1,21 @@
 # Progress log
 
+## 2026-11-04 (later) — P0 #3 : limites générées pilotent le runtime, 7/7
+
+- Garde/contrôleur/faultinject incluent `genesis_config_gen.h` : finis les
+  `{1.2, 1.0, 100}` et `period 10` codés en dur. Période/cruise dérivés
+  (cruise = 40 % de la limite), faultinject 9 checks valides sur toute
+  machine (FI_CRUISE/FI_OVER) + mode `probe <linear_mps>`.
+- Preuve on-target (matrice 7/7 PASS, `qcc` 0 warning) : probe 1.5 → DENY
+  `SPEED_OVER_LIMIT` sur gardeur AMR (limite 1.2), ALLOW sur gardeur
+  conveyor (limite 2.0), + 9/9 faultinject contre le gardeur conveyor.
+  `demo --target-record` PASS `qnx_verified: True`, replay valide.
+- Incidents : un `supervisor_respawn` 4|0 non reproduit au re-run (sup.log
+  désormais capturé dans le transcript) ; flap SSH transitoire (4 échecs
+  d'auth puis 6/6 OK, cause environnementale) → retries bornés (3×) +
+  auth password déterministe dans `_ssh_client`.
+- Suite 129/129. Reste : vidéo (fin projet), Devpost.
+
 ## 2026-11-04 (later) — P0 Wave B : cible QNX durcie, 6/6 + red-green (`f00f7c0`)
 
 - Guard : vrai `msglen` émetteur (`MsgReceive`+`_msg_info`, BAD_SIZE réel),

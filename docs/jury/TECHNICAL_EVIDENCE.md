@@ -13,7 +13,8 @@
 | Hash-linked passport | `host/genesis_rt/evidence.py` | `artifacts/samples/golden_demo_passport.example.json` |
 | Fail-closed gate | `host/genesis_rt/gate.py` | `tests/unit/test_evidence_gate.py`, `tests/acceptance/` |
 | Honest QNX absence | `host/genesis_rt/build_adapter.py` (`blocked` records) | `tests/qnx/test_qnx_build.py` (explicit skip) |
-| On-target proof (QNX 8.0 QEMU) | `scripts/qnx_target.py verify` (6-step SSH matrix) | `target/qnx8/faultinject/` (9/9 IPC checks), run transcripts |
+| On-target proof (QNX 8.0 QEMU) | `scripts/qnx_target.py verify` (7-step SSH matrix) | `target/qnx8/faultinject/` (9/9 IPC checks), run transcripts |
+| Generated limits drive runtime | guard/controller/faultinject include `genesis_config_gen.h` | `limits_differ` step (probe 1.5 DENY vs ALLOW), `tests/integration/test_limit_wiring.py` |
 | Live telemetry | `target/qnx8/status/genesis_status.c` (per-read IPC stats query) | `status_live` matrix step (allows/denies/state asserted) |
 | Bounded supervision | `target/qnx8/supervisor/genesis_supervisor.c` (RESPAWN×3 + GIVE_UP halt) | `supervisor_respawn`/`supervisor_giveup` matrix steps |
 | Oracle bite (red-green) | old guard/status/supervisor vs new oracles → 2/6 FAIL | `docs/PROGRESS.md` (Wave B entry, reproducible method) |

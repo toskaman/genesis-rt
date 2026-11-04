@@ -25,7 +25,7 @@ qnx:
 	$$(QCC) $$(QCC_FLAGS) -o genesis_device $$(GENESIS_SRC)/device/genesis_device.c
 	$$(QCC) $$(QCC_FLAGS) -o genesis_status $$(GENESIS_SRC)/common/guard_policy.c $$(GENESIS_SRC)/status/genesis_status.c
 	$$(QCC) $$(QCC_FLAGS) -o genesis_supervisor $$(GENESIS_SRC)/supervisor/genesis_supervisor.c
-	$$(QCC) $$(QCC_FLAGS) -o genesis_faultinject $$(GENESIS_SRC)/faultinject/genesis_faultinject.c
+	$$(QCC) $$(QCC_FLAGS) -o genesis_faultinject $$(GENESIS_SRC)/common/guard_policy.c $$(GENESIS_SRC)/faultinject/genesis_faultinject.c
 
 host:
 	cc -O1 -Wall -Wextra -I$$(GENESIS_SRC)/include -I$$(GENESIS_SRC)/common -I. -o guard_vector $$(GENESIS_SRC)/common/guard_policy.c $$(GENESIS_SRC)/host_tests/guard_vector.c -lm

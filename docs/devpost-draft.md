@@ -49,7 +49,7 @@ The guard policy is implemented once in C and mirrored in Python, with a
 compiled conformance harness proving identical decisions on every vector.
 
 Honest scope: host fault results are simulated; on-target QNX 8.0/QEMU
-execution is verified (6/6 matrix, 9/9 IPC checks, `qcc` 0 warnings),
+execution is verified (7/7 matrix, 9/9 IPC checks, `qcc` 0 warnings),
 and passports always report `qnx_verified` explicitly. Simulation-only,
 prototype-grade, no safety certification claimed. Judges start at
 `docs/jury/START_HERE.md`.
@@ -75,7 +75,7 @@ git clone https://github.com/toskaman/genesis-rt.git && cd genesis-rt
 pip install pytest pyyaml
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
-python -m pytest tests/ -q   # green, 127 tests (QNX build runs w/ SDK, else honest skip)
+python -m pytest tests/ -q   # green, 129 tests (QNX build runs w/ SDK, else honest skip)
 ```
 
 Open `ui/dashboard.html` and load the passport to inspect every verdict.

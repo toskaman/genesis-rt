@@ -15,8 +15,15 @@
 #include <errno.h>
 #include <sys/dispatch.h>
 #include <sys/neutrino.h>
+/* Machine-specific limits BAKED IN at build time from the generated
+ * header (`genesis-rt generate` output, `-I.` on the compile line).
+ * A missing/stale header is a compile error, never a silent default:
+ * the guard cannot run with limits from another machine. */
+#include "genesis_config_gen.h"
 
-static genesis_limits_t g_limits = {1.2, 1.0, 100};
+static genesis_limits_t g_limits = {GENESIS_MAX_LINEAR_MPS,
+                                    GENESIS_MAX_ANGULAR_RADPS,
+                                    GENESIS_FRESHNESS_LIMIT_MS};
 static genesis_guard_ctx_t g_ctx = {0, GENESIS_ST_NOMINAL, 0};
 static uint64_t g_allows = 0;
 static uint64_t g_denies = 0;
@@ -32,6 +39,9 @@ int main(int argc, char **argv) {
         return 1;
     }
     printf("guard: attached as '%s' chid=%d\n", GENESIS_ATTACH_NAME, attach->chid);
+    printf("guard: machine=%s limits linear=%.3f angular=%.3f freshness=%ums\n",
+           GENESIS_MACHINE_ID, g_limits.max_linear_speed_mps,
+           g_limits.max_angular_speed_radps, g_limits.freshness_limit_ms);
     fflush(stdout);
     for (;;) {
         union {

@@ -215,13 +215,30 @@ def cmd_boot(args: argparse.Namespace) -> int:
     return 0
 
 
-def _ssh_client(port: int, user: str, password: str, timeout: int = 30):
+def _ssh_client(port: int, user: str, password: str, timeout: int = 30,
+                retries: int = 3):
+    """Connect with bounded retries: QEMU SLIRP/WHPX shows transient auth
+    failures under load (observed 4 flaps in a row, then 6/6 clean), and a
+    5-minute matrix must not die on one wedged handshake. All attempts are
+    reported; giving up still fails loudly, never silently."""
     import paramiko  # noqa: PLC0415
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect("127.0.0.1", port=port, username=user, password=password,
-                   timeout=timeout, banner_timeout=timeout, auth_timeout=timeout)
-    return client
+    last: Exception | None = None
+    for attempt in range(1, retries + 1):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            client.connect("127.0.0.1", port=port, username=user,
+                           password=password, timeout=timeout,
+                           banner_timeout=timeout, auth_timeout=timeout,
+                           look_for_keys=False, allow_agent=False)
+            return client
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            print(f"ssh: attempt {attempt}/{retries} failed: "
+                  f"{type(exc).__name__}: {exc}")
+            if attempt < retries:
+                time.sleep(5)
+    raise last if last else RuntimeError("ssh connect failed")
 
 
 def cmd_wait_ssh(args: argparse.Namespace) -> int:
@@ -296,6 +313,21 @@ TARGET_MATRIX = [
      " ./genesis_faultinject > fi-status.log 2>&1; echo FI_EXIT=$?;"
      " echo ---STATUS-AFTER---; cat /dev/genesis/status; echo STATUS_CAT_EXIT=$?;"
      " slay genesis_guard; sudo -n slay genesis_status"),
+    ("limits_differ",
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+     " slay genesis_guard_conv 2>/dev/null; sleep 1;"
+     " test -x ./genesis_guard_conv || { echo MISSING_CONV_GUARD; exit 3; };"
+     " ./genesis_guard > guard-amr.log 2>&1 & sleep 2;"
+     " echo ---PROBE-AMR---; ./genesis_faultinject probe 1.5;"
+     " slay genesis_guard; slay genesis_guard_conv 2>/dev/null; sleep 1;"
+     " ./genesis_guard_conv > guard-conv.log 2>&1 & sleep 2;"
+     " echo ---PROBE-CONV---; ./genesis_faultinject probe 1.5;"
+     " slay genesis_guard_conv; sleep 1;"
+     " ./genesis_guard_conv > guard-conv.log 2>&1 & sleep 2;"
+     " echo ---FI-VS-CONV---; ./genesis_faultinject; echo FI_CONV_EXIT=$?;"
+     " slay genesis_guard; slay genesis_guard_conv 2>/dev/null;"
+     " echo ---GUARD-HEADERS---;"
+     " grep -h machine guard-amr.log guard-conv.log"),
     ("controller_flow",
      "cd /tmp/genesis; rm -f guard.log ctrl.log;"
      " ./genesis_guard > guard.log 2>&1 & sleep 2;"
@@ -310,6 +342,7 @@ TARGET_MATRIX = [
      " slay genesis_device; sleep 6;"
      " pidin -F %n 2>/dev/null | grep -c genesis;"
      " grep -c RESPAWN sup.log;"
+     " echo ---SUP-LOG---; cat sup.log;"
      " slay genesis_supervisor; slay genesis_guard;"
      " slay genesis_controller; slay genesis_device"),
     ("supervisor_giveup",
@@ -343,6 +376,19 @@ def _matrix_check(name: str, body: str, status: int) -> dict:
               and allows == [0, 1] and denies == [0, 8]
               and "state=1 " in body.split("---STATUS-AFTER---")[0]
               and body.rsplit("state=", 1)[1].startswith("3 "))
+    elif name == "limits_differ":
+        # Same probe (1.5 mps) must DENY on the AMR guard (limit 1.2) and
+        # ALLOW on the conveyor guard (limit 2.0): generated limits drive
+        # runtime behavior. Guard banners pin which binary answered.
+        parts = body.split("---PROBE-CONV---")
+        ok = (len(parts) == 2
+              and "decision=DENY reason=SPEED_OVER_LIMIT" in parts[0]
+              and "decision=ALLOW reason=OK" in parts[1]
+              and "ALL 9 CHECKS PASS" in parts[1]
+              and "FI_CONV_EXIT=0" in parts[1]
+              and "machine=amr-demo-01 limits linear=1.200" in body
+              and "machine=conveyor-demo-01 limits linear=2.000" in body
+              and "MISSING_CONV_GUARD" not in body)
     elif name == "controller_flow":
         ok = False
         for line in body.splitlines():

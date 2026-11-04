@@ -16,6 +16,10 @@
 #include <sys/neutrino.h>
 #include <time.h>
 #include <unistd.h>
+/* Default period + cruise speed come from the generated machine header;
+ * argv[1] may override the period for tests, but the shipped default is
+ * always the compiled-in machine contract. */
+#include "genesis_config_gen.h"
 
 static uint64_t now_ms(void) {
     struct timespec ts;
@@ -35,19 +39,23 @@ static int arm_ipc_timeout(void) {
 }
 
 int main(int argc, char **argv) {
-    int period_ms = 10;
+    int period_ms = GENESIS_PERIOD_MS;
     if (argc > 1)
         period_ms = atoi(argv[1]);
     if (period_ms < 1 || period_ms > 1000) {
         fprintf(stderr, "controller: bad period_ms\n");
         return 1;
     }
+    /* Cruise at 40% of the machine's own limit: nominal on every machine,
+     * over-limit on none. Never a magic constant. */
+    float cruise_mps = (float)(0.4 * GENESIS_MAX_LINEAR_MPS);
     int coid = name_open(GENESIS_ATTACH_NAME, 0);
     if (coid < 0) {
         fprintf(stderr, "controller: name_open failed: %s\n", strerror(errno));
         return 1;
     }
-    printf("controller: connected to '%s', period=%dms\n", GENESIS_ATTACH_NAME, period_ms);
+    printf("controller: machine=%s connected to '%s', period=%dms cruise=%.3f\n",
+           GENESIS_MACHINE_ID, GENESIS_ATTACH_NAME, period_ms, cruise_mps);
     /* Drift-free schedule: absolute wake-ups, not usleep() chaining. */
     struct timespec next;
     clock_gettime(CLOCK_MONOTONIC, &next);
@@ -64,7 +72,7 @@ int main(int argc, char **argv) {
          * wrap is denied OVERDUE once, then the stream resumes. A 64-bit
          * time design is future work (see docs/limitations-and-safety.md). */
         cmd.deadline_ms = cmd.now_ms + (uint32_t)period_ms + 20u;
-        cmd.linear_mps = 0.5f; /* virtual corridor cruise */
+        cmd.linear_mps = cruise_mps; /* virtual corridor cruise */
         cmd.angular_radps = 0.0f;
         cmd.sensor_age_ms = 0;
         cmd.sim_connected = 1;

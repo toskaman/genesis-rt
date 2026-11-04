@@ -82,7 +82,7 @@ records QNX steps as `blocked`, never as passed).
 ## Honest known limitations
 
 - Host fault results are **simulated**; QNX on-target runs are verified by
-  the authors (6/6 matrix) and reproducible with an SDK + QEMU setup
+  the authors (7/7 matrix) and reproducible with an SDK + QEMU setup
   ([docs/PROGRESS.md](docs/PROGRESS.md)).
 - QEMU timing is for regression comparison, not production guarantees.
 - Prototype only: no functional-safety qualification, simulation-only outputs.
