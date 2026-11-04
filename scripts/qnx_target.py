@@ -429,6 +429,11 @@ TARGET_MATRIX = [
      " echo ---ESTOP-PROBE---; ./genesis_faultinject probe estop;"
      " echo ---STATUS-ESTOP---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
      " slay genesis_guard; sudo -n slay genesis_status"),
+    ("target_perf",
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null; sleep 1;"
+     " ./genesis_guard > guard-perf.log 2>&1 & sleep 2;"
+     " ./genesis_faultinject bench 200;"
+     " echo BENCH_EXIT=$?; slay genesis_guard"),
     ("controller_flow",
      "cd /tmp/genesis; rm -f guard.log ctrl.log;"
      " ./genesis_guard > guard.log 2>&1 & sleep 2;"
@@ -532,6 +537,13 @@ def _matrix_check(name: str, body: str, status: int) -> dict:
               and "estop=1" in body
               and "state=3 " in body
               and "last_reason=ESTOP" in body)
+    elif name == "target_perf":
+        # Bench shape only (no timing thresholds: informational tier).
+        # Full distributions come from `perf --samples N`.
+        samples, done = _parse_bench(body)
+        ok = (done == 200 and len(samples) == 200
+              and all(s == s and s != float("inf") and s >= 0
+                      for s in samples))
     elif name == "controller_flow":
         ok = False
         for line in body.splitlines():
@@ -549,6 +561,87 @@ def _matrix_check(name: str, body: str, status: int) -> dict:
     else:
         ok = False
     return {"name": name, "passed": ok, "detail": body[-500:].strip().replace("\n", " | ")}
+
+
+def _perf_distribution(samples: list[float]) -> dict:
+    """Nearest-rank distribution (documented method, no interpolation)."""
+    import math
+    ordered = sorted(samples)
+    n = len(ordered)
+
+    def rank(p: float) -> float:
+        return ordered[max(0, min(n - 1, math.ceil(p / 100.0 * n) - 1))]
+
+    return {"count": n, "unit": "microseconds",
+            "min": ordered[0], "max": ordered[-1],
+            "p50": rank(50), "p95": rank(95), "p99": rank(99)}
+
+
+def _parse_bench(body: str) -> tuple[list[float], int | None]:
+    """Parse bench output: raw samples + the PERF_DONE count (if any)."""
+    samples = [float(m.group(1)) for m in
+               re.finditer(r"^SAMPLE ([0-9]+(?:\.[0-9]+)?)$", body, re.M)]
+    done = re.search(r"^PERF_DONE n=(\d+)$", body, re.M)
+    return samples, int(done.group(1)) if done else None
+
+
+def cmd_perf(args: argparse.Namespace) -> int:
+    import os
+    password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
+    try:
+        client = _ssh_client(args.ssh_port, args.user, password)
+    except Exception as exc:
+        print(f"ssh: connect/auth failed: {type(exc).__name__}: {exc}")
+        return 2
+    command = ("cd /tmp/genesis; slay genesis_guard 2>/dev/null; sleep 1;"
+               " ./genesis_guard > guard-perf.log 2>&1 & sleep 2;"
+               f" ./genesis_faultinject bench {args.samples};"
+               " echo BENCH_EXIT=$?; slay genesis_guard")
+    try:
+        _stdin, stdout, _stderr = client.exec_command(command, timeout=300)
+        deadline = time.monotonic() + 300
+        while not stdout.channel.exit_status_ready():
+            if time.monotonic() > deadline:
+                print("perf: TIMEOUT waiting for target bench")
+                return 3
+            time.sleep(1)
+        body = stdout.read().decode("utf-8", "replace")
+    finally:
+        client.close()
+    samples, done = _parse_bench(body)
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "target-perf.log").write_text(
+        f"$ {command}\n{body}\n", encoding="utf-8")
+    ok = (done == args.samples and len(samples) == args.samples
+          and all(s == s and s != float("inf") for s in samples))
+    record: dict = {
+        "status": "ok" if ok else "fail",
+        "verified_on_target": bool(ok),
+        "method": {"probe": "genesis_faultinject bench (sequential nominal "
+                            "MsgSend round trips, fresh seq each)",
+                   "clock": "CLOCK_MONOTONIC on target (nanoseconds)",
+                   "percentile": "nearest-rank on sorted samples",
+                   "target": "QNX 8.0 QEMU x86_64 (TCG); reproducibility only, "
+                             "not a hardware timing guarantee"},
+        "measurements": {},
+        "raw_samples_us": samples if ok else [],
+        "note": ("sender-observed IPC round trip incl. guard decision; "
+                 "host and target numbers must never be mixed") if ok
+                else f"bench incomplete: {len(samples)}/{args.samples} samples",
+    }
+    if ok:
+        record["measurements"] = {
+            "ipc_roundtrip_us": _perf_distribution(samples)}
+    (out_dir / "qnx-perf-record.json").write_text(
+        json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"target perf: {'PASS' if ok else 'FAIL'} "
+          f"({len(samples)}/{args.samples} samples) -> {out_dir}")
+    if ok:
+        d = record["measurements"]["ipc_roundtrip_us"]
+        print(f"  p50={d['p50']:.1f} p95={d['p95']:.1f} "
+              f"p99={d['p99']:.1f} max={d['max']:.1f} us (n={d['count']})")
+    return 0 if ok else 1
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
@@ -663,6 +756,14 @@ def main() -> int:
                    help="prefer GENESIS_TARGET_PASSWORD env var")
     v.add_argument("--out", default="artifacts/runs/qnx-target")
     v.set_defaults(func=cmd_verify)
+    f = sub.add_parser("perf", help="measure target IPC round-trip latency over SSH")
+    f.add_argument("--ssh-port", type=int, default=2222)
+    f.add_argument("--user", default="qnxuser")
+    f.add_argument("--password", default=None,
+                   help="prefer GENESIS_TARGET_PASSWORD env var")
+    f.add_argument("--samples", type=int, default=1000)
+    f.add_argument("--out", default="artifacts/runs/qnx-perf")
+    f.set_defaults(func=cmd_perf)
     b.add_argument("--timeout", type=int, default=180)
     b.add_argument("--qmp-port", type=int, default=0)
     b.add_argument("--shot-at", type=int, default=0,

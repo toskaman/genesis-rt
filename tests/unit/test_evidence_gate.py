@@ -213,6 +213,25 @@ def test_gate_full_coverage_keeps_release(amr_ir, tmp_path):
     assert v["coverage"]["omitted"] == []
 
 
+def test_gate_perf_record_earns_top_tier(amr_ir, tmp_path):
+    full = list(amr_ir["verification"]["scenarios"])
+    manifest = codegen.generate(amr_ir, tmp_path / "gen-perf")
+    results = faultlab.run_all(amr_ir, full)
+    tgt = {"status": "ok", "verified_on_target": True,
+           "checks": [{"name": "a", "passed": True, "detail": "x"}]}
+    perf = {"status": "ok", "verified_on_target": True,
+            "measurements": {"ipc_roundtrip_us": {"count": 1000}},
+            "raw_samples_us": [10.0] * 1000}
+    p = evidence.build_passport(
+        "run-perf", amr_ir, manifest, results,
+        {"status": "ok", "verified_on_target": False}, tgt, qnx_perf=perf)
+    assert evidence.verify_chain(p) == []
+    v = gate.evaluate(p, full)
+    assert (v["verdict"], v["level"], v["release_eligible"]) == (
+        "PASS", "QNX_PERFORMANCE_MEASURED", True)
+    assert [r["kind"] for r in p["chain"]].count("qnx_perf") == 1
+
+
 def test_gate_level_none_on_failure(amr_ir, tmp_path):
     p = _passport(amr_ir, tmp_path)
     v = gate.evaluate(p, ["nominal_navigation", "stale_proximity_150ms"])

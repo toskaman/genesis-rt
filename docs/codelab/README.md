@@ -68,16 +68,29 @@ Save the compiler output: it is evidence, not decoration.
 
 ## Step 5 — Run on QEMU (5 min, needs target)
 
-Copy the five `genesis_*` binaries to the target and run:
+Copy the seven `genesis_*` binaries to the target (build both machines
+and upload the conveyor guard as `genesis_guard_conv`) and run:
 
 ```sh
 ./genesis_supervisor &
-./genesis_status &
+sudo -n ./genesis_status &
 ./genesis_controller 10
 ```
 
-Watch `ALLOW` lines flow; then stop the controller and observe the guard
-log. `cat /dev/genesis/status` shows the resource-manager telemetry.
+`status` needs `sudo -n`: attaching a resource manager at an absolute
+path requires root (otherwise `EPERM` and no `/dev/genesis/status`
+node). `10` is the controller period in ms; it runs in the foreground
+— watch `ALLOW` lines flow, then Ctrl-C it. `cat /dev/genesis/status`
+shows the resource-manager telemetry.
+
+Note: the supervisor already runs its own controller, so a second
+manual one produces some `STALE_SEQ` denies (two seq counters share
+one guard — the guard is doing its job). Cleanup when done:
+
+```sh
+slay genesis_controller; slay genesis_supervisor; slay genesis_guard
+slay genesis_device; sudo -n slay genesis_status
+```
 
 ## Step 6 — Break it, prove it (5 min)
 

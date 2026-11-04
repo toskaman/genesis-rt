@@ -22,9 +22,9 @@ QNX_BEHAVIOR_VERIFIED or above with FULL coverage of the IR-declared
 scenarios: a release decision must fail when QNX behavior evidence is
 absent (even if every host scenario passes) and when the required set
 silently omits declared scenarios. The QNX_PERFORMANCE_MEASURED tier
-needs a ``qnx_perf`` record, which no producer emits yet (benchmark
-harness is P1); until then passports honestly cap at
-QNX_BEHAVIOR_VERIFIED.
+needs a ``qnx_perf`` record with measurements, produced by
+``scripts/qnx_target.py perf`` (target-side bench) and attached via
+``run_pipeline(..., perf_record=...)`` / ``demo --perf-record``.
 """
 
 from __future__ import annotations

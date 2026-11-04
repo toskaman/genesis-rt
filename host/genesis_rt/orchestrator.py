@@ -75,7 +75,8 @@ def _write_failure(run_dir: Path, steps: dict[str, Any],
 def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
                  run_id: str | None = None,
                  scenarios: list[str] | None = None,
-                 target_record: str | Path | None = None) -> dict[str, Any]:
+                 target_record: str | Path | None = None,
+                 perf_record: str | Path | None = None) -> dict[str, Any]:
     t0 = time.monotonic()
     explicit_id = run_id is not None
     run_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
@@ -158,9 +159,26 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
             else:
                 steps["qnx_target"] = {"status": qnx_target.get("status"),
                                        "record": str(target_record)}
+        qnx_perf = None
+        if perf_record:
+            try:
+                parsed_perf = json.loads(Path(perf_record).read_text(encoding="utf-8"))
+                if not isinstance(parsed_perf, dict) or "status" not in parsed_perf:
+                    raise ValueError("perf record must be a JSON object with a 'status' key")
+                qnx_perf = parsed_perf
+            except Exception as exc:
+                failure = failure or _fail("qnx_perf", exc)
+                qnx_perf = {"status": "error", "record": str(perf_record),
+                            "error": failure["error"]}
+                steps["qnx_perf"] = {"status": "error", "record": str(perf_record),
+                                     "error": failure["error"]}
+            else:
+                steps["qnx_perf"] = {"status": qnx_perf.get("status"),
+                                     "record": str(perf_record)}
         passport = evidence.build_passport(run_id, ir, manifest, results,
                                            qnx_record, qnx_target,
-                                           pipeline_error=failure)
+                                           pipeline_error=failure,
+                                           qnx_perf=qnx_perf)
         verdict = gate.evaluate(passport, wanted)
         evidence.attach_verdict(passport, verdict)
         ppath = evidence.save_passport(passport, run_dir / "passport.json")

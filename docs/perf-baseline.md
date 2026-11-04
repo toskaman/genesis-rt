@@ -1,10 +1,10 @@
-# Performance baseline (host-only)
+# Performance baseline (host + target, never mixed)
 
-> These numbers describe the **dev machine**, not the QNX target. They
-> exist to detect host-side regressions and to document methodology.
-> Target timings (native IPC latency, guard time on QNX, control-loop
-> jitter) need the QEMU harness and will be recorded separately,
-> post-reboot. The two must never be mixed into one claim.
+> Two separate tables below: host numbers describe the **dev
+> machine** (host regressions + methodology); target numbers describe
+> **QNX 8.0 under QEMU/TCG** (reproducibility only — never a hardware
+> timing guarantee, never a real-time claim). The two must never be
+> mixed into one claim.
 
 ## Method
 
@@ -35,6 +35,34 @@ Reading: host guard decisions cost single-digit microseconds at p99
 (spikes are OS scheduling, hence max ≫ p99); a full host campaign runs
 in ~15 ms; a native build takes ~0.7 s with 0 warnings. No performance
 claim about QNX is made from these numbers.
+
+## Target method
+
+- Tool: `python scripts/qnx_target.py perf --samples N --out <dir>`
+  (SSH; guard up, `genesis_faultinject bench N`, guard down).
+- Measured: sender-observed `MsgSend` round trip (nominal command →
+  guard `decide()` → reply), sequential, fresh seq each trip,
+  `CLOCK_MONOTONIC` nanoseconds on target, reported in microseconds.
+- Analysis: nearest-rank percentiles on the raw samples (kept in
+  `qnx-perf-record.json` for independent re-analysis).
+- Target: QNX 8.0.0 x86_64 on QEMU 11.1.0, TCG `-cpu max`, 4G RAM.
+  Emulation overhead dominates: expect ~100× the host Python guard.
+
+## Recorded target runs (2026-11-04, n=1000 each)
+
+| Metric (IPC round trip, µs) | Run 1 | Run 2 |
+|---|---|---|
+| min | 180.3 | 155.9 |
+| p50 | 323.1 | 305.4 |
+| p95 | 551.9 | 519.3 |
+| p99 | 665.7 | 638.8 |
+| max | 1094.3 | 844.0 |
+
+Reading: native round trip costs ~0.3 ms at p50 under TCG with a long
+scheduling tail (max ~1 ms). Reproducible within ~10% across runs;
+relative-regression signal only. Feeds the gate's
+`QNX_PERFORMANCE_MEASURED` tier (informational; release needs
+behavior, not budgets).
 
 ## Regression hooks
 

@@ -93,7 +93,8 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     from .orchestrator import run_pipeline
     ir_path = args.ir or str(REPO_ROOT / "examples" / "amr-demo" / "machine-ir.json")
     summary = run_pipeline(ir_path, REPO_ROOT / "artifacts" / "runs",
-                           target_record=args.target_record)
+                           target_record=args.target_record,
+                           perf_record=args.perf_record)
     print(f"run: {summary['run_id']}  verdict: {summary['verdict']}  "
           f"level: {summary['level']}  "
           f"release_eligible: {summary['release_eligible']}  "
@@ -158,6 +159,8 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--ir", default=None)
     d.add_argument("--target-record", default=None,
                    help="qnx-target-record.json from scripts/qnx_target.py verify")
+    d.add_argument("--perf-record", default=None,
+                   help="qnx-perf-record.json from scripts/qnx_target.py perf")
     d.set_defaults(func=_cmd_demo)
     cmp = sub.add_parser("compare", help="diff two pipeline run directories")
     cmp.add_argument("run_a"); cmp.add_argument("run_b")

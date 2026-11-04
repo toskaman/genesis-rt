@@ -1,5 +1,21 @@
 # Progress log
 
+## 2026-11-04 (later) -- P2 #19b bench perf cible (tier max)
+
+- `faultinject bench N` : N round trips MsgSend nominaux, horloge
+  monotone cible, `SAMPLE` brutes + `PERF_DONE` (stats cote hote) ;
+  `qnx_target.py perf` : SSH, distribution nearest-rank, record
+  `qnx-perf-record.json` (mesures + 1000 echantillons bruts).
+- Pipeline : `build_passport(..., qnx_perf=...)`,
+  `run_pipeline(..., perf_record=...)`, `demo --perf-record` ;
+  matrice 10 -> 11 (`target_perf`, bench 200, forme seule).
+- Preuve : perf 2x1000/1000 (p50 ~0.31 ms, p99 ~0.65 ms, TCG),
+  `verify` 11/11 PASS, `demo --target-record --perf-record` ->
+  `QNX_PERFORMANCE_MEASURED`/PASS/release/qnx_verified. Table cible
+  dans `perf-baseline.md` (jamais melangee a l'hote). HAM : absent
+  de l'image QSTI (clos, superviseur maison garde). Codelab etape 5
+  rejouee (fix sudo + cleanup). Suite 310/310 verte.
+
 ## 2026-11-04 (later) -- P2 #21 codelab verifie + fix GENESIS_SRC (host)
 
 - Codelab rejoue commande par commande : etapes 1 (valid + rejet

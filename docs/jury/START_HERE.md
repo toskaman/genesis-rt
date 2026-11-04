@@ -3,7 +3,7 @@
 GENESIS RT turns a constrained machine description into a native QNX 8.0
 controller plus a hash-linked evidence passport. Category: **Developer
 Tooling & Host Tools**. Everything below runs without a QNX SDK; the SDK
-path is verified by the authors (native `qcc` build + on-target 10/10 matrix)
+path is verified by the authors (native `qcc` build + on-target 11/11 matrix)
 and reproducible per `docs/quickstart-qnx8-qemu.md`. Without an SDK the
 suite reports QNX steps as blocked/skipped, never as passed.
 

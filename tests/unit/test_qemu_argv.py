@@ -106,6 +106,32 @@ def test_conv_chain_parser_accepts_and_rejects(qt):
     )["passed"] is False
 
 
+def _bench_body(n, done=None, bad_line=False):
+    lines = [f"SAMPLE {10.0 + i * 0.001:.3f}" for i in range(n)]
+    if bad_line:
+        lines[n // 2] = "SAMPLE oops"
+    lines.append(f"PERF_DONE n={n if done is None else done}")
+    return "\n".join(lines) + "\n"
+
+
+def test_target_perf_parser_accepts_and_rejects(qt):
+    assert qt._matrix_check("target_perf", _bench_body(200), 0)["passed"] is True
+    assert qt._matrix_check(
+        "target_perf", _bench_body(199), 0)["passed"] is False  # short
+    assert qt._matrix_check(
+        "target_perf", _bench_body(200, done=199), 0)["passed"] is False
+    assert qt._matrix_check(
+        "target_perf", _bench_body(200, bad_line=True), 0)["passed"] is False
+
+
+def test_perf_distribution_nearest_rank(qt):
+    d = qt._perf_distribution([float(i) for i in range(1, 101)])
+    assert d == {"count": 100, "unit": "microseconds", "min": 1.0,
+                 "max": 100.0, "p50": 50.0, "p95": 95.0, "p99": 99.0}
+    d = qt._perf_distribution([5.0])
+    assert (d["count"], d["p50"], d["p99"]) == (1, 5.0, 5.0)
+
+
 def test_estop_target_parser_accepts_and_rejects(qt):
     good = ("---ESTOP-PROBE---\n"
             "PROBE linear=0.500 estop=1 decision=DENY reason=ESTOP state=3\n"

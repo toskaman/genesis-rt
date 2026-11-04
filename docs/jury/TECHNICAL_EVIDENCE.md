@@ -14,7 +14,7 @@
 | Fail-closed gate | `host/genesis_rt/gate.py` | `tests/unit/test_evidence_gate.py`, `tests/acceptance/` |
 | Verification levels (host PASS ≠ release) | `gate.py` (`NONE…QNX_PERFORMANCE_MEASURED`, `release_eligible`) | `tests/unit/test_evidence_gate.py` (tier/binding tests), CLI `demo` output |
 | Honest QNX absence | `host/genesis_rt/build_adapter.py` (`blocked` records) | `tests/qnx/test_qnx_build.py` (explicit skip) |
-| On-target proof (QNX 8.0 QEMU) | `scripts/qnx_target.py verify` (10-step SSH matrix) | `target/qnx8/faultinject/` (9/9 IPC checks), run transcripts |
+| On-target proof (QNX 8.0 QEMU) | `scripts/qnx_target.py verify` (11-step SSH matrix) | `target/qnx8/faultinject/` (9/9 IPC checks), run transcripts |
 | Guarded device path | guard→device forward + `target/qnx8/common/device_model.c` | `device_chain` step (APPLIES≥20, NONGUARD=0, virtual robot moved) |
 | Generated limits drive runtime | guard/controller/faultinject include `genesis_config_gen.h` | `limits_differ` step (probe 1.5 DENY vs ALLOW), `tests/integration/test_limit_wiring.py` |
 | Live telemetry | `target/qnx8/status/genesis_status.c` (per-read IPC stats query) | `status_live` matrix step (allows/denies/state asserted) |

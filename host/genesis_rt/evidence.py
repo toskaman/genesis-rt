@@ -87,7 +87,8 @@ def build_passport(run_id: str, ir: dict[str, Any],
                    scenario_results: list[dict[str, Any]],
                    qnx_build: dict[str, Any] | None = None,
                    qnx_target: dict[str, Any] | None = None,
-                   pipeline_error: dict[str, Any] | None = None) -> dict[str, Any]:
+                   pipeline_error: dict[str, Any] | None = None,
+                   qnx_perf: dict[str, Any] | None = None) -> dict[str, Any]:
     chain: list[dict[str, Any]] = []
     _chain_append(chain, "ir", {"ir_sha256": codegen_manifest["ir_sha256"],
                                 "machine": ir["machine"],
@@ -95,6 +96,8 @@ def build_passport(run_id: str, ir: dict[str, Any],
     _chain_append(chain, "codegen", codegen_manifest)
     _chain_append(chain, "qnx_build", qnx_build or {"status": "missing"})
     _chain_append(chain, "qnx_target", qnx_target or {"status": "missing"})
+    if qnx_perf is not None:
+        _chain_append(chain, "qnx_perf", qnx_perf)
     if pipeline_error is not None:
         _chain_append(chain, "pipeline_error", pipeline_error)
     for res in scenario_results:

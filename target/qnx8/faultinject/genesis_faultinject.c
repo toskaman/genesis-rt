@@ -104,6 +104,53 @@ static int run_probe(int coid, const char *arg) {
     return 0;
 }
 
+/* Bench mode: N sequential nominal MsgSend round trips, CLOCK_MONOTONIC
+ * timestamps. Prints one SAMPLE <us> line per trip plus PERF_DONE.
+ * Raw data only (no in-C stats): the host analyzes the samples.
+ * Exit 0 on full delivery, 2 on usage/IPC errors. */
+static uint64_t now_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000u + (uint64_t)ts.tv_nsec;
+}
+
+static int run_bench(int coid, const char *arg) {
+    char *end = NULL;
+    long n = strtol(arg, &end, 10);
+    if (end == arg || *end != '\0' || n < 1 || n > 100000) {
+        printf("BENCH usage: genesis_faultinject bench <1..100000>\n");
+        return 2;
+    }
+    genesis_cmd_t cmd;
+    memset(&cmd, 0, sizeof cmd);
+    cmd.magic = GENESIS_PROTOCOL_MAGIC;
+    cmd.version = GENESIS_PROTOCOL_VERSION;
+    cmd.req_state = GENESIS_ST_NOMINAL;
+    cmd.linear_mps = FI_CRUISE;
+    cmd.angular_radps = 0.0f;
+    cmd.sensor_age_ms = 0;
+    cmd.sim_connected = 1;
+    for (long i = 0; i < n; i++) {
+        cmd.seq = (uint32_t)(i + 1);
+        {
+            uint64_t now = now_ms();
+            cmd.now_ms = (uint32_t)now;
+            cmd.deadline_ms = (uint32_t)now + 1000u;
+        }
+        genesis_reply_t reply;
+        uint64_t t0 = now_ns();
+        int rc = MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply);
+        uint64_t dt = now_ns() - t0;
+        if (rc != 0) {
+            printf("BENCH MsgSend error at trip %ld\n", i);
+            return 2;
+        }
+        printf("SAMPLE %.3f\n", (double)dt / 1000.0);
+    }
+    printf("PERF_DONE n=%ld\n", n);
+    return 0;
+}
+
 int main(int argc, char **argv) {
     int coid = name_open(GENESIS_ATTACH_NAME, 0);
     if (coid < 0) {
@@ -112,10 +159,17 @@ int main(int argc, char **argv) {
     }
     if (argc > 1 && strcmp(argv[1], "probe") == 0) {
         if (argc != 3) {
-            printf("PROBE usage: genesis_faultinject probe <linear_mps>\n");
+            printf("PROBE usage: genesis_faultinject probe <linear_mps|estop>\n");
             return 2;
         }
         return run_probe(coid, argv[2]);
+    }
+    if (argc > 1 && strcmp(argv[1], "bench") == 0) {
+        if (argc != 3) {
+            printf("BENCH usage: genesis_faultinject bench <1..100000>\n");
+            return 2;
+        }
+        return run_bench(coid, argv[2]);
     }
     if (argc > 1) {
         printf("FAIL faultinject: unknown mode '%s'\n", argv[1]);
