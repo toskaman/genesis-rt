@@ -51,22 +51,21 @@ def test_gate_pass_and_verdict_chained(amr_ir, tmp_path):
     assert p["gate"] == "PASS"
 
 
-def test_gate_qnx_verified_from_target_record(amr_ir, tmp_path):
+def test_gate_qnx_verified_from_target_record(amr_ir, tmp_path, bound_evidence):
     p = _passport(amr_ir, tmp_path)
     assert gate.evaluate(p, ["nominal_navigation"])["qnx_verified"] is False
-    rec = {"status": "ok", "verified_on_target": True,
-           "checks": [{"name": "a", "passed": True, "detail": "x"}]}
+    rec = bound_evidence["target"]
     p2 = evidence.build_passport(
-        "run-t", amr_ir, codegen.generate(amr_ir, tmp_path / "g2"),
+        "run-t", amr_ir, bound_evidence["manifest"],
         faultlab.run_all(amr_ir, ["nominal_navigation"]),
-        {"status": "ok", "verified_on_target": False}, rec)
+        bound_evidence["build"], rec)
     v = gate.evaluate(p2, ["nominal_navigation"])
     assert (v["verdict"], v["qnx_verified"]) == ("PASS", True)
     rec["checks"][0]["passed"] = False
     p3 = evidence.build_passport(
-        "run-t3", amr_ir, codegen.generate(amr_ir, tmp_path / "g3"),
+        "run-t3", amr_ir, bound_evidence["manifest"],
         faultlab.run_all(amr_ir, ["nominal_navigation"]),
-        {"status": "ok", "verified_on_target": False}, rec)
+        bound_evidence["build"], rec)
     v3 = gate.evaluate(p3, ["nominal_navigation"])
     assert (v3["verdict"], v3["qnx_verified"]) == ("PASS", False)
 
@@ -137,7 +136,8 @@ def test_gate_levels_host_to_compiled(amr_ir, tmp_path):
         "PASS", "QNX_COMPILED", False)
 
 
-def test_gate_levels_executed_vs_behavior_verified(amr_ir, tmp_path):
+def test_gate_levels_executed_vs_behavior_verified(
+        amr_ir, tmp_path, bound_evidence):
     build = {"status": "ok", "verified_on_target": False}
     # Target ran but a check failed: executed, not behavior-verified.
     tgt = {"status": "ok", "verified_on_target": False,
@@ -147,17 +147,18 @@ def test_gate_levels_executed_vs_behavior_verified(amr_ir, tmp_path):
                       ["nominal_navigation"])
     assert (v["verdict"], v["level"], v["qnx_verified"],
             v["release_eligible"]) == ("PASS", "QNX_EXECUTED", False, False)
-    # All target checks pass with FULL coverage: behavior verified,
-    # release eligible. (§10: a subset must never yield release eligibility;
-    # see test_gate_reduced_coverage_blocks_release.)
+    # All target checks pass with FULL coverage AND full provenance
+    # binding: behavior verified, release eligible. (§10: a subset must
+    # never yield release eligibility; see
+    # test_gate_reduced_coverage_blocks_release.)
     # Full coverage = IR-declared scenarios (belt_jam is conveyor-only and
     # is not declared by the AMR IR).
     full = list(amr_ir["verification"]["scenarios"])
-    tgt = {"status": "ok", "verified_on_target": True,
-           "checks": [{"name": "a", "passed": True, "detail": "x"}]}
-    v = gate.evaluate(_passport_with(amr_ir, tmp_path, "verified", build, tgt,
-                                     scenarios=full),
-                      full)
+    p = evidence.build_passport(
+        "run-verified", amr_ir, bound_evidence["manifest"],
+        faultlab.run_all(amr_ir, full),
+        bound_evidence["build"], bound_evidence["target"])
+    v = gate.evaluate(p, full)
     assert (v["verdict"], v["level"], v["qnx_verified"],
             v["release_eligible"]) == (
                 "PASS", "QNX_BEHAVIOR_VERIFIED", True, True)
@@ -177,15 +178,16 @@ def test_gate_binds_target_evidence_to_build(amr_ir, tmp_path):
             v["release_eligible"]) == ("HOST_TESTED", False, False)
 
 
-def test_gate_reduced_coverage_blocks_release(amr_ir, tmp_path):
-    """Subset required + all-pass target evidence: the required scenarios
-    did pass (verdict PASS), but release is REFUSED loudly: coverage is
-    recorded and release_eligible is False. A caller must never silently
-    shrink verification and still receive a full-release PASS."""
-    tgt = {"status": "ok", "verified_on_target": True,
-           "checks": [{"name": "a", "passed": True, "detail": "x"}]}
-    p = _passport_with(amr_ir, tmp_path, "reduced",
-                       {"status": "ok", "verified_on_target": False}, tgt)
+def test_gate_reduced_coverage_blocks_release(amr_ir, tmp_path, bound_evidence):
+    """Subset required + all-pass BOUND target evidence: the required
+    scenarios did pass (verdict PASS), but release is REFUSED loudly:
+    coverage is recorded and release_eligible is False. A caller must
+    never silently shrink verification and still receive a full-release
+    PASS."""
+    p = evidence.build_passport(
+        "run-reduced", amr_ir, bound_evidence["manifest"],
+        faultlab.run_all(amr_ir, ["nominal_navigation"]),
+        bound_evidence["build"], bound_evidence["target"])
     v = gate.evaluate(p, ["nominal_navigation"])
     declared = amr_ir["verification"]["scenarios"]
     assert v["verdict"] == "PASS"
@@ -198,33 +200,25 @@ def test_gate_reduced_coverage_blocks_release(amr_ir, tmp_path):
     assert any("reduced coverage" in r for r in v["level_reasons"])
 
 
-def test_gate_full_coverage_keeps_release(amr_ir, tmp_path):
+def test_gate_full_coverage_keeps_release(amr_ir, tmp_path, bound_evidence):
     full = list(amr_ir["verification"]["scenarios"])
-    manifest = codegen.generate(amr_ir, tmp_path / "gen-full")
     results = faultlab.run_all(amr_ir, full)
-    tgt = {"status": "ok", "verified_on_target": True,
-           "checks": [{"name": "a", "passed": True, "detail": "x"}]}
     p = evidence.build_passport(
-        "run-full", amr_ir, manifest, results,
-        {"status": "ok", "verified_on_target": False}, tgt)
+        "run-full", amr_ir, bound_evidence["manifest"], results,
+        bound_evidence["build"], bound_evidence["target"])
     v = gate.evaluate(p, full)
     assert (v["verdict"], v["level"], v["release_eligible"]) == (
         "PASS", "QNX_BEHAVIOR_VERIFIED", True)
     assert v["coverage"]["omitted"] == []
 
 
-def test_gate_perf_record_earns_top_tier(amr_ir, tmp_path):
+def test_gate_perf_record_earns_top_tier(amr_ir, tmp_path, bound_evidence):
     full = list(amr_ir["verification"]["scenarios"])
-    manifest = codegen.generate(amr_ir, tmp_path / "gen-perf")
     results = faultlab.run_all(amr_ir, full)
-    tgt = {"status": "ok", "verified_on_target": True,
-           "checks": [{"name": "a", "passed": True, "detail": "x"}]}
-    perf = {"status": "ok", "verified_on_target": True,
-            "measurements": {"ipc_roundtrip_us": {"count": 1000}},
-            "raw_samples_us": [10.0] * 1000}
     p = evidence.build_passport(
-        "run-perf", amr_ir, manifest, results,
-        {"status": "ok", "verified_on_target": False}, tgt, qnx_perf=perf)
+        "run-perf", amr_ir, bound_evidence["manifest"], results,
+        bound_evidence["build"], bound_evidence["target"],
+        qnx_perf=bound_evidence["perf"])
     assert evidence.verify_chain(p) == []
     v = gate.evaluate(p, full)
     assert (v["verdict"], v["level"], v["release_eligible"]) == (

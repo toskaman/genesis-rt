@@ -27,6 +27,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "host"))
 
+from genesis_rt import codegen, provenance  # noqa: E402
+from genesis_rt.ir import load_ir_file  # noqa: E402
 from genesis_rt.build_adapter import probe_qemu  # noqa: E402
 
 BOOT_MARKERS = ("QNX", "Neutrino", "qnx", "login:", "Welcome")
@@ -618,17 +620,9 @@ def _matrix_check(name: str, body: str, status: int) -> dict:
 
 
 def _perf_distribution(samples: list[float]) -> dict:
-    """Nearest-rank distribution (documented method, no interpolation)."""
-    import math
-    ordered = sorted(samples)
-    n = len(ordered)
-
-    def rank(p: float) -> float:
-        return ordered[max(0, min(n - 1, math.ceil(p / 100.0 * n) - 1))]
-
-    return {"count": n, "unit": "microseconds",
-            "min": ordered[0], "max": ordered[-1],
-            "p50": rank(50), "p95": rank(95), "p99": rank(99)}
+    # Single implementation lives in genesis_rt.provenance so the gate
+    # recomputes bit-identical distributions when binding perf records.
+    return provenance.perf_distribution(list(samples))
 
 
 def _parse_bench(body: str) -> tuple[list[float], int | None]:
@@ -637,6 +631,78 @@ def _parse_bench(body: str) -> tuple[list[float], int | None]:
                re.finditer(r"^SAMPLE ([0-9]+(?:\.[0-9]+)?)$", body, re.M)]
     done = re.search(r"^PERF_DONE n=(\d+)$", body, re.M)
     return samples, int(done.group(1)) if done else None
+
+
+def _utcnow() -> str:
+    import datetime
+    return datetime.datetime.now(
+        datetime.timezone.utc).isoformat(timespec="seconds")
+
+
+def _exec_wait(client, command: str, timeout: int) -> tuple[int, str]:
+    """Run one command on an open SSH client; raise TimeoutError on stall."""
+    _stdin, stdout, _stderr = client.exec_command(command, timeout=timeout)
+    deadline = time.monotonic() + timeout
+    while not stdout.channel.exit_status_ready():
+        if time.monotonic() > deadline:
+            raise TimeoutError(command)
+        time.sleep(1)
+    return (stdout.channel.recv_exit_status(),
+            stdout.read().decode("utf-8", "replace"))
+
+
+def _fetch_uname(client) -> tuple[str | None, str | None]:
+    """Target identity line, or (None, reason). One exec, same connection."""
+    try:
+        status, body = _exec_wait(client, "uname -a", 60)
+    except Exception as exc:
+        return None, f"uname failed: {type(exc).__name__}: {exc}"
+    line = body.strip().splitlines()[0] if body.strip() else ""
+    if status != 0 or not line:
+        return None, f"uname exit={status} empty={not line}"
+    return line, None
+
+
+def _fetch_staged(client, dest: str = "/tmp/genesis") -> tuple[dict | None, str | None]:
+    """cksum+size of every staged genesis_* binary, or (None, reason).
+
+    POSIX cksum is the portable rendezvous: the build side computes the
+    same CRC over the same bytes (genesis_rt.provenance.cksum_posix),
+    so the gate can prove WHAT ran is WHAT was built.
+    """
+    try:
+        status, body = _exec_wait(
+            client, f"cd {dest} && cksum genesis_*", 60)
+    except Exception as exc:
+        return None, f"cksum failed: {type(exc).__name__}: {exc}"
+    if status != 0:
+        return None, f"cksum exit={status}: {body.strip()[:200]}"
+    staged: dict = {}
+    for line in body.splitlines():
+        parts = line.split()
+        # QNX/GNU format: "<cksum> <size> <name>"
+        if len(parts) != 3 or not parts[0].isdigit() or not parts[1].isdigit():
+            return None, f"unparsable cksum line: {line!r}"
+        staged[parts[2]] = {"cksum": int(parts[0]), "size": int(parts[1])}
+    if not staged:
+        return None, "cksum returned no binaries"
+    return staged, None
+
+
+def _ir_binding(ir_path: str | None) -> dict | None:
+    """{machine_id, ir_sha256} the operator binds this run to, or None
+    when unattested (the gate then caps the tier — never silently)."""
+    if not ir_path:
+        return None
+    # Same loader as the pipeline (validate+normalize): the digest must
+    # match the codegen manifest, not the raw file bytes.
+    data = load_ir_file(ir_path)
+    return {"machine_id": data["machine"]["id"],
+            "ir_sha256": codegen.ir_sha256(data)}
+
+
+def _target_identity_block(uname: str | None) -> dict:
+    return {"platform": provenance.TARGET_PLATFORM, "uname": uname or ""}
 
 
 def cmd_perf(args: argparse.Namespace) -> int:
@@ -651,17 +717,23 @@ def cmd_perf(args: argparse.Namespace) -> int:
                " ./genesis_guard > guard-perf.log 2>&1 & sleep 2;"
                f" ./genesis_faultinject bench {args.samples};"
                " echo BENCH_EXIT=$?; slay genesis_guard")
+    started = _utcnow()
+    prov_errors: list[str] = []
     try:
-        _stdin, stdout, _stderr = client.exec_command(command, timeout=300)
-        deadline = time.monotonic() + 300
-        while not stdout.channel.exit_status_ready():
-            if time.monotonic() > deadline:
-                print("perf: TIMEOUT waiting for target bench")
-                return 3
-            time.sleep(1)
-        body = stdout.read().decode("utf-8", "replace")
+        try:
+            _status, body = _exec_wait(client, command, 300)
+        except TimeoutError:
+            print("perf: TIMEOUT waiting for target bench")
+            return 3
+        uname, uname_err = _fetch_uname(client)
+        if uname_err:
+            prov_errors.append(uname_err)
+        staged, staged_err = _fetch_staged(client)
+        if staged_err:
+            prov_errors.append(staged_err)
     finally:
         client.close()
+    finished = _utcnow()
     samples, done = _parse_bench(body)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -669,9 +741,16 @@ def cmd_perf(args: argparse.Namespace) -> int:
         f"$ {command}\n{body}\n", encoding="utf-8")
     ok = (done == args.samples and len(samples) == args.samples
           and all(s == s and s != float("inf") for s in samples))
+    bound = ok and not prov_errors
     record: dict = {
         "status": "ok" if ok else "fail",
-        "verified_on_target": bool(ok),
+        "verified_on_target": bool(bound),
+        "provenance_version": provenance.PROVENANCE_VERSION,
+        "provenance_error": "; ".join(prov_errors) if prov_errors else None,
+        "started_utc": started,
+        "finished_utc": finished,
+        "target": _target_identity_block(uname),
+        "staged": staged,
         "method": {"probe": "genesis_faultinject bench (sequential nominal "
                             "MsgSend round trips, fresh seq each)",
                    "clock": "CLOCK_MONOTONIC on target (nanoseconds)",
@@ -699,7 +778,18 @@ def cmd_perf(args: argparse.Namespace) -> int:
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
+    import hashlib
     import os
+    live = [n for n, _ in TARGET_MATRIX]
+    if live != list(provenance.EXPECTED_TARGET_CHECKS):
+        print("verify: REFUSED — TARGET_MATRIX drifted from "
+              f"genesis_rt.provenance.EXPECTED_TARGET_CHECKS: {live}")
+        return 2
+    try:
+        ir_binding = _ir_binding(getattr(args, "ir", None))
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"verify: REFUSED — cannot bind --ir: {exc}")
+        return 2
     password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
     try:
         client = _ssh_client(args.ssh_port, args.user, password)
@@ -710,6 +800,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     results: list[dict] = []
     all_ok = True
+    started = _utcnow()
+    prov_errors: list[str] = []
     try:
         for name, command in TARGET_MATRIX:
             _stdin, stdout, stderr = client.exec_command(command, timeout=180)
@@ -729,15 +821,46 @@ def cmd_verify(args: argparse.Namespace) -> int:
                 results.append(check)
                 all_ok = all_ok and check["passed"]
                 print(f"target:{name}: {'PASS' if check['passed'] else 'FAIL'}")
+        uname, uname_err = _fetch_uname(client)
+        if uname_err:
+            prov_errors.append(uname_err)
+        staged, staged_err = _fetch_staged(client)
+        if staged_err:
+            prov_errors.append(staged_err)
     finally:
         client.close()
+    finished = _utcnow()
+    transcripts = {}
+    for name, _command in TARGET_MATRIX:
+        log = out_dir / f"target-{name}.log"
+        # Missing log (timeout/abort): None digest → the gate refuses
+        # binding loudly instead of crashing here.
+        transcripts[name] = (hashlib.sha256(log.read_bytes()).hexdigest()
+                             if log.exists() else None)
+    verified = all_ok and not prov_errors and ir_binding is not None
+    if getattr(args, "ir", None) is None:
+        prov_errors.append("no --ir given: run unattested "
+                           "(gate will cap the tier)")
     record = {"status": "ok" if all_ok else "fail",
-              "verified_on_target": all_ok,
-              "user": args.user, "checks": results,
+              "verified_on_target": verified,
+              "provenance_version": provenance.PROVENANCE_VERSION,
+              "provenance_error": "; ".join(prov_errors) if prov_errors else None,
+              "user": args.user,
+              "matrix": live,
+              "checks": results,
+              "started_utc": started,
+              "finished_utc": finished,
+              "target": _target_identity_block(uname),
+              "ir": ir_binding,
+              "staged": staged,
+              "transcripts": transcripts,
               "note": "executed on QNX 8.0 QEMU target over SSH; transcripts beside record"}
     (out_dir / "qnx-target-record.json").write_text(
         json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"target verification: {'PASS' if all_ok else 'FAIL'} -> {out_dir}")
+    if prov_errors:
+        print(f"provenance: {'BOUND' if verified else 'UNBOUND'} "
+              f"({'; '.join(prov_errors)})")
     return 0 if all_ok else 1
 
 
@@ -809,6 +932,10 @@ def main() -> int:
     v.add_argument("--password", default=None,
                    help="prefer GENESIS_TARGET_PASSWORD env var")
     v.add_argument("--out", default="artifacts/runs/qnx-target")
+    v.add_argument("--ir", default=None,
+                   help="machine IR JSON this run is bound to "
+                        "(machine id + digest embedded; required for "
+                        "QNX_BEHAVIOR_VERIFIED and above)")
     v.set_defaults(func=cmd_verify)
     f = sub.add_parser("perf", help="measure target IPC round-trip latency over SSH")
     f.add_argument("--ssh-port", type=int, default=2222)

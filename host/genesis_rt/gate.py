@@ -25,6 +25,13 @@ silently omits declared scenarios. The QNX_PERFORMANCE_MEASURED tier
 needs a ``qnx_perf`` record with measurements, produced by
 ``scripts/qnx_target.py perf`` (target-side bench) and attached via
 ``run_pipeline(..., perf_record=...)`` / ``demo --perf-record``.
+
+Imported QNX records are untrusted until bound (§6): above QNX_EXECUTED
+every tier additionally requires the provenance bindings checked by
+``genesis_rt.provenance`` (exact matrix, timestamps, target identity,
+IR/machine digest match, staged-vs-built binaries, transcript digests,
+recomputed perf distribution). Unbound evidence caps the tier with an
+explicit reason instead of failing the host verdict.
 """
 
 from __future__ import annotations
@@ -32,6 +39,7 @@ from __future__ import annotations
 import datetime
 from typing import Any
 
+from . import provenance
 from .evidence import verify_chain
 
 LEVELS = ("NONE", "HOST_TESTED", "QNX_COMPILED", "QNX_EXECUTED",
@@ -63,15 +71,36 @@ def _level(base_ok: bool, by_kind: dict[str, Any]) -> tuple[str, list[str]]:
             isinstance(c, dict) and c.get("passed") is True for c in checks):
         n_pass = sum(1 for c in checks
                      if isinstance(c, dict) and c.get("passed") is True)
-        return "QNX_EXECUTED", [
+        capped = [
             f"target ran ({n_pass}/{len(checks)} checks passed, "
             f"verified_on_target={target.get('verified_on_target')!r}); "
             f"need all-pass for QNX_BEHAVIOR_VERIFIED"]
+        if target.get("provenance_error"):
+            capped.append(f"target provenance error: "
+                          f"{target['provenance_error']}")
+        return "QNX_EXECUTED", capped
+    ir_body = (by_kind.get("ir") or {}).get("body", {})
+    unbound = provenance.validate_target_binding(
+        ir_body=ir_body if isinstance(ir_body, dict) else {},
+        build_body=build if isinstance(build, dict) else {},
+        target_body=target if isinstance(target, dict) else {})
+    if unbound:
+        return "QNX_EXECUTED", [
+            "target evidence not bound to this run "
+            "(need provenance for QNX_BEHAVIOR_VERIFIED):"] + unbound
     perf = (by_kind.get("qnx_perf") or {}).get("body", {})
     if perf.get("status") != "ok" or not perf.get("measurements"):
         return "QNX_BEHAVIOR_VERIFIED", [
             "no qnx_perf record with measurements "
             "(benchmark harness not run; capped below QNX_PERFORMANCE_MEASURED)"]
+    unbound_perf = provenance.validate_perf_binding(
+        build_body=build if isinstance(build, dict) else {},
+        target_body=target if isinstance(target, dict) else {},
+        perf_body=perf if isinstance(perf, dict) else {})
+    if unbound_perf:
+        return "QNX_BEHAVIOR_VERIFIED", [
+            "perf evidence not bound "
+            "(need provenance for QNX_PERFORMANCE_MEASURED):"] + unbound_perf
     return "QNX_PERFORMANCE_MEASURED", reasons
 
 

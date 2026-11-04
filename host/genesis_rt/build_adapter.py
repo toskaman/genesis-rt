@@ -9,11 +9,15 @@ expected artifact on disk. Without an SDK it returns a structured
 
 from __future__ import annotations
 
+import datetime
+import hashlib
 import os
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
+
+from . import provenance
 
 EXPECTED_BINS = ("genesis_guard", "genesis_controller", "genesis_device",
                  "genesis_status", "genesis_supervisor", "genesis_faultinject")
@@ -120,10 +124,25 @@ def build_qnx(build_dir: str | Path, makefile: str = "genesis_build_gen.mk",
     res = _run([make, "-f", makefile, "qnx"], cwd=bdir, timeout=timeout, env=child)
     missing = [b for b in EXPECTED_BINS if not (bdir / b).exists() and not (bdir / f"{b}.exe").exists()]
     ok = bool(res["ok"]) and not missing
+    binaries: dict[str, Any] = {}
+    if ok:
+        # Provenance anchor (§6): digest every output so the gate can
+        # prove the staged target binaries ARE this build's outputs.
+        for name in EXPECTED_BINS:
+            artifact = bdir / name
+            if not artifact.exists():
+                artifact = bdir / f"{name}.exe"
+            raw = artifact.read_bytes()
+            ck, size = provenance.cksum_posix(raw)
+            binaries[name] = {"sha256": hashlib.sha256(raw).hexdigest(),
+                              "cksum": ck, "size": size}
     return {"status": "ok" if ok else "error", "verified_on_target": False,
             "reason": None if ok else f"build failed or missing artifacts: {missing}",
             "returncode": res["returncode"], "stdout": res["stdout"],
             "stderr": res["stderr"], "environment": env,
+            "built_utc": datetime.datetime.now(
+                datetime.timezone.utc).isoformat(timespec="seconds"),
+            "binaries": binaries,
             "note": "compile-only; on-target execution is recorded separately"}
 
 

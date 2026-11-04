@@ -1,5 +1,43 @@
 # Progress log
 
+## 2026-11-05 -- P0 Wave 1c : Evidence Passport 2.0 (provenance + threat model)
+
+- Provenance de bout en bout : `host/genesis_rt/provenance.py`
+  (matrice 12 epinglee, plateforme, cksum POSIX CRC bit-identique au
+  `cksum` de reference sur 10 entrees, percentiles nearest-rank sans
+  interpolation, rendezvous staged cksum+taille, fenetre de capture,
+  refus fail-closed avec level_reasons explicites).
+- Gate durci : tout tier au-dessus de `QNX_EXECUTED` exige le binding
+  IR/build/cible/fenetre/plateforme ; les records legacy sans
+  provenance plafonnent a `QNX_EXECUTED`, jamais FAIL.
+- Producteurs : `verify --ir` (uname/staged/transcripts/fenetre/digest
+  IR), `perf` (staged/fenetre/distribution liee), `build_qnx`
+  (sha256+cksum+taille par binaire, built_utc, `qcc -V`).
+- Verificateur independant : `replay.py --anchor` (tete de chaine
+  publiee hors-bande) + `--transcripts-dir` (re-digest des
+  target-*.log) + rapport provenance (IR/machine, build qcc,
+  staged cible, fenetre).
+- Threat model : `docs/passport-threat-model.md` (5 niveaux distincts :
+  integrity, provenance, trusted local execution, independent replay,
+  hardware attestation NON fournie ; attaquants A1-A4, risques
+  residuels A3/A4 documentes, pas de theatre d'attestation).
+- Bug reel trouve PAR le gate : `verify --ir` digerait le JSON brut
+  alors que le pipeline digere l'IR valide/normalise -> premier cycle
+  lie echoue ferme `QNX_EXECUTED` "stale evidence" (run-67ad0700a651,
+  preuve du fail-closed). Fix : `_ir_binding` utilise `load_ir_file`
+  + test de regression `test_ir_binding_matches_pipeline_manifest`.
+- Preuve cible liee : boot TCG `-cpu max`, qcc 18 binaires 0 warning,
+  `verify --ir` 12/12 PASS, perf 1000/1000 (p50 279 us, p99 545 us),
+  `demo --target-record --perf-record` -> `QNX_PERFORMANCE_MEASURED`
+  (run-652e31767c28, qnx_verified, release_eligible).
+- Replay reel : `chain: valid` + `anchor: match` + `transcripts: 12/12
+  match` + `gate: PASS` ; controle negatif `--anchor deadbeef` ->
+  MISMATCH exit 1. Ancre publiee run-652e31767c28 :
+  `c73e6ec0e3438ae40ada1e907dcf31152743330d3f26018bd201349ae686b6b3`.
+- Suite hote 380/380 (18 adversariaux, 7 provenance, 4 replay).
+  Chiffres canoniques : 380 tests, matrice 12/12, 8 binaires stages.
+  Reste : video (fin projet, user), Devpost.
+
 ## 2026-11-05 -- P0 Wave 1b : Machine IR v2 end-to-end + matrice 12/12
 
 - v2 de bout en bout : `codegen_v2` (wire map, machine module,
