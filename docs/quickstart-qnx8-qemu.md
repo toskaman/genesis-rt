@@ -8,8 +8,13 @@
 
 - QEMU 11.1.0 at `E:\VMs\qemu\qemu-system-x86_64.exe` — satisfies the
   official "upgrade to QEMU 10" recommendation. Override with `GENESIS_QEMU`.
-- QNX SDP 8.0: **not installed** — needs the myQNX steps below (login-walled,
-  cannot be automated).
+- QNX SDP 8.0.0 at `E:\qnx800` (licence Education activée) + QSTI
+  `com.qnx.qnx800.quickstart.qemu` 0.5.0 déballé. Auto-détecté même sans
+  variables d'environnement.
+- Boot prouvé : `--boot disk --disk-name disk-qemu` avec `-cpu host`
+  (WHPX) ; `-kernel` direct et CPU émulé stallent le loader v1.2d.
+- Cible : `QNX qnxqemu 8.0.0 x86_64`, SSH `qnxuser` (mot de passe =
+  nom d'utilisateur par défaut de l'image).
 
 ## 1. Get the SDK lawfully (your 10 minutes, cannot be automated)
 

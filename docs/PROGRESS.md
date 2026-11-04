@@ -1,5 +1,32 @@
 # Progress log
 
+## 2026-11-04 (later) — vérifié sur vrai QNX 8.0 (QEMU)
+
+- QSTI 0.5.0 booté sous QEMU 11.1 (WHPX, `-cpu host`, boot disque ;
+  `-kernel` direct et CPU émulé stallent le loader — documenté).
+- SSH cible OK (`qnxuser`, `QNX qnxqemu 8.0.0 x86_64`) ; 6 binaires natifs
+  transférés et exécutés. Matrice on-target 5/5 : faultinject 6/6 via IPC
+  natif, resmgr lu via `/dev/genesis/status` (root), 60/60 ALLOW à 100 ms,
+  superviseur stable (4 processus), device résident.
+- Bugs trouvés PAR la cible et corrigés : `io_read` resmgr (offset/EOF,
+  OCB opaque), device qui exitait, attente SSH/exec sans timeout.
+- `qnx_verified: True` de bout en bout : `qnx_target.py verify` →
+  `demo --target-record` → gate PASS, replay valide.
+- G2/G3/G4/G10 désormais OUI (cible). Reste : vidéo (fin projet), Devpost.
+
+## 2026-11-04 (later) — SDP 8.0 installé, build natif vert
+
+- Licence Education activée via QSC CLI; SDP 8.0.0 installé en
+  `E:\qnx800` (baseline épinglée, métadonnées miroirées).
+- Corrigés par le vrai `qcc` : include `common/` manquant dans le
+  makefile généré (+test de régression), `-lm` requis à l'édition de
+  liens, `dispatch_block` QNX8 (contexte alloc), `stdlib.h` manquant.
+- 5 binaires natifs `elf64-x86-64`, zéro warning. Détection SDK auto
+  sans variables d'env (candidats standards + env enfant).
+- Suite complète verte, 0 skip (le test QNX build tourne vraiment).
+- Paquet `com.qnx.qnx800.quickstart.qemu` 0.5.0 installé ; extraction
+  QSTI en cours, boot + runs on-target ensuite.
+
 ## 2026-11-04 (later) — QEMU ready, SDK wall mapped
 
 - QEMU 11.1.0 verified at `E:\VMs\qemu\`; env probe + `GENESIS_QEMU`

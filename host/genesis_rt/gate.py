@@ -29,9 +29,18 @@ def evaluate(passport: dict[str, Any], required_scenarios: list[str]) -> dict[st
     qnx_rec = by_kind.get("qnx_build")
     if qnx_rec is None:
         reasons.append("missing qnx_build record")
-        qnx_verified = False
-    else:
-        qnx_verified = bool(qnx_rec.get("body", {}).get("verified_on_target", False))
+    tgt_rec = by_kind.get("qnx_target")
+    qnx_verified = False
+    if tgt_rec is not None:
+        # qnx_verified is reported alongside the host verdict, never gating it:
+        # a missing target record keeps qnx_verified=false without failing.
+        body = tgt_rec.get("body", {})
+        checks = body.get("checks", [])
+        if (body.get("status") == "ok"
+                and body.get("verified_on_target") is True
+                and isinstance(checks, list) and len(checks) > 0
+                and all(c.get("passed") is True for c in checks)):
+            qnx_verified = True
 
     missing: list[str] = []
     failed: list[str] = []

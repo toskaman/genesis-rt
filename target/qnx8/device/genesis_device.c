@@ -10,6 +10,10 @@
 #include <string.h>
 #include "genesis_ipc.h"
 
+#ifdef __QNXNTO__
+#include <unistd.h>
+#endif
+
 typedef struct {
     double x, y, theta;
     double v, w;
@@ -36,6 +40,10 @@ int main(void) {
            "device: state x=%.2f y=%.2f theta=%.2f\n", g_dev.x, g_dev.y, g_dev.theta);
 #ifdef __QNXNTO__
     printf("device: running on QNX Neutrino; awaiting guard-forwarded commands.\n");
+    /* Stay resident: the supervisor owns this process and a clean exit
+     * would (correctly) read as a child death. Terminate via slay. */
+    for (;;)
+        sleep(3600);
 #else
     printf("device: host build; logic verified through the Python simulator mirror.\n");
 #endif

@@ -69,7 +69,8 @@ def _cmd_faults(args: argparse.Namespace) -> int:
 def _cmd_demo(args: argparse.Namespace) -> int:
     from .orchestrator import run_pipeline
     ir_path = args.ir or str(REPO_ROOT / "examples" / "amr-demo" / "machine-ir.json")
-    summary = run_pipeline(ir_path, REPO_ROOT / "artifacts" / "runs")
+    summary = run_pipeline(ir_path, REPO_ROOT / "artifacts" / "runs",
+                           target_record=args.target_record)
     print(f"run: {summary['run_id']}  verdict: {summary['verdict']}  "
           f"qnx_verified: {summary['qnx_verified']}  elapsed: {summary['elapsed_s']}s")
     print(f"passport: {summary['passport']}")
@@ -108,7 +109,10 @@ def build_parser() -> argparse.ArgumentParser:
     f = sub.add_parser("faults", help="run the fault-injection campaign")
     f.add_argument("ir"); f.set_defaults(func=_cmd_faults)
     d = sub.add_parser("demo", help="run the full verified demo pipeline")
-    d.add_argument("--ir", default=None); d.set_defaults(func=_cmd_demo)
+    d.add_argument("--ir", default=None)
+    d.add_argument("--target-record", default=None,
+                   help="qnx-target-record.json from scripts/qnx_target.py verify")
+    d.set_defaults(func=_cmd_demo)
     c = sub.add_parser("check-env", help="probe for a QNX SDK toolchain")
     c.set_defaults(func=_cmd_check_env)
     sv = sub.add_parser("serve", help="start the local web API (needs api extra)")

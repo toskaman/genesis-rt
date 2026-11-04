@@ -23,7 +23,8 @@ TARGET_SRC = REPO_ROOT / "target" / "qnx8"
 
 def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
                  run_id: str | None = None,
-                 scenarios: list[str] | None = None) -> dict[str, Any]:
+                 scenarios: list[str] | None = None,
+                 target_record: str | Path | None = None) -> dict[str, Any]:
     t0 = time.monotonic()
     run_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
     adir = Path(artifacts_dir)
@@ -52,7 +53,14 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
         "scenarios": {r["scenario"]: r["status"] for r in results},
     }
 
-    passport = evidence.build_passport(run_id, ir, manifest, results, qnx_record)
+    qnx_target = None
+    if target_record:
+        import json as _json
+        qnx_target = _json.loads(Path(target_record).read_text(encoding="utf-8"))
+        steps["qnx_target"] = {"status": qnx_target.get("status"),
+                               "record": str(target_record)}
+    passport = evidence.build_passport(run_id, ir, manifest, results,
+                                       qnx_record, qnx_target)
     verdict = gate.evaluate(passport, wanted)
     evidence.attach_verdict(passport, verdict)
     ppath = evidence.save_passport(passport, run_dir / "passport.json")

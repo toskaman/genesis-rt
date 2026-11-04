@@ -6,7 +6,7 @@
 
 QNX_TARGET_ARCH ?= x86_64
 QCC ?= qcc
-QCC_FLAGS = -Vgcc_ntox86_64 -O2 -Wall -Wextra -I$$(GENESIS_SRC)/include -I.
+QCC_FLAGS = -Vgcc_ntox86_64 -O2 -Wall -Wextra -I$$(GENESIS_SRC)/include -I$$(GENESIS_SRC)/common -I. -lm
 GENESIS_SRC ?= ${genesis_src}
 MACHINE_ID = ${machine_id}
 
@@ -16,7 +16,8 @@ QNX_SRCS = \
 	$$(GENESIS_SRC)/controller/genesis_controller.c \
 	$$(GENESIS_SRC)/device/genesis_device.c \
 	$$(GENESIS_SRC)/status/genesis_status.c \
-	$$(GENESIS_SRC)/supervisor/genesis_supervisor.c
+	$$(GENESIS_SRC)/supervisor/genesis_supervisor.c \
+	$$(GENESIS_SRC)/faultinject/genesis_faultinject.c
 
 qnx:
 	$$(QCC) $$(QCC_FLAGS) -o genesis_guard $$(GENESIS_SRC)/common/guard_policy.c $$(GENESIS_SRC)/guard/genesis_guard.c
@@ -24,6 +25,7 @@ qnx:
 	$$(QCC) $$(QCC_FLAGS) -o genesis_device $$(GENESIS_SRC)/device/genesis_device.c
 	$$(QCC) $$(QCC_FLAGS) -o genesis_status $$(GENESIS_SRC)/status/genesis_status.c
 	$$(QCC) $$(QCC_FLAGS) -o genesis_supervisor $$(GENESIS_SRC)/supervisor/genesis_supervisor.c
+	$$(QCC) $$(QCC_FLAGS) -o genesis_faultinject $$(GENESIS_SRC)/faultinject/genesis_faultinject.c
 
 host:
-	cc -O1 -Wall -Wextra -I$$(GENESIS_SRC)/include -I$$(GENESIS_SRC)/common -I. -o guard_vector $$(GENESIS_SRC)/common/guard_policy.c $$(GENESIS_SRC)/host_tests/guard_vector.c
+	cc -O1 -Wall -Wextra -I$$(GENESIS_SRC)/include -I$$(GENESIS_SRC)/common -I. -o guard_vector $$(GENESIS_SRC)/common/guard_policy.c $$(GENESIS_SRC)/host_tests/guard_vector.c -lm

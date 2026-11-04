@@ -13,6 +13,7 @@
 | Hash-linked passport | `host/genesis_rt/evidence.py` | `artifacts/samples/golden_demo_passport.example.json` |
 | Fail-closed gate | `host/genesis_rt/gate.py` | `tests/unit/test_evidence_gate.py`, `tests/acceptance/` |
 | Honest QNX absence | `host/genesis_rt/build_adapter.py` (`blocked` records) | `tests/qnx/test_qnx_build.py` (explicit skip) |
+| On-target proof (QNX 8.0 QEMU) | `scripts/qnx_target.py verify` (5-step SSH matrix) | `target/qnx8/faultinject/` (6/6 IPC checks), run transcripts |
 | Clock separation | `docs/evidence-methodology.md` | sim `t_ms` vs envelope `created_utc` |
 
 QNX-specific technology bonus mapping: native synchronous message passing

@@ -20,8 +20,9 @@ def qnx_env():
     return env
 
 
-def test_qnx_native_build(qnx_env, amr_ir, tmp_path):
-    manifest = codegen.generate(amr_ir, tmp_path / "gen")
+def test_qnx_native_build(qnx_env, amr_ir, tmp_path, repo_root):
+    src = str((repo_root / "target" / "qnx8").as_posix())
+    manifest = codegen.generate(amr_ir, tmp_path / "gen", genesis_src=src)
     assert manifest["files"]
     record = build_qnx(tmp_path / "gen")
     assert record["status"] == "ok", record

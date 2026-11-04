@@ -69,6 +69,14 @@ def test_missing_field_malformed_latches():
     assert (v["decision"], v["reason"], v["state_out"]) == (gp.DENY, gp.R_MALFORMED, 3)
 
 
+def test_denied_seq_not_consumed():
+    """Only ACCEPTED seqs advance last_seq (retry-with-fix stays legal)."""
+    ctx = gp.GuardContext()
+    assert gp.decide(_cmd(seq=5, linear_mps=9.0), ctx, LIMITS)["decision"] == gp.DENY
+    v = gp.decide(_cmd(seq=5), ctx, LIMITS)
+    assert (v["decision"], v["reason"]) == (gp.ALLOW, gp.R_OK)
+
+
 def test_safe_stop_needs_supervisor_reset():
     ctx = gp.GuardContext()
     gp.decide(_cmd(magic=0xDEAD), ctx, LIMITS)

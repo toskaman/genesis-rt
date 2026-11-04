@@ -51,6 +51,26 @@ def test_gate_pass_and_verdict_chained(amr_ir, tmp_path):
     assert p["gate"] == "PASS"
 
 
+def test_gate_qnx_verified_from_target_record(amr_ir, tmp_path):
+    p = _passport(amr_ir, tmp_path)
+    assert gate.evaluate(p, ["nominal_navigation"])["qnx_verified"] is False
+    rec = {"status": "ok", "verified_on_target": True,
+           "checks": [{"name": "a", "passed": True, "detail": "x"}]}
+    p2 = evidence.build_passport(
+        "run-t", amr_ir, codegen.generate(amr_ir, tmp_path / "g2"),
+        faultlab.run_all(amr_ir, ["nominal_navigation"]),
+        {"status": "ok", "verified_on_target": False}, rec)
+    v = gate.evaluate(p2, ["nominal_navigation"])
+    assert (v["verdict"], v["qnx_verified"]) == ("PASS", True)
+    rec["checks"][0]["passed"] = False
+    p3 = evidence.build_passport(
+        "run-t3", amr_ir, codegen.generate(amr_ir, tmp_path / "g3"),
+        faultlab.run_all(amr_ir, ["nominal_navigation"]),
+        {"status": "ok", "verified_on_target": False}, rec)
+    v3 = gate.evaluate(p3, ["nominal_navigation"])
+    assert (v3["verdict"], v3["qnx_verified"]) == ("PASS", False)
+
+
 def test_gate_fails_closed(amr_ir, tmp_path):
     p = _passport(amr_ir, tmp_path)
     # missing scenario

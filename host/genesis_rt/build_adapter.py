@@ -16,13 +16,15 @@ from pathlib import Path
 from typing import Any
 
 EXPECTED_BINS = ("genesis_guard", "genesis_controller", "genesis_device",
-                 "genesis_status", "genesis_supervisor")
+                 "genesis_status", "genesis_supervisor", "genesis_faultinject")
 
 
-def _run(argv: list[str], cwd: Path | None = None, timeout: int = 120) -> dict[str, Any]:
+def _run(argv: list[str], cwd: Path | None = None, timeout: int = 120,
+         env: dict[str, str] | None = None) -> dict[str, Any]:
     try:
         proc = subprocess.run(argv, capture_output=True, text=True,
-                              cwd=str(cwd) if cwd else None, timeout=timeout, check=False)
+                              cwd=str(cwd) if cwd else None, timeout=timeout,
+                              check=False, env=env)
     except FileNotFoundError:
         return {"ok": False, "returncode": None, "stdout": "", "stderr": f"not found: {argv[0]}"}
     except subprocess.TimeoutExpired:
@@ -49,12 +51,43 @@ def probe_qemu() -> dict[str, Any]:
     return result
 
 
+def _sdk_candidates() -> list[tuple[str, str]]:
+    """Well-known SDP install layouts, used when env vars are unset."""
+    host_dir = "host/win64/x86_64" if os.name == "nt" else "host/linux/x86_64"
+    bases = ["E:/qnx800", "C:/qnx800",
+             str(Path.home() / "qnx800").replace("\\", "/"), "/opt/qnx800"]
+    return [(f"{b}/{host_dir}", f"{b}/target/qnx") for b in bases]
+
+
+def _child_env(qnx_host: str, qnx_target: str) -> dict[str, str]:
+    env = dict(os.environ)
+    env["QNX_HOST"] = qnx_host
+    env["QNX_TARGET"] = qnx_target
+    base = qnx_host.rsplit("/host/", 1)[0]
+    extra = os.pathsep.join([f"{qnx_host}/usr/bin", f"{base}/host/common/bin"])
+    env["PATH"] = extra + os.pathsep + env.get("PATH", "")
+    return env
+
+
 def probe() -> dict[str, Any]:
     """Inspect the host for a usable QNX SDP 8.0 toolchain (plus QEMU)."""
     qnx_host = os.environ.get("QNX_HOST")
     qnx_target = os.environ.get("QNX_TARGET")
-    qcc = shutil.which("qcc") or (f"{qnx_host}/usr/bin/qcc" if qnx_host else None)
-    qcc_present = bool(qcc and Path(qcc).exists()) if qcc else False
+    if not (qnx_host and qnx_target):
+        for host_cand, target_cand in _sdk_candidates():
+            qcc_cand = Path(f"{host_cand}/usr/bin/qcc.exe" if os.name == "nt"
+                            else f"{host_cand}/usr/bin/qcc")
+            if qcc_cand.exists() and Path(target_cand).exists():
+                qnx_host, qnx_target = host_cand, target_cand
+                break
+    qcc = shutil.which("qcc")
+    if not qcc and qnx_host:
+        for name in ("qcc.exe", "qcc") if os.name == "nt" else ("qcc",):
+            cand = str(Path(qnx_host) / "usr" / "bin" / name)
+            if Path(cand).exists():
+                qcc = cand
+                break
+    qcc_present = bool(qcc and Path(qcc).exists())
     result: dict[str, Any] = {
         "sdk_present": bool(qcc_present and qnx_target and Path(str(qnx_target)).exists()),
         "qnx_host": qnx_host, "qnx_target": qnx_target,
@@ -62,7 +95,8 @@ def probe() -> dict[str, Any]:
         "qemu": probe_qemu(),
     }
     if qcc_present and qcc:
-        ver = _run([qcc, "-V"], timeout=30)
+        ver = _run([qcc, "-V"], timeout=30,
+                   env=_child_env(str(qnx_host), str(qnx_target)))
         result["qcc_version"] = (ver["stdout"] or ver["stderr"])[:500] or None
     return result
 
@@ -81,7 +115,9 @@ def build_qnx(build_dir: str | Path, makefile: str = "genesis_build_gen.mk",
     if not mk.exists():
         return {"status": "error", "verified_on_target": False,
                 "reason": f"missing build file: {mk}", "environment": env}
-    res = _run(["make", "-f", makefile, "qnx"], cwd=bdir, timeout=timeout)
+    child = _child_env(str(env["qnx_host"]), str(env["qnx_target"]))
+    make = shutil.which("make", path=child["PATH"]) or "make"
+    res = _run([make, "-f", makefile, "qnx"], cwd=bdir, timeout=timeout, env=child)
     missing = [b for b in EXPECTED_BINS if not (bdir / b).exists() and not (bdir / f"{b}.exe").exists()]
     ok = bool(res["ok"]) and not missing
     return {"status": "ok" if ok else "error", "verified_on_target": False,

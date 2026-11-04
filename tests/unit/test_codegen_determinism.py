@@ -35,6 +35,15 @@ def test_different_ir_different_hash(amr_ir, tmp_path):
     assert m1["files"] != m2["files"]
 
 
+def test_makefile_covers_all_include_dirs(amr_ir, tmp_path):
+    codegen.generate(amr_ir, tmp_path)
+    mk = (tmp_path / "genesis_build_gen.mk").read_text(encoding="utf-8")
+    # qcc flags must find genesis_ipc.h (include/) and guard_policy.h (common/)
+    assert "-I$(GENESIS_SRC)/include" in mk
+    assert "-I$(GENESIS_SRC)/common" in mk
+    assert mk.count("-I$(GENESIS_SRC)/common") >= 2  # qnx flags + host target
+
+
 def test_no_timestamps_in_output(amr_ir, tmp_path):
     import datetime
     codegen.generate(amr_ir, tmp_path)

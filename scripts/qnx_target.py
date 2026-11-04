@@ -14,7 +14,10 @@ package installed via QNX Software Center, unpacked with unpack_qemu_image.sh.
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import platform
+import socket
 import subprocess
 import sys
 import time
@@ -43,27 +46,63 @@ def probe_image(image_dir: Path) -> dict:
             "bootable_layout": bool(has_ifs and has_disk)}
 
 
+def _default_cpu() -> str:
+    """Host CPU model (QNX startup needs real CPUID; see options guidance)."""
+    ident = os.environ.get("PROCESSOR_IDENTIFIER", "")
+    if "intel" in ident.lower():
+        return "host"
+    if "amd" in ident.lower():
+        return "host,host-phys-bits-limit=40"
+    try:
+        cpuinfo = Path("/proc/cpuinfo").read_text(encoding="utf-8", errors="replace")
+        if "AuthenticAMD" in cpuinfo:
+            return "host,host-phys-bits-limit=40"
+        if "GenuineIntel" in cpuinfo:
+            return "host"
+    except OSError:
+        pass
+    return "default"
+
+
 def build_qemu_argv(qemu: str, image_dir: Path, memory: str = "4G",
-                    accel: str = "auto", extra: list[str] | None = None) -> list[str]:
+                    accel: str = "auto", boot: str = "kernel",
+                    disk_name: str | None = None, ssh_port: int = 0,
+                    cpu: str = "auto",
+                    extra: list[str] | None = None) -> list[str]:
     out = image_dir / "output" if (image_dir / "output").is_dir() else image_dir
     ifs = next((p for p in sorted(out.glob("*")) if p.name.endswith("ifs.bin")), None)
-    disk = next((p for p in sorted(out.glob("*"))
-                 if p.suffix in (".vmdk", ".qcow2", ".img")), None)
+    if disk_name:
+        disk = out / disk_name
+        disk = disk if disk.exists() else None
+    else:
+        disk = next((p for p in sorted(out.glob("*"))
+                     if p.suffix in (".vmdk", ".qcow2", ".img")), None)
     if ifs is None or disk is None:
         raise FileNotFoundError(f"need ifs.bin + disk image under {image_dir}")
+    fmt = ",format=raw" if disk.suffix == "" else ""
+    netdev = "user,id=net0"
+    if ssh_port:
+        netdev += f",hostfwd=tcp:127.0.0.1:{ssh_port}-:22"
     argv = [qemu, "-m", memory, "-smp", "4",
-           "-drive", f"file={disk},if=ide,id=drv0",
-           "-kernel", str(ifs),
+           "-drive", f"file={disk},if=ide,id=drv0{fmt}",
            "-serial", "mon:stdio", "-nographic",
-           "-netdev", "user,id=net0",
+           "-netdev", netdev,
            "-device", "virtio-net-pci,netdev=net0"]
+    if boot == "kernel":
+        argv += ["-kernel", str(ifs)]
+    else:
+        argv += ["-boot", "order=c,menu=off"]
     system = platform.system()
     if accel == "auto":
         accel = "kvm" if system == "Linux" else ("whpx" if system == "Windows" else "tcg")
+    if cpu == "auto":
+        cpu = _default_cpu()
     if accel == "kvm":
-        argv += ["--enable-kvm", "-cpu", "host"]
+        argv += ["--enable-kvm"]
     elif accel == "whpx":
         argv += ["-accel", "whpx"]
+    if cpu != "default":
+        argv += ["-cpu", cpu]
     argv += ["-pidfile", str(out / "qemu.pid")]
     if extra:
         argv += extra
@@ -80,6 +119,28 @@ def cmd_probe_image(args: argparse.Namespace) -> int:
     return 0 if inv["bootable_layout"] else 1
 
 
+def _qmp_screendump(port: int, path: Path) -> str:
+    """Grab the emulated VGA framebuffer over QMP. Returns status string."""
+    try:
+        sock = socket.create_connection(("127.0.0.1", port), timeout=15)
+    except OSError as exc:
+        return f"qmp-connect-failed: {exc}"
+    try:
+        fh = sock.makefile("r", encoding="utf-8")
+        fh.readline()  # greeting
+        sock.sendall(b'{"execute": "qmp_capabilities"}\n')
+        fh.readline()  # ack
+        cmd = {"execute": "screendump",
+               "arguments": {"filename": str(path), "format": "png"}}
+        sock.sendall((json.dumps(cmd) + "\n").encode("utf-8"))
+        resp = fh.readline()
+        return f"qmp-response: {resp.strip()[:200]}"
+    except OSError as exc:
+        return f"qmp-error: {exc}"
+    finally:
+        sock.close()
+
+
 def cmd_boot(args: argparse.Namespace) -> int:
     qemu = probe_qemu()
     if not qemu["present"]:
@@ -88,7 +149,11 @@ def cmd_boot(args: argparse.Namespace) -> int:
     image_dir = Path(args.image_dir)
     try:
         argv = build_qemu_argv(qemu["path"], image_dir, memory=args.memory,
-                              accel=args.accel, extra=args.qemu_arg)
+                              accel=args.accel, boot=args.boot,
+                              disk_name=args.disk_name, ssh_port=args.ssh_port,
+                              cpu=args.cpu, extra=args.qemu_arg)
+        if args.qmp_port:
+            argv = argv + ["-qmp", f"tcp:127.0.0.1:{args.qmp_port},server=on,wait=off"]
     except FileNotFoundError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -100,15 +165,43 @@ def cmd_boot(args: argparse.Namespace) -> int:
     print(f"transcript: {transcript}  (timeout {args.timeout}s)")
     (out_dir / "qemu-cmdline.txt").write_text(" ".join(argv) + "\n", encoding="utf-8")
     t0 = time.monotonic()
-    try:
+    shot_status = "no-qmp"
+    if args.qmp_port and args.shot_at:
         with open(transcript, "wb") as fh:
-            proc = subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=fh,
-                                  stderr=subprocess.STDOUT, timeout=args.timeout, check=False)
-    except subprocess.TimeoutExpired:
-        print("note: timeout reached; QEMU keeps no state (see transcript)")
-        rc = None
+            proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=fh,
+                                    stderr=subprocess.STDOUT)
+            try:
+                deadline = t0 + args.timeout
+                shot_done = False
+                while time.monotonic() < deadline:
+                    if proc.poll() is not None:
+                        break
+                    if not shot_done and time.monotonic() - t0 >= args.shot_at:
+                        shot_status = _qmp_screendump(
+                            args.qmp_port, out_dir / "vga-shot.png")
+                        shot_done = True
+                    time.sleep(2)
+                else:
+                    print("note: timeout reached; QEMU keeps no state (see transcript)")
+            finally:
+                if proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=20)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+            rc = proc.returncode
+        print(f"screenshot: {shot_status}")
     else:
-        rc = proc.returncode
+        try:
+            with open(transcript, "wb") as fh:
+                proc = subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=fh,
+                                      stderr=subprocess.STDOUT, timeout=args.timeout, check=False)
+        except subprocess.TimeoutExpired:
+            print("note: timeout reached; QEMU keeps no state (see transcript)")
+            rc = None
+        else:
+            rc = proc.returncode
     elapsed = round(time.monotonic() - t0, 1)
     text = transcript.read_bytes()[:200000].decode("utf-8", "replace")
     seen = sorted({m for m in BOOT_MARKERS if m in text})
@@ -121,6 +214,186 @@ def cmd_boot(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ssh_client(port: int, user: str, password: str, timeout: int = 30):
+    import paramiko  # noqa: PLC0415
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect("127.0.0.1", port=port, username=user, password=password,
+                   timeout=timeout, banner_timeout=timeout, auth_timeout=timeout)
+    return client
+
+
+def cmd_wait_ssh(args: argparse.Namespace) -> int:
+    deadline = time.monotonic() + args.wait
+    while time.monotonic() < deadline:
+        try:
+            sock = socket.create_connection(("127.0.0.1", args.ssh_port), timeout=5)
+            sock.close()
+            print(f"ssh: port {args.ssh_port} open")
+            return 0
+        except OSError:
+            time.sleep(5)
+    print(f"ssh: port {args.ssh_port} never opened after {args.wait}s")
+    return 1
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    import os
+    password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
+    try:
+        client = _ssh_client(args.ssh_port, args.user, password)
+    except Exception as exc:
+        print(f"ssh: connect/auth failed: {type(exc).__name__}: {exc}")
+        return 2
+    rc_all = 0
+    out_lines: list[str] = []
+    try:
+        for command in args.command:
+            header = f"$ {command}"
+            print(header)
+            out_lines.append(header)
+            _stdin, stdout, stderr = client.exec_command(command, timeout=args.timeout)
+            deadline = time.monotonic() + args.timeout
+            while not stdout.channel.exit_status_ready():
+                if time.monotonic() > deadline:
+                    out_lines.append(f"[TIMEOUT after {args.timeout}s]")
+                    print(f"[TIMEOUT after {args.timeout}s]")
+                    return 3
+                time.sleep(0.5)
+            status = stdout.channel.recv_exit_status()
+            body = stdout.read().decode("utf-8", "replace")
+            err = stderr.read().decode("utf-8", "replace")
+            print(body, end="" if body.endswith("\n") else "\n")
+            if err.strip():
+                print(f"[stderr] {err}", end="" if err.endswith("\n") else "\n")
+            print(f"[exit={status}]")
+            out_lines += [body, f"[exit={status}]"]
+            rc_all = rc_all or (0 if status == 0 else 1)
+    finally:
+        client.close()
+    if args.out:
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+        print(f"transcript: {out_path}")
+    return rc_all
+
+
+TARGET_MATRIX = [
+    ("target_info", "uname -a; echo ---; pidin -F %n 2>/dev/null | head -5"),
+    ("faultinject",
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null; rm -f guard.log;"
+     " ./genesis_guard > guard.log 2>&1 & sleep 3; ./genesis_faultinject;"
+     " echo FI_EXIT=$?; sleep 1; echo ---GUARD-LOG---; cat guard.log;"
+     " slay genesis_guard"),
+    ("status_resmgr",
+     "cd /tmp/genesis; sudo -n ./genesis_status > status-root.log 2>&1 & sleep 3;"
+     " cat /dev/genesis/status; echo STATUS_CAT_EXIT=$?;"
+     " sudo -n slay genesis_status"),
+    ("controller_flow",
+     "cd /tmp/genesis; rm -f guard.log ctrl.log;"
+     " ./genesis_guard > guard.log 2>&1 & sleep 2;"
+     " ./genesis_controller 100 > ctrl.log 2>&1 & sleep 6;"
+     " slay genesis_controller; slay genesis_guard;"
+     " grep -c ALLOW guard.log; grep -c DENY guard.log || true"),
+    ("supervisor_set",
+     "cd /tmp/genesis; ./genesis_supervisor > sup.log 2>&1 & sleep 6;"
+     " pidin -F %n 2>/dev/null | grep -c genesis;"
+     " slay genesis_supervisor; slay genesis_guard;"
+     " slay genesis_controller; slay genesis_device"),
+]
+
+
+def _matrix_check(name: str, body: str, status: int) -> dict:
+    """Parse one matrix step into a pass/fail check (strict substrings)."""
+    if name == "target_info":
+        ok = status == 0 and "QNX" in body and "x86_64" in body
+    elif name == "faultinject":
+        # compound exit code is slay's (1 even on success); FI_EXIT is authoritative
+        ok = "ALL 6 CHECKS PASS" in body and "FI_EXIT=0" in body
+    elif name == "status_resmgr":
+        ok = "STATUS_CAT_EXIT=0" in body and "state=" in body
+    elif name == "controller_flow":
+        ok = False
+        for line in body.splitlines():
+            line = line.strip()
+            if line.isdigit() and int(line) >= 50:
+                ok = True  # >=50 ALLOW lines in 6 s at 100 ms
+    elif name == "supervisor_set":
+        ok = any(line.strip() == "4" for line in body.splitlines())
+    else:
+        ok = False
+    return {"name": name, "passed": ok, "detail": body[-500:].strip().replace("\n", " | ")}
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    import os
+    password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
+    try:
+        client = _ssh_client(args.ssh_port, args.user, password)
+    except Exception as exc:
+        print(f"ssh: connect/auth failed: {type(exc).__name__}: {exc}")
+        return 2
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    results: list[dict] = []
+    all_ok = True
+    try:
+        for name, command in TARGET_MATRIX:
+            _stdin, stdout, stderr = client.exec_command(command, timeout=180)
+            deadline = time.monotonic() + 180
+            while not stdout.channel.exit_status_ready():
+                if time.monotonic() > deadline:
+                    results.append({"name": name, "passed": False, "detail": "TIMEOUT"})
+                    all_ok = False
+                    break
+                time.sleep(1)
+            else:
+                status = stdout.channel.recv_exit_status()
+                body = stdout.read().decode("utf-8", "replace")
+                (out_dir / f"target-{name}.log").write_text(
+                    f"$ {command}\n{body}\n[exit={status}]\n", encoding="utf-8")
+                check = _matrix_check(name, body, status)
+                results.append(check)
+                all_ok = all_ok and check["passed"]
+                print(f"target:{name}: {'PASS' if check['passed'] else 'FAIL'}")
+    finally:
+        client.close()
+    record = {"status": "ok" if all_ok else "fail",
+              "verified_on_target": all_ok,
+              "user": args.user, "checks": results,
+              "note": "executed on QNX 8.0 QEMU target over SSH; transcripts beside record"}
+    (out_dir / "qnx-target-record.json").write_text(
+        json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"target verification: {'PASS' if all_ok else 'FAIL'} -> {out_dir}")
+    return 0 if all_ok else 1
+
+
+def cmd_put(args: argparse.Namespace) -> int:
+    import os
+    password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
+    try:
+        client = _ssh_client(args.ssh_port, args.user, password)
+    except Exception as exc:
+        print(f"ssh: connect/auth failed: {type(exc).__name__}: {exc}")
+        return 2
+    try:
+        sftp = client.open_sftp()
+        try:
+            sftp.mkdir(args.dest)
+        except OSError:
+            pass  # exists
+        for src in args.src:
+            name = Path(src).name
+            dst = f"{args.dest}/{name}"
+            sftp.put(src, dst)
+            sftp.chmod(dst, 0o755)
+            print(f"put: {src} -> {dst}")
+        return 0
+    finally:
+        client.close()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="QNX QSTI image probe + QEMU boot")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -130,7 +403,45 @@ def main() -> int:
     b.add_argument("image_dir")
     b.add_argument("--memory", default="4G")
     b.add_argument("--accel", default="auto", choices=["auto", "kvm", "whpx", "tcg"])
+    b.add_argument("--boot", default="kernel", choices=["kernel", "disk"])
+    b.add_argument("--disk-name", default=None,
+                   help="disk file inside output/ (default: first .vmdk/.qcow2/.img)")
+    b.add_argument("--ssh-port", type=int, default=0,
+                   help="forward host port to target sshd (0 = off)")
+    b.add_argument("--cpu", default="auto",
+                   help="QEMU -cpu model (auto = host passthrough when detected)")
+    w = sub.add_parser("wait-ssh", help="wait until the forwarded sshd port opens")
+    w.add_argument("--ssh-port", type=int, default=2222)
+    w.add_argument("--wait", type=int, default=300)
+    w.set_defaults(func=cmd_wait_ssh)
+    r = sub.add_parser("run", help="run commands on target over SSH (paramiko)")
+    r.add_argument("--ssh-port", type=int, default=2222)
+    r.add_argument("--user", default="root")
+    r.add_argument("--password", default=None,
+                   help="prefer GENESIS_TARGET_PASSWORD env var")
+    r.add_argument("--timeout", type=int, default=120)
+    r.add_argument("--out", default=None)
+    r.add_argument("command", nargs="+")
+    r.set_defaults(func=cmd_run)
+    t = sub.add_parser("put", help="upload files to target over SFTP (+x)")
+    t.add_argument("--ssh-port", type=int, default=2222)
+    t.add_argument("--user", default="qnxuser")
+    t.add_argument("--password", default=None,
+                   help="prefer GENESIS_TARGET_PASSWORD env var")
+    t.add_argument("--dest", default="/tmp/genesis")
+    t.add_argument("src", nargs="+")
+    t.set_defaults(func=cmd_put)
+    v = sub.add_parser("verify", help="run the on-target verification matrix over SSH")
+    v.add_argument("--ssh-port", type=int, default=2222)
+    v.add_argument("--user", default="qnxuser")
+    v.add_argument("--password", default=None,
+                   help="prefer GENESIS_TARGET_PASSWORD env var")
+    v.add_argument("--out", default="artifacts/runs/qnx-target")
+    v.set_defaults(func=cmd_verify)
     b.add_argument("--timeout", type=int, default=180)
+    b.add_argument("--qmp-port", type=int, default=0)
+    b.add_argument("--shot-at", type=int, default=0,
+                   help="seconds after boot to capture VGA via QMP (needs --qmp-port)")
     b.add_argument("--out", default="artifacts/qemu-boot")
     b.add_argument("--qemu-arg", action="append", default=[])
     b.set_defaults(func=cmd_boot)

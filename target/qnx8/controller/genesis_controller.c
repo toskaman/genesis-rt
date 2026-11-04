@@ -11,6 +11,7 @@
 
 #ifdef __QNXNTO__
 #include <errno.h>
+#include <stdlib.h>
 #include <sys/dispatch.h>
 #include <sys/neutrino.h>
 #include <time.h>

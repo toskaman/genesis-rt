@@ -85,13 +85,15 @@ def _slim_trace(trace: list[dict[str, Any]], limit: int = 40) -> dict[str, Any]:
 def build_passport(run_id: str, ir: dict[str, Any],
                    codegen_manifest: dict[str, Any],
                    scenario_results: list[dict[str, Any]],
-                   qnx_build: dict[str, Any] | None = None) -> dict[str, Any]:
+                   qnx_build: dict[str, Any] | None = None,
+                   qnx_target: dict[str, Any] | None = None) -> dict[str, Any]:
     chain: list[dict[str, Any]] = []
     _chain_append(chain, "ir", {"ir_sha256": codegen_manifest["ir_sha256"],
                                 "machine": ir["machine"],
                                 "scenarios": ir["verification"]["scenarios"]})
     _chain_append(chain, "codegen", codegen_manifest)
     _chain_append(chain, "qnx_build", qnx_build or {"status": "missing"})
+    _chain_append(chain, "qnx_target", qnx_target or {"status": "missing"})
     for res in scenario_results:
         body = {"scenario": res["scenario"], "seed": res["seed"],
                 "status": res["status"], "checks": res.get("checks", []),

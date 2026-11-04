@@ -11,6 +11,7 @@ host compilers verify the shared logic without pretending to test IPC.
 | `genesis_device` | SIMULATED actuator/sensor endpoint | none (virtual state only) |
 | `genesis_status` | read-only `/dev/genesis/status` | resource manager (`resmgr_attach`) |
 | `genesis_supervisor` | spawn + monitor + reset authority | `posix_spawn`, `wait` |
+| `genesis_faultinject` | on-target guard verification client (6 checks) | `name_open`, `MsgSend` |
 
 Protocol: `include/genesis_ipc.h` (magic `GEN1`, version 1, fixed frames,
 monotonic sequence IDs, deadlines).
