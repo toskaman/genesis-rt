@@ -401,6 +401,34 @@ TARGET_MATRIX = [
      " echo NONGUARD=$(grep APPLY device.log | grep -vc \"from_pid=$GUARDPID \");"
      " echo GUARDPID=$GUARDPID;"
      " slay genesis_guard; slay genesis_device; sudo -n slay genesis_status"),
+    ("conv_chain",
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+     " slay genesis_guard_conv 2>/dev/null; slay genesis_controller 2>/dev/null;"
+     " slay genesis_device 2>/dev/null; sudo -n slay genesis_status 2>/dev/null; sleep 1;"
+     " rm -f device-conv.log guard-cc.log ctrl-cc.log;"
+     " test -x ./genesis_guard_conv || { echo MISSING_CONV_GUARD; exit 3; };"
+     " ./genesis_device belt > device-conv.log 2>&1 &"
+     " ./genesis_guard_conv > guard-cc.log 2>&1 & GUARDPID=$!; sleep 2;"
+     " sudo -n ./genesis_status /tmp/genesis-status-node > status-cc.log 2>&1 & sleep 1;"
+     " ./genesis_controller 50 > ctrl-cc.log 2>&1 & sleep 4;"
+     " echo ---CHAIN-STATUS---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
+     " echo ---DEVICE-CONV-HEAD---; head -3 device-conv.log;"
+     " slay genesis_controller; sleep 1;"
+     " echo APPLIES=$(grep -c APPLY device-conv.log);"
+     " echo APPLY-SAMPLE=$(head -2 device-conv.log | tr '\\n' '|');"
+     " echo NONGUARD=$(grep APPLY device-conv.log | grep -vc \"from_pid=$GUARDPID \");"
+     " echo BELT=$(grep -c belt_pos device-conv.log);"
+     " echo GUARDPID=$GUARDPID;"
+     " slay genesis_guard_conv; slay genesis_device; sudo -n slay genesis_status"),
+    ("estop_target",
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+     " sudo -n slay genesis_status 2>/dev/null; sleep 1;"
+     " rm -f guard-estop.log;"
+     " ./genesis_guard > guard-estop.log 2>&1 & sleep 2;"
+     " sudo -n ./genesis_status /tmp/genesis-status-node > status-estop.log 2>&1 & sleep 1;"
+     " echo ---ESTOP-PROBE---; ./genesis_faultinject probe estop;"
+     " echo ---STATUS-ESTOP---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
+     " slay genesis_guard; sudo -n slay genesis_status"),
     ("controller_flow",
      "cd /tmp/genesis; rm -f guard.log ctrl.log;"
      " ./genesis_guard > guard.log 2>&1 & sleep 2;"
@@ -478,6 +506,32 @@ def _matrix_check(name: str, body: str, status: int) -> dict:
               and _num(r"fwd_fail=(\d+)", int, -1) == 0
               and _num(r"APPLIES=(\d+)", int, 0) >= 20
               and _num(r"NONGUARD=(\d+)", int, -1) == 0)
+    elif name == "conv_chain":
+        # Conveyor twin of device_chain: conv guard -> belt device ->
+        # status. The BELT counter ties every APPLY to a belt_pos audit
+        # line, and the banner pins belt mode (pose lines would fail).
+        def _num(pat, cast=float, default=None):
+            m = re.search(pat, body)
+            return cast(m.group(1)) if m else default
+        ok = ("STATUS_EXIT=0" in body
+              and "MISSING_CONV_GUARD" not in body
+              and "belt mode" in body
+              and (_num(r"dev_applied=(\d+)", int, 0) or 0) >= 20
+              and (_num(r"dev_x=([\d.]+)", float, 0.0) or 0.0) > 0.2
+              and (_num(r"dev_v=([\d.]+)", float, 0.0) or 0.0) > 0.3
+              and (_num(r"fwd_ok=(\d+)", int, 0) or 0) >= 20
+              and _num(r"fwd_fail=(\d+)", int, -1) == 0
+              and _num(r"APPLIES=(\d+)", int, 0) >= 20
+              and (_num(r"BELT=(\d+)", int, 0) or 0) >= 20
+              and _num(r"NONGUARD=(\d+)", int, -1) == 0)
+    elif name == "estop_target":
+        # Guard-level estop observed natively: the probe verdict plus
+        # the latched safe-stop state in live telemetry.
+        ok = ("STATUS_EXIT=0" in body
+              and "decision=DENY reason=ESTOP" in body
+              and "estop=1" in body
+              and "state=3 " in body
+              and "last_reason=ESTOP" in body)
     elif name == "controller_flow":
         ok = False
         for line in body.splitlines():

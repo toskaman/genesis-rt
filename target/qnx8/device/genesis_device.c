@@ -26,7 +26,12 @@ static uint64_t mono_ms(void) {
     return (uint64_t)ts.tv_sec * 1000ull + (uint64_t)ts.tv_nsec / 1000000ull;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    int belt_mode = argc > 1 && strcmp(argv[1], "belt") == 0;
+    if (argc > 1 && !belt_mode) {
+        fprintf(stderr, "device: usage: genesis_device [belt]\n");
+        return 2;
+    }
     name_attach_t *attach =
         name_attach(NULL, GENESIS_DEVICE_ATTACH_NAME, NAME_FLAG_ATTACH_GLOBAL);
     if (attach == NULL) {
@@ -35,8 +40,10 @@ int main(void) {
     }
     genesis_device_state_t dev;
     genesis_device_state_init(&dev);
-    printf("device: attached as '%s'; awaiting guard-forwarded commands.\n",
-           GENESIS_DEVICE_ATTACH_NAME);
+    genesis_belt_state_t belt;
+    genesis_belt_state_init(&belt);
+    printf("device: attached as '%s' (%s mode); awaiting guard-forwarded commands.\n",
+           GENESIS_DEVICE_ATTACH_NAME, belt_mode ? "belt" : "pose");
     fflush(stdout);
 
     uint8_t buf[64];
@@ -60,16 +67,26 @@ int main(void) {
             genesis_fwd_t *fwd = (genesis_fwd_t *)buf;
             genesis_fwd_ack_t ack;
             memset(&ack, 0, sizeof ack);
-            ack.applied = (uint32_t)genesis_device_apply(
-                &dev, (double)fwd->linear_mps, (double)fwd->angular_radps,
-                fwd->seq, mono_ms());
             /* Audit trail: every apply pins its sender pid. In a correct
              * system all of these equal the guard pid (no bypass). */
-            printf("device: APPLY seq=%u v=%.3f w=%.3f from_pid=%d applied=%u "
-                   "x=%.3f theta=%.3f\n",
-                   fwd->seq, (double)fwd->linear_mps,
-                   (double)fwd->angular_radps, info.pid, ack.applied,
-                   dev.x, dev.theta);
+            if (belt_mode) {
+                ack.applied = (uint32_t)genesis_belt_apply(
+                    &belt, (double)fwd->linear_mps, fwd->seq, mono_ms());
+                printf("device: APPLY seq=%u v=%.3f w=%.3f from_pid=%d applied=%u "
+                       "belt_pos=%.3f belt_jammed=%d\n",
+                       fwd->seq, (double)fwd->linear_mps,
+                       (double)fwd->angular_radps, info.pid, ack.applied,
+                       belt.position_m, belt.jammed);
+            } else {
+                ack.applied = (uint32_t)genesis_device_apply(
+                    &dev, (double)fwd->linear_mps, (double)fwd->angular_radps,
+                    fwd->seq, mono_ms());
+                printf("device: APPLY seq=%u v=%.3f w=%.3f from_pid=%d applied=%u "
+                       "x=%.3f theta=%.3f\n",
+                       fwd->seq, (double)fwd->linear_mps,
+                       (double)fwd->angular_radps, info.pid, ack.applied,
+                       dev.x, dev.theta);
+            }
             fflush(stdout);
             MsgReply(rcvid, EOK, &ack, sizeof ack);
         } else if (msglen == sizeof(genesis_devstate_req_t) &&
@@ -78,14 +95,25 @@ int main(void) {
                    ((genesis_devstate_req_t *)buf)->version ==
                        GENESIS_DEVSTATE_VERSION) {
             genesis_devstate_reply_t rep;
-            genesis_device_watchdog(&dev, mono_ms());
-            rep.x = dev.x;
-            rep.y = dev.y;
-            rep.theta = dev.theta;
-            rep.v = (float)dev.v;
-            rep.w = (float)dev.w;
-            rep.applied = (uint32_t)(dev.applied & 0xFFFFFFFFu);
-            rep.last_seq = dev.last_seq;
+            if (belt_mode) {
+                genesis_belt_watchdog(&belt, mono_ms());
+                rep.x = belt.position_m;
+                rep.y = 0.0;
+                rep.theta = 0.0;
+                rep.v = (float)belt.speed_mps;
+                rep.w = 0.0f;
+                rep.applied = (uint32_t)(belt.applied & 0xFFFFFFFFu);
+                rep.last_seq = belt.last_seq;
+            } else {
+                genesis_device_watchdog(&dev, mono_ms());
+                rep.x = dev.x;
+                rep.y = dev.y;
+                rep.theta = dev.theta;
+                rep.v = (float)dev.v;
+                rep.w = (float)dev.w;
+                rep.applied = (uint32_t)(dev.applied & 0xFFFFFFFFu);
+                rep.last_seq = dev.last_seq;
+            }
             MsgReply(rcvid, EOK, &rep, sizeof rep);
         } else {
             static uint64_t nbad = 0;

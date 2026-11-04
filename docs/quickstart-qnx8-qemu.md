@@ -20,7 +20,7 @@
 - Target: `QNX qnxqemu 8.0.0 x86_64`, SSH `qnxuser` (password = the
   image-default username; never committed, pass via `GENESIS_TARGET_PASSWORD`).
 - Verified 4 Nov 2026: `qcc` builds 7 binaries with 0 warnings;
-  on-target matrix 8/8 PASS (`qnx_verified: true`, replay valid).
+  on-target matrix 10/10 PASS (`qnx_verified: true`, replay valid).
 
 ## 1. Get the SDK lawfully (your 10 minutes, cannot be automated)
 
@@ -90,9 +90,11 @@ at boot; password via `GENESIS_TARGET_PASSWORD`, never on the command line):
 ```sh
 python scripts/qnx_target.py put /tmp/genesis-qnx/genesis_* --dest /tmp/genesis
 python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json
-# expect: 8/8 PASS — target_info, faultinject (9/9), status_live,
+# expect: 10/10 PASS — target_info, faultinject (9/9), status_live,
 # limits_differ (probe 1.5: AMR DENY vs conveyor ALLOW + 9/9 vs conv),
 # device_chain (guard→device→status, APPLIES≥20, NONGUARD=0),
+# conv_chain (conv guard→belt device, BELT≥20, belt moved),
+# estop_target (probe estop → DENY ESTOP + state=3 latch),
 # controller_flow, supervisor_respawn, supervisor_giveup
 # NOTE: build BOTH machines (amr + conveyor) and upload the conveyor
 # guard as genesis_guard_conv, or limits_differ fails MISSING_CONV_GUARD.

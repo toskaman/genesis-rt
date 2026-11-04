@@ -33,4 +33,24 @@ int genesis_device_apply(genesis_device_state_t *s, double linear_mps,
  * command arrived within GENESIS_DEVICE_WATCHDOG_MS. Pose is kept. */
 void genesis_device_watchdog(genesis_device_state_t *s, uint64_t now_ms);
 
+/* Belt variant: 1D position/speed with a jam input. Same conventions
+ * as the pose model (arrival-dt, previous setpoint, dt clamp 1 s,
+ * stale-seq ignore, 500 ms watchdog). While jammed, apply decays the
+ * speed (*=0.5 per command, snapped to 0 below 1e-12) and the position
+ * never advances. */
+typedef struct {
+    double position_m;
+    double speed_mps;
+    int jammed;
+    uint64_t last_apply_ms;
+    uint64_t applied;
+    uint32_t last_seq;
+} genesis_belt_state_t;
+
+void genesis_belt_state_init(genesis_belt_state_t *s);
+int genesis_belt_apply(genesis_belt_state_t *s, double belt_mps,
+                       uint32_t seq, uint64_t now_ms);
+void genesis_belt_set_jam(genesis_belt_state_t *s, int jammed);
+void genesis_belt_watchdog(genesis_belt_state_t *s, uint64_t now_ms);
+
 #endif /* GENESIS_DEVICE_MODEL_H */

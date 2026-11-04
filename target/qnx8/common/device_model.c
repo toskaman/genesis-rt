@@ -43,3 +43,47 @@ void genesis_device_watchdog(genesis_device_state_t *s, uint64_t now_ms) {
         s->w = 0.0;
     }
 }
+
+void genesis_belt_state_init(genesis_belt_state_t *s) {
+    s->position_m = 0.0;
+    s->speed_mps = 0.0;
+    s->jammed = 0;
+    s->last_apply_ms = 0;
+    s->applied = 0;
+    s->last_seq = 0;
+}
+
+int genesis_belt_apply(genesis_belt_state_t *s, double belt_mps,
+                       uint32_t seq, uint64_t now_ms) {
+    if (s->applied > 0 && seq <= s->last_seq)
+        return 0; /* stale or duplicate: never integrate twice */
+    if (s->jammed) {
+        s->speed_mps *= 0.5; /* position frozen while jammed */
+        if (s->speed_mps > -1e-12 && s->speed_mps < 1e-12)
+            s->speed_mps = 0.0;
+    } else {
+        double dt = 0.0;
+        if (s->applied > 0 && now_ms > s->last_apply_ms) {
+            dt = (double)(now_ms - s->last_apply_ms) / 1000.0;
+            if (dt > 1.0)
+                dt = 1.0;
+        }
+        s->position_m += s->speed_mps * dt;
+        s->speed_mps = belt_mps;
+    }
+    s->last_apply_ms = now_ms;
+    s->last_seq = seq;
+    s->applied++;
+    return 1;
+}
+
+void genesis_belt_set_jam(genesis_belt_state_t *s, int jammed) {
+    s->jammed = jammed ? 1 : 0;
+}
+
+void genesis_belt_watchdog(genesis_belt_state_t *s, uint64_t now_ms) {
+    if (s->applied > 0 && now_ms >= s->last_apply_ms &&
+        now_ms - s->last_apply_ms > GENESIS_DEVICE_WATCHDOG_MS) {
+        s->speed_mps = 0.0;
+    }
+}

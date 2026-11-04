@@ -65,3 +65,57 @@ def test_device_chain_status_runs_as_root(qt):
     body = dict(qt.TARGET_MATRIX)["device_chain"]
     assert "sudo -n ./genesis_status /tmp/genesis-status-node" in body
     assert body.count("sudo -n slay genesis_status") >= 2  # setup + cleanup
+
+
+def test_conv_chain_step_shape(qt):
+    """conv_chain mirrors device_chain idioms: belt device, conv guard
+    with missing-guard tripwire, sudo status, pid audit, cleanup."""
+    body = dict(qt.TARGET_MATRIX)["conv_chain"]
+    assert "./genesis_device belt" in body
+    assert "./genesis_guard_conv" in body
+    assert "MISSING_CONV_GUARD" in body
+    assert "sudo -n ./genesis_status /tmp/genesis-status-node" in body
+    assert body.count("sudo -n slay genesis_status") >= 2
+    assert "from_pid=$GUARDPID" in body
+    assert "belt_pos" in body
+    assert "slay genesis_guard_conv" in body
+
+
+def _conv_chain_body(**over):
+    parts = {"STATUS_EXIT=0": True, "belt mode": True,
+             "dev_applied=25": True, "dev_x=1.234": True,
+             "dev_v=0.500": True, "fwd_ok=25": True, "fwd_fail=0": True,
+             "APPLIES=25": True, "BELT=25": True, "NONGUARD=0": True}
+    parts.update(over)
+    return "\n".join(k for k, v in parts.items() if v)
+
+
+def test_conv_chain_parser_accepts_and_rejects(qt):
+    assert qt._matrix_check("conv_chain", _conv_chain_body(), 0)["passed"] is True
+    assert qt._matrix_check(
+        "conv_chain", _conv_chain_body(**{"BELT=25": False, "BELT=3": True}),
+        0)["passed"] is False  # pose lines instead of belt
+    assert qt._matrix_check(
+        "conv_chain", _conv_chain_body(**{"dev_x=1.234": False, "dev_x=0.1": True}),
+        0)["passed"] is False  # belt never moved
+    assert qt._matrix_check(
+        "conv_chain", _conv_chain_body(**{"NONGUARD=0": False, "NONGUARD=2": True}),
+        0)["passed"] is False  # bypass
+    assert qt._matrix_check(
+        "conv_chain", _conv_chain_body() + "\nMISSING_CONV_GUARD", 0,
+    )["passed"] is False
+
+
+def test_estop_target_parser_accepts_and_rejects(qt):
+    good = ("---ESTOP-PROBE---\n"
+            "PROBE linear=0.500 estop=1 decision=DENY reason=ESTOP state=3\n"
+            "---STATUS-ESTOP---\n"
+            "state=3 last_reason=ESTOP allows=0 denies=1\n"
+            "STATUS_EXIT=0\n")
+    assert qt._matrix_check("estop_target", good, 0)["passed"] is True
+    assert qt._matrix_check("estop_target", good.replace(
+        "reason=ESTOP", "reason=OK"), 0)["passed"] is False
+    assert qt._matrix_check("estop_target", good.replace(
+        "state=3 ", "state=1 "), 0)["passed"] is False  # latch missing
+    assert qt._matrix_check("estop_target", good.replace(
+        "STATUS_EXIT=0", "STATUS_EXIT=1"), 0)["passed"] is False

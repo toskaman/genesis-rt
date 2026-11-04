@@ -1,5 +1,21 @@
 # Progress log
 
+## 2026-11-04 (later) -- P1 #12 tranche C : belt sur QNX, matrice 10/10
+
+- Modele belt C (`device_model`) : position/vitesse, dt arrivee,
+  clamp 1 s, watchdog 500 ms, `set_jam` (decay *=0.5, freeze) ;
+  `genesis_device belt` (argv, banniere, `belt_pos=` audit,
+  devstate x=pos/v=speed) ; `probe estop` faultinject (9 checks
+  intouches, ligne PROBE +`estop=`).
+- Matrice 8 -> 10 : `conv_chain` (garde conv -> belt, APPLIES=83,
+  BELT=83, NONGUARD=0, dev_x=1.92) + `estop_target` (probe DENY
+  ESTOP, state=3/last_reason=ESTOP en telemetrie). Parser tests
+  synthetiques + 6 vecteurs belt.
+- Preuve : stage reconstruit (`qcc` 0 warning), `put` 7/7, `verify`
+  10/10 PASS sur QNX 8.0/QEMU (TCG `-cpu max`), `demo
+  --target-record` PASS `QNX_BEHAVIOR_VERIFIED`/release/qnx_verified.
+  Docs jury/quickstart passees en 10/10. Suite 300/300 verte.
+
 ## 2026-11-04 (later) -- P1 #12 tranche B : estop niveau garde (host + C)
 
 - Fil : `reserved[0]` -> `estop_engaged` strict 0/1, trame 36 o

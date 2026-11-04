@@ -74,6 +74,66 @@ def test_device_watchdog_zeroes_velocity(repo_root, tmp_path):
     assert float(rows[2]["X"]) == 0.0  # watchdog never integrates pose
 
 
+def test_belt_integrates_and_counts(repo_root, tmp_path):
+    binary = _build_harness(repo_root, tmp_path)
+    rows = _run(binary, "BELT_APPLY 1.0 1 1000\nBELT_APPLY 1.0 2 1100\n")
+    assert rows[0]["APPLIED"] == "1" and float(rows[0]["POS"]) == 0.0
+    assert rows[1]["APPLIED"] == "1" and rows[1]["N"] == "2"
+    assert abs(float(rows[1]["POS"]) - 0.1) < 1e-9  # prev setpoint * 0.1 s
+    assert float(rows[1]["SPEED"]) == 1.0
+
+
+def test_belt_ignores_stale_seq(repo_root, tmp_path):
+    binary = _build_harness(repo_root, tmp_path)
+    rows = _run(binary, "BELT_APPLY 1.0 5 1000\nBELT_APPLY 9.0 5 1100\n"
+                        "BELT_APPLY 9.0 3 1200\n")
+    assert [r["APPLIED"] for r in rows] == ["1", "0", "0"]
+    assert rows[2]["N"] == "1" and float(rows[2]["SPEED"]) == 1.0
+
+
+def test_belt_dt_clamped(repo_root, tmp_path):
+    binary = _build_harness(repo_root, tmp_path)
+    rows = _run(binary, "BELT_APPLY 2.0 1 1000\nBELT_APPLY 0.0 2 60000\n")
+    assert abs(float(rows[1]["POS"]) - 2.0) < 1e-9  # 59 s clamped to 1 s
+
+
+def test_belt_watchdog_zeroes_speed(repo_root, tmp_path):
+    binary = _build_harness(repo_root, tmp_path)
+    rows = _run(binary, "BELT_APPLY 1.0 1 1000\nBELT_TICK 1400\nBELT_TICK 1600\n")
+    assert float(rows[1]["SPEED"]) == 1.0   # 400 ms: still live
+    assert float(rows[2]["SPEED"]) == 0.0   # 600 ms: cut
+    assert float(rows[2]["POS"]) == 0.0     # watchdog never moves the belt
+
+
+def test_belt_jam_freezes_and_decays(repo_root, tmp_path):
+    binary = _build_harness(repo_root, tmp_path)
+    rows = _run(binary,
+                "BELT_APPLY 2.0 1 1000\nBELT_APPLY 2.0 2 1100\n"
+                "BELT_JAM 1\n"
+                "BELT_APPLY 2.0 3 1200\nBELT_APPLY 2.0 4 1300\n"
+                "BELT_APPLY 2.0 5 1400\n")
+    pos_at_jam = float(rows[2]["POS"])
+    assert float(rows[1]["POS"]) == pos_at_jam  # JAM line itself moves nothing
+    speeds = [float(rows[3]["SPEED"]), float(rows[4]["SPEED"]),
+              float(rows[5]["SPEED"])]
+    assert speeds == [1.0, 0.5, 0.25]  # *=0.5 per command while jammed
+    assert all(float(rows[i]["POS"]) == pos_at_jam for i in (3, 4, 5))
+    assert all(rows[i]["JAMMED"] == "1" for i in range(2, 6))
+
+
+def test_belt_jam_release_resumes(repo_root, tmp_path):
+    binary = _build_harness(repo_root, tmp_path)
+    rows = _run(binary,
+                "BELT_APPLY 1.0 1 1000\nBELT_JAM 1\n"
+                "BELT_APPLY 1.0 2 1100\nBELT_JAM 0\n"
+                "BELT_APPLY 1.0 3 1200\nBELT_APPLY 1.0 4 1300\n")
+    assert float(rows[2]["POS"]) == 0.0      # frozen while jammed
+    assert float(rows[2]["SPEED"]) == 0.5    # decayed once
+    assert float(rows[4]["POS"]) == 0.05     # 0.5 m/s * 0.1 s after release
+    assert float(rows[4]["SPEED"]) == 1.0    # new setpoint latched
+    assert float(rows[5]["POS"]) == 0.15     # 1.0 m/s * 0.1 s
+
+
 def test_no_controller_bypass_path(repo_root):
     """The controller must not reference the device channel at all; the
     guard is the only forwarder. Source-level, checkable, no trust."""

@@ -13,9 +13,9 @@ No QNX SDK needed except where marked.
 | Full demo + passport | `PYTHONPATH=host python scripts/run_verified_demo.py` | `verdict: PASS` |
 | Passport replays | `PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json` | `chain: valid`, `gate: PASS` |
 | Gate blocks sabotage | `python -m pytest tests/integration/test_pipeline.py tests/acceptance/ -q` | green |
-| Whole suite | `python -m pytest tests/ -q` | green, 129 tests (QNX build runs w/ SDK, else honest skip) |
+| Whole suite | `python -m pytest tests/ -q` | green, 300 tests (QNX build runs w/ SDK, else honest skip) |
 | QNX SDK probe | `PYTHONPATH=host python scripts/qnx_env_check.py` | JSON, `sdk_present` honest |
 | **QNX native build (needs SDK)** | `source ~/qnx800/qnxsdp-env.sh` then generate + `make -f genesis_build_gen.mk qnx` | 6 `genesis_*` binaries, 0 warnings |
-| **QNX run (needs SDK+QEMU)** | `python scripts/qnx_target.py put <bins>` then `verify` | 8/8 matrix PASS, `qnx_verified: true` |
+| **QNX run (needs SDK+QEMU)** | `python scripts/qnx_target.py put <bins>` then `verify` | 10/10 matrix PASS, `qnx_verified: true` |
 
 `PYTHONPATH=host` is unnecessary after `pip install -e .`.

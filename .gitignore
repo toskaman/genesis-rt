@@ -12,6 +12,7 @@ htmlcov/
 artifacts/runs/
 artifacts/*.tmp
 artifacts/target-build/
+artifacts/target-*/
 artifacts/qemu-boot/
 artifacts/qemu-boot-*/
 artifacts/gen-*/

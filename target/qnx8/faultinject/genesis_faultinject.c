@@ -58,17 +58,24 @@ static void check(int coid, const char *name, genesis_cmd_t *cmd,
     check_n(coid, name, cmd, sizeof *cmd, want_decision, want_reason, want_state);
 }
 
-/* Probe mode: send ONE nominal command at the requested linear speed and
- * print the guard's verdict. Exit 0 when a reply arrives (whatever the
- * verdict -- the caller asserts it), 2 on usage/IPC errors. Used by the
- * two-machine proof: the same probe must DENY on one guard and ALLOW on
- * another when their generated limits differ. */
+/* Probe mode: send ONE command and print the guard's verdict. With a
+ * number, a nominal command at that linear speed; with "estop", a
+ * nominal command with the estop wire engaged. Exit 0 when a reply
+ * arrives (whatever the verdict -- the caller asserts it), 2 on
+ * usage/IPC errors. Used by the two-machine proof and the estop
+ * target proof. */
 static int run_probe(int coid, const char *arg) {
     char *end = NULL;
-    double v = strtod(arg, &end);
-    if (end == arg || *end != '\0' || !isfinite(v) || fabs(v) > 1e6) {
-        printf("PROBE usage: genesis_faultinject probe <linear_mps>\n");
-        return 2;
+    double v = 0.5;
+    int estop = 0;
+    if (strcmp(arg, "estop") == 0) {
+        estop = 1;
+    } else {
+        v = strtod(arg, &end);
+        if (end == arg || *end != '\0' || !isfinite(v) || fabs(v) > 1e6) {
+            printf("PROBE usage: genesis_faultinject probe <linear_mps|estop>\n");
+            return 2;
+        }
     }
     genesis_cmd_t cmd;
     memset(&cmd, 0, sizeof cmd);
@@ -83,13 +90,15 @@ static int run_probe(int coid, const char *arg) {
     cmd.angular_radps = 0.0f;
     cmd.sensor_age_ms = 0;
     cmd.sim_connected = 1;
+    cmd.estop_engaged = (uint8_t)estop;
     genesis_reply_t reply;
     memset(&reply, 0xFF, sizeof reply);
     if (MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply) != 0) {
         printf("PROBE MsgSend error\n");
         return 2;
     }
-    printf("PROBE linear=%.3f decision=%s reason=%s state=%u\n", v,
+    printf("PROBE linear=%.3f estop=%d decision=%s reason=%s state=%u\n", v,
+           estop,
            reply.decision == GENESIS_ALLOW ? "ALLOW" : "DENY",
            genesis_reason_str(reply.reason), reply.state_out);
     return 0;
