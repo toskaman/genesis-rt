@@ -1,5 +1,26 @@
 # Progress log
 
+## 2026-11-04 (later) -- P1 IR v2 : schema strict + migration v1 deterministe
+
+- Nouveau module `host/genesis_rt/ir_v2.py` : 13 sections requises, monde
+  ferme (unites par type d'actionneur/capteur, evenements, fautes, arch
+  x86_64 unique), cles inconnues rejetees, references croisees resolues
+  (transitions/commandes/telemetrie/fault_responses), etats d'entree sur
+  faute obligatoirement safe, exactement 1 etat initial. Les enums v2
+  sont des sur-ensembles stricts de v1 (kinds, if/then, scenarios).
+- `migrate_v1_to_v2` : pur, deterministe, tagge chaque entree derivee
+  `"origin": "migrated-v1"` ; vocabulaire contrat v1 copie verbatim,
+  faute derivee via table totale `V1_IF_FAULT_MAP` ; bornes migrees
+  symetriques (fidele au `abs()` de `guard_policy.py`).
+- Secondaires : `schemas/machine-ir-v2.schema.json` (draft-07, le Python
+  reste normatif), `examples/{amr,conveyor}-demo/machine-ir-v2.json`
+  rediges a la main, plan `docs/superpowers/plans/2026-11-04-ir-v2.md`.
+- CLI `validate` dispatche v1/v2 sur `schema_version` (YAML -> v1,
+  sortie `valid: schema vN ...`, contrat `valid:` preserve).
+- 66 tests `tests/unit/test_ir_v2.py` (2 valides, 50 rejets, 7 migration,
+  4 CLI + divers) ; preuve rouge : validateur neutre -> 51 FAIL ;
+  suite 205/205 verte. Pipeline v1 inchange (v2 non branche a codegen).
+
 ## 2026-11-04 (later) — P0 #7 : niveaux de vérification + SSH penalty-box
 
 - `gate.evaluate` assigne désormais le plus haut niveau de preuve MÉRITÉ :

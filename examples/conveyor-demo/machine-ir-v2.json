@@ -1,0 +1,67 @@
+{
+  "schema_version": 2,
+  "machine": {
+    "id": "conveyor-demo-01",
+    "kind": "conveyor",
+    "profile": "conveyor-showcase",
+    "execution_target": "qnx8_x86_64_qemu",
+    "arch": "x86_64",
+    "simulation_only": true
+  },
+  "actuators": [
+    {"id": "belt", "type": "belt_speed_command", "unit": "mps",
+     "bounds": {"min": -2.0, "max": 2.0}, "rate_limit": 5.0, "fault_response": "safe_stop"}
+  ],
+  "sensors": [
+    {"id": "belt-speed", "type": "belt_speed_mps", "unit": "mps", "freshness_limit_ms": 200},
+    {"id": "estop", "type": "estop_bool", "unit": "bool", "freshness_limit_ms": 50}
+  ],
+  "control": {
+    "period_ms": 20,
+    "deadline_ms": 20,
+    "max_linear_speed_mps": 2.0,
+    "max_angular_speed_radps": 1.0,
+    "scheduling": {"policy": "periodic", "priority": 10},
+    "guarded_state_transitions": true
+  },
+  "states": [
+    {"id": "init", "safe": false, "initial": true},
+    {"id": "running", "safe": false, "initial": false},
+    {"id": "safe_stop", "safe": true, "initial": false}
+  ],
+  "transitions": [
+    {"from": "init", "to": "running", "event": "start"},
+    {"from": "running", "to": "safe_stop", "event": "estop"},
+    {"from": "running", "to": "safe_stop", "event": "fault_detected"},
+    {"from": "safe_stop", "to": "init", "event": "reset"}
+  ],
+  "commands": [
+    {"id": "belt-cmd", "actuator": "belt", "deadline_ms": 20,
+     "fields": [{"name": "belt_speed", "unit": "mps", "min": -2.0, "max": 2.0}]}
+  ],
+  "telemetry": [
+    {"id": "belt-speed-tm", "source": "belt-speed", "rate_hz": 5},
+    {"id": "estop-tm", "source": "estop", "rate_hz": 20}
+  ],
+  "safety_contracts": [
+    {"name": "speed-limit", "if": "speed_exceeds_limit", "then": "reject_command"},
+    {"name": "simulator-watchdog", "if": "simulator_disconnected", "then": "command_virtual_stop"}
+  ],
+  "fault_responses": [
+    {"fault": "command_rejected", "enter_state": "safe_stop", "action": "reject_command"},
+    {"fault": "simulator_disconnect", "enter_state": "safe_stop", "action": "command_virtual_stop"}
+  ],
+  "verification": {
+    "scenarios": [
+      "nominal_navigation",
+      "speed_command_over_limit",
+      "stale_proximity_150ms",
+      "delayed_command"
+    ],
+    "requirements": [
+      {"id": "REQ-CONV-01", "claim": "Over-limit belt commands are rejected by the guard.",
+       "scenario": "speed_command_over_limit"}
+    ]
+  },
+  "simulation": {"dt_ms": 20, "duration_ms": 10000, "seed": 0}
+}

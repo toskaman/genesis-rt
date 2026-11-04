@@ -1,0 +1,226 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/toskaman/genesis-rt/schemas/machine-ir-v2.schema.json",
+  "title": "GENESIS RT Machine IR v2",
+  "description": "Secondary artifact for editors and reviewers. The normative validator is host/genesis_rt/ir_v2.py (strict, fail-closed, semantic).",
+  "type": "object",
+  "required": ["schema_version", "machine", "actuators", "sensors", "control", "states", "transitions", "commands", "telemetry", "safety_contracts", "fault_responses", "verification", "simulation"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 2},
+    "machine": {
+      "type": "object",
+      "required": ["id", "kind", "profile", "execution_target", "arch", "simulation_only"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["differential_drive_robot", "conveyor", "robotic_arm_virtual"]},
+        "profile": {"type": "string", "minLength": 1},
+        "execution_target": {"const": "qnx8_x86_64_qemu"},
+        "arch": {"enum": ["x86_64"]},
+        "simulation_only": {"type": "boolean"}
+      }
+    },
+    "actuators": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "unit", "bounds", "fault_response"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "type": {"enum": ["velocity_command", "position_command", "gripper_command", "belt_speed_command"]},
+          "unit": {"enum": ["mps", "m", "rad", "pct", "bool"]},
+          "bounds": {
+            "type": "object",
+            "required": ["min", "max"],
+            "additionalProperties": false,
+            "properties": {"min": {"type": "number"}, "max": {"type": "number"}}
+          },
+          "rate_limit": {"type": "number", "exclusiveMinimum": 0},
+          "fault_response": {"type": "string", "minLength": 1},
+          "origin": {"type": "string"}
+        }
+      }
+    },
+    "sensors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "unit", "freshness_limit_ms"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "type": {"enum": ["distance_m", "odometry", "joint_rad", "belt_speed_mps", "estop_bool"]},
+          "unit": {"enum": ["m", "m_rad", "rad", "mps", "bool"]},
+          "freshness_limit_ms": {"type": "number", "exclusiveMinimum": 0},
+          "range": {
+            "type": "object",
+            "required": ["min", "max"],
+            "additionalProperties": false,
+            "properties": {"min": {"type": "number"}, "max": {"type": "number"}}
+          },
+          "origin": {"type": "string"}
+        }
+      }
+    },
+    "control": {
+      "type": "object",
+      "required": ["period_ms", "max_linear_speed_mps", "max_angular_speed_radps", "scheduling", "guarded_state_transitions"],
+      "additionalProperties": false,
+      "properties": {
+        "period_ms": {"type": "number", "exclusiveMinimum": 0},
+        "deadline_ms": {"type": "number", "exclusiveMinimum": 0},
+        "max_linear_speed_mps": {"type": "number", "exclusiveMinimum": 0},
+        "max_angular_speed_radps": {"type": "number", "exclusiveMinimum": 0},
+        "scheduling": {
+          "type": "object",
+          "required": ["policy", "priority"],
+          "additionalProperties": false,
+          "properties": {
+            "policy": {"enum": ["periodic", "sporadic", "fifo"]},
+            "priority": {"type": "integer", "minimum": 1, "maximum": 255}
+          }
+        },
+        "guarded_state_transitions": {"const": true}
+      }
+    },
+    "states": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "safe", "initial"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "safe": {"type": "boolean"},
+          "initial": {"type": "boolean"},
+          "origin": {"type": "string"}
+        }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "event"],
+        "additionalProperties": false,
+        "properties": {
+          "from": {"type": "string", "minLength": 1},
+          "to": {"type": "string", "minLength": 1},
+          "event": {"enum": ["start", "stop", "estop", "reset", "fault_detected", "fault_cleared", "watchdog_timeout", "deadline_miss"]},
+          "origin": {"type": "string"}
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "actuator", "deadline_ms", "fields"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "actuator": {"type": "string", "minLength": 1},
+          "deadline_ms": {"type": "number", "exclusiveMinimum": 0},
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["name", "unit", "min", "max"],
+              "additionalProperties": false,
+              "properties": {
+                "name": {"type": "string", "minLength": 1},
+                "unit": {"enum": ["m", "mps", "rad", "radps", "m_rad", "pct", "bool", "ms", "hz"]},
+                "min": {"type": "number"},
+                "max": {"type": "number"}
+              }
+            }
+          },
+          "origin": {"type": "string"}
+        }
+      }
+    },
+    "telemetry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "source", "rate_hz"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "minLength": 1},
+          "rate_hz": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000},
+          "origin": {"type": "string"}
+        }
+      }
+    },
+    "safety_contracts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "if", "then"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "if": {"enum": ["proximity_is_stale", "speed_exceeds_limit", "simulator_disconnected", "command_overdue", "sequence_regressed", "message_malformed", "device_fault", "planner_crashed", "deadline_missed"]},
+          "then": {"enum": ["command_virtual_stop", "reject_command", "enter_safe_state", "hold_last_valid", "raise_telemetry_alarm"]},
+          "origin": {"type": "string"}
+        }
+      }
+    },
+    "fault_responses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["fault", "enter_state", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "fault": {"enum": ["stale_sensor", "deadline_miss", "command_rejected", "simulator_disconnect", "planner_crash", "device_fault", "corrupted_message", "dropped_message"]},
+          "enter_state": {"type": "string", "minLength": 1},
+          "action": {"enum": ["command_virtual_stop", "reject_command", "enter_safe_state", "hold_last_valid", "raise_telemetry_alarm"]},
+          "origin": {"type": "string"}
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": ["scenarios"],
+      "additionalProperties": false,
+      "properties": {
+        "scenarios": {"type": "array", "minItems": 1, "items": {"enum": ["nominal_navigation", "speed_command_over_limit", "stale_proximity_150ms", "planner_process_crash", "delayed_command", "dropped_message", "corrupted_message", "simulator_disconnect"]}},
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "claim", "scenario"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "claim": {"type": "string", "minLength": 1, "maxLength": 256},
+              "scenario": {"type": "string", "minLength": 1},
+              "origin": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "simulation": {
+      "type": "object",
+      "required": ["dt_ms", "duration_ms", "seed"],
+      "additionalProperties": false,
+      "properties": {
+        "dt_ms": {"type": "number", "minimum": 1, "maximum": 100},
+        "duration_ms": {"type": "number", "exclusiveMinimum": 0, "maximum": 600000},
+        "seed": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
