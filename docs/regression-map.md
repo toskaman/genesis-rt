@@ -27,6 +27,7 @@ harness (`scripts/qnx_target.py verify`); all other rows run in host CI.
 | 19 | `device_chain` step FAIL: `/tmp/genesis-status-node` missing on target | OPEN — root cause not yet established; target work suspended until host reboot | `tests/integration/test_device_chain.py` (fails loudly until fixed; must go 8/8 on target) |
 | 20 | `seq <= last_seq` wedged the guard after uint32 wraparound (2^32-1 → 0 denied forever, no reset path since STALE_SEQ does not latch) | Serial-number arithmetic (RFC 1982) in both mirrors: accept iff 1 ≤ (seq−last) mod 2^32 < 2^31 | `test_seq_wraparound_accepted`, `test_seq_old_replay_denied`, `test_seq_huge_forward_jump_denied` + 4 C/Python conformance vectors (wrap, replay, dup, jump); old predicate → 3 FAIL |
 | 21 | Gate trusted caller `required_scenarios`: subset + passing target evidence yielded `release_eligible: True` on 1/8 scenarios (silent coverage reduction) | Gate compares against IR-declared scenarios from the passport, records `coverage{declared,required,omitted}`, forces `release_eligible: False` + explicit reason on omission | `test_gate_reduced_coverage_blocks_release`, `test_gate_full_coverage_keeps_release`, `test_subset_with_target_record_not_release_eligible`; pre-fix: all 3 FAIL |
+| 22 | Planner substring hints misclassified "robotic arm" as differential-drive ("robot" inside "robotic") | Whole-word hint matching in `planner.propose` | Published eval case `valid-arm-01` (caught pre-release at 14/15, pins the fix at 15/15) |
 
 ## Rules
 

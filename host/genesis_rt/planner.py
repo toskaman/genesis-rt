@@ -76,8 +76,11 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
         raise PlannerRejection("request too long; keep it under 2000 characters")
 
     kind: str | None = None
+    words = set(re.findall(r"[a-z0-9]+", text))
     for hints, candidate in _KIND_HINTS:
-        if any(h in text for h in hints):
+        # Whole-word match: "robotic arm" must not fire the "robot" hint,
+        # and "alarm" must not fire "arm".
+        if any(h in words for h in hints):
             kind = candidate
             break
     if kind is None:

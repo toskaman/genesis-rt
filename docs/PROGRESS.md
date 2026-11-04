@@ -1,5 +1,23 @@
 # Progress log
 
+## 2026-11-04 (later) -- P2 #17 tranche hote : interface planning + eval
+
+- `host/genesis_rt/planning.py` : interface independante du fournisseur
+  (`PlanningProvider.propose_raw` + registre `PROVIDERS`, seul
+  `offline` fourni, zero reseau/cout). Sortie fournisseur traitee
+  comme NON fiable : re-validation `validate_ir` systematique,
+  non-objets/crashs enveloppes en `PlannerRejection`. Scan unsafe
+  AVANT appel (garde, limites, hardware reel, injection de prompt,
+  hors-sujet) avec explication precise ; le fournisseur n'est pas
+  appele en cas de refus (teste).
+- Eval publiee `evals/planning_eval.json` (15 cas : 8 valides, 7 refus)
+  + test portail 100% : `offline` 15/15. L'eval a attrape un vrai bug
+  avant release : matching sous-chaine classait "robotic arm" en
+  robot differentiiel ("robot" dans "robotic") -> matching par mots
+  entiers. Doc `docs/planning-eval.md`. Aucune integration LLM
+  revendiquee (seul `offline` enregistre).
+- Suite 260/260 verte.
+
 ## 2026-11-04 (later) -- P1 #16 : couverture gate + annulation runs (TDD)
 
 - Defaut confirme (trou sect.10) : `gate.evaluate` faisait confiance aux
