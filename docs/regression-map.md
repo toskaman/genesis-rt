@@ -25,6 +25,7 @@ harness (`scripts/qnx_target.py verify`); all other rows run in host CI.
 | 17 | Golden demo test could pass vacuously | Non-vacuous golden assertions | `tests/acceptance/test_golden_demo.py` |
 | 18 | CLI `validate` output contract (`valid:`) broken by v2 dispatch change | Output keeps `valid:` prefix with version suffix | `tests/integration/test_pipeline.py::test_cli_validate_and_faults` (caught it red, then green) |
 | 19 | `device_chain` step FAIL: `/tmp/genesis-status-node` missing on target | OPEN — root cause not yet established; target work suspended until host reboot | `tests/integration/test_device_chain.py` (fails loudly until fixed; must go 8/8 on target) |
+| 20 | `seq <= last_seq` wedged the guard after uint32 wraparound (2^32-1 → 0 denied forever, no reset path since STALE_SEQ does not latch) | Serial-number arithmetic (RFC 1982) in both mirrors: accept iff 1 ≤ (seq−last) mod 2^32 < 2^31 | `test_seq_wraparound_accepted`, `test_seq_old_replay_denied`, `test_seq_huge_forward_jump_denied` + 4 C/Python conformance vectors (wrap, replay, dup, jump); old predicate → 3 FAIL |
 
 ## Rules
 

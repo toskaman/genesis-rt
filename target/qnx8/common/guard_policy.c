@@ -5,6 +5,11 @@
  * host/genesis_rt/guard_policy.py exactly:
  * magic -> version -> size -> seq -> deadline -> sensor -> sim link ->
  * speed -> angular -> state transition. Fail-closed throughout.
+ *
+ * Sequence freshness uses serial-number arithmetic (RFC 1982): with
+ * uint32 seq, delta = seq - last_seq (unsigned wraparound) is accepted
+ * iff 1 <= delta < 2^31. Counter wraparound is accepted; duplicates,
+ * replays and huge forward jumps are denied STALE_SEQ.
  */
 #include "guard_policy.h"
 #include <math.h>
@@ -39,8 +44,11 @@ genesis_verdict_t genesis_guard_decide(const genesis_cmd_t *cmd, uint32_t frame_
     if (isnan(cmd->linear_mps) || isnan(cmd->angular_radps) ||
         isinf(cmd->linear_mps) || isinf(cmd->angular_radps))
         return deny(ctx, GENESIS_R_MALFORMED, 1);
-    if (cmd->seq <= ctx->last_seq)
-        return deny(ctx, GENESIS_R_STALE_SEQ, 0);
+    {
+        uint32_t delta = cmd->seq - ctx->last_seq; /* wraps mod 2^32 */
+        if (delta == 0 || delta >= 0x80000000u)
+            return deny(ctx, GENESIS_R_STALE_SEQ, 0);
+    }
     if (cmd->now_ms > cmd->deadline_ms)
         return deny(ctx, GENESIS_R_OVERDUE_DEADLINE, 0);
     if (cmd->sensor_age_ms > limits->freshness_limit_ms)

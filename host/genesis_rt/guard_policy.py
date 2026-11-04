@@ -20,6 +20,10 @@ Parity contract (mirrors guard_policy.c exactly):
   break parity on any input a real sender can produce.
 - Check order is magic -> version -> size -> NaN/Inf -> seq ->
   deadline -> sensor -> sim -> speed -> angular -> transition.
+- Sequence freshness uses serial-number arithmetic (RFC 1982): with
+  uint32 seq, delta = (seq - last_seq) mod 2^32 is accepted iff
+  1 <= delta < 2^31. Counter wraparound (2^32-1 -> 0) is accepted;
+  duplicates, replays and huge forward jumps are denied STALE_SEQ.
 """
 
 from __future__ import annotations
@@ -29,6 +33,9 @@ from typing import Any
 
 PROTOCOL_MAGIC = 0x47454E31  # "GEN1"
 PROTOCOL_VERSION = 1
+
+_SEQ_MOD = 1 << 32
+_SEQ_HALF = 1 << 31
 
 # States
 ST_INIT = 0
@@ -123,7 +130,8 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
         return deny(R_MALFORMED, latch=True)
     if abs(linear) == float("inf") or abs(angular) == float("inf"):
         return deny(R_MALFORMED, latch=True)
-    if seq <= ctx.last_seq:
+    delta = (seq - ctx.last_seq) % _SEQ_MOD
+    if not 0 < delta < _SEQ_HALF:
         return deny(R_STALE_SEQ, latch=False)
     if now_ms > deadline_ms:
         return deny(R_OVERDUE_DEADLINE, latch=False)

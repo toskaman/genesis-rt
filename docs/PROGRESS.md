@@ -1,5 +1,21 @@
 # Progress log
 
+## 2026-11-04 (later) -- P0 #6 : wraparound seq (arithmetique serielle)
+
+- Defaut confirme : `seq <= last_seq` coincait la garde apres
+  wraparound uint32 (2^32-1 -> 0 refuse a jamais, latch=False donc pas
+  de reset possible -> wedge silencieuse cote disponibilite, fail-closed
+  cote surete). Remplace par arithmetique serielle RFC 1982 des deux
+  cotes : delta = (seq-last) mod 2^32 accepte ssi 1 <= delta < 2^31.
+  Wrap accepte, doublons/replays/sauts >= 2^31 refuses STALE_SEQ.
+- Fichiers : `guard_policy.py` + `guard_policy.c` (miroirs), 3 tests
+  Python, 4 vecteurs conformance C/Python (wrap, replay, dup, jump).
+  Rouge-vert : ancien predicat -> 3 FAIL (wrap, jump, conformance).
+- Build natif `qcc` reel : ok, rc 0, 0 warning (`-Wall -Wextra`).
+- Reste #6 cote cible (post-reboot) : validation d'horloge monotone
+  cote target au lieu des timestamps expediteur seuls ; stats
+  jitter/deadline-miss (harness P1 #19). Suite 229/229 verte.
+
 ## 2026-11-04 (later) -- P0 #8/#9 : oracles + regressions bouclees
 
 - P0 #8 clos : audit des 8 oracles faultlab (aucun `True` inconditionnel,

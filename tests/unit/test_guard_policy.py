@@ -52,6 +52,28 @@ def test_deny_matrix(field, value, reason, latch):
     assert v["state_out"] == (gp.ST_SAFE_STOP if latch else gp.ST_NOMINAL)
 
 
+def test_seq_wraparound_accepted():
+    """uint32 wrap (2^32-1 -> 0) is a fresh command, not a replay."""
+    ctx = gp.GuardContext(last_seq=(1 << 32) - 1)
+    v = gp.decide(_cmd(seq=0), ctx, LIMITS)
+    assert (v["decision"], v["reason"]) == (gp.ALLOW, gp.R_OK)
+    assert ctx.last_seq == 0
+
+
+def test_seq_old_replay_denied():
+    ctx = gp.GuardContext(last_seq=100)
+    v = gp.decide(_cmd(seq=50), ctx, LIMITS)
+    assert (v["decision"], v["reason"]) == (gp.DENY, gp.R_STALE_SEQ)
+    assert ctx.last_seq == 100  # denied commands never advance the cursor
+
+
+def test_seq_huge_forward_jump_denied():
+    """A jump >= 2^31 is indistinguishable from a replay: deny fail-closed."""
+    ctx = gp.GuardContext(last_seq=0)
+    v = gp.decide(_cmd(seq=1 << 31), ctx, LIMITS)
+    assert (v["decision"], v["reason"]) == (gp.DENY, gp.R_STALE_SEQ)
+
+
 def test_replay_rejected():
     ctx = gp.GuardContext()
     assert gp.decide(_cmd(seq=7), ctx, LIMITS)["decision"] == gp.ALLOW
