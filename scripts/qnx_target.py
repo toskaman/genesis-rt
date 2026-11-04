@@ -31,6 +31,25 @@ from genesis_rt.build_adapter import probe_qemu  # noqa: E402
 
 BOOT_MARKERS = ("QNX", "Neutrino", "qnx", "login:", "Welcome")
 
+# SSH retry policy (regression-pinned, see tests/unit/test_ssh_policy.py).
+# Root cause: guest OpenSSH PerSourcePenalties bans rapid reconnect bursts
+# ("Not allowed at this time"); each probe during the ban extends it.
+_SSH_MAX_ATTEMPTS = 4
+_SSH_ATTEMPT_GAP_S = 45
+_SSH_PENALTY_COOLDOWN_S = 300
+
+
+def _ssh_is_penalty_box_signature(exc: Exception) -> bool:
+    """True when an SSH failure looks like a server-side penalty ban.
+
+    Two observed surface forms: paramiko failing to read the SSH banner
+    (sshd closed the connection instead of greeting), and sshd's explicit
+    "Not allowed at this time" refusal. Both must trigger the long
+    cooldown, never the short gap: retrying fast extends the ban.
+    """
+    text = str(exc).lower()
+    return "banner" in text or "not allowed at this time" in text
+
 
 def probe_image(image_dir: Path) -> dict:
     """Inventory an unpacked QSTI image dir (presence only, no claims)."""
@@ -216,7 +235,7 @@ def cmd_boot(args: argparse.Namespace) -> int:
 
 
 def _ssh_client(port: int, user: str, password: str, timeout: int = 30,
-                retries: int = 4):
+                retries: int = _SSH_MAX_ATTEMPTS):
     """Connect with bounded, PATIENT retries. Two stacked hazards were
     observed against QEMU SLIRP/WHPX + guest OpenSSH >= 9.8:
 
@@ -254,16 +273,16 @@ def _ssh_client(port: int, user: str, password: str, timeout: int = 30,
                   f"{type(exc).__name__}: {exc}")
             if attempt >= retries:
                 break
-            # Penalty-box signature: no SSH banner at all (sshd answered
-            # "Not allowed at this time" and closed). Hammering extends the
-            # ban, so back off hard once, then resume normal spacing.
-            if not cooled_down and "banner" in str(exc).lower():
-                print("ssh: penalty-box suspected (no banner); "
-                      "cooling down 300 s before retrying")
-                time.sleep(300)
+            # Penalty-box signature (banner missing or explicit refusal).
+            # Hammering extends the ban, so back off hard once, then resume
+            # normal spacing.
+            if not cooled_down and _ssh_is_penalty_box_signature(exc):
+                print("ssh: penalty-box suspected; "
+                      f"cooling down {_SSH_PENALTY_COOLDOWN_S} s before retrying")
+                time.sleep(_SSH_PENALTY_COOLDOWN_S)
                 cooled_down = True
             else:
-                time.sleep(45)
+                time.sleep(_SSH_ATTEMPT_GAP_S)
     raise last if last else RuntimeError("ssh connect failed")
 
 

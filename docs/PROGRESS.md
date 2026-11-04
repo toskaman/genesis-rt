@@ -1,5 +1,22 @@
 # Progress log
 
+## 2026-11-04 (later) -- P0 #8/#9 : oracles + regressions bouclees
+
+- P0 #8 clos : audit des 8 oracles faultlab (aucun `True` inconditionnel,
+  tous bases sur stats/trace observees) + 4 tests sabotage directs
+  (over_limit, nominal, delayed, stale). Couverture rouge complete :
+  crash, dropped, mutant always-ALLOW, watchdog e2e existaient deja.
+- P0 #9 : politique SSH extraite en constantes testables
+  (`_SSH_MAX_ATTEMPTS=4`, gap 45 s, cooldown 300 s) + classifieur
+  `_ssh_is_penalty_box_signature` ELARGI : l'ancien test ne voyait que
+  `banner`, or le ban observe dit `Not allowed at this time` (sans le
+  mot banner) -> cooldown rate, ban prolonge. 17 tests
+  `test_ssh_policy.py` (paramiko/time simules, zero reseau), rouge-vert
+  prouve (classifieur casse -> 8 FAIL, restaure -> 17/17).
+- `docs/regression-map.md` : 19 defauts confirmes -> fix -> test
+  (dont #19 device_chain OPEN, en attente reboot).
+- Suite 226/226 verte.
+
 ## 2026-11-04 (later) -- P1 IR v2 : schema strict + migration v1 deterministe
 
 - Nouveau module `host/genesis_rt/ir_v2.py` : 13 sections requises, monde

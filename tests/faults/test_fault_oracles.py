@@ -32,6 +32,41 @@ def _check_map(checks):
     return {c.name: c for c in checks}
 
 
+def test_over_limit_oracle_requires_speed_deny():
+    """No SPEED_OVER_LIMIT deny in stats => oracle must fail."""
+    from genesis_rt.faultlab import _o_over_limit
+    stats = {"deny_reasons": {}, "stop_latched_at": None,
+             "final_state": 0, "collision": False}
+    checks = _check_map(_o_over_limit(stats, [], None, None))
+    assert checks["over_limit_denied"].passed is False
+
+
+def test_nominal_oracle_rejects_denials_and_stall():
+    from genesis_rt.faultlab import _o_nominal
+    stats = {"denies": 2, "collision": False, "wall_hit": False,
+             "final_x": 5.0, "final_state": 0}
+    assert _check_map(_o_nominal(stats, [], None, None))["no_denials"].passed is False
+    stats = {"denies": 0, "collision": False, "wall_hit": False,
+             "final_x": 0.1, "final_state": 0}
+    assert _check_map(_o_nominal(stats, [], None, None))["progress"].passed is False
+
+
+def test_delayed_oracle_requires_overdue_deny():
+    from genesis_rt.faultlab import _o_delayed
+    stats = {"deny_reasons": {}, "stop_latched_at": None, "final_state": 0}
+    checks = _check_map(_o_delayed(stats, [], None, None))
+    assert checks["overdue_denied"].passed is False
+
+
+def test_stale_oracle_requires_detection_and_latch():
+    from genesis_rt.faultlab import _o_stale, FaultWindow
+    window = FaultWindow("stale", 1000, 1500)
+    stats = {"deny_reasons": {}, "stop_latched_at": None, "final_state": 0}
+    checks = _check_map(_o_stale(stats, [], {"freshness_limit_ms": 100}, window))
+    assert checks["stale_detected"].passed is False
+    assert checks["safe_stop_latched"].passed is False
+
+
 def test_watchdog_oracle_catches_motion_during_gap():
     """Sabotaged trace: drift during the crash gap must fail the oracle."""
     from genesis_rt.faultlab import _o_crash, FaultWindow
