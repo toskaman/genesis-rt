@@ -11,14 +11,16 @@
 - QNX SDP 8.0.0 at `E:\qnx800` (Education licence activated) + QSTI
   `com.qnx.qnx800.quickstart.qemu` 0.5.0 unpacked. Auto-detected even
   without environment variables.
-- Proven boot: `--boot disk` with `-cpu host` (WHPX); direct `-kernel`
-  and emulated CPU stall the v1.2d loader. Both `output/disk-qemu`
+- Proven boot: `--boot disk` with `-cpu host` (WHPX), or
+  `--accel tcg --cpu max` (the default `qemu64` CPU stalls the v1.2d
+  loader with the guest RIP frozen — QMP-proven; `-cpu max` boots).
+  Direct `-kernel` stalls the loader. Both `output/disk-qemu`
   (via `--disk-name disk-qemu`) and the default `output/disk-qemu.vmdk`
   boot to a login prompt.
 - Target: `QNX qnxqemu 8.0.0 x86_64`, SSH `qnxuser` (password = the
   image-default username; never committed, pass via `GENESIS_TARGET_PASSWORD`).
-- Verified 4 Nov 2026: `qcc` builds 6 binaries with 0 warnings;
-  on-target matrix 7/7 PASS (`qnx_verified: true`, replay valid).
+- Verified 4 Nov 2026: `qcc` builds 7 binaries with 0 warnings;
+  on-target matrix 8/8 PASS (`qnx_verified: true`, replay valid).
 
 ## 1. Get the SDK lawfully (your 10 minutes, cannot be automated)
 
@@ -88,8 +90,9 @@ at boot; password via `GENESIS_TARGET_PASSWORD`, never on the command line):
 ```sh
 python scripts/qnx_target.py put /tmp/genesis-qnx/genesis_* --dest /tmp/genesis
 python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json
-# expect: 7/7 PASS — target_info, faultinject (9/9), status_live,
+# expect: 8/8 PASS — target_info, faultinject (9/9), status_live,
 # limits_differ (probe 1.5: AMR DENY vs conveyor ALLOW + 9/9 vs conv),
+# device_chain (guard→device→status, APPLIES≥20, NONGUARD=0),
 # controller_flow, supervisor_respawn, supervisor_giveup
 # NOTE: build BOTH machines (amr + conveyor) and upload the conveyor
 # guard as genesis_guard_conv, or limits_differ fails MISSING_CONV_GUARD.

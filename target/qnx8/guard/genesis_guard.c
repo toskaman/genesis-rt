@@ -29,6 +29,48 @@ static uint64_t g_allows = 0;
 static uint64_t g_denies = 0;
 static uint32_t g_last_reason = GENESIS_R_OK;
 static uint32_t g_ndropped = 0;
+static uint64_t g_fwd_ok = 0;
+static uint64_t g_fwd_fail = 0;
+static int g_dev_coid = -1;
+
+#define GUARD_FWD_TIMEOUT_NS 500000000ULL /* 500 ms: never wedge the loop */
+
+/* Forward one validated command to the virtual device. Best-effort
+ * DELIVERY, strict REPORTING: a dead device never flips an ALLOW to a
+ * DENY (validation is about the command), but every miss increments
+ * nfwd_fail in telemetry. Connection is lazy + self-healing. */
+static void forward_to_device(const genesis_cmd_t *cmd, uint32_t state_out) {
+    if (g_dev_coid < 0)
+        g_dev_coid = name_open(GENESIS_DEVICE_ATTACH_NAME, 0);
+    if (g_dev_coid < 0) {
+        g_fwd_fail++;
+        return;
+    }
+    genesis_fwd_t fwd;
+    fwd.magic = GENESIS_FWD_MAGIC;
+    fwd.version = GENESIS_FWD_VERSION;
+    fwd.reserved = 0;
+    fwd.seq = cmd->seq;
+    fwd.linear_mps = cmd->linear_mps;
+    fwd.angular_radps = cmd->angular_radps;
+    fwd.state_out = state_out;
+    genesis_fwd_ack_t ack;
+    memset(&ack, 0xFF, sizeof ack);
+    struct sigevent ev;
+    uint64_t to = GUARD_FWD_TIMEOUT_NS;
+    memset(&ev, 0, sizeof ev);
+    ev.sigev_notify = SIGEV_UNBLOCK;
+    if (TimerTimeout(CLOCK_MONOTONIC, _NTO_TIMEOUT_SEND | _NTO_TIMEOUT_REPLY,
+                     &ev, &to, NULL) == 0 &&
+        MsgSend(g_dev_coid, &fwd, sizeof fwd, &ack, sizeof ack) == 0 &&
+        ack.applied == 1) {
+        g_fwd_ok++;
+    } else {
+        g_fwd_fail++;
+        name_close(g_dev_coid); /* force re-open next time: stale coid? */
+        g_dev_coid = -1;
+    }
+}
 
 int main(int argc, char **argv) {
     (void)argc;
@@ -74,6 +116,8 @@ int main(int argc, char **argv) {
             s.ndropped = g_ndropped;
             s.allows = g_allows;
             s.denies = g_denies;
+            s.nfwd_ok = g_fwd_ok;
+            s.nfwd_fail = g_fwd_fail;
             MsgReply(rcvid, EOK, &s, sizeof s);
             continue;
         }
@@ -82,6 +126,7 @@ int main(int argc, char **argv) {
         g_ctx.state = v.state_out;
         if (v.decision == GENESIS_ALLOW) {
             g_allows++;
+            forward_to_device(&msg.cmd, v.state_out);
         } else {
             g_denies++;
             g_last_reason = v.reason;

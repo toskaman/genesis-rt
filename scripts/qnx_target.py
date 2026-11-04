@@ -116,7 +116,12 @@ def build_qemu_argv(qemu: str, image_dir: Path, memory: str = "4G",
     if accel == "auto":
         accel = "kvm" if system == "Linux" else ("whpx" if system == "Windows" else "tcg")
     if cpu == "auto":
-        cpu = _default_cpu()
+        # QNX 8 startup spins forever on default qemu64 under TCG (guest
+        # RIP frozen, 2 cores burned, zero progress); -cpu max boots.
+        # -cpu host is invalid without a hardware accelerator.
+        cpu = "max" if accel == "tcg" else _default_cpu()
+    if accel == "tcg" and cpu.split(",")[0].strip() == "host":
+        raise ValueError("cpu 'host' needs a hardware accelerator (kvm/whpx), not tcg")
     if accel == "kvm":
         argv += ["--enable-kvm"]
     elif accel == "whpx":
@@ -374,13 +379,18 @@ TARGET_MATRIX = [
      " echo ---GUARD-HEADERS---;"
      " grep -h machine guard-amr.log guard-conv.log"),
     ("device_chain",
+     # NOTE: genesis_status runs under sudo -n like status_live:
+     # resmgr_attach() at an absolute path requires root (qnxuser gets
+     # EPERM "Operation not permitted" and the node never appears).
+     # Cleanup slays it with sudo too, or a stale root process would
+     # pollute the supervisor steps' pidin counts.
      "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
      " slay genesis_guard_conv 2>/dev/null; slay genesis_controller 2>/dev/null;"
-     " slay genesis_device 2>/dev/null; slay genesis_status 2>/dev/null; sleep 1;"
+     " slay genesis_device 2>/dev/null; sudo -n slay genesis_status 2>/dev/null; sleep 1;"
      " rm -f device.log guard-dc.log ctrl-dc.log;"
      " ./genesis_device > device.log 2>&1 &"
      " ./genesis_guard > guard-dc.log 2>&1 & GUARDPID=$!; sleep 2;"
-     " ./genesis_status /tmp/genesis-status-node > status-dc.log 2>&1 & sleep 1;"
+     " sudo -n ./genesis_status /tmp/genesis-status-node > status-dc.log 2>&1 & sleep 1;"
      " ./genesis_controller 50 > ctrl-dc.log 2>&1 & sleep 4;"
      " echo ---CHAIN-STATUS---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
      " echo ---STATUS-DC-LOG---; cat status-dc.log;"
@@ -390,7 +400,7 @@ TARGET_MATRIX = [
      " echo APPLY-SAMPLE=$(head -2 device.log | tr '\n' '|');"
      " echo NONGUARD=$(grep APPLY device.log | grep -vc \"from_pid=$GUARDPID \");"
      " echo GUARDPID=$GUARDPID;"
-     " slay genesis_guard; slay genesis_device; slay genesis_status"),
+     " slay genesis_guard; slay genesis_device; sudo -n slay genesis_status"),
     ("controller_flow",
      "cd /tmp/genesis; rm -f guard.log ctrl.log;"
      " ./genesis_guard > guard.log 2>&1 & sleep 2;"

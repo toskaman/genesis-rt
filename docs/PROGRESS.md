@@ -1,5 +1,22 @@
 # Progress log
 
+## 2026-11-04 (later) -- P0 #4 : DEBLOQUE sans reboot, matrice 8/8 PASS
+
+- TCG ressuscite methodiquement (QMP) : sous CPU `qemu64` defaut,
+  invite QNX fige, RIP gele a 0x14020a4 sur 3 min, 2 coeurs brules
+  pour zero progres -> `-cpu max` : log 352 -> 3437 octets en 90 s,
+  RIP dans le noyau, sshd up. Fix code dans `build_qemu_argv` :
+  `tcg` => cpu `max` par defaut, `host` refuse bruyamment sous tcg.
+- Cause racine device_chain : `resmgr_attach(/tmp/genesis-status-node)`
+  => EPERM sous qnxuser (resmgr absolu exige root). Fix matrice :
+  `sudo -n` au demarrage + nettoyage (precedent status_live) ;
+  chaine prouvee : APPLIES=83 issus du pid garde, NONGUARD=0.
+- Preuve : stage reconstruit (`qcc` 0 warning, 7 binaires), `put` 7/7,
+  `verify` 8/8 PASS sur QNX 8.0/QEMU (TCG), `demo --target-record`
+  PASS `QNX_BEHAVIOR_VERIFIED`/`release_eligible`/`qnx_verified`,
+  replay recharge valide (chaine + gate). Docs jury passees en 8/8.
+- Suite 273/273 verte (test_device_chain 5 inclus ; jamais absents).
+
 ## 2026-11-04 (later) -- P2 #19 tranche hote : banc perf + baseline
 
 - `scripts/bench_host.py` : garde (distribution p50/p95/p99/max),

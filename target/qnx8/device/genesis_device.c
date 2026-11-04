@@ -2,53 +2,105 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * genesis_device: SIMULATED actuator/sensor endpoint.
- * Holds virtual device state (position, velocity, sensor age).
- * NOTE (honest MVP boundary): the guard->device forwarding channel is
- * not wired yet, so this process currently holds state without
- * consuming commands; only the guard allow/deny path is live. Wiring
- * the validated-command channel is tracked P0 work. No physical motor
- * support exists in this component by design (simulation only).
+ * Receives ONLY guard-forwarded validated commands (GENESIS_FWD_MAGIC)
+ * over native message passing, integrates virtual pose, and serves
+ * state queries. The controller never talks to this process (no-bypass
+ * is enforced by construction and audited: every applied command logs
+ * its sender pid). No physical motor support by design (simulation).
  */
 #include <stdio.h>
 #include <string.h>
 #include "genesis_ipc.h"
+#include "device_model.h"
 
 #ifdef __QNXNTO__
+#include <errno.h>
+#include <sys/dispatch.h>
+#include <sys/neutrino.h>
+#include <time.h>
 #include <unistd.h>
-#endif
 
-typedef struct {
-    double x, y, theta;
-    double v, w;
-    uint32_t sensor_age_ms;
-    int sim_connected;
-} genesis_virtual_device_t;
-
-static genesis_virtual_device_t g_dev = {0, 0, 0, 0, 0, 0, 1};
-
-void genesis_device_apply(double v, double w, double dt) {
-    g_dev.v = v;
-    g_dev.w = w;
-    g_dev.x += v * dt;
-    g_dev.theta += w * dt;
-}
-
-void genesis_device_stop(void) {
-    g_dev.v = 0.0;
-    g_dev.w = 0.0;
+static uint64_t mono_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000ull + (uint64_t)ts.tv_nsec / 1000000ull;
 }
 
 int main(void) {
-    printf("device: virtual endpoint ready (simulation only, no physical I/O).\n"
-           "device: state x=%.2f y=%.2f theta=%.2f\n", g_dev.x, g_dev.y, g_dev.theta);
-#ifdef __QNXNTO__
-    printf("device: running on QNX Neutrino; awaiting guard-forwarded commands.\n");
-    /* Stay resident: the supervisor owns this process and a clean exit
-     * would (correctly) read as a child death. Terminate via slay. */
-    for (;;)
-        sleep(3600);
-#else
-    printf("device: host build; logic verified through the Python simulator mirror.\n");
-#endif
+    name_attach_t *attach =
+        name_attach(NULL, GENESIS_DEVICE_ATTACH_NAME, NAME_FLAG_ATTACH_GLOBAL);
+    if (attach == NULL) {
+        fprintf(stderr, "device: name_attach failed: %s\n", strerror(errno));
+        return 1;
+    }
+    genesis_device_state_t dev;
+    genesis_device_state_init(&dev);
+    printf("device: attached as '%s'; awaiting guard-forwarded commands.\n",
+           GENESIS_DEVICE_ATTACH_NAME);
+    fflush(stdout);
+
+    uint8_t buf[64];
+    for (;;) {
+        struct _msg_info info;
+        memset(buf, 0, sizeof buf);
+        int rcvid = MsgReceive(attach->chid, buf, sizeof buf, &info);
+        if (rcvid < 0) {
+            if (errno == EINTR)
+                continue;
+            fprintf(stderr, "device: MsgReceive failed: %s\n", strerror(errno));
+            return 1;
+        }
+        if (rcvid == 0) {
+            continue; /* pulse: never replied */
+        }
+        uint32_t msglen = (uint32_t)info.msglen;
+        if (msglen == sizeof(genesis_fwd_t) &&
+            ((genesis_fwd_t *)buf)->magic == GENESIS_FWD_MAGIC &&
+            ((genesis_fwd_t *)buf)->version == GENESIS_FWD_VERSION) {
+            genesis_fwd_t *fwd = (genesis_fwd_t *)buf;
+            genesis_fwd_ack_t ack;
+            memset(&ack, 0, sizeof ack);
+            ack.applied = (uint32_t)genesis_device_apply(
+                &dev, (double)fwd->linear_mps, (double)fwd->angular_radps,
+                fwd->seq, mono_ms());
+            /* Audit trail: every apply pins its sender pid. In a correct
+             * system all of these equal the guard pid (no bypass). */
+            printf("device: APPLY seq=%u v=%.3f w=%.3f from_pid=%d applied=%u "
+                   "x=%.3f theta=%.3f\n",
+                   fwd->seq, (double)fwd->linear_mps,
+                   (double)fwd->angular_radps, info.pid, ack.applied,
+                   dev.x, dev.theta);
+            fflush(stdout);
+            MsgReply(rcvid, EOK, &ack, sizeof ack);
+        } else if (msglen == sizeof(genesis_devstate_req_t) &&
+                   ((genesis_devstate_req_t *)buf)->magic ==
+                       GENESIS_DEVSTATE_MAGIC &&
+                   ((genesis_devstate_req_t *)buf)->version ==
+                       GENESIS_DEVSTATE_VERSION) {
+            genesis_devstate_reply_t rep;
+            genesis_device_watchdog(&dev, mono_ms());
+            rep.x = dev.x;
+            rep.y = dev.y;
+            rep.theta = dev.theta;
+            rep.v = (float)dev.v;
+            rep.w = (float)dev.w;
+            rep.applied = (uint32_t)(dev.applied & 0xFFFFFFFFu);
+            rep.last_seq = dev.last_seq;
+            MsgReply(rcvid, EOK, &rep, sizeof rep);
+        } else {
+            static uint64_t nbad = 0;
+            nbad++;
+            fprintf(stderr, "device: rejected malformed frame len=%u from_pid=%d\n",
+                    msglen, info.pid);
+            MsgError(rcvid, EBADMSG);
+        }
+    }
     return 0;
 }
+#else
+int main(void) {
+    printf("device: virtual endpoint ready (simulation only, no physical I/O).\n"
+           "device: host build; logic verified through the device_model harness.\n");
+    return 2;
+}
+#endif
