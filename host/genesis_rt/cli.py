@@ -1,6 +1,6 @@
 # Copyright 2026 GENESIS RT contributors
 # SPDX-License-Identifier: Apache-2.0
-"""Command line: `genesis-rt <validate|plan|generate|simulate|faults|demo|check-env|serve>`."""
+"""Command line: `genesis-rt <validate|plan|generate|simulate|faults|demo|compare|check-env|serve>`."""
 
 from __future__ import annotations
 
@@ -96,6 +96,19 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     return 0 if summary["verdict"] == "PASS" else 1
 
 
+def _cmd_compare(args: argparse.Namespace) -> int:
+    from .compare import compare_runs, render_text
+    comp = compare_runs(args.run_a, args.run_b)
+    if args.json:
+        print(json.dumps(comp, indent=2, sort_keys=True))
+    else:
+        print(render_text(comp), end="")
+        for name, diff in comp["generated"]["diffs"].items():
+            print(f"--- diff: {name} ---")
+            print(diff, end="" if diff.endswith("\n") else "\n")
+    return 0
+
+
 def _cmd_check_env(args: argparse.Namespace) -> int:
     from .build_adapter import probe
     print(json.dumps(probe(), indent=2))
@@ -130,6 +143,9 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--target-record", default=None,
                    help="qnx-target-record.json from scripts/qnx_target.py verify")
     d.set_defaults(func=_cmd_demo)
+    cmp = sub.add_parser("compare", help="diff two pipeline run directories")
+    cmp.add_argument("run_a"); cmp.add_argument("run_b")
+    cmp.add_argument("--json", action="store_true"); cmp.set_defaults(func=_cmd_compare)
     c = sub.add_parser("check-env", help="probe for a QNX SDK toolchain")
     c.set_defaults(func=_cmd_check_env)
     sv = sub.add_parser("serve", help="start the local web API (needs api extra)")

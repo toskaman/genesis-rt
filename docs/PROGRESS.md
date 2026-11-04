@@ -1,5 +1,15 @@
 # Progress log
 
+## 2026-11-04 (later) -- P2 #18 tranche hote : comparaison de builds
+
+- `host/genesis_rt/compare.py` + CLI `genesis-rt compare A B [--json]` :
+  diff de deux dossiers run (machine, scenarios declares, sources
+  generees avec unified diff, statuts scenarios, verdict/niveau/
+  release). Sert le recit broken-vs-fixed : mutation 1.2 -> 0.5
+  visible dans le diff du header genere, AMR vs conveyor montres.
+- 5 tests (run identique -> diff vide, 2 machines, mutation limite,
+  non-run-dir refuse, CLI texte+json). Suite 265/265 verte.
+
 ## 2026-11-04 (later) -- P2 #17 tranche hote : interface planning + eval
 
 - `host/genesis_rt/planning.py` : interface independante du fournisseur
