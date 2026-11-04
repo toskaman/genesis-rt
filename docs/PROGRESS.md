@@ -1,5 +1,36 @@
 # Progress log
 
+## 2026-11-04 (later) — P0 #7 : niveaux de vérification + SSH penalty-box
+
+- `gate.evaluate` assigne désormais le plus haut niveau de preuve MÉRITÉ :
+  `NONE < HOST_TESTED < QNX_COMPILED < QNX_EXECUTED <
+  QNX_BEHAVIOR_VERIFIED < QNX_PERFORMANCE_MEASURED`, avec
+  `release_eligible` vrai uniquement à partir de
+  `QNX_BEHAVIOR_VERIFIED`. Un PASS hôte ne peut plus se lire comme une
+  autorisation de release ; la preuve cible est liée au build natif
+  (build non-ok + cible ok → `HOST_TESTED`, `qnx_verified: False`).
+  Sémantiques `verdict`/`reasons` inchangées. `qnx_perf` n'a pas encore
+  de producteur (harness P1) : les passeports plafonnent honnêtement à
+  `QNX_BEHAVIOR_VERIFIED` avec raison explicite.
+- CLI `demo` affiche `level` + `release_eligible` + `level_reasons`.
+- 4 tests gate ajoutés (paliers, exécuté-vs-vérifié, liaison au build,
+  NONE sur échec) + 1 test mutant always-ALLOW (garde désactivée →
+  5 scénarios FAIL → gate FAIL/NONE/non-éligible). Suite 139/139.
+- Incident SSH résolu (cause racine) : le sshd invité (OpenSSH 10.3)
+  applique `PerSourcePenalties` — nos rafales de reconnexions ont mis la
+  source au ban (`Not allowed at this time`). Deuxième effet mesuré 3/3 :
+  un succès immédiatement suivi de retries rapides donne 8/8 échecs +
+  re-ban (flap transitoire SLIRP/WHPX + pénalité en cascade).
+  `_ssh_client` : 4 essais PATIENTS espacés de 45 s + cooldown unique de
+  300 s sur signature penalty-box (bannière absente) ; règle
+  opérationnelle : une seule commande SSH à la fois, jamais de sonde
+  juste avant la vraie commande.
+- Incident WHPX (bloquant cible, sans reboot possible) : `HypervisorPresent
+  = False` après reboot hôte 20:02, `hypervisorlaunchtype Off` → QEMU
+  `No accelerator found`. Remis à `Auto` (effectif au prochain reboot).
+  Fallback TCG tenté et abandonné (bloqué au QNX Boot Loader, CPU qemu64
+  incompatible). Travail cible suspendu jusqu'au reboot ; suite hôte.
+
 ## 2026-11-04 (later) — P0 #3 : limites générées pilotent le runtime, 7/7
 
 - Garde/contrôleur/faultinject incluent `genesis_config_gen.h` : finis les

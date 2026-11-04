@@ -110,3 +110,71 @@ def test_gate_rejects_duplicate_kinds(amr_ir, tmp_path):
     v = gate.evaluate(p, ["nominal_navigation"])
     assert v["verdict"] == "FAIL"
     assert any("duplicate" in r for r in v["reasons"])
+
+
+def _passport_with(amr_ir, tmp_path, tag, qnx_build, qnx_target=None):
+    return evidence.build_passport(
+        f"run-{tag}", amr_ir, codegen.generate(amr_ir, tmp_path / f"g-{tag}"),
+        faultlab.run_all(amr_ir, ["nominal_navigation"]),
+        qnx_build, qnx_target)
+
+
+def test_gate_levels_host_to_compiled(amr_ir, tmp_path):
+    # Host PASS with a blocked QNX build: honest HOST_TESTED tier, and a
+    # host PASS must never read as release-eligible.
+    p = _passport_with(amr_ir, tmp_path, "host",
+                       {"status": "blocked", "verified_on_target": False})
+    v = gate.evaluate(p, ["nominal_navigation"])
+    assert (v["verdict"], v["level"], v["qnx_verified"],
+            v["release_eligible"]) == ("PASS", "HOST_TESTED", False, False)
+    assert any("QNX_COMPILED" in r for r in v["level_reasons"])
+    # Real native build, no target run yet: compiled but not executed.
+    p = _passport_with(amr_ir, tmp_path, "compiled",
+                       {"status": "ok", "verified_on_target": False})
+    v = gate.evaluate(p, ["nominal_navigation"])
+    assert (v["verdict"], v["level"], v["release_eligible"]) == (
+        "PASS", "QNX_COMPILED", False)
+
+
+def test_gate_levels_executed_vs_behavior_verified(amr_ir, tmp_path):
+    build = {"status": "ok", "verified_on_target": False}
+    # Target ran but a check failed: executed, not behavior-verified.
+    tgt = {"status": "ok", "verified_on_target": False,
+           "checks": [{"name": "a", "passed": True, "detail": "x"},
+                      {"name": "b", "passed": False, "detail": "y"}]}
+    v = gate.evaluate(_passport_with(amr_ir, tmp_path, "exec", build, tgt),
+                      ["nominal_navigation"])
+    assert (v["verdict"], v["level"], v["qnx_verified"],
+            v["release_eligible"]) == ("PASS", "QNX_EXECUTED", False, False)
+    # All target checks pass: behavior verified, release eligible.
+    tgt = {"status": "ok", "verified_on_target": True,
+           "checks": [{"name": "a", "passed": True, "detail": "x"}]}
+    v = gate.evaluate(_passport_with(amr_ir, tmp_path, "verified", build, tgt),
+                      ["nominal_navigation"])
+    assert (v["verdict"], v["level"], v["qnx_verified"],
+            v["release_eligible"]) == (
+                "PASS", "QNX_BEHAVIOR_VERIFIED", True, True)
+
+
+def test_gate_binds_target_evidence_to_build(amr_ir, tmp_path):
+    # Target evidence without a successful native build proves nothing:
+    # behavior claims must bind to compiled artifacts.
+    tgt = {"status": "ok", "verified_on_target": True,
+           "checks": [{"name": "a", "passed": True, "detail": "x"}]}
+    v = gate.evaluate(_passport_with(
+        amr_ir, tmp_path, "unbound",
+        {"status": "blocked", "verified_on_target": False}, tgt),
+        ["nominal_navigation"])
+    assert (v["level"], v["qnx_verified"],
+            v["release_eligible"]) == ("HOST_TESTED", False, False)
+
+
+def test_gate_level_none_on_failure(amr_ir, tmp_path):
+    p = _passport(amr_ir, tmp_path)
+    v = gate.evaluate(p, ["nominal_navigation", "stale_proximity_150ms"])
+    assert (v["verdict"], v["level"],
+            v["release_eligible"]) == ("FAIL", "NONE", False)
+    bad = copy.deepcopy(p)
+    bad["chain"][1]["body"]["ir_sha256"] = "0" * 64
+    v = gate.evaluate(bad, ["nominal_navigation"])
+    assert v["level"] == "NONE"

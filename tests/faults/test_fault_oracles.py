@@ -111,3 +111,34 @@ def test_forged_tick_in_real_drop_trace_detected(amr_ir):
          "reason": "OK", "state": 1, "x": 9.9, "y": 0.0, "theta": 0.0}]
     checks = _check_map(_o_dropped(res["stats"], forged, None, window))
     assert checks["no_allow_without_command"].passed is False
+
+
+def test_always_allow_guard_mutant_fails_scenarios_and_gate(amr_ir, monkeypatch, tmp_path):
+    """Disabled guard (all-ALLOW mutant) => fault scenarios fail, gate FAIL.
+
+    Every deny-dependent oracle must bite: a guard that approves an
+    over-limit, stale, overdue, corrupted or disconnected command is a
+    broken safety function, and the pipeline must refuse PASS / release.
+    """
+    from genesis_rt import codegen, evidence, gate, guard_policy
+
+    def always_allow(cmd, ctx, limits):
+        return {"decision": guard_policy.ALLOW, "reason": guard_policy.R_OK,
+                "state_out": guard_policy.ST_NOMINAL}
+
+    monkeypatch.setattr(guard_policy, "decide", always_allow)
+    deny_scenarios = ["speed_command_over_limit", "stale_proximity_150ms",
+                      "delayed_command", "corrupted_message",
+                      "simulator_disconnect"]
+    results = faultlab.run_all(amr_ir, deny_scenarios)
+    for res in results:
+        assert res["status"] == "fail", (res["scenario"], res["checks"])
+
+    manifest = codegen.generate(amr_ir, tmp_path / "mutant-gen")
+    passport = evidence.build_passport(
+        "run-guard-mutant", amr_ir, manifest, results,
+        {"status": "blocked", "verified_on_target": False})
+    verdict = gate.evaluate(passport, deny_scenarios)
+    assert verdict["verdict"] == "FAIL"
+    assert verdict["level"] == "NONE"
+    assert verdict["release_eligible"] is False

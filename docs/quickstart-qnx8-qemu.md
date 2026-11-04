@@ -95,6 +95,14 @@ python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json
 # guard as genesis_guard_conv, or limits_differ fails MISSING_CONV_GUARD.
 ```
 
+SSH discipline (measured): the guest sshd (OpenSSH >= 9.8) enforces
+`PerSourcePenalties`, and the SLIRP/WHPX path drops occasional
+handshakes. Run ONE ssh command at a time, never probe right before
+the real command, and let failures cool down instead of hammering:
+rapid retries reliably produce `Not allowed at this time` bans of
+several minutes. The scripted client already spaces attempts (4 x 45 s
++ 300 s penalty cooldown) and reports every attempt.
+
 Manual fallback: transfer the six binaries to the running target (shared
 folder/`scp` per your setup), then on target:
 

@@ -72,8 +72,12 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     summary = run_pipeline(ir_path, REPO_ROOT / "artifacts" / "runs",
                            target_record=args.target_record)
     print(f"run: {summary['run_id']}  verdict: {summary['verdict']}  "
+          f"level: {summary['level']}  "
+          f"release_eligible: {summary['release_eligible']}  "
           f"qnx_verified: {summary['qnx_verified']}  elapsed: {summary['elapsed_s']}s")
     print(f"passport: {summary['passport']}")
+    for lr in summary["steps"]["gate"].get("level_reasons", []):
+        print(f"  level: {lr}")
     for name, outcome in summary["steps"]["verification"]["scenarios"].items():
         print(f"  {name}: {outcome}")
     for reason in summary["steps"]["gate"]["reasons"]:

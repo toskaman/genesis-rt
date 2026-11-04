@@ -126,5 +126,7 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
 
     return {"run_id": run_id, "run_dir": str(run_dir),
             "passport": str(ppath), "verdict": verdict["verdict"],
-            "qnx_verified": verdict["qnx_verified"], "steps": steps,
+            "qnx_verified": verdict["qnx_verified"],
+            "level": verdict["level"],
+            "release_eligible": verdict["release_eligible"], "steps": steps,
             "failure": failure, "elapsed_s": round(time.monotonic() - t0, 2)}

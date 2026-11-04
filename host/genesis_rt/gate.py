@@ -8,6 +8,21 @@ qnx_verified flag is reported separately and never conflated with
 the host verdict), no failed/crashed records among required
 scenarios, no pipeline_error record, and no duplicate record kinds.
 Anything else => FAIL with explicit reasons.
+
+On top of the host verdict, the gate assigns the highest EARNED
+verification level so a host PASS can never pose as target-qualified
+release evidence:
+
+    NONE < HOST_TESTED < QNX_COMPILED < QNX_EXECUTED
+         < QNX_BEHAVIOR_VERIFIED < QNX_PERFORMANCE_MEASURED
+
+Each tier requires the previous one plus strictly stronger evidence
+(see _level()). ``release_eligible`` is True only at
+QNX_BEHAVIOR_VERIFIED or above: a release decision must fail when QNX
+behavior evidence is absent, even if every host scenario passes. The
+QNX_PERFORMANCE_MEASURED tier needs a ``qnx_perf`` record, which no
+producer emits yet (benchmark harness is P1); until then passports
+honestly cap at QNX_BEHAVIOR_VERIFIED.
 """
 
 from __future__ import annotations
@@ -16,6 +31,46 @@ import datetime
 from typing import Any
 
 from .evidence import verify_chain
+
+LEVELS = ("NONE", "HOST_TESTED", "QNX_COMPILED", "QNX_EXECUTED",
+          "QNX_BEHAVIOR_VERIFIED", "QNX_PERFORMANCE_MEASURED")
+
+# Release policy: behavior on target is the minimum for eligibility.
+# Performance evidence is recorded (informational tier) but not required
+# until a product policy declares perf budgets.
+RELEASE_MIN_LEVEL = "QNX_BEHAVIOR_VERIFIED"
+
+
+def _level(base_ok: bool, by_kind: dict[str, Any]) -> tuple[str, list[str]]:
+    """Highest earned tier + explicit cap reasons (informational)."""
+    if not base_ok:
+        return "NONE", ["host base not satisfied (see verdict reasons)"]
+    reasons: list[str] = []
+    build = (by_kind.get("qnx_build") or {}).get("body", {})
+    if build.get("status") != "ok":
+        return "HOST_TESTED", [
+            f"qnx_build.status={build.get('status')!r} (need 'ok' for QNX_COMPILED)"]
+    target = (by_kind.get("qnx_target") or {}).get("body", {})
+    checks = target.get("checks", [])
+    if target.get("status") != "ok" or not isinstance(checks, list) or not checks:
+        return "QNX_COMPILED", [
+            f"qnx_target.status={target.get('status')!r} with "
+            f"{len(checks) if isinstance(checks, list) else 0} checks "
+            f"(need 'ok' + >=1 check for QNX_EXECUTED)"]
+    if target.get("verified_on_target") is not True or not all(
+            isinstance(c, dict) and c.get("passed") is True for c in checks):
+        n_pass = sum(1 for c in checks
+                     if isinstance(c, dict) and c.get("passed") is True)
+        return "QNX_EXECUTED", [
+            f"target ran ({n_pass}/{len(checks)} checks passed, "
+            f"verified_on_target={target.get('verified_on_target')!r}); "
+            f"need all-pass for QNX_BEHAVIOR_VERIFIED"]
+    perf = (by_kind.get("qnx_perf") or {}).get("body", {})
+    if perf.get("status") != "ok" or not perf.get("measurements"):
+        return "QNX_BEHAVIOR_VERIFIED", [
+            "no qnx_perf record with measurements "
+            "(benchmark harness not run; capped below QNX_PERFORMANCE_MEASURED)"]
+    return "QNX_PERFORMANCE_MEASURED", reasons
 
 
 def evaluate(passport: dict[str, Any], required_scenarios: list[str]) -> dict[str, Any]:
@@ -42,18 +97,6 @@ def evaluate(passport: dict[str, Any], required_scenarios: list[str]) -> dict[st
     qnx_rec = by_kind.get("qnx_build")
     if qnx_rec is None:
         reasons.append("missing qnx_build record")
-    tgt_rec = by_kind.get("qnx_target")
-    qnx_verified = False
-    if tgt_rec is not None:
-        # qnx_verified is reported alongside the host verdict, never gating it:
-        # a missing target record keeps qnx_verified=false without failing.
-        body = tgt_rec.get("body", {})
-        checks = body.get("checks", [])
-        if (body.get("status") == "ok"
-                and body.get("verified_on_target") is True
-                and isinstance(checks, list) and len(checks) > 0
-                and all(c.get("passed") is True for c in checks)):
-            qnx_verified = True
 
     missing: list[str] = []
     failed: list[str] = []
@@ -73,6 +116,13 @@ def evaluate(passport: dict[str, Any], required_scenarios: list[str]) -> dict[st
         reasons.append("no required scenarios declared (refusing vacuous pass)")
 
     verdict = "FAIL" if reasons else "PASS"
+    # Host base for leveling ignores qnx_build *presence* (a hand-deleted
+    # record already breaks the hash chain, so base_ok is False anyway);
+    # every tier above HOST_TESTED re-checks build evidence strictly.
+    base_ok = not [r for r in reasons if r != "missing qnx_build record"]
+    level, level_reasons = _level(base_ok, by_kind)
+    qnx_verified = LEVELS.index(level) >= LEVELS.index("QNX_BEHAVIOR_VERIFIED")
+    release_eligible = LEVELS.index(level) >= LEVELS.index(RELEASE_MIN_LEVEL)
     return {
         "verdict": verdict,
         "reasons": reasons,
@@ -80,5 +130,8 @@ def evaluate(passport: dict[str, Any], required_scenarios: list[str]) -> dict[st
         "missing": sorted(missing),
         "failed": sorted(failed),
         "qnx_verified": qnx_verified,
+        "level": level,
+        "level_reasons": level_reasons,
+        "release_eligible": release_eligible,
         "evaluated_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
     }

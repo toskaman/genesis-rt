@@ -216,13 +216,29 @@ def cmd_boot(args: argparse.Namespace) -> int:
 
 
 def _ssh_client(port: int, user: str, password: str, timeout: int = 30,
-                retries: int = 3):
-    """Connect with bounded retries: QEMU SLIRP/WHPX shows transient auth
-    failures under load (observed 4 flaps in a row, then 6/6 clean), and a
-    5-minute matrix must not die on one wedged handshake. All attempts are
-    reported; giving up still fails loudly, never silently."""
+                retries: int = 4):
+    """Connect with bounded, PATIENT retries. Two stacked hazards were
+    observed against QEMU SLIRP/WHPX + guest OpenSSH >= 9.8:
+
+    1. Transient mid-handshake failures (pre-existing environmental flap):
+       an isolated attempt can die with AuthenticationException even with
+       correct credentials; the next attempt minutes later succeeds.
+    2. PerSourcePenalties: a burst of rapid reconnects gets the source
+       penalised and every new connection is answered "Not allowed at
+       this time" until the penalty decays -- and each new probe during
+       the penalty extends it.
+
+    A tight retry loop turns hazard 1 into hazard 2 (measured 3/3: a
+    success immediately followed by rapid retries produced 8/8 fails +
+    penalty box). So attempts are spaced 45 s apart (max ~4 min per
+    command), a banner/penalty failure triggers one long 300 s cooldown
+    instead of hammering, and giving up still fails loudly, never
+    silently. Operational rule: run ONE ssh command at a time and never
+    probe right before the real command -- the command itself is the
+    probe."""
     import paramiko  # noqa: PLC0415
     last: Exception | None = None
+    cooled_down = False
     for attempt in range(1, retries + 1):
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -236,8 +252,18 @@ def _ssh_client(port: int, user: str, password: str, timeout: int = 30,
             last = exc
             print(f"ssh: attempt {attempt}/{retries} failed: "
                   f"{type(exc).__name__}: {exc}")
-            if attempt < retries:
-                time.sleep(5)
+            if attempt >= retries:
+                break
+            # Penalty-box signature: no SSH banner at all (sshd answered
+            # "Not allowed at this time" and closed). Hammering extends the
+            # ban, so back off hard once, then resume normal spacing.
+            if not cooled_down and "banner" in str(exc).lower():
+                print("ssh: penalty-box suspected (no banner); "
+                      "cooling down 300 s before retrying")
+                time.sleep(300)
+                cooled_down = True
+            else:
+                time.sleep(45)
     raise last if last else RuntimeError("ssh connect failed")
 
 
@@ -328,6 +354,24 @@ TARGET_MATRIX = [
      " slay genesis_guard; slay genesis_guard_conv 2>/dev/null;"
      " echo ---GUARD-HEADERS---;"
      " grep -h machine guard-amr.log guard-conv.log"),
+    ("device_chain",
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+     " slay genesis_guard_conv 2>/dev/null; slay genesis_controller 2>/dev/null;"
+     " slay genesis_device 2>/dev/null; slay genesis_status 2>/dev/null; sleep 1;"
+     " rm -f device.log guard-dc.log ctrl-dc.log;"
+     " ./genesis_device > device.log 2>&1 &"
+     " ./genesis_guard > guard-dc.log 2>&1 & GUARDPID=$!; sleep 2;"
+     " ./genesis_status /tmp/genesis-status-node > status-dc.log 2>&1 & sleep 1;"
+     " ./genesis_controller 50 > ctrl-dc.log 2>&1 & sleep 4;"
+     " echo ---CHAIN-STATUS---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
+     " echo ---STATUS-DC-LOG---; cat status-dc.log;"
+     " echo ---GUARD-DC-HEAD---; head -6 guard-dc.log;"
+     " slay genesis_controller; sleep 1;"
+     " echo APPLIES=$(grep -c APPLY device.log);"
+     " echo APPLY-SAMPLE=$(head -2 device.log | tr '\n' '|');"
+     " echo NONGUARD=$(grep APPLY device.log | grep -vc \"from_pid=$GUARDPID \");"
+     " echo GUARDPID=$GUARDPID;"
+     " slay genesis_guard; slay genesis_device; slay genesis_status"),
     ("controller_flow",
      "cd /tmp/genesis; rm -f guard.log ctrl.log;"
      " ./genesis_guard > guard.log 2>&1 & sleep 2;"
@@ -389,6 +433,22 @@ def _matrix_check(name: str, body: str, status: int) -> dict:
               and "machine=amr-demo-01 limits linear=1.200" in body
               and "machine=conveyor-demo-01 limits linear=2.000" in body
               and "MISSING_CONV_GUARD" not in body)
+    elif name == "device_chain":
+        # Full actuation chain: controller -> guard -> device -> status.
+        # The virtual robot must have MOVED (dev_x > 0), every applied
+        # command must come from the guard pid (no bypass), and no
+        # forward may have failed while the device was up.
+        def _num(pat, cast=float, default=None):
+            m = re.search(pat, body)
+            return cast(m.group(1)) if m else default
+        ok = ("STATUS_EXIT=0" in body
+              and (_num(r"dev_applied=(\d+)", int, 0) or 0) >= 20
+              and (_num(r"dev_x=([\d.]+)", float, 0.0) or 0.0) > 0.2
+              and (_num(r"dev_v=([\d.]+)", float, 0.0) or 0.0) > 0.3
+              and (_num(r"fwd_ok=(\d+)", int, 0) or 0) >= 20
+              and _num(r"fwd_fail=(\d+)", int, -1) == 0
+              and _num(r"APPLIES=(\d+)", int, 0) >= 20
+              and _num(r"NONGUARD=(\d+)", int, -1) == 0)
     elif name == "controller_flow":
         ok = False
         for line in body.splitlines():
