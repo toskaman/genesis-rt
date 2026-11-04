@@ -1,5 +1,25 @@
 # Progress log
 
+## 2026-11-04 (later) -- P1 #11 tranche hote : generation C specifique-machine
+
+- `host/genesis_rt/codegen_v2.py` + 2 templates : depuis IR v2, genere
+  `genesis_machine_gen.{h,c}` (enums etats/evenements/commandes/fautes/
+  actions/actionneurs/capteurs/telemetrie + `switch` generes :
+  transitions, bornes champs commandes, reponses fautes, bornes
+  actionneurs, fraicheur/portee capteurs, map telemetrie). Collisions
+  d'identifiants C -> `ValueError` explicite. Config+makefile via v1
+  `generate()` inchange ; lien du module dans la regle genesis_guard
+  par post-traitement de la copie makefile du dossier v2 (template
+  partage intact, hunk #4 en attente preserve).
+- Preuves : snapshots bytes des 2 machines + test differenciation
+  structurelle (2 commandes vs 1, bornes +-1.2 vs +-2.0, ESTOP vs
+  PROXIMITY) ; harnais `machine_vector.c` compile host `-Wall -Wextra`
+  zero warning, vecteurs derives de l'IR (2 machines vertes) ; `qcc`
+  natif ok 0 warning sur les 2 dossiers v2 ; build natif v1 intact.
+- Deferre honnetement : call-site garde (apres preuve cible #4),
+  demo comportement natif (post-reboot). Spec + plan dans
+  `docs/superpowers/`. Suite 243/243 verte.
+
 ## 2026-11-04 (later) -- P0 #6 : wraparound seq (arithmetique serielle)
 
 - Defaut confirme : `seq <= last_seq` coincait la garde apres

@@ -1,0 +1,76 @@
+/* Copyright 2026 GENESIS RT contributors
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * GENERATED FILE -- DO NOT EDIT.
+ * machine: $machine_id ($machine_kind)
+ * generator: $generator_version, machine templates: $template_version
+ * ir_sha256: $ir_sha256
+ *
+ * Machine-specific queries derived from Machine IR v2: state machine,
+ * command contracts, fault responses, actuator bounds, sensor models,
+ * telemetry map. Fail-closed: unknown ids return -1/0/NULL, never data.
+ */
+#ifndef GENESIS_MACHINE_GEN_H
+#define GENESIS_MACHINE_GEN_H
+
+typedef enum {
+$enum_states
+} genesis_m_state_t;
+
+typedef enum {
+$enum_events
+} genesis_m_event_t;
+
+typedef enum {
+$enum_commands
+} genesis_m_cmd_t;
+
+typedef enum {
+$enum_faults
+} genesis_m_fault_t;
+
+typedef enum {
+$enum_actions
+} genesis_m_action_t;
+
+typedef enum {
+$enum_actuators
+} genesis_m_act_t;
+
+typedef enum {
+$enum_sensors
+} genesis_m_sens_t;
+
+typedef enum {
+$enum_telemetry
+} genesis_m_tm_t;
+
+/* 1 when (from_state -> to_state on event) is a declared transition. */
+int genesis_machine_can_transition(int from_state, int to_state, int event);
+
+/* Number of contract fields for a command, or -1 when unknown. */
+int genesis_machine_cmd_field_count(int cmd);
+
+/* Bounds of command field <field>; 0 on success, -1 when unknown. */
+int genesis_machine_cmd_field_bounds(int cmd, int field,
+                                     double *min_out, double *max_out);
+
+/* Safe state + action for a fault; first IR entry wins. 0/-1. */
+int genesis_machine_fault_response(int fault, int *state_out, int *action_out);
+
+/* Actuator command bounds. 0 on success, -1 when unknown. */
+int genesis_machine_actuator_bounds(int actuator,
+                                    double *min_out, double *max_out);
+
+/* Sensor freshness limit in ms. 0 on success, -1 when unknown. */
+int genesis_machine_sensor_freshness(int sensor, double *ms_out);
+
+/* Sensor declared range; -1 when the sensor declares no range. */
+int genesis_machine_sensor_range(int sensor, double *min_out, double *max_out);
+
+/* Telemetry entries by index (0..GENESIS_M_TM_COUNT-1). */
+int genesis_machine_telemetry_rate(int tm, double *rate_out);
+const char *genesis_machine_telemetry_name(int tm);
+const char *genesis_machine_telemetry_source(int tm);
+
+#endif /* GENESIS_MACHINE_GEN_H */

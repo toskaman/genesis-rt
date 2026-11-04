@@ -1,0 +1,107 @@
+/* Copyright 2026 GENESIS RT contributors
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * GENERATED FILE -- DO NOT EDIT.
+ * machine: $machine_id ($machine_kind)
+ * generator: $generator_version, machine templates: $template_version
+ * ir_sha256: $ir_sha256
+ */
+#include "genesis_machine_gen.h"
+#include <stddef.h>
+
+int genesis_machine_can_transition(int from_state, int to_state, int event) {
+    (void)to_state;
+    (void)event;
+    switch (from_state) {
+$transition_cases
+    default:
+        return 0;
+    }
+}
+
+int genesis_machine_cmd_field_count(int cmd) {
+    switch (cmd) {
+$cmd_field_count_cases
+    default:
+        return -1;
+    }
+}
+
+int genesis_machine_cmd_field_bounds(int cmd, int field,
+                                     double *min_out, double *max_out) {
+    if (min_out == NULL || max_out == NULL)
+        return -1;
+    (void)field;
+    switch (cmd) {
+$cmd_bounds_cases
+    default:
+        return -1;
+    }
+}
+
+int genesis_machine_fault_response(int fault, int *state_out, int *action_out) {
+    if (state_out == NULL || action_out == NULL)
+        return -1;
+    switch (fault) {
+$fault_cases
+    default:
+        return -1;
+    }
+}
+
+int genesis_machine_actuator_bounds(int actuator,
+                                    double *min_out, double *max_out) {
+    if (min_out == NULL || max_out == NULL)
+        return -1;
+    switch (actuator) {
+$actuator_cases
+    default:
+        return -1;
+    }
+}
+
+int genesis_machine_sensor_freshness(int sensor, double *ms_out) {
+    if (ms_out == NULL)
+        return -1;
+    switch (sensor) {
+$sensor_freshness_cases
+    default:
+        return -1;
+    }
+}
+
+int genesis_machine_sensor_range(int sensor, double *min_out, double *max_out) {
+    if (min_out == NULL || max_out == NULL)
+        return -1;
+    switch (sensor) {
+$sensor_range_cases
+    default:
+        return -1;
+    }
+}
+
+int genesis_machine_telemetry_rate(int tm, double *rate_out) {
+    if (rate_out == NULL)
+        return -1;
+    switch (tm) {
+$tm_rate_cases
+    default:
+        return -1;
+    }
+}
+
+const char *genesis_machine_telemetry_name(int tm) {
+    switch (tm) {
+$tm_name_cases
+    default:
+        return NULL;
+    }
+}
+
+const char *genesis_machine_telemetry_source(int tm) {
+    switch (tm) {
+$tm_source_cases
+    default:
+        return NULL;
+    }
+}
