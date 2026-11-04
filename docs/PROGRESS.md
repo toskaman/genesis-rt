@@ -1,5 +1,18 @@
 # Progress log
 
+## 2026-11-04 (later) -- P1 #15 tranche A : Studio (workspace 6 onglets)
+
+- `ui/genesis_verify.js` : coeur pur extrait du dashboard (verbatim,
+  tests node inchanges) ; `ui/studio.html` : Intent (IR + sha256 live
+  avec normalisation validateur), Source (provenance v1/v2 pine vs
+  IR, MISMATCH bruyant), Twin (replay canvas corridor/belt, gap
+  marque, jamais interpole), Lab (scenarios/seeds/checks -> Twin),
+  Passport (chaine re-verifiee, Lab/Twin vides si invalide), Run
+  (commandes exactes, zero execution simulee).
+- Preuve : 12/12 tests UI node (irsha==Python sur 2 IR, pin
+  match/mismatch, Lab/Trace diff+belt, tamper rejete) ; garde
+  anti-interpolation non-echappee sur les 3 fichiers. Suite 305/305.
+
 ## 2026-11-04 (later) -- P1 #12 tranche C : belt sur QNX, matrice 10/10
 
 - Modele belt C (`device_model`) : position/vitesse, dt arrivee,

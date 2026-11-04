@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 GENESIS RT contributors, SPDX-License-Identifier: Apache-2.0 -->
+<!-- GENESIS Studio: static six-tab workspace. Loads real artifacts from disk;
+     every verdict is recomputed live. No backend, no network, no mock runs. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GENESIS RT — Studio</title>
+<style>
+:root { color-scheme: dark; --bg:#0d1117; --fg:#e6edf3; --ok:#3fb950; --bad:#f85149; --mut:#8b949e; }
+body { background:var(--bg); color:var(--fg); font-family:system-ui,sans-serif; margin:2rem auto; max-width:64rem; padding:0 1rem; }
+h1 small { color:var(--mut); font-weight:normal; }
+.pass { color:var(--ok); font-weight:bold; } .fail { color:var(--bad); font-weight:bold; }
+table { border-collapse:collapse; width:100%; margin:1rem 0; }
+td, th { border:1px solid #30363d; padding:.4rem .6rem; text-align:left; font-size:.9rem; }
+code { font-size:.8rem; }
+input[type=file] { margin:1rem 0; }
+.note { color:var(--mut); font-size:.85rem; }
+.banner { border:1px solid #30363d; padding:.6rem .8rem; margin:1rem 0; font-size:.9rem; }
+.tabs { display:flex; gap:.25rem; flex-wrap:wrap; margin:1rem 0; }
+.tabs button { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.45rem .8rem; cursor:pointer; font-size:.9rem; }
+.tabs button[aria-selected="true"] { background:#1f6feb; border-color:#1f6feb; }
+.tabpage { display:none; } .tabpage.active { display:block; }
+pre.cmd { background:#161b22; border:1px solid #30363d; padding:.6rem .8rem; overflow-x:auto; font-size:.82rem; }
+canvas.twin { border:1px solid #30363d; width:100%; max-width:40rem; background:#010409; }
+.twinctl button { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.3rem .7rem; margin-right:.4rem; cursor:pointer; }
+tr.pick { cursor:pointer; } tr.pick:hover td { background:#161b22; }
+</style>
+</head>
+<body>
+<h1>GENESIS RT <small>Studio — specify → compile → run → break → prove</small></h1>
+<p class="note">Static page, no build step, no network. Open real artifacts
+(IR JSON, generated C, passport JSON) and every check below is recomputed
+live in your browser. Nothing here executes a pipeline: the Run tab gives
+you the exact commands, and you drop the fresh outputs back here.</p>
+<div class="tabs" role="tablist">
+<button role="tab" aria-selected="true" data-tab="intent">Intent</button>
+<button role="tab" aria-selected="false" data-tab="source">Source</button>
+<button role="tab" aria-selected="false" data-tab="twin">Twin</button>
+<button role="tab" aria-selected="false" data-tab="lab">Lab</button>
+<button role="tab" aria-selected="false" data-tab="passport">Passport</button>
+<button role="tab" aria-selected="false" data-tab="run">Run</button>
+</div>
+
+<section class="tabpage active" id="tab-intent" role="tabpanel">
+<h2>Machine intent</h2>
+<input type="file" id="irfile" accept=".json">
+<div id="intent-out"><p class="note">Open a Machine IR JSON file
+(e.g. <code>examples/amr-demo/machine-ir.json</code>).</p></div>
+</section>
+
+<section class="tabpage" id="tab-source" role="tabpanel">
+<h2>Generated source</h2>
+<input type="file" id="srcfiles" accept=".h,.c,.mk" multiple>
+<div id="source-out"><p class="note">Open generated files
+(<code>genesis_config_gen.h</code>, <code>genesis_machine_gen.c</code>,
+…). Provenance headers are pinned against the loaded IR.</p></div>
+</section>
+
+<section class="tabpage" id="tab-twin" role="tabpanel">
+<h2>Digital twin replay</h2>
+<div id="twin-out"><p class="note">Load a passport in the Passport tab,
+then pick a scenario in the Lab tab to replay its trace here.</p></div>
+</section>
+
+<section class="tabpage" id="tab-lab" role="tabpanel">
+<h2>Failure lab</h2>
+<div id="lab-out"><p class="note">Load a passport in the Passport tab to
+list its scenarios, seeds and oracle checks.</p></div>
+</section>
+
+<section class="tabpage" id="tab-passport" role="tabpanel">
+<h2>Proof passport</h2>
+<input type="file" id="ppfile" accept=".json">
+<div id="pp-out"><p class="note">Open a <code>passport.json</code>. The hash
+chain is re-verified live; a stored PASS is shown only when valid.</p></div>
+</section>
+
+<section class="tabpage" id="tab-run" role="tabpanel">
+<h2>Run the pipeline</h2>
+<p class="note">Copy-paste on your machine (repo root). Outputs land in
+<code>artifacts/</code>; drop them into the tabs above.</p>
+<pre class="cmd">PYTHONPATH=host python -m genesis_rt.cli validate examples/amr-demo/machine-ir.json
+PYTHONPATH=host python -m genesis_rt.cli generate examples/amr-demo/machine-ir.json --out /tmp/gen
+PYTHONPATH=host python -m genesis_rt.cli faults examples/amr-demo/machine-ir.json
+python -m pytest tests/ -q
+PYTHONPATH=host python scripts/run_verified_demo.py</pre>
+<p class="note">QNX target path (needs SDK + QEMU image):</p>
+<pre class="cmd">make -C /tmp/gen -f genesis_build_gen.mk qnx
+python scripts/qnx_target.py boot ~/qnx800/images/qemu/qemu --accel tcg --cpu max --ssh-port 2222
+python scripts/qnx_target.py put /tmp/gen/genesis_* --dest /tmp/genesis
+python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json</pre>
+</section>
+
+<script src="genesis_verify.js"></script>
+<script>
+'use strict';
+/* Pure render core (no DOM): tested under node. Every interpolated
+ * value goes through esc(). */
+
+/* Recompute the manifest ir_sha256 from raw IR file text: strict-parse,
+ * apply the validator's normalization (sort scenarios, actuators by
+ * id, sensors by id, contracts by name), canonicalize, hash. */
+function irShaOfText(text) {
+  const root = parseRawJson(text);
+  if (root.t !== 'o') throw new Error('IR root must be an object');
+  const byKey = (arr, key) => {
+    arr.v.sort((x, y) => cmpStr(
+      x.v.get(key) && x.v.get(key).t === 's' ? x.v.get(key).v : '',
+      y.v.get(key) && y.v.get(key).t === 's' ? y.v.get(key).v : ''));
+  };
+  const ver = root.v.get('verification');
+  if (ver && ver.t === 'o' && ver.v.get('scenarios') && ver.v.get('scenarios').t === 'a') {
+    ver.v.get('scenarios').v.sort((x, y) => cmpStr(x.v, y.v));
+  }
+  for (const [list, key] of [['actuators', 'id'], ['sensors', 'id'], ['safety_contracts', 'name']]) {
+    const node = root.v.get(list);
+    if (node && node.t === 'a') byKey(node, key);
+  }
+  const enc = new TextEncoder();
+  return sha256Hex(enc.encode(canonNode(root)));
+}
+
+function renderIntentHtml(text) {
+  let p;
+  try { p = JSON.parse(text); } catch (e) {
+    return { ok: false, html: '<p class="fail">Not valid JSON.</p>' };
+  }
+  if (!p || typeof p !== 'object' || !p.machine || !p.control) {
+    return { ok: false, html: '<p class="fail">Not a Machine IR (no machine/control).</p>' };
+  }
+  let sha;
+  try { sha = irShaOfText(text); } catch (e) {
+    return { ok: false, html: '<p class="fail">IR rejected by strict parse: ' + esc(e.message) + '</p>' };
+  }
+  const m = p.machine, c = p.control;
+  const sens = Array.isArray(p.sensors) ? p.sensors : [];
+  const fresh = sens.length ? Math.min(...sens.map(s => s.freshness_limit_ms)) : '?';
+  let h = '<div class="banner">normalized sha256: <code>' + esc(sha) +
+    '</code> (recomputed live; sorting applied as the validator does)</div>';
+  h += '<table><tr><th>field</th><th>value</th></tr>';
+  h += '<tr><td>machine.id</td><td><code>' + esc(m.id) + '</code></td></tr>';
+  h += '<tr><td>machine.kind</td><td><code>' + esc(m.kind) + '</code></td></tr>';
+  h += '<tr><td>execution_target</td><td><code>' + esc(m.execution_target) + '</code></td></tr>';
+  h += '<tr><td>simulation_only</td><td><code>' + esc(m.simulation_only) + '</code></td></tr>';
+  h += '<tr><td>period_ms</td><td><code>' + esc(c.period_ms) + '</code></td></tr>';
+  h += '<tr><td>max_linear_speed_mps</td><td><code>' + esc(c.max_linear_speed_mps) + '</code></td></tr>';
+  h += '<tr><td>max_angular_speed_radps</td><td><code>' + esc(c.max_angular_speed_radps) + '</code></td></tr>';
+  h += '<tr><td>freshness_limit_ms (min sensors)</td><td><code>' + esc(fresh) + '</code></td></tr>';
+  h += '</table><h3>Sensors</h3><table><tr><th>id</th><th>type</th><th>freshness_ms</th></tr>';
+  for (const s of sens) {
+    h += '<tr><td><code>' + esc(s.id) + '</code></td><td><code>' + esc(s.type) +
+      '</code></td><td><code>' + esc(s.freshness_limit_ms) + '</code></td></tr>';
+  }
+  h += '</table><h3>Scenarios</h3><p>' + (p.verification && p.verification.scenarios || [])
+    .map(s => '<code>' + esc(s) + '</code>').join(' · ') + '</p>';
+  return { ok: true, html: h, sha: sha };
+}
+
+/* Provenance lines pinned by codegen into every generated file: v1
+ * "Machine: <id> (<kind>) | IR sha256: <hex>" on one line; v2 splits
+ * "machine: <id> (<kind>)" and "ir_sha256: <hex>" across lines. */
+function parseProvenance(text) {
+  const one = /machine:\s*([^\s(]+)\s*\(([^)]+)\)[^\n]*?IR sha256:\s*([0-9a-f]{64})/i.exec(text);
+  if (one) return { id: one[1], kind: one[2], sha: one[3] };
+  const a = /machine:\s*([^\s(]+)\s*\(([^)]+)\)/i.exec(text);
+  const b = /ir_sha256:\s*([0-9a-f]{64})/i.exec(text);
+  if (a && b) return { id: a[1], kind: a[2], sha: b[1] };
+  return null;
+}
+
+function renderSourceHtml(files, irSha) {
+  if (!files.length) return '<p class="note">No files loaded.</p>';
+  let h = '<table><tr><th>file</th><th>machine</th><th>pinned sha</th><th>pin check</th></tr>';
+  for (const f of files) {
+    const prov = parseProvenance(f.text);
+    let check;
+    if (!prov) {
+      check = '<span class="note">no provenance header (not a generated file?)</span>';
+    } else if (irSha && prov.sha !== irSha) {
+      check = '<span class="fail">MISMATCH vs loaded IR</span>';
+    } else if (irSha) {
+      check = '<span class="pass">matches loaded IR</span>';
+    } else {
+      check = '<span class="note">load an IR to cross-check</span>';
+    }
+    h += '<tr><td><code>' + esc(f.name) + '</code></td><td>' +
+      (prov ? '<code>' + esc(prov.id) + ' (' + esc(prov.kind) + ')</code>' : '—') + '</td><td>' +
+      (prov ? '<code>' + esc(prov.sha.slice(0, 16)) + '…</code>' : '—') + '</td><td>' + check + '</td></tr>';
+  }
+  return h + '</table>';
+}
+
+function passportScenarios(p) {
+  const out = [];
+  for (const r of ((p && p.chain) || [])) {
+    if (typeof r.kind === 'string' && r.kind.indexOf('scenario:') === 0 && r.body) {
+      out.push({ name: r.body.scenario, seed: r.body.seed, status: r.body.status,
+                 checks: r.body.checks || [], stats: r.body.stats || {},
+                 trace: r.body.trace || {} });
+    }
+  }
+  return out;
+}
+
+function renderPassportHtml(text) {
+  let p;
+  try { p = JSON.parse(text); } catch (e) {
+    return { ok: false, html: '<p class="fail">Not valid JSON.</p>' };
+  }
+  if (!p.chain) {
+    return { ok: false, html: '<p class="fail">Not a GENESIS passport (no chain).</p>' };
+  }
+  const chainErrors = verifyChainText(text);
+  const chainOk = chainErrors.length === 0;
+  const rec = (k) => p.chain.find(r => r.kind === k);
+  const verdict = rec('gate_verdict');
+  const stored = verdict && verdict.body ? verdict.body.verdict : null;
+  const shown = chainOk ? stored : 'INVALID';
+  let h = chainOk
+    ? '<div class="banner pass">hash chain re-verified live: VALID (' +
+      esc(p.chain.length) + ' records recomputed in your browser)</div>'
+    : '<div class="banner fail">hash chain re-verified live: INVALID — ' +
+      esc(chainErrors[0] || 'unknown error') + '</div>';
+  if (chainOk && p.gate && p.gate !== stored) {
+    h += '<div class="banner fail">envelope mismatch: outer gate=' + esc(p.gate) +
+      ' differs from chained verdict=' + esc(stored) + ' (envelope is not hashed)</div>';
+  }
+  h += '<h3>Run <code>' + esc(p.run_id) + '</code> — gate: ' +
+    (shown === 'PASS' ? '<span class="pass">PASS</span>'
+                      : '<span class="fail">' + esc(shown) + '</span>') + '</h3>';
+  h += '<p>qnx_verified: <b>' +
+    esc(verdict && verdict.body ? verdict.body.qnx_verified : 'unknown') +
+    '</b> · records: ' + esc(p.chain.length) + ' · created: ' +
+    esc(p.created_utc || '?') + '</p>';
+  h += '<table><tr><th>record</th><th>status</th><th>hash</th></tr>';
+  for (const r of p.chain) {
+    const st = (r.body && (r.body.status || r.body.verdict)) || '—';
+    const cls = (st === 'pass' || st === 'PASS') ? 'pass' : (st === '—' ? '' : 'fail');
+    h += '<tr><td><code>' + esc(r.kind) + '</code></td><td class="' + esc(cls) + '">' +
+      esc(st) + '</td><td><code>' + esc(String(r.hash).slice(0, 16)) + '…</code></td></tr>';
+  }
+  return { ok: true, html: h + '</table>', chainOk: chainOk };
+}
+
+function renderLabHtml(scens) {
+  if (!scens.length) return '<p class="note">No scenario records in this passport.</p>';
+  let h = '<p class="note">Click a row to replay its trace in the Twin tab.</p>';
+  h += '<table><tr><th>scenario</th><th>seed</th><th>status</th><th>checks</th></tr>';
+  for (const s of scens) {
+    const npass = s.checks.filter(c => c.passed).length;
+    const cls = s.status === 'pass' ? 'pass' : 'fail';
+    h += '<tr class="pick" data-scen="' + esc(s.name) + '"><td><code>' + esc(s.name) +
+      '</code></td><td><code>' + esc(s.seed) + '</code></td><td class="' + esc(cls) + '">' +
+      esc(s.status) + '</td><td>' + esc(npass) + '/' + esc(s.checks.length) + '</td></tr>';
+  }
+  return h + '</table>';
+}
+
+/* Flatten a scenario trace for replay. Slim traces keep head+tail with a
+ * gap: headLen marks where the gap starts (never interpolated). */
+function traceEvents(scen) {
+  const t = scen.trace || {};
+  let head = [], tail = [], truncated = !!t.truncated;
+  if (Array.isArray(t.events)) { head = t.events; truncated = false; }
+  else { head = t.events_head || []; tail = t.events_tail || []; }
+  const ticks = (head.concat(tail)).filter(e => e && e.kind === 'tick');
+  const headTicks = head.filter(e => e && e.kind === 'tick').length;
+  const kind = ticks.length && ('position' in ticks[0]) ? 'belt' : 'diff';
+  return { events: ticks, headLen: headTicks, truncated: truncated, kind: kind };
+}
+
+/* DOM glue. */
+const Studio = { irSha: null, passport: null, scens: [], twin: null, twinIdx: 0, twinTimer: null };
+document.querySelectorAll('.tabs button').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach(
+      (x) => x.setAttribute('aria-selected', x === b ? 'true' : 'false'));
+    document.querySelectorAll('.tabpage').forEach(
+      (p) => p.classList.toggle('active', p.id === 'tab-' + b.dataset.tab));
+  });
+});
+document.getElementById('irfile').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const text = await f.text();
+  const r = renderIntentHtml(text);
+  Studio.irSha = r.ok ? r.sha : null;
+  document.getElementById('intent-out').innerHTML = r.html;
+});
+document.getElementById('srcfiles').addEventListener('change', async (e) => {
+  const files = [];
+  for (const f of e.target.files) files.push({ name: f.name, text: await f.text() });
+  document.getElementById('source-out').innerHTML = renderSourceHtml(files, Studio.irSha);
+});
+document.getElementById('ppfile').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const text = await f.text();
+  const r = renderPassportHtml(text);
+  document.getElementById('pp-out').innerHTML = r.html;
+  if (!r.ok || !r.chainOk) {
+    Studio.passport = null; Studio.scens = [];
+    document.getElementById('lab-out').innerHTML =
+      '<p class="fail">Passport invalid: Lab and Twin stay empty (no unverified replay).</p>';
+    return;
+  }
+  Studio.passport = JSON.parse(text);
+  Studio.scens = passportScenarios(Studio.passport);
+  document.getElementById('lab-out').innerHTML = renderLabHtml(Studio.scens);
+  document.querySelectorAll('#lab-out tr.pick').forEach((row) => {
+    row.addEventListener('click', () => {
+      const scen = Studio.scens.find(s => s.name === row.dataset.scen);
+      if (scen) openTwin(scen);
+    });
+  });
+});
+
+function openTwin(scen) {
+  if (Studio.twinTimer) { clearInterval(Studio.twinTimer); Studio.twinTimer = null; }
+  Studio.twin = traceEvents(scen);
+  Studio.twinIdx = 0;
+  Studio.twinName = scen.name;
+  let h = '<h3><code>' + esc(scen.name) + '</code> — ' + esc(Studio.twin.events.length) +
+    ' ticks (' + esc(Studio.twin.kind === 'belt' ? 'belt' : 'corridor') + ')</h3>';
+  if (Studio.twin.truncated) {
+    h += '<div class="banner">truncated trace: head+tail only, gap marked ‖ (never interpolated)</div>';
+  }
+  h += '<canvas class="twin" id="twincv" width="640" height="240"></canvas>';
+  h += '<p class="note" id="twinstat"></p>';
+  h += '<p class="twinctl"><button id="twinplay">play</button>' +
+    '<button id="twinstep">step</button><button id="twinback">|◀</button></p>';
+  document.getElementById('twin-out').innerHTML = h;
+  document.querySelectorAll('.tabs button').forEach(
+    (x) => x.setAttribute('aria-selected', x.dataset.tab === 'twin' ? 'true' : 'false'));
+  document.querySelectorAll('.tabpage').forEach(
+    (p) => p.classList.toggle('active', p.id === 'tab-twin'));
+  document.getElementById('twinplay').addEventListener('click', (ev) => {
+    if (Studio.twinTimer) {
+      clearInterval(Studio.twinTimer); Studio.twinTimer = null; ev.target.textContent = 'play';
+    } else {
+      ev.target.textContent = 'pause';
+      Studio.twinTimer = setInterval(() => {
+        if (Studio.twinIdx < Studio.twin.events.length - 1) { Studio.twinIdx++; drawTwin(); }
+        else { clearInterval(Studio.twinTimer); Studio.twinTimer = null; ev.target.textContent = 'play'; }
+      }, 120);
+    }
+  });
+  document.getElementById('twinstep').addEventListener('click', () => {
+    if (Studio.twinIdx < Studio.twin.events.length - 1) { Studio.twinIdx++; drawTwin(); }
+  });
+  document.getElementById('twinback').addEventListener('click', () => {
+    Studio.twinIdx = 0; drawTwin();
+  });
+  drawTwin();
+}
+
+function drawTwin() {
+  const cv = document.getElementById('twincv');
+  if (!cv || !Studio.twin) return;
+  const ctx = cv.getContext('2d');
+  const T = Studio.twin, W = cv.width, H = cv.height;
+  ctx.fillStyle = '#010409'; ctx.fillRect(0, 0, W, H);
+  if (!T.events.length) return;
+  const upto = T.events.slice(0, Studio.twinIdx + 1);
+  const cur = T.events[Studio.twinIdx];
+  const deny = (e) => e.decision && e.decision !== 'ALLOW';
+  if (T.kind === 'belt') {
+    let plo = 0, lphi = 0.001;
+    for (const e of T.events) {
+      if (e.position < plo) plo = e.position;
+      if (e.position > lphi) lphi = e.position;
+    }
+    const X = (p) => 30 + (p - plo) / (lphi - plo) * (W - 60);
+    ctx.strokeStyle = '#30363d'; ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(20, H / 2); ctx.lineTo(W - 20, H / 2); ctx.stroke();
+    for (let i = 0; i < upto.length; i++) {
+      const e = upto[i];
+      ctx.fillStyle = e.jammed ? '#f85149' : (deny(e) ? '#d29922' : '#3fb950');
+      ctx.fillRect(X(e.position) - 1, H / 2 - 14, 2, 28);
+    }
+    if (T.truncated && T.headLen > 0 && T.headLen < T.events.length) {
+      ctx.fillStyle = '#8b949e'; ctx.font = '14px sans-serif';
+      ctx.fillText('‖', X(T.events[T.headLen].position), H / 2 - 20);
+    }
+    ctx.fillStyle = '#e6edf3';
+    ctx.beginPath(); ctx.arc(X(cur.position), H / 2, 7, 0, 7); ctx.fill();
+  } else {
+    let x0 = 1e9, x1 = -1e9;
+    for (const e of T.events) {
+      if (e.x < x0) x0 = e.x;
+      if (e.x > x1) x1 = e.x;
+    }
+    if (x1 - x0 < 0.01) x1 = x0 + 0.01;
+    const X = (x) => 30 + (x - x0) / (x1 - x0) * (W - 60);
+    const Y = (y) => H / 2 - y / 1.0 * (H / 2 - 20);
+    ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(20, Y(1.0)); ctx.lineTo(W - 20, Y(1.0)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(20, Y(-1.0)); ctx.lineTo(W - 20, Y(-1.0)); ctx.stroke();
+    ctx.strokeStyle = '#8b949e';
+    ctx.beginPath();
+    upto.forEach((e, i) => { if (i) ctx.lineTo(X(e.x), Y(e.y)); else ctx.moveTo(X(e.x), Y(e.y)); });
+    ctx.stroke();
+    for (const e of upto) {
+      if (!deny(e)) continue;
+      ctx.fillStyle = '#f85149';
+      ctx.fillRect(X(e.x) - 2, Y(e.y) - 2, 4, 4);
+    }
+    if (T.truncated && T.headLen > 0 && T.headLen < T.events.length) {
+      const g = T.events[T.headLen];
+      ctx.fillStyle = '#8b949e'; ctx.font = '14px sans-serif';
+      ctx.fillText('‖ gap', X(g.x) + 4, Y(g.y) - 6);
+    }
+    ctx.fillStyle = '#e6edf3';
+    ctx.beginPath(); ctx.arc(X(cur.x), Y(cur.y), 5, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#e6edf3';
+    ctx.beginPath(); ctx.moveTo(X(cur.x), Y(cur.y));
+    ctx.lineTo(X(cur.x) + Math.cos(cur.theta) * 14, Y(cur.y) - Math.sin(cur.theta) * 14);
+    ctx.stroke();
+  }
+  const stat = document.getElementById('twinstat');
+  if (stat) {
+    stat.textContent = 'tick ' + (Studio.twinIdx + 1) + '/' + T.events.length +
+      ' t=' + cur.t + 'ms ' + (cur.decision || '') + ' ' + (cur.reason || '') +
+      ' fault=' + (cur.fault || 'none');
+  }
+}
+</script>
+</body>
+</html>

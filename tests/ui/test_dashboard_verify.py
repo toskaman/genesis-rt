@@ -20,15 +20,25 @@ from genesis_rt.ir import canonical_json
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DASHBOARD = REPO_ROOT / "ui" / "dashboard.html"
+VERIFY_JS = REPO_ROOT / "ui" / "genesis_verify.js"
 
 node = pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
 
 
+def _inline_scripts(html: str) -> list[str]:
+    return re.findall(r"<script>(.*?)</script>", html, re.DOTALL)
+
+
 def _script() -> str:
-    html = DASHBOARD.read_text(encoding="utf-8")
-    m = re.search(r"<script>(.*)</script>", html, re.DOTALL)
-    assert m, "dashboard must embed its verification script"
-    return m.group(1)
+    """The shipped JS: shared core + dashboard + studio inline scripts."""
+    core = VERIFY_JS.read_text(encoding="utf-8")
+    parts = [core]
+    for name in ("dashboard.html", "studio.html"):
+        html = (REPO_ROOT / "ui" / name).read_text(encoding="utf-8")
+        assert '<script src="genesis_verify.js"></script>' in html, \
+            f"{name} must load the shared verification core"
+        parts.extend(_inline_scripts(html))
+    return "\n".join(parts)
 
 
 def _run_js(calls: list[dict], tmp_path: Path) -> list:
@@ -43,16 +53,26 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'canon') return canonNode(parseRawJson(c.arg));
     if (c.fn === 'verify') return verifyChainText(c.arg);
     if (c.fn === 'esc') return esc(c.arg);
+    if (c.fn === 'irsha') return irShaOfText(c.arg);
+    if (c.fn === 'intent') { const r = renderIntentHtml(c.arg); return r.ok ? r.sha : 'ERR:' + r.html; }
+    if (c.fn === 'provenance') return parseProvenance(c.arg);
+    if (c.fn === 'source') { const j = JSON.parse(c.arg); return renderSourceHtml(j.files, j.irSha); }
+    if (c.fn === 'lab') return renderLabHtml(passportScenarios(JSON.parse(c.arg)));
+    if (c.fn === 'trace') {
+      const t = traceEvents(passportScenarios(JSON.parse(c.arg))[0]);
+      return { n: t.events.length, headLen: t.headLen, truncated: t.truncated,
+               kind: t.kind, keys: t.events.length ? Object.keys(t.events[0]).sort() : [] };
+    }
     throw new Error('unknown fn ' + c.fn);
   });
   fs.writeFileSync(process.argv[3], JSON.stringify(out));
 };
 globalThis.document = { getElementById: () => ({ addEventListener() {} }) };
 """
-    # Note: document shim must exist before the dashboard script runs.
+    # Note: document shim must exist before the page scripts run.
     runner = ("globalThis.document = { getElementById: () => "
-              "({ addEventListener() {} }) };\n" + _script() + driver
-              + "\nglobalThis.__run();\n")
+              "({ addEventListener() {} }), querySelectorAll: () => [] };\n"
+              + _script() + driver + "\nglobalThis.__run();\n")
     run_js = tmp_path / "runner.js"
     job_js = tmp_path / "job.json"
     out_js = tmp_path / "out.json"
@@ -65,11 +85,17 @@ globalThis.document = { getElementById: () => ({ addEventListener() {} }) };
 
 
 def test_all_interpolations_escaped():
-    """Static guard: every ${...} in the dashboard script uses esc()."""
-    script = _script()
-    bare = [m for m in re.finditer(r"\$\{", script)
-            if not script.startswith("${esc(", m.start())]
-    assert bare == [], "unescaped interpolation in dashboard.html"
+    """Static guard: every ${...} in shipped UI scripts uses esc()."""
+    pages = {"genesis_verify.js": VERIFY_JS.read_text(encoding="utf-8")}
+    for name in ("dashboard.html", "studio.html"):
+        path = REPO_ROOT / "ui" / name
+        if path.exists():
+            pages[name] = "\n".join(_inline_scripts(
+                path.read_text(encoding="utf-8")))
+    for name, script in pages.items():
+        bare = [m for m in re.finditer(r"\$\{", script)
+                if not script.startswith("${esc(", m.start())]
+        assert bare == [], f"unescaped interpolation in {name}"
 
 
 @node
@@ -134,6 +160,95 @@ def test_tampered_passport_invalid_in_js(amr_ir, tmp_path):
     assert evidence.verify_chain(json.loads(evil)) != []  # python agrees
     got = _run_js([{"fn": "verify", "arg": evil}], tmp_path)
     assert len(got[0]) > 0 and any("hash mismatch" in e for e in got[0])
+
+
+@node
+def test_studio_irsha_matches_python(repo_root, tmp_path):
+    """JS normalization+hash reproduces the manifest digest from raw text."""
+    from genesis_rt.codegen import ir_sha256
+    from genesis_rt.ir import load_ir_file
+    for name in ("amr-demo", "conveyor-demo"):
+        raw = (repo_root / "examples" / name / "machine-ir.json"
+               ).read_text(encoding="utf-8")
+        want = ir_sha256(load_ir_file(repo_root / "examples" / name
+                                      / "machine-ir.json"))
+        got = _run_js([{"fn": "irsha", "arg": raw},
+                       {"fn": "intent", "arg": raw}], tmp_path)
+        assert got == [want, want], name
+
+
+@node
+def test_studio_source_pin_check(amr_ir, tmp_path):
+    manifest = codegen.generate(amr_ir, tmp_path / "gen")
+    header = (tmp_path / "gen" / "genesis_config_gen.h"
+              ).read_text(encoding="utf-8")
+    files = json.dumps({"files": [{"name": "genesis_config_gen.h",
+                                   "text": header}],
+                        "irSha": manifest["ir_sha256"]})
+    (got,) = _run_js([{"fn": "source", "arg": files}], tmp_path)
+    assert "matches loaded IR" in got and "amr-demo-01" in got
+    (got,) = _run_js([{"fn": "source", "arg": json.dumps(
+        {"files": [{"name": "genesis_config_gen.h", "text": header}],
+         "irSha": "0" * 64})}], tmp_path)
+    assert "MISMATCH vs loaded IR" in got
+    (got,) = _run_js([{"fn": "provenance", "arg": header}], tmp_path)
+    assert got == {"id": "amr-demo-01", "kind": "differential_drive_robot",
+                   "sha": manifest["ir_sha256"]}
+    from genesis_rt.codegen_v2 import generate_v2
+    from genesis_rt.ir_v2 import load_ir_v2_file
+    v2 = load_ir_v2_file(REPO_ROOT / "examples" / "amr-demo"
+                         / "machine-ir-v2.json")
+    generate_v2(v2, tmp_path / "gen2")
+    header2 = (tmp_path / "gen2" / "genesis_machine_gen.h"
+               ).read_text(encoding="utf-8")
+    (got,) = _run_js([{"fn": "provenance", "arg": header2}], tmp_path)
+    assert got["id"] == "amr-demo-01" and len(got["sha"]) == 64
+
+
+def _fresh_passport_for(ir, scenarios, tmp_path, tag):
+    manifest = codegen.generate(ir, tmp_path / f"gen-{tag}")
+    results = faultlab.run_all(ir, scenarios)
+    passport = evidence.build_passport(
+        f"run-{tag}", ir, manifest, results,
+        {"status": "blocked", "verified_on_target": False})
+    verdict = gate.evaluate(passport, scenarios)
+    evidence.attach_verdict(passport, verdict)
+    assert evidence.verify_chain(passport) == []
+    path = evidence.save_passport(passport, tmp_path / f"{tag}.json")
+    return path.read_text(encoding="utf-8")
+
+
+@node
+def test_studio_lab_and_trace_diff(amr_ir, tmp_path):
+    text = _fresh_passport_for(amr_ir, ["nominal_navigation"], tmp_path, "lab")
+    (lab,) = _run_js([{"fn": "lab", "arg": text}], tmp_path)
+    assert "nominal_navigation" in lab
+    (trace,) = _run_js([{"fn": "trace", "arg": text}], tmp_path)
+    assert trace["kind"] == "diff" and trace["n"] > 0
+    assert {"x", "y", "theta"} <= set(trace["keys"])
+    assert trace["truncated"] is True and trace["headLen"] == 20  # 150 slimmed
+
+
+@node
+def test_studio_trace_belt(repo_root, tmp_path):
+    from genesis_rt.ir import load_ir_file
+    conv = load_ir_file(repo_root / "examples" / "conveyor-demo"
+                        / "machine-ir.json")
+    text = _fresh_passport_for(conv, ["nominal_navigation"], tmp_path, "belt")
+    (trace,) = _run_js([{"fn": "trace", "arg": text}], tmp_path)
+    assert trace["kind"] == "belt" and trace["n"] > 0
+    assert {"position", "speed", "jammed"} <= set(trace["keys"])
+
+
+@node
+def test_studio_passport_rejects_tampered(amr_ir, tmp_path):
+    fresh = _fresh_passport(amr_ir, tmp_path)
+    p = json.loads(fresh)
+    scen = next(r for r in p["chain"] if r["kind"].startswith("scenario:"))
+    scen["body"]["checks"][0]["passed"] = not scen["body"]["checks"][0]["passed"]
+    evil = json.dumps(p, indent=2, sort_keys=True)
+    (got,) = _run_js([{"fn": "verify", "arg": evil}], tmp_path)
+    assert len(got) > 0  # chain invalid: studio glue keeps Lab/Twin empty
 
 
 @node
