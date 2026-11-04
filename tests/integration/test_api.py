@@ -88,6 +88,70 @@ def test_concurrent_uploads_stay_isolated(repo_root, amr_ir_dict, tmp_path, monk
     assert leftovers == []
 
 
+def test_cancel_unknown_run_is_404(client):
+    assert client.delete("/runs/run-no-such-run/cancel").status_code == 404
+
+
+def test_invalid_run_id_is_400(client, amr_ir_dict):
+    r = client.post("/runs", json={"ir": amr_ir_dict, "run_id": "../evil"})
+    assert r.status_code == 400
+
+
+def test_duplicate_run_id_is_409(client, amr_ir_dict):
+    first = client.post("/runs", json={"ir": amr_ir_dict, "run_id": "run-dup-1",
+                                       "scenarios": ["nominal_navigation"]})
+    assert first.status_code == 200
+    second = client.post("/runs", json={"ir": amr_ir_dict, "run_id": "run-dup-1",
+                                        "scenarios": ["nominal_navigation"]})
+    assert second.status_code == 409
+
+
+def test_cancel_active_run_aborts_with_409(repo_root, amr_ir_dict, tmp_path,
+                                           monkeypatch):
+    """POST with a client run_id runs in a thread; DELETE cancels it; the
+    POST surfaces 409 and partial cancel evidence stays on disk."""
+    from genesis_rt import orchestrator
+    monkeypatch.setattr(api_mod, "ARTIFACTS", tmp_path / "artifacts")
+    entered, release = threading.Event(), threading.Event()
+    real_generate = orchestrator.codegen.generate
+
+    def slow_generate(*args, **kwargs):
+        entered.set()
+        assert release.wait(timeout=60), "cancel test stalled"
+        return real_generate(*args, **kwargs)
+
+    monkeypatch.setattr(orchestrator.codegen, "generate", slow_generate)
+    app = api_mod.create_app()
+    outcome: dict = {}
+
+    def post():
+        with TestClient(app) as cli:
+            resp = cli.post("/runs", json={
+                "ir": amr_ir_dict, "run_id": "run-cancel-1",
+                "scenarios": ["nominal_navigation"]})
+            outcome["status"] = resp.status_code
+            outcome["body"] = resp.json()
+
+    t = threading.Thread(target=post)
+    t.start()
+    try:
+        assert entered.wait(timeout=60), "pipeline never started"
+        with TestClient(app) as cli:
+            cancel = cli.delete("/runs/run-cancel-1/cancel")
+            assert cancel.status_code == 202
+        release.set()
+        t.join(timeout=120)
+    finally:
+        release.set()
+        t.join(timeout=120)
+    assert outcome["status"] == 409, outcome
+    assert outcome["body"]["run_id"] == "run-cancel-1"
+    failure = json.loads(
+        (tmp_path / "artifacts" / "run-cancel-1" / "failure.json")
+        .read_text(encoding="utf-8"))
+    assert failure["failure"]["step"] == "cancelled"
+
+
 def test_get_run_roundtrip_and_errors(client, amr_ir_dict):
     r = client.post("/runs", json={"ir": amr_ir_dict,
                                    "scenarios": ["nominal_navigation"]})

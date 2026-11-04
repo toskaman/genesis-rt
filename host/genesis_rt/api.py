@@ -32,6 +32,7 @@ if BaseModel is not None:
         example: str | None = None  # e.g. "amr-demo"
         ir: dict[str, Any] | None = None
         scenarios: list[str] | None = None
+        run_id: str | None = None  # client-chosen id (cancellable runs)
 
 else:  # pragma: no cover - import-time fallback without the api extra
     RunRequest = None  # type: ignore[assignment, misc]
@@ -41,8 +42,14 @@ ARTIFACTS = REPO_ROOT / "artifacts" / "runs"
 
 MAX_IR_BYTES = 256 * 1024
 MAX_SCENARIOS = 32
+MAX_RUN_ID_LEN = 64
 
 _lock = threading.Lock()
+
+
+def _valid_run_id(run_id: str) -> bool:
+    return (isinstance(run_id, str) and 0 < len(run_id) <= MAX_RUN_ID_LEN
+            and run_id.replace("-", "").replace("_", "").isalnum())
 
 
 def _db(path: Path) -> sqlite3.Connection:
@@ -64,7 +71,7 @@ def create_app() -> Any:
         raise RuntimeError("API extra missing: pip install -e '.[api]'")
 
     from .ir import IRValidationError, SCENARIO_IDS, validate_ir
-    from .orchestrator import run_pipeline
+    from .orchestrator import CancelledRun, PipelineError, request_cancel, run_pipeline
 
     app = FastAPI(title="GENESIS RT orchestrator", version="0.1.0")
     db_path = ARTIFACTS / "runs.db"
@@ -75,6 +82,8 @@ def create_app() -> Any:
 
     @app.post("/runs")
     def start_run(req: RunRequest) -> JSONResponse:
+        if req.run_id is not None and not _valid_run_id(req.run_id):
+            raise HTTPException(400, "invalid run_id")
         if req.scenarios is not None:
             if len(req.scenarios) > MAX_SCENARIOS:
                 raise HTTPException(400, "too many scenarios requested")
@@ -114,7 +123,13 @@ def create_app() -> Any:
             raise HTTPException(400, f"bad request: {exc}") from exc
         try:
             with _lock:  # bounded: one pipeline at a time on local hardware
-                summary = run_pipeline(ir_path, ARTIFACTS, scenarios=req.scenarios)
+                summary = run_pipeline(ir_path, ARTIFACTS, run_id=req.run_id,
+                                       scenarios=req.scenarios)
+        except CancelledRun as exc:
+            return JSONResponse({"run_id": exc.run_id, "status": "cancelled",
+                                 "run_dir": exc.run_dir}, status_code=409)
+        except PipelineError as exc:
+            return JSONResponse({"error": f"run conflict: {exc}"}, status_code=409)
         except ValueError as exc:
             raise HTTPException(400, f"bad request: {exc}") from exc
         finally:
@@ -130,9 +145,18 @@ def create_app() -> Any:
             conn.close()
         return JSONResponse(summary)
 
+    @app.delete("/runs/{run_id}/cancel")
+    def cancel_run(run_id: str) -> JSONResponse:
+        if not _valid_run_id(run_id):
+            raise HTTPException(400, "invalid run id")
+        if not request_cancel(run_id):
+            raise HTTPException(404, "no active run with that id")
+        return JSONResponse({"run_id": run_id, "status": "cancelling"},
+                            status_code=202)
+
     @app.get("/runs/{run_id}")
     def get_run(run_id: str) -> JSONResponse:
-        if not run_id.replace("-", "").replace("_", "").isalnum():
+        if not _valid_run_id(run_id):
             raise HTTPException(400, "invalid run id")
         conn = _db(db_path)
         try:

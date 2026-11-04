@@ -18,11 +18,13 @@ release evidence:
 
 Each tier requires the previous one plus strictly stronger evidence
 (see _level()). ``release_eligible`` is True only at
-QNX_BEHAVIOR_VERIFIED or above: a release decision must fail when QNX
-behavior evidence is absent, even if every host scenario passes. The
-QNX_PERFORMANCE_MEASURED tier needs a ``qnx_perf`` record, which no
-producer emits yet (benchmark harness is P1); until then passports
-honestly cap at QNX_BEHAVIOR_VERIFIED.
+QNX_BEHAVIOR_VERIFIED or above with FULL coverage of the IR-declared
+scenarios: a release decision must fail when QNX behavior evidence is
+absent (even if every host scenario passes) and when the required set
+silently omits declared scenarios. The QNX_PERFORMANCE_MEASURED tier
+needs a ``qnx_perf`` record, which no producer emits yet (benchmark
+harness is P1); until then passports honestly cap at
+QNX_BEHAVIOR_VERIFIED.
 """
 
 from __future__ import annotations
@@ -123,9 +125,31 @@ def evaluate(passport: dict[str, Any], required_scenarios: list[str]) -> dict[st
     level, level_reasons = _level(base_ok, by_kind)
     qnx_verified = LEVELS.index(level) >= LEVELS.index("QNX_BEHAVIOR_VERIFIED")
     release_eligible = LEVELS.index(level) >= LEVELS.index(RELEASE_MIN_LEVEL)
+    # Coverage integrity (§10): the required set must cover every scenario
+    # the IR declares, else release is refused loudly (never silently).
+    ir_body = (by_kind.get("ir") or {}).get("body", {})
+    declared = ir_body.get("scenarios") if isinstance(ir_body, dict) else None
+    if isinstance(declared, list) and all(isinstance(s, str) for s in declared):
+        omitted = sorted(s for s in declared if s not in required_scenarios)
+        coverage: dict[str, Any] = {
+            "declared": len(declared),
+            "required": len(required_scenarios),
+            "omitted": omitted,
+        }
+    else:
+        omitted = []
+        coverage = {"declared": None, "required": len(required_scenarios),
+                    "omitted": []}
+    if omitted:
+        release_eligible = False
+        level_reasons = level_reasons + [
+            f"reduced coverage: {len(omitted)}/{len(declared)} declared "
+            f"scenario(s) omitted from required: {omitted} (release refused)"
+        ]
     return {
         "verdict": verdict,
         "reasons": reasons,
+        "coverage": coverage,
         "required": sorted(required_scenarios),
         "missing": sorted(missing),
         "failed": sorted(failed),

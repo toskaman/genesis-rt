@@ -1,5 +1,26 @@
 # Progress log
 
+## 2026-11-04 (later) -- P1 #16 : couverture gate + annulation runs (TDD)
+
+- Defaut confirme (trou sect.10) : `gate.evaluate` faisait confiance aux
+  `required_scenarios` de l'appelant ; un sous-ensemble + preuves cible
+  passantes donnait `release_eligible: True` sur 1/8 scenarios. Fix :
+  la gate compare au `scenarios` declares de l'IR dans le passeport,
+  enregistre `coverage{declared,required,omitted}` et force
+  `release_eligible=False` + raison explicite si omission (verdict et
+  niveaux inchanges). Changement de contrat assume : le test paliers
+  passe en couverture complete pour garder release True.
+- Annulation : `run_id` client optionnel (valide, anti-traversal),
+  `DELETE /runs/{id}/cancel` (202/404), checks cooperatifs entre
+  etapes pipeline, `CancelledRun` -> 409 + `failure.json` step
+  cancelled ; collision run_id existant -> 409 (anti-duplicata, pas
+  d'ecrasement de preuve). Cycle TDD rouge-vert (6 tests).
+- Audite sans changement : `_lock` FIFO garde (pas de 503 ; le test
+  concurrence existant exige 2x200), timeouts subprocess tuent
+  l'enfant (`make` orphelin `qcc` quelques secondes, borne, local),
+  SQLite WAL + connexions par requete, retention run_dirs volontaire
+  (preuve). Suite 252/252 verte.
+
 ## 2026-11-04 (later) -- P1 #11 tranche hote : generation C specifique-machine
 
 - `host/genesis_rt/codegen_v2.py` + 2 templates : depuis IR v2, genere

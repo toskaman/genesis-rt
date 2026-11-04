@@ -7,7 +7,12 @@ import pytest
 
 from genesis_rt import evidence, gate
 from genesis_rt.ir import IRValidationError
-from genesis_rt.orchestrator import PipelineError, run_pipeline
+from genesis_rt.orchestrator import (
+    CancelledRun,
+    PipelineError,
+    request_cancel,
+    run_pipeline,
+)
 
 
 def test_bad_ir_writes_failure_and_raises(amr_ir_path, tmp_path):
@@ -72,9 +77,50 @@ def test_run_id_collision_refused(amr_ir_path, tmp_path):
                      run_id="run-fixed", scenarios=["nominal_navigation"])
 
 
+def test_subset_with_target_record_not_release_eligible(
+        amr_ir_path, tmp_path, monkeypatch):
+    """Reduced coverage + passing target evidence: verdict may PASS the
+    required scenarios, but the pipeline must refuse release eligibility
+    and record the omission. SDK-independent via stubbed native build."""
+    from genesis_rt import orchestrator
+    monkeypatch.setattr(orchestrator.build_adapter, "build_qnx",
+                        lambda *a, **k: {"status": "ok",
+                                         "verified_on_target": False})
+    rec = tmp_path / "target-ok.json"
+    rec.write_text(json.dumps(
+        {"status": "ok", "verified_on_target": True,
+         "checks": [{"name": "a", "passed": True, "detail": "x"}]}),
+        encoding="utf-8")
+    summary = run_pipeline(amr_ir_path, tmp_path / "runs",
+                           run_id="run-subset-target",
+                           scenarios=["nominal_navigation"],
+                           target_record=rec)
+    assert summary["verdict"] == "PASS"
+    assert summary["release_eligible"] is False
+    assert summary["steps"]["gate"]["coverage"]["omitted"] != []
+
+
 def test_success_path_reports_no_failure(amr_ir_path, tmp_path):
     summary = run_pipeline(amr_ir_path, tmp_path / "runs",
                            scenarios=["nominal_navigation"])
     assert summary["verdict"] == "PASS"
     assert summary["failure"] is None
     assert summary["steps"]["verification"]["status"] == "ok"
+
+
+def test_request_cancel_unknown_run_is_false():
+    assert request_cancel("run-no-such-run") is False
+
+
+def test_precancelled_run_aborts_with_evidence(amr_ir_path, tmp_path):
+    from genesis_rt import orchestrator
+    orchestrator._CANCELLED.add("run-doomed")
+    try:
+        with pytest.raises(CancelledRun):
+            run_pipeline(amr_ir_path, tmp_path / "runs", run_id="run-doomed",
+                         scenarios=["nominal_navigation"])
+    finally:
+        orchestrator._CANCELLED.discard("run-doomed")
+    failure = json.loads(
+        (tmp_path / "runs" / "run-doomed" / "failure.json").read_text())
+    assert failure["failure"]["step"] == "cancelled"
