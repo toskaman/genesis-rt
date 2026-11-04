@@ -45,13 +45,15 @@ PYTHONPATH=host python -m genesis_rt.cli faults examples/amr-demo/machine-ir.jso
 
 Read one denial: `speed_command_over_limit` shows the guard rejecting a 3×
 over-limit command while the run continues. Then build the C conformance
-harness and feed it a vector by hand:
+harness and feed it vectors by hand (`cc` may be `gcc` or `clang`):
 
 ```sh
 cc -O1 -Wall -Wextra -Itarget/qnx8/include -Itarget/qnx8/common \
   -o /tmp/guard_vector target/qnx8/common/guard_policy.c target/qnx8/host_tests/guard_vector.c
 printf 'LIMITS 1.2 1.0 100\n47454E31 1 1 1 0 50 5.0 0.0 1 0 1 0 1\n' | /tmp/guard_vector
 # expect: DENY SPEED_OVER_LIMIT 1
+printf 'LIMITS 1.2 1.0 100\n47454E31 1 1 1 0 50 0.5 0.0 1 0 1 0 1 1\n' | /tmp/guard_vector
+# expect: DENY ESTOP 3 (14th field = estop wire; state latched to SAFE_STOP)
 ```
 
 ## Step 4 — Compile natively with qcc (5 min, needs SDK)

@@ -55,6 +55,27 @@ def test_cli_validate_and_faults(amr_ir_path, repo_root):
     assert r.returncode == 0 and "8/8 scenarios passed" in r.stdout
 
 
+def test_cli_generate_src_points_at_target(amr_ir_path, repo_root, tmp_path):
+    """`generate --out <anywhere>` must emit a GENESIS_SRC that resolves
+    to this checkout's target/qnx8 (regression: one-level out dirs like
+    the codelab's lab-build got a broken ../../ default)."""
+    import os
+    merged = dict(os.environ, PYTHONPATH=str(repo_root / "host"))
+    for out in (tmp_path / "shallow", tmp_path / "deep" / "nested" / "dir"):
+        r = subprocess.run(
+            [sys.executable, "-m", "genesis_rt.cli", "generate",
+             str(amr_ir_path), "--out", str(out)],
+            capture_output=True, text=True, timeout=60, env=merged)
+        assert r.returncode == 0, r.stderr
+        (mk,) = [ln for ln in (out / "genesis_build_gen.mk"
+                               ).read_text(encoding="utf-8").splitlines()
+                 if ln.startswith("GENESIS_SRC")]
+        src = mk.split("?=", 1)[1].strip()
+        resolved = (out / src).resolve()
+        assert (resolved / "guard" / "genesis_guard.c").is_file(), mk
+        assert resolved == (repo_root / "target" / "qnx8").resolve()
+
+
 def test_gate_blocks_known_bad_revision(amr_ir, tmp_path):
     """Deliberately break a revision: gate must refuse release."""
     from genesis_rt import codegen, faultlab

@@ -30,6 +30,7 @@ harness (`scripts/qnx_target.py verify`); all other rows run in host CI.
 | 22 | Planner substring hints misclassified "robotic arm" as differential-drive ("robot" inside "robotic") | Whole-word hint matching in `planner.propose` | Published eval case `valid-arm-01` (caught pre-release at 14/15, pins the fix at 15/15) |
 | 23 | `device_chain` FAIL: status run as qnxuser, `resmgr_attach()` absolute path needs root (EPERM, node never appears) | Matrix runs/cleans the status leg with `sudo -n` (status_live precedent) | `test_device_chain_status_runs_as_root` pins both sudo sites; on-target 8/8 |
 | 24 | QNX 8 boot frozen under TCG with default qemu64 CPU (guest RIP frozen 3+ min, host cores burned, zero progress) | `build_qemu_argv`: TCG defaults to `-cpu max` (boots, SSH up); `-cpu host` rejected loudly under TCG | `test_tcg_defaults_to_cpu_max`, `test_tcg_rejects_host_cpu`, `test_tcg_honors_explicit_cpu` |
+| 25 | `generate --out lab-build` (1 level) emitted a makefile with `GENESIS_SRC=../../target/qnx8`, so `make qnx` failed (sources not found); only 2-level out dirs worked | CLI computes the relative path from `--out` to this checkout's `target/qnx8` (+ `--genesis-src` override); v1 generator untouched | `test_cli_generate_src_points_at_target` (1-level and 3-level out dirs resolve to real sources); codelab step 4 re-verified end to end |
 
 ## Rules
 

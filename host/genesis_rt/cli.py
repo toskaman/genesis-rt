@@ -43,10 +43,22 @@ def _cmd_plan(args: argparse.Namespace) -> int:
 
 
 def _cmd_generate(args: argparse.Namespace) -> int:
+    import os
     from .codegen import generate
     from .ir import load_ir_file
     ir = load_ir_file(args.ir)
-    manifest = generate(ir, args.out)
+    genesis_src = getattr(args, "genesis_src", None)
+    if genesis_src is None:
+        # Point the makefile at THIS checkout's target sources, whatever
+        # --out depth the user chose (the "../.." default only fits
+        # two-level out dirs like artifacts/gen-amr).
+        target = REPO_ROOT / "target" / "qnx8"
+        if target.is_dir():
+            genesis_src = os.path.relpath(target, Path(args.out).resolve()
+                                          ).replace(os.sep, "/")
+        else:  # installed layout without target sources: keep default
+            genesis_src = "../../target/qnx8"
+    manifest = generate(ir, args.out, genesis_src=genesis_src)
     print(f"generated: {args.out}")
     for name, digest in sorted(manifest["files"].items()):
         print(f"  {name}  sha256:{digest[:16]}...")
@@ -133,7 +145,11 @@ def build_parser() -> argparse.ArgumentParser:
     pl.add_argument("request"); pl.add_argument("--machine-id", default="machine-01")
     pl.add_argument("--out", default=None); pl.set_defaults(func=_cmd_plan)
     g = sub.add_parser("generate", help="deterministically generate QNX C build files")
-    g.add_argument("ir"); g.add_argument("--out", default="generated"); g.set_defaults(func=_cmd_generate)
+    g.add_argument("ir"); g.add_argument("--out", default="generated")
+    g.add_argument("--genesis-src", default=None,
+                   help="override the makefile GENESIS_SRC (default: relative path "
+                        "from --out to this checkout's target/qnx8)")
+    g.set_defaults(func=_cmd_generate)
     s = sub.add_parser("simulate", help="run the nominal simulation")
     s.add_argument("ir"); s.set_defaults(func=_cmd_simulate)
     f = sub.add_parser("faults", help="run the fault-injection campaign")

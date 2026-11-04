@@ -1,5 +1,19 @@
 # Progress log
 
+## 2026-11-04 (later) -- P2 #21 codelab verifie + fix GENESIS_SRC (host)
+
+- Codelab rejoue commande par commande : etapes 1 (valid + rejet
+  exact exit 2), 2 (generate + header + diff byte-identique), 3
+  (`faults` 8/8 + vecteur main DENY SPEED_OVER_LIMIT), 4 (`make qnx`
+  0 warning + binaires), 6 (`run_verified_demo` PASS). Etape 5
+  (cible) a rejouer sur QNX avec la session perf.
+- Defaut 25 trouve et corrige : `GENESIS_SRC=../../target/qnx8` en
+  dur ne marchait que pour `--out` a 2 niveaux ; le CLI calcule
+  desormais le relatif vers le checkout (+ `--genesis-src`), v1
+  inchange. Codelab enrichi (vecteur estop, note cc/gcc/clang).
+- Preuve : `test_cli_generate_src_points_at_target` (1 et 3
+  niveaux), map ligne 25, etape 4 rejouee OK. Suite 307/307.
+
 ## 2026-11-04 (later) -- P1 #15 tranche B : Studio Diff (broken vs fixed)
 
 - Onglet Diff : 2 passeports (A/B), chaines re-verifiees, tableau
