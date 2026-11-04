@@ -15,7 +15,7 @@ from typing import Any, Callable
 
 from . import guard_policy as gp
 from .ir import SCENARIO_IDS, guard_limits
-from .simulator import DiffDriveSim, SimConfig
+from .simulator import BeltConfig, BeltSim, DiffDriveSim, SimConfig
 
 DEFAULT_SEEDS = {name: 1000 + i for i, name in enumerate(SCENARIO_IDS)}
 DURATION_MS = 3000
@@ -35,9 +35,14 @@ class Check:
 
 @dataclass
 class FaultWindow:
-    kind: str  # none|over_limit|stale|crash|delayed|dropped|corrupted|disconnect
+    kind: str  # none|over_limit|stale|crash|delayed|dropped|corrupted|disconnect|jam
     start_ms: int = 1000
     end_ms: int = 1150
+
+
+KNOWN_FAULTS = frozenset(
+    {"none", "over_limit", "stale", "crash", "delayed", "dropped",
+     "corrupted", "disconnect", "jam"})
 
 
 SCENARIO_WINDOWS = {
@@ -49,6 +54,7 @@ SCENARIO_WINDOWS = {
     "dropped_message": FaultWindow("dropped", 1000, 1100),
     "corrupted_message": FaultWindow("corrupted", 1000, 1050),
     "simulator_disconnect": FaultWindow("disconnect", 1000, 1200),
+    "belt_jam": FaultWindow("jam", 1000, 1500),
 }
 
 
@@ -61,11 +67,18 @@ def run_scenario(ir: dict[str, Any], scenario: str,
     """Run one scenario deterministically. Never raises for oracle failures."""
     if scenario not in SCENARIO_IDS:
         raise ValueError(f"unknown scenario: {scenario!r}")
+    if scenario == "belt_jam" and ir["machine"]["kind"] != "conveyor":
+        seed = DEFAULT_SEEDS[scenario] if seed is None else seed
+        return {"scenario": scenario, "status": "crash", "seed": seed,
+                "error": "belt_jam applies to conveyor machines only"}
     seed = DEFAULT_SEEDS[scenario] if seed is None else seed
     limits = guard_limits(ir)
     period = int(limits["period_ms"])
     window = SCENARIO_WINDOWS[scenario]
-    sim = DiffDriveSim(SimConfig(dt=period / 1000.0))
+    if ir["machine"]["kind"] == "conveyor":
+        sim = BeltSim(BeltConfig(dt=period / 1000.0))
+    else:
+        sim = DiffDriveSim(SimConfig(dt=period / 1000.0))
     sim.reset(seed)
     ctx = gp.GuardContext()
     seq = 0
@@ -84,6 +97,14 @@ def run_scenario(ir: dict[str, Any], scenario: str,
         while t < DURATION_MS:
             in_w = _in_window(t, window)
             fault = window.kind if in_w else "none"
+            if fault not in KNOWN_FAULTS:
+                raise ValueError(f"unknown fault kind: {fault!r}")
+            if window.kind == "jam":
+                if not hasattr(sim, "set_jam"):
+                    raise ValueError(
+                        "belt_jam needs a conveyor machine "
+                        f"(got {type(sim).__name__})")
+                sim.set_jam(in_w)
 
             # --- controller side (virtual planner) ---
             send = fault not in ("crash", "dropped")
@@ -91,10 +112,8 @@ def run_scenario(ir: dict[str, Any], scenario: str,
                 gap_ticks += 1
                 sim.stopped()
                 t += period
-                gs = sim.state
                 trace.append({"t": t, "kind": "planner_gap", "fault": fault,
-                              "x": round(gs.x, 4), "y": round(gs.y, 4),
-                              "theta": round(gs.theta, 4)})
+                              **sim.snapshot()})
                 continue
             gap_ticks = 0
             seq += 1
@@ -142,22 +161,18 @@ def run_scenario(ir: dict[str, Any], scenario: str,
                 sim.stopped()
                 if verdict["state_out"] == gp.ST_SAFE_STOP and stop_latched_at is None:
                     stop_latched_at = t
-            st = sim.state
             trace.append({"t": t, "kind": "tick", "fault": fault,
                           "decision": verdict["decision"], "reason": verdict["reason"],
-                          "state": ctx.state, "x": round(st.x, 4), "y": round(st.y, 4),
-                          "theta": round(st.theta, 4)})
+                          "state": ctx.state, **sim.snapshot()})
             t += period
     except Exception as exc:  # harness crash => scenario crash, never a pass
         return {"scenario": scenario, "seed": seed, "status": "crash",
                 "error": f"{type(exc).__name__}: {exc}", "checks": [],
                 "stats": {}, "trace": trace[-20:]}
 
-    s = sim.state
     stats = {"allows": allows, "denies": denies, "deny_reasons": deny_reasons,
-             "final_state": ctx.state, "final_x": round(s.x, 4),
-             "final_y": round(s.y, 4), "collision": s.collision,
-             "wall_hit": s.wall_hit, "stop_latched_at": stop_latched_at,
+             "final_state": ctx.state, **sim.final_stats(),
+             "stop_latched_at": stop_latched_at,
              "ticks": len([e for e in trace if e["kind"] == "tick"])}
     oracle = _ORACLES[scenario]
     checks = [c.as_dict() for c in oracle(stats, trace, limits, window)]
@@ -288,6 +303,30 @@ def _o_disconnect(stats, trace, limits, window):
     ]
 
 
+def _o_belt_jam(stats, trace, limits, window):
+    """Jam observed on belt feedback, zero creep, recovery after clear."""
+    in_w = [e for e in trace
+            if e["kind"] == "tick" and window.start_ms <= e["t"] < window.end_ms]
+    post = [e for e in trace
+            if e["kind"] == "tick" and e["t"] >= window.end_ms]
+    stalled = [e for e in in_w
+               if e["decision"] == gp.ALLOW and e["speed"] < 0.05]
+    creep = (max(e["position"] for e in in_w)
+             - min(e["position"] for e in in_w)) if in_w else 1.0
+    recovered = (post and post[-1]["position"] > in_w[-1]["position"]
+                 and not post[-1]["jammed"]) if in_w and post else False
+    decided = all(e.get("decision") in (gp.ALLOW, gp.DENY) for e in in_w)
+    return [
+        _c("jam_observed", len(stalled) >= 1,
+           f"allowed-but-stalled ticks={len(stalled)}/{len(in_w)}"),
+        _c("zero_creep", creep == 0.0, f"in-window drift={creep}"),
+        _c("recovery", bool(recovered),
+           f"post_end={post[-1]['position'] if post else None}"),
+        _c("decided_every_tick", decided and len(in_w) > 0,
+           f"in_window_ticks={len(in_w)}"),
+    ]
+
+
 _ORACLES: dict[str, Callable[..., list[Check]]] = {
     "nominal_navigation": _o_nominal,
     "speed_command_over_limit": _o_over_limit,
@@ -297,6 +336,7 @@ _ORACLES: dict[str, Callable[..., list[Check]]] = {
     "dropped_message": _o_dropped,
     "corrupted_message": _o_corrupted,
     "simulator_disconnect": _o_disconnect,
+    "belt_jam": _o_belt_jam,
 }
 
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .ir import SCENARIO_IDS, validate_ir
+from .ir import validate_ir
 
 _PRESETS: dict[str, dict[str, Any]] = {
     "differential_drive_robot": {
@@ -58,6 +58,28 @@ _KIND_HINTS = (
     (("conveyor", "belt", "line"), "conveyor"),
     (("arm", "gripper", "manipulator"), "robotic_arm_virtual"),
 )
+
+_AMR_SCENARIOS = (
+    "nominal_navigation",
+    "speed_command_over_limit",
+    "stale_proximity_150ms",
+    "planner_process_crash",
+    "delayed_command",
+    "dropped_message",
+    "corrupted_message",
+    "simulator_disconnect",
+)
+_CONVEYOR_SCENARIOS = (
+    "nominal_navigation",
+    "speed_command_over_limit",
+    "delayed_command",
+    "belt_jam",
+)
+_KIND_SCENARIOS = {
+    "differential_drive_robot": _AMR_SCENARIOS,
+    "conveyor": _CONVEYOR_SCENARIOS,
+    "robotic_arm_virtual": _AMR_SCENARIOS,
+}
 
 _PERIOD_RE = re.compile(r"(\d+)\s*ms")
 _SPEED_RE = re.compile(r"(\d+(?:\.\d+)?)\s*m/s")
@@ -111,6 +133,6 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
         "control": {"period_ms": period_ms, "max_linear_speed_mps": max_linear,
                     "max_angular_speed_radps": 1.0, "guarded_state_transitions": True},
         "safety_contracts": [dict(c) for c in _DEFAULT_CONTRACTS],
-        "verification": {"scenarios": list(SCENARIO_IDS)},
+        "verification": {"scenarios": list(_KIND_SCENARIOS[kind])},
     }
     return validate_ir(proposal)  # proposals must pass the same strict gate

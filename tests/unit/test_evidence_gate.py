@@ -150,8 +150,9 @@ def test_gate_levels_executed_vs_behavior_verified(amr_ir, tmp_path):
     # All target checks pass with FULL coverage: behavior verified,
     # release eligible. (§10: a subset must never yield release eligibility;
     # see test_gate_reduced_coverage_blocks_release.)
-    from genesis_rt.ir import SCENARIO_IDS
-    full = list(SCENARIO_IDS)
+    # Full coverage = IR-declared scenarios (belt_jam is conveyor-only and
+    # is not declared by the AMR IR).
+    full = list(amr_ir["verification"]["scenarios"])
     tgt = {"status": "ok", "verified_on_target": True,
            "checks": [{"name": "a", "passed": True, "detail": "x"}]}
     v = gate.evaluate(_passport_with(amr_ir, tmp_path, "verified", build, tgt,
@@ -181,32 +182,32 @@ def test_gate_reduced_coverage_blocks_release(amr_ir, tmp_path):
     did pass (verdict PASS), but release is REFUSED loudly: coverage is
     recorded and release_eligible is False. A caller must never silently
     shrink verification and still receive a full-release PASS."""
-    from genesis_rt.ir import SCENARIO_IDS
     tgt = {"status": "ok", "verified_on_target": True,
            "checks": [{"name": "a", "passed": True, "detail": "x"}]}
     p = _passport_with(amr_ir, tmp_path, "reduced",
                        {"status": "ok", "verified_on_target": False}, tgt)
     v = gate.evaluate(p, ["nominal_navigation"])
+    declared = amr_ir["verification"]["scenarios"]
     assert v["verdict"] == "PASS"
     assert v["level"] == "QNX_BEHAVIOR_VERIFIED"
     assert v["release_eligible"] is False
     assert v["coverage"]["required"] == 1
-    assert v["coverage"]["declared"] == 8
+    assert v["coverage"]["declared"] == len(declared)
     assert v["coverage"]["omitted"] == sorted(
-        s for s in SCENARIO_IDS if s != "nominal_navigation")
+        s for s in declared if s != "nominal_navigation")
     assert any("reduced coverage" in r for r in v["level_reasons"])
 
 
 def test_gate_full_coverage_keeps_release(amr_ir, tmp_path):
-    from genesis_rt.ir import SCENARIO_IDS
+    full = list(amr_ir["verification"]["scenarios"])
     manifest = codegen.generate(amr_ir, tmp_path / "gen-full")
-    results = faultlab.run_all(amr_ir, list(SCENARIO_IDS))
+    results = faultlab.run_all(amr_ir, full)
     tgt = {"status": "ok", "verified_on_target": True,
            "checks": [{"name": "a", "passed": True, "detail": "x"}]}
     p = evidence.build_passport(
         "run-full", amr_ir, manifest, results,
         {"status": "ok", "verified_on_target": False}, tgt)
-    v = gate.evaluate(p, list(SCENARIO_IDS))
+    v = gate.evaluate(p, full)
     assert (v["verdict"], v["level"], v["release_eligible"]) == (
         "PASS", "QNX_BEHAVIOR_VERIFIED", True)
     assert v["coverage"]["omitted"] == []

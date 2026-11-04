@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Fault-lab tests: every scenario passes its oracle; seeds recorded."""
 from genesis_rt import faultlab
-from genesis_rt.ir import SCENARIO_IDS
 
 
 def test_all_scenarios_pass_with_oracles(amr_ir):
+    # "All" means all scenarios the IR declares (machines declare
+    # kind-meaningful lists; the global registry may hold more).
     results = faultlab.run_all(amr_ir)
-    assert {r["scenario"] for r in results} == set(SCENARIO_IDS)
+    assert {r["scenario"] for r in results} == set(
+        amr_ir["verification"]["scenarios"])
     for r in results:
         assert r["status"] == "pass", (r["scenario"], r["checks"])
         assert r["seed"] == faultlab.DEFAULT_SEEDS[r["scenario"]]
@@ -18,8 +20,16 @@ def test_all_scenarios_pass_with_oracles(amr_ir):
 def test_conveyor_subset_passes(repo_root):
     from genesis_rt.ir import load_ir_file
     ir = load_ir_file(repo_root / "examples" / "conveyor-demo" / "machine-ir.json")
+    assert ir["verification"]["scenarios"] == sorted([
+        "nominal_navigation", "speed_command_over_limit",
+        "delayed_command", "belt_jam"])  # validate_ir sorts lists
     results = faultlab.run_all(ir)
+    assert {r["scenario"] for r in results} == set(
+        ir["verification"]["scenarios"])
     assert all(r["status"] == "pass" for r in results)
+    jam = next(r for r in results if r["scenario"] == "belt_jam")
+    assert {c["name"] for c in jam["checks"]} == {
+        "jam_observed", "zero_creep", "recovery", "decided_every_tick"}
 
 
 def test_unknown_scenario_rejected(amr_ir):
@@ -56,6 +66,56 @@ def test_delayed_oracle_requires_overdue_deny():
     stats = {"deny_reasons": {}, "stop_latched_at": None, "final_state": 0}
     checks = _check_map(_o_delayed(stats, [], None, None))
     assert checks["overdue_denied"].passed is False
+
+
+def _jam_trace(positions, window, decision="ALLOW", speed=0.0, jammed=True):
+    return [{"t": t, "kind": "tick", "fault": "jam", "decision": decision,
+             "reason": "OK", "state": 1, "position": p, "speed": speed,
+             "jammed": jammed}
+            for t, p in zip(range(window.start_ms, window.end_ms, 20),
+                            positions)]
+
+
+def test_jam_oracle_catches_creep_and_stall():
+    """Belt motion during full-jam ticks fails zero_creep; no stalled
+    ALLOW ticks fails jam_observed."""
+    from genesis_rt import guard_policy as gp
+    from genesis_rt.faultlab import FaultWindow, _o_belt_jam
+    window = FaultWindow("jam", 1000, 1500)
+    creeping = _jam_trace([i * 0.01 for i in range(25)], window)
+    assert _check_map(_o_belt_jam({}, creeping, None, window))[
+        "zero_creep"].passed is False
+    moving = _jam_trace([1.0] * 25, window, speed=0.5)
+    assert _check_map(_o_belt_jam({}, moving, None, window))[
+        "jam_observed"].passed is False
+    assert gp.ALLOW == "ALLOW"  # oracle uses real guard verdict strings
+
+
+def test_jam_oracle_requires_recovery():
+    from genesis_rt.faultlab import FaultWindow, _o_belt_jam
+    window = FaultWindow("jam", 1000, 1500)
+    stuck = _jam_trace([1.0] * 25, window)
+    assert _check_map(_o_belt_jam({}, stuck, None, window))[
+        "recovery"].passed is False
+
+
+def test_belt_jam_rejected_on_diff_drive(amr_ir):
+    """belt_jam on a non-conveyor machine fails loudly, never passes."""
+    res = faultlab.run_scenario(amr_ir, "belt_jam")
+    assert res["status"] == "crash"
+    assert "conveyor" in res["error"]
+
+
+def test_belt_and_diffdrive_traces_differ_structurally(amr_ir, repo_root):
+    from genesis_rt.ir import load_ir_file
+    conv = load_ir_file(repo_root / "examples" / "conveyor-demo" / "machine-ir.json")
+    amr_tick = next(e for e in faultlab.run_scenario(
+        amr_ir, "nominal_navigation")["trace"] if e["kind"] == "tick")
+    belt_tick = next(e for e in faultlab.run_scenario(
+        conv, "nominal_navigation")["trace"] if e["kind"] == "tick")
+    assert {"x", "y", "theta"} <= set(amr_tick)
+    assert {"position", "speed", "jammed"} <= set(belt_tick)
+    assert "position" not in amr_tick and "theta" not in belt_tick
 
 
 def test_stale_oracle_requires_detection_and_latch():

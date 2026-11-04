@@ -27,8 +27,8 @@
     "scenarios": [
       "nominal_navigation",
       "speed_command_over_limit",
-      "stale_proximity_150ms",
-      "delayed_command"
+      "delayed_command",
+      "belt_jam"
     ]
   }
 }

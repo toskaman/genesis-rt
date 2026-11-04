@@ -1,5 +1,19 @@
 # Progress log
 
+## 2026-11-04 (later) -- P1 #12 tranche A : conveyor simule (BeltSim + jam)
+
+- `simulator.py` : `BeltSim` (position/vitesse/jammed + aliases
+  final_x/final_y) ; `faultlab.py` dispatch par kind, oracle
+  `_o_belt_jam` (zero_creep/jam_observed/recovery), `belt_jam`
+  refuse bruyamment hors conveyor (crash + seed schema-complet).
+- `ir.py` : 9e scenario `belt_jam` ; IR conveyor v1+v2 : 4 scenarios
+  (stale_proximity remplace, capteur absent du convoyeur).
+  Planner : listes par kind ; `test_all` = IR-declare.
+- Preuve non-regression : traces AMR avant/apres byte-identiques
+  (271772 octets). Gate : couverture = IR-declare (plus registre).
+  Snapshots conv regen (diff = seule ligne ir_sha256).
+- Suite 283/283 verte (+6 BeltSim, +4 sabotage/differenciation).
+
 ## 2026-11-04 (later) -- P0 #4 : DEBLOQUE sans reboot, matrice 8/8 PASS
 
 - TCG ressuscite methodiquement (QMP) : sous CPU `qemu64` defaut,
