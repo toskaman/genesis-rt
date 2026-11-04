@@ -1,0 +1,28 @@
+name: qnx-target
+
+# Runs ONLY on a self-hosted runner with QNX SDP 8.0 installed.
+# It never reports a green "QNX tested" when skipped: without the
+# qnx label + SDK the job does not run at all, and passports keep
+# qnx_verified=false. See docs/quickstart-qnx8-qemu.md.
+on:
+  workflow_dispatch:
+
+jobs:
+  qnx-build-and-run:
+    runs-on: [self-hosted, qnx]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Probe QNX toolchain
+        run: |
+          PYTHONPATH=host python scripts/qnx_env_check.py
+          test -n "$QNX_TARGET" || (echo "QNX_TARGET not set" && exit 1)
+      - name: Generate + native qcc build
+        run: |
+          PYTHONPATH=host python -m genesis_rt.cli generate \
+            examples/amr-demo/machine-ir.json --out /tmp/genesis-qnx-build
+          make -C /tmp/genesis-qnx-build -f genesis_build_gen.mk qnx
+      - name: Record native build evidence
+        run: ls -l /tmp/genesis-qnx-build/genesis_*

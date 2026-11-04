@@ -1,0 +1,28 @@
+name: host-ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test deps
+        run: pip install pytest pyyaml
+      - name: Host C policy check
+        run: |
+          cc -O1 -Wall -Wextra -Itarget/qnx8/include -Itarget/qnx8/common \
+            -o /tmp/guard_vector target/qnx8/common/guard_policy.c target/qnx8/host_tests/guard_vector.c
+          printf 'LIMITS 1.2 1.0 100\n47454E31 1 1 1 0 50 0.5 0.0 1 0 1 0 1\n' | /tmp/guard_vector
+      - name: Unit + integration + fault + acceptance tests
+        run: python -m pytest tests/ -q
+      - name: Verified demo pipeline
+        run: |
+          PYTHONPATH=host python scripts/run_verified_demo.py
+          PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json

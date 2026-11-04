@@ -1,0 +1,129 @@
+# Copyright 2026 GENESIS RT contributors
+# SPDX-License-Identifier: Apache-2.0
+"""Command line: `genesis-rt <validate|plan|generate|simulate|faults|evidence|gate|demo|check-env>`."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def _cmd_validate(args: argparse.Namespace) -> int:
+    from .ir import load_ir_file
+    ir = load_ir_file(args.ir)
+    print(f"valid: {ir['machine']['id']} ({ir['machine']['kind']}) "
+          f"scenarios={len(ir['verification']['scenarios'])}")
+    return 0
+
+
+def _cmd_plan(args: argparse.Namespace) -> int:
+    from .ir import canonical_json
+    from .planner import propose
+    ir = propose(args.request, machine_id=args.machine_id)
+    out = args.out or f"{args.machine_id}.json"
+    Path(out).write_text(json.dumps(ir, indent=2) + "\n", encoding="utf-8")
+    print(f"proposal written: {out} ({ir['machine']['kind']})")
+    print(f"canonical sha256: {__import__('hashlib').sha256(canonical_json(ir).encode()).hexdigest()}")
+    return 0
+
+
+def _cmd_generate(args: argparse.Namespace) -> int:
+    from .codegen import generate
+    from .ir import load_ir_file
+    ir = load_ir_file(args.ir)
+    manifest = generate(ir, args.out)
+    print(f"generated: {args.out}")
+    for name, digest in sorted(manifest["files"].items()):
+        print(f"  {name}  sha256:{digest[:16]}...")
+    return 0
+
+
+def _cmd_simulate(args: argparse.Namespace) -> int:
+    from .faultlab import run_scenario
+    from .ir import load_ir_file
+    ir = load_ir_file(args.ir)
+    res = run_scenario(ir, "nominal_navigation")
+    print(f"nominal_navigation: {res['status']} "
+          f"allows={res['stats']['allows']} denies={res['stats']['denies']} "
+          f"final_x={res['stats']['final_x']}")
+    return 0
+
+
+def _cmd_faults(args: argparse.Namespace) -> int:
+    from .faultlab import run_all
+    from .ir import load_ir_file
+    ir = load_ir_file(args.ir)
+    results = run_all(ir)
+    for r in results:
+        print(f"{r['scenario']}: {r['status']} "
+              f"(allows={r['stats']['allows']} denies={r['stats']['denies']})")
+    bad = [r for r in results if r["status"] != "pass"]
+    print(f"{len(results) - len(bad)}/{len(results)} scenarios passed")
+    return 1 if bad else 0
+
+
+def _cmd_demo(args: argparse.Namespace) -> int:
+    from .orchestrator import run_pipeline
+    ir_path = args.ir or str(REPO_ROOT / "examples" / "amr-demo" / "machine-ir.json")
+    summary = run_pipeline(ir_path, REPO_ROOT / "artifacts" / "runs")
+    print(f"run: {summary['run_id']}  verdict: {summary['verdict']}  "
+          f"qnx_verified: {summary['qnx_verified']}  elapsed: {summary['elapsed_s']}s")
+    print(f"passport: {summary['passport']}")
+    for name, outcome in summary["steps"]["verification"]["scenarios"].items():
+        print(f"  {name}: {outcome}")
+    for reason in summary["steps"]["gate"]["reasons"]:
+        print(f"  gate: {reason}")
+    return 0 if summary["verdict"] == "PASS" else 1
+
+
+def _cmd_check_env(args: argparse.Namespace) -> int:
+    from .build_adapter import probe
+    print(json.dumps(probe(), indent=2))
+    return 0
+
+
+def _cmd_serve(args: argparse.Namespace) -> int:
+    from .api import create_app
+    import uvicorn  # type: ignore[import-not-found]
+    uvicorn.run(create_app(), host="127.0.0.1", port=args.port)
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(prog="genesis-rt", description="GENESIS RT host toolchain")
+    sub = p.add_subparsers(dest="command", required=True)
+    v = sub.add_parser("validate", help="strictly validate a Machine IR file")
+    v.add_argument("ir"); v.set_defaults(func=_cmd_validate)
+    pl = sub.add_parser("plan", help="draft a validated IR proposal from a short request")
+    pl.add_argument("request"); pl.add_argument("--machine-id", default="machine-01")
+    pl.add_argument("--out", default=None); pl.set_defaults(func=_cmd_plan)
+    g = sub.add_parser("generate", help="deterministically generate QNX C build files")
+    g.add_argument("ir"); g.add_argument("--out", default="generated"); g.set_defaults(func=_cmd_generate)
+    s = sub.add_parser("simulate", help="run the nominal simulation")
+    s.add_argument("ir"); s.set_defaults(func=_cmd_simulate)
+    f = sub.add_parser("faults", help="run the fault-injection campaign")
+    f.add_argument("ir"); f.set_defaults(func=_cmd_faults)
+    d = sub.add_parser("demo", help="run the full verified demo pipeline")
+    d.add_argument("--ir", default=None); d.set_defaults(func=_cmd_demo)
+    c = sub.add_parser("check-env", help="probe for a QNX SDK toolchain")
+    c.set_defaults(func=_cmd_check_env)
+    sv = sub.add_parser("serve", help="start the local web API (needs api extra)")
+    sv.add_argument("--port", type=int, default=8077); sv.set_defaults(func=_cmd_serve)
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        return int(args.func(args))
+    except Exception as exc:
+        print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

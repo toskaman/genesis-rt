@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<!-- Copyright 2026 GENESIS RT contributors, SPDX-License-Identifier: Apache-2.0 -->
+<!-- Proof Passport dashboard: static, dependency-free. Open a passport.json to inspect it. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GENESIS RT — Proof Passport</title>
+<style>
+:root { color-scheme: dark; --bg:#0d1117; --fg:#e6edf3; --ok:#3fb950; --bad:#f85149; --mut:#8b949e; }
+body { background:var(--bg); color:var(--fg); font-family:system-ui,sans-serif; margin:2rem auto; max-width:60rem; padding:0 1rem; }
+h1 small { color:var(--mut); font-weight:normal; }
+.pass { color:var(--ok); font-weight:bold; } .fail { color:var(--bad); font-weight:bold; }
+table { border-collapse:collapse; width:100%; margin:1rem 0; }
+td, th { border:1px solid #30363d; padding:.4rem .6rem; text-align:left; font-size:.9rem; }
+code { font-size:.8rem; }
+input[type=file] { margin:1rem 0; }
+.note { color:var(--mut); font-size:.85rem; }
+</style>
+</head>
+<body>
+<h1>GENESIS RT <small>Proof Passport inspector (MVP)</small></h1>
+<p class="note">Static page, no build step, no network. Every verdict below is computed live
+from the passport you open — nothing is hard-coded. Full workspace UI is roadmap.</p>
+<input type="file" id="file" accept=".json">
+<div id="out"><p class="note">Open <code>artifacts/runs/&lt;id&gt;/passport.json</code> (or the committed sample)
+to inspect a verification run.</p></div>
+<script>
+const out = document.getElementById('out');
+document.getElementById('file').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  let p; try { p = JSON.parse(await f.text()); }
+  catch { out.innerHTML = '<p class="fail">Not valid JSON.</p>'; return; }
+  if (!p.chain) { out.innerHTML = '<p class="fail">Not a GENESIS passport (no chain).</p>'; return; }
+  const rec = (k) => p.chain.find(r => r.kind === k);
+  const scens = p.chain.filter(r => r.kind.startsWith('scenario:'));
+  const verdict = rec('gate_verdict');
+  let h = `<h2>Run <code>${p.run_id}</code> — gate: ` +
+    (p.gate === 'PASS' ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>') + '</h2>';
+  h += `<p>qnx_verified: <b>${verdict ? verdict.body.qnx_verified : 'unknown'}</b> · ` +
+    `records: ${p.chain.length} · created: ${p.created_utc || '?'} · ` +
+    `commit: ${p.environment?.git_commit || 'n/a'}</p>`;
+  h += '<table><tr><th>record</th><th>status</th><th>hash</th></tr>';
+  for (const r of p.chain) {
+    const st = r.body.status || r.body.verdict || (r.kind === 'summary'
+      ? `${r.body.scenarios_passed}/${r.body.scenarios_total} passed` : '—');
+    const cls = (st === 'pass' || st === 'PASS') ? 'pass' : (st === '—' ? '' : 'fail');
+    h += `<tr><td><code>${r.kind}</code></td><td class="${cls}">${st}</td>` +
+      `<td><code>${String(r.hash).slice(0, 16)}…</code></td></tr>`;
+  }
+  h += '</table><h3>Scenario checks</h3><table><tr><th>scenario</th><th>check</th><th>ok</th></tr>';
+  for (const s of scens)
+    for (const c of (s.body.checks || []))
+      h += `<tr><td><code>${s.body.scenario}</code></td><td>${c.name}</td>` +
+        `<td class="${c.passed ? 'pass' : 'fail'}">${c.passed}</td></tr>`;
+  h += '</table>';
+  out.innerHTML = h;
+});
+</script>
+</body>
+</html>

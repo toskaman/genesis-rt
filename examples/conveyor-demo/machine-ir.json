@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "machine": {
+    "id": "conveyor-demo-01",
+    "kind": "conveyor",
+    "execution_target": "qnx8_x86_64_qemu",
+    "simulation_only": true
+  },
+  "actuators": [
+    {"id": "belt", "type": "belt_speed_command"}
+  ],
+  "sensors": [
+    {"id": "belt-speed", "type": "belt_speed_mps", "freshness_limit_ms": 200},
+    {"id": "estop", "type": "estop_bool", "freshness_limit_ms": 50}
+  ],
+  "control": {
+    "period_ms": 20,
+    "max_linear_speed_mps": 2.0,
+    "max_angular_speed_radps": 1.0,
+    "guarded_state_transitions": true
+  },
+  "safety_contracts": [
+    {"name": "speed-limit", "if": "speed_exceeds_limit", "then": "reject_command"},
+    {"name": "simulator-watchdog", "if": "simulator_disconnected", "then": "command_virtual_stop"}
+  ],
+  "verification": {
+    "scenarios": [
+      "nominal_navigation",
+      "speed_command_over_limit",
+      "stale_proximity_150ms",
+      "delayed_command"
+    ]
+  }
+}

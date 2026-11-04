@@ -1,0 +1,34 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+# Run outputs (samples are committed explicitly under artifacts/samples/)
+artifacts/runs/
+artifacts/*.tmp
+# Local UI state
+ui/*.local.json
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# C builds
+*.o
+*.a
+*.elf
+target/qnx8/host_tests/guard_vector
+target/qnx8/host_tests/guard_vector.exe
+# QNX SDK / images are NEVER committed; local env only
+qnx800/
+*.ifs
+*.qfs
+# Secrets
+.env
+*.key
+*.pem

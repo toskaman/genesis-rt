@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://genesis-rt/schema/machine-ir-v1.schema.json",
+  "title": "GENESIS RT Machine IR v1",
+  "description": "Typed intermediate representation for a simulated machine controlled by QNX-native software.",
+  "type": "object",
+  "required": ["schema_version", "machine", "actuators", "sensors", "control", "safety_contracts", "verification"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "machine": {
+      "type": "object",
+      "required": ["id", "kind", "execution_target", "simulation_only"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9-_]*$" },
+        "kind": { "enum": ["differential_drive_robot", "conveyor", "robotic_arm_virtual"] },
+        "execution_target": { "const": "qnx8_x86_64_qemu" },
+        "simulation_only": { "const": true }
+      }
+    },
+    "actuators": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9-_]*$" },
+          "type": { "enum": ["velocity_command", "position_command", "gripper_command", "belt_speed_command"] }
+        }
+      }
+    },
+    "sensors": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "freshness_limit_ms"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9-_]*$" },
+          "type": { "enum": ["distance_m", "odometry", "joint_rad", "belt_speed_mps", "estop_bool"] },
+          "freshness_limit_ms": { "type": "integer", "minimum": 1, "maximum": 60000 }
+        }
+      }
+    },
+    "control": {
+      "type": "object",
+      "required": ["period_ms", "max_linear_speed_mps", "max_angular_speed_radps", "guarded_state_transitions"],
+      "additionalProperties": false,
+      "properties": {
+        "period_ms": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "max_linear_speed_mps": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 },
+        "max_angular_speed_radps": { "type": "number", "exclusiveMinimum": 0, "maximum": 20 },
+        "guarded_state_transitions": { "const": true }
+      }
+    },
+    "safety_contracts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": ["name", "if", "then"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9-_]*$" },
+          "if": {
+            "enum": ["proximity_is_stale", "speed_exceeds_limit", "simulator_disconnected",
+                     "command_overdue", "sequence_regressed", "message_malformed", "device_fault"]
+          },
+          "then": {
+            "enum": ["command_virtual_stop", "reject_command", "enter_safe_state",
+                     "hold_last_valid", "raise_telemetry_alarm"]
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": ["scenarios"],
+      "additionalProperties": false,
+      "properties": {
+        "scenarios": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "enum": ["nominal_navigation", "speed_command_over_limit", "stale_proximity_150ms",
+                     "planner_process_crash", "delayed_command", "dropped_message",
+                     "corrupted_message", "simulator_disconnect"]
+          }
+        }
+      }
+    }
+  }
+}
