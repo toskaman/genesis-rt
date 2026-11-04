@@ -1,5 +1,16 @@
 # Progress log
 
+## 2026-11-04 (later) — audit + hygiene
+
+- Swept tracked files: no secrets, no SDK/proprietary material, no run
+  outputs committed (only the labelled host-simulated sample passport).
+- Added `.gitattributes` (LF normalization) to end CRLF churn.
+- Video production explicitly deferred by entrant to end of project; the
+  HyperFrames scaffold + genuine capture transcripts are shelved at
+  `../genesis-rt-video/` (outside the submission repo), narration scripts
+  kept with them. G11 stays PENDING until then.
+- Fresh-clone install re-verified green (suite + demo PASS).
+
 ## 2026-11-04 — P0: repo + host pipeline + QNX sources (this session)
 
 - Implemented: Machine IR v1 (schema + strict validator), deterministic
