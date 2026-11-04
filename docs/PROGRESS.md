@@ -409,7 +409,7 @@
 
 - G0 license/redistribution clean: YES (Apache-2.0, no SDK material in repo)
 - G1 deterministic codegen: YES (tested)
-- G2 QNX native build/run evidenced: YES (qcc 0 warnings, 6/6 on-target)
+- G2 QNX native build/run evidenced: YES (qcc 0 warnings, 11/11 on-target)
 - G3 guard rejects on real target: YES (9/9 IPC checks incl. BAD_SIZE/NaN)
 - G4 QNX-specific sources visible/tested: YES (msg passing, resmgr, timers, supervision)
 - G5 no-test⇒no-pass: YES (tested)

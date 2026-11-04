@@ -33,12 +33,29 @@ def template_sha256(name: str) -> str:
     return hashlib.sha256((TEMPLATES_DIR / name).read_bytes()).hexdigest()
 
 
+_GENESIS_SRC_OK = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./\\:-+")
+
+
 def _check_genesis_src(genesis_src: str) -> None:
-    """Fail closed on values that could inject make directives or paths."""
+    """Fail closed on values that could inject make/shell directives.
+
+    The value lands in a `GENESIS_SRC ?= ...` makefile line and is later
+    expanded into prerequisites and recipe shells, so only plain path
+    characters survive: no `$` (make/shell expansion), no `#`/`;`
+    (comment/recipe separators), no shell metacharacters, no spaces
+    (make word-splitting breaks such paths anyway — use a space-free
+    path or a relative one like the default).
+    """
     if not isinstance(genesis_src, str) or not genesis_src:
         raise ValueError("genesis_src must be a non-empty string")
     if any(ord(ch) < 0x20 or ch == "\x7f" for ch in genesis_src):
         raise ValueError("genesis_src must not contain control characters")
+    bad = sorted(set(genesis_src) - _GENESIS_SRC_OK)
+    if bad:
+        raise ValueError(
+            "genesis_src contains forbidden characters "
+            f"{''.join(bad)!r} (allowed: ASCII alnum plus _./\\:-+)")
 
 
 def _render(name: str, mapping: dict[str, str]) -> str:

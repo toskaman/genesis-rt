@@ -8,7 +8,7 @@
 > Status: functional alpha for the [QNX Global Hackathon](https://qnx.devpost.com/)
 > (Developer Tooling & Host Tools), built 4 Nov 2026 onward. Host verification
 > is fully working; QNX on-target execution is verified (native `qcc`
-> build with 0 warnings, 6/6 on-target matrix, `qnx_verified: true`).
+> build with 0 warnings, 11/11 on-target matrix, `qnx_verified: true`).
 > No safety certification is claimed.
 
 ## 60-second pitch
@@ -51,8 +51,8 @@ python scripts/run_verified_demo.py
 python scripts/replay.py artifacts/runs/*/passport.json
 ```
 
-Then open `ui/studio.html` in a browser (six-tab workspace: IR, generated
-source, trace replay, scenarios, passport, run commands) or
+Then open `ui/studio.html` in a browser (seven-tab workspace: IR, generated
+source, trace replay, scenarios, passport, passport diff, run commands) or
 `ui/dashboard.html` (passport inspector only) and load the passport.
 
 With a QNX SDP 8.0 SDK installed: [docs/quickstart-qnx8-qemu.md](docs/quickstart-qnx8-qemu.md)
@@ -84,7 +84,7 @@ records QNX steps as `blocked`, never as passed).
 ## Honest known limitations
 
 - Host fault results are **simulated**; QNX on-target runs are verified by
-  the authors (7/7 matrix) and reproducible with an SDK + QEMU setup
+  the authors (11/11 matrix) and reproducible with an SDK + QEMU setup
   ([docs/PROGRESS.md](docs/PROGRESS.md)).
 - QEMU timing is for regression comparison, not production guarantees.
 - Prototype only: no functional-safety qualification, simulation-only outputs.

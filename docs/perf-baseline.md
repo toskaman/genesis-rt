@@ -14,8 +14,9 @@
   sequence each call; reports mean/min/max/p50/p95/p99 in microseconds.
 - `campaign`: wall time of one full `faultlab.run_all()` (8 scenarios).
 - `codegen`: wall time of one `codegen.generate()` (2 files).
-- `qcc_build`: wall time of one real native `make qnx` (6 binaries)
-  plus warning count; `blocked` without an SDK.
+- `qcc_build`: wall time of one real native `make qnx` (6 binaries per
+  machine build; 7 staged on target for the full matrix) plus warning
+  count; `blocked` without an SDK.
 - Environment: Windows 10 (`Windows-10-10.0.19045-SP0`), CPython 3.14.4,
   16 CPUs, N = 20000 for the guard distribution.
 
@@ -29,7 +30,7 @@
 | guard decide max | 111.6 µs | 28.3 µs |
 | campaign 8 scenarios | 18.9 ms | 13.8 ms |
 | codegen 2 files | 1.97 ms | 1.53 ms |
-| qcc 6 binaries | 769.8 ms, 0 warnings | 693.1 ms, 0 warnings |
+| qcc 6 binaries/machine | 769.8 ms, 0 warnings | 693.1 ms, 0 warnings |
 
 Reading: host guard decisions cost single-digit microseconds at p99
 (spikes are OS scheduling, hence max ≫ p99); a full host campaign runs

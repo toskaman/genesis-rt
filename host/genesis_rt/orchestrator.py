@@ -22,6 +22,19 @@ from .ir import load_ir_file
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TARGET_SRC = REPO_ROOT / "target" / "qnx8"
 
+MAX_RUN_ID_LEN = 64
+
+
+def valid_run_id(run_id: str) -> bool:
+    """Canonical run_id whitelist (single path segment, no traversal).
+
+    Shared by the API validator and run_pipeline so direct callers get
+    the same fail-closed rule: ASCII alnum plus '-'/'_', 1..64 chars.
+    """
+    return (isinstance(run_id, str) and 0 < len(run_id) <= MAX_RUN_ID_LEN
+            and run_id.replace("-", "").replace("_", "").isalnum()
+            and run_id.isascii())
+
 
 class PipelineError(RuntimeError):
     """A pipeline step failed; partial evidence was written to run_dir."""
@@ -79,6 +92,9 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
                  perf_record: str | Path | None = None) -> dict[str, Any]:
     t0 = time.monotonic()
     explicit_id = run_id is not None
+    if explicit_id and not valid_run_id(run_id):
+        raise PipelineError(f"invalid run_id: {run_id!r} "
+                            "(ASCII alnum, '-', '_' only, 1..64 chars)")
     run_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
     adir = Path(artifacts_dir)
     run_dir = adir / run_id

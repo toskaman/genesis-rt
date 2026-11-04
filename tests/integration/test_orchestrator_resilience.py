@@ -68,6 +68,24 @@ def test_failed_scenario_truthful_verification_status(amr_ir_path, tmp_path, mon
     assert summary["failure"] is None  # honest scenario fail, not a pipeline error
 
 
+@pytest.mark.parametrize("evil", [
+    "../escape", "..\\escape", "a/b", "a\\b", "/abs", "C:\\abs",
+    "has space", "semi;colon", "quote'quote", 'dquote"q', "dollar$var",
+    "hash#tag", "back`tick", "x" * 65,
+])
+def test_malicious_run_id_refused_before_any_write(amr_ir_path, tmp_path, evil):
+    """Direct callers bypass the API validator: run_pipeline must refuse
+    traversal/absolute/special-char run ids itself, before creating
+    anything on disk (fail-closed, no escape from artifacts_dir)."""
+    adir = tmp_path / "runs"
+    with pytest.raises(PipelineError, match="invalid run_id"):
+        run_pipeline(amr_ir_path, adir, run_id=evil,
+                     scenarios=["nominal_navigation"])
+    assert not adir.exists() or list(adir.iterdir()) == []
+    assert not (tmp_path / "escape").exists()
+    assert not (tmp_path / "abs").exists()
+
+
 def test_run_id_collision_refused(amr_ir_path, tmp_path):
     first = run_pipeline(amr_ir_path, tmp_path / "runs",
                          run_id="run-fixed", scenarios=["nominal_navigation"])

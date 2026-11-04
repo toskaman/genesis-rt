@@ -6,7 +6,7 @@ only — no `fetch`, no network, no build step).
 - `dashboard.html`: Proof Passport inspector. Load a `passport.json`;
   the hash chain is re-verified live and a stored PASS is shown only
   when valid.
-- `studio.html`: six-tab workspace — Intent (IR + live sha256),
+- `studio.html`: seven-tab workspace — Intent (IR + live sha256),
   Source (generated C provenance pinned vs the IR), Twin (canvas
   trace replay), Lab (scenario/seeds/checks), Passport (same live
   verification as the dashboard), Diff (broken-vs-fixed delta),

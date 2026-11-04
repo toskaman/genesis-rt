@@ -25,8 +25,8 @@ Open `ui/dashboard.html`, load the passport, and every verdict links to data.
 python -m pytest tests/ -q
 ```
 
-Expect green (310 tests). With an SDK the QNX build test compiles the
-6 native binaries for real; without one it reports an honest skip —
+Expect green (324 tests). With an SDK the QNX build test compiles the
+6 native binaries per machine build for real (7 staged on target: AMR set + `genesis_guard_conv`); without one it reports an honest skip —
 never a QNX pass.
 
 ## 3. What to read next

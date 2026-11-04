@@ -67,6 +67,11 @@ def test_manifest_records_full_provenance(amr_ir, tmp_path):
 
 def test_genesis_src_injection_rejected(amr_ir, tmp_path):
     import pytest
-    for evil in ("a\nMALICIOUS: all\n\trm -rf /", "a\rb", "a\x00b", "", "a\x7fb"):
+    for evil in ("a\nMALICIOUS: all\n\trm -rf /", "a\rb", "a\x00b", "", "a\x7fb",
+                 "$(shell touch pwned)", "${GENESIS_SRC}", "$$HOME",
+                 "a#b", "a;b", "a b", "a`b`", "a&b", "a|b", "a>b",
+                 "a'b", 'a"b', "a*b", "a?b", "a(b)", "a[b]", "a{b}",
+                 "a=b", "a!b", "a%b", "a@b", "a^b", "a~b",
+                 "caf\xc3\xa9"):
         with pytest.raises(ValueError):
             codegen.generate(amr_ir, tmp_path / "evil", genesis_src=evil)

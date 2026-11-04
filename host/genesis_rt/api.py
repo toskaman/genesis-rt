@@ -42,14 +42,12 @@ ARTIFACTS = REPO_ROOT / "artifacts" / "runs"
 
 MAX_IR_BYTES = 256 * 1024
 MAX_SCENARIOS = 32
-MAX_RUN_ID_LEN = 64
+
+# Canonical run_id rule lives in orchestrator (single source of truth);
+# the API re-checks early for 400 mapping, run_pipeline enforces it.
+from .orchestrator import MAX_RUN_ID_LEN, valid_run_id as _valid_run_id
 
 _lock = threading.Lock()
-
-
-def _valid_run_id(run_id: str) -> bool:
-    return (isinstance(run_id, str) and 0 < len(run_id) <= MAX_RUN_ID_LEN
-            and run_id.replace("-", "").replace("_", "").isalnum())
 
 
 def _db(path: Path) -> sqlite3.Connection:
