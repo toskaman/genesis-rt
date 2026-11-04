@@ -8,13 +8,17 @@
 
 - QEMU 11.1.0 at `E:\VMs\qemu\qemu-system-x86_64.exe` — satisfies the
   official "upgrade to QEMU 10" recommendation. Override with `GENESIS_QEMU`.
-- QNX SDP 8.0.0 at `E:\qnx800` (licence Education activée) + QSTI
-  `com.qnx.qnx800.quickstart.qemu` 0.5.0 déballé. Auto-détecté même sans
-  variables d'environnement.
-- Boot prouvé : `--boot disk --disk-name disk-qemu` avec `-cpu host`
-  (WHPX) ; `-kernel` direct et CPU émulé stallent le loader v1.2d.
-- Cible : `QNX qnxqemu 8.0.0 x86_64`, SSH `qnxuser` (mot de passe =
-  nom d'utilisateur par défaut de l'image).
+- QNX SDP 8.0.0 at `E:\qnx800` (Education licence activated) + QSTI
+  `com.qnx.qnx800.quickstart.qemu` 0.5.0 unpacked. Auto-detected even
+  without environment variables.
+- Proven boot: `--boot disk` with `-cpu host` (WHPX); direct `-kernel`
+  and emulated CPU stall the v1.2d loader. Both `output/disk-qemu`
+  (via `--disk-name disk-qemu`) and the default `output/disk-qemu.vmdk`
+  boot to a login prompt.
+- Target: `QNX qnxqemu 8.0.0 x86_64`, SSH `qnxuser` (password = the
+  image-default username; never committed, pass via `GENESIS_TARGET_PASSWORD`).
+- Verified 4 Nov 2026: `qcc` builds 6 binaries with 0 warnings;
+  on-target matrix 6/6 PASS (`qnx_verified: true`, replay valid).
 
 ## 1. Get the SDK lawfully (your 10 minutes, cannot be automated)
 
@@ -60,7 +64,7 @@ On Linux/macOS-style shells source the SDP env first
 ```sh
 genesis-rt generate examples/amr-demo/machine-ir.json --out /tmp/genesis-qnx
 make -C /tmp/genesis-qnx -f genesis_build_gen.mk qnx
-ls /tmp/genesis-qnx/genesis_guard  # + controller/device/status/supervisor
+ls /tmp/genesis-qnx/genesis_guard  # + controller/device/status/supervisor/faultinject
 ```
 
 ## 4. Boot the QSTI under QEMU (scripted)
@@ -78,12 +82,22 @@ the output dir; boot markers are reported as seen/not-seen, never assumed.
 
 ## 5. Run genesis on target
 
-Transfer the five binaries to the running target (shared folder/`scp` per
-your setup), then on target:
+Scripted path (needs `paramiko` + SSH reachable, e.g. `--ssh-port 2222`
+at boot; password via `GENESIS_TARGET_PASSWORD`, never on the command line):
 
 ```sh
-./genesis_supervisor   # spawns guard/controller/device, monitors health
-./genesis_status &     # serves /dev/genesis/status (read-only telemetry)
+python scripts/qnx_target.py put /tmp/genesis-qnx/genesis_* --dest /tmp/genesis
+python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json
+# expect: 6/6 PASS — target_info, faultinject (9/9), status_live,
+# controller_flow, supervisor_respawn, supervisor_giveup
+```
+
+Manual fallback: transfer the six binaries to the running target (shared
+folder/`scp` per your setup), then on target:
+
+```sh
+./genesis_supervisor   # spawns guard/controller/device, bounded RESPAWN then GIVE_UP halt
+./genesis_status &     # serves /dev/genesis/status (live telemetry)
 cat /dev/genesis/status
 ```
 
@@ -96,4 +110,6 @@ Capture raw transcripts: they are the QNX evidence the passport references.
 - Save compiler stdout/stderr, `qcc -V` output, target `uname -a`, the QEMU
   transcript + command line next to the passport.
 - Only runs executed on the real target may set `verified_on_target=true`
-  (via the target-side runner, roadmap); host runs always keep `false`.
+  (via `qnx_target.py verify`, which writes `qnx-target-record.json` plus
+  per-step transcripts); host runs always keep `false`. Feed the record to
+  `genesis-rt demo --target-record <record>` for a target-qualified passport.

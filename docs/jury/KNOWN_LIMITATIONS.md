@@ -2,8 +2,10 @@
 
 Short version of `docs/limitations-and-safety.md` — the full text governs.
 
-- Host fault results are **simulated**; on-target QNX replay is implemented
-  and documented but awaits SDK setup. Passports always show `qnx_verified`.
+- Host fault results are **simulated**; the C policy is proven identical
+  by conformance vectors, and the on-target 6-step matrix (9/9 IPC checks,
+  live telemetry, supervision) passes on QNX 8.0/QEMU. Passports always
+  show `qnx_verified` explicitly.
 - No safety certification, no formal verification, no production timing
   guarantees; QEMU numbers are regression aids only.
 - Millisecond clocks are `uint32` (wrap documented, not yet wrap-safe).

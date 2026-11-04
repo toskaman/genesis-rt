@@ -6,12 +6,12 @@ host compilers verify the shared logic without pretending to test IPC.
 
 | Process | Role | QNX APIs |
 |---|---|---|
-| `genesis_guard` | policy-enforcing command server | `name_attach`, `MsgReceive`, `MsgReply` |
-| `genesis_controller` | periodic client, never bypasses guard | `name_open`, `MsgSend`, `CLOCK_MONOTONIC` |
-| `genesis_device` | SIMULATED actuator/sensor endpoint | none (virtual state only) |
-| `genesis_status` | read-only `/dev/genesis/status` | resource manager (`resmgr_attach`) |
-| `genesis_supervisor` | spawn + monitor + reset authority | `posix_spawn`, `wait` |
-| `genesis_faultinject` | on-target guard verification client (6 checks) | `name_open`, `MsgSend` |
+| `genesis_guard` | policy-enforcing command server (real sender `msglen`, stats endpoint) | `name_attach`, `MsgReceive`+`_msg_info`, `MsgReply` |
+| `genesis_controller` | periodic client, never bypasses guard (2 s guard-call timeout) | `name_open`, `MsgSend`, `TimerTimeout`, `clock_nanosleep` |
+| `genesis_device` | SIMULATED actuator/sensor endpoint (MVP: holds state, no guard→device forwarding yet) | none (virtual state only) |
+| `genesis_status` | live `/dev/genesis/status` (per-read IPC stats query) | resource manager (`resmgr_attach`), `MsgSend` |
+| `genesis_supervisor` | spawn + bounded RESPAWN (×3, backoff) + GIVE_UP halt | `posix_spawn`, `wait` |
+| `genesis_faultinject` | on-target guard verification client (9 checks) | `name_open`, `MsgSend` |
 
 Protocol: `include/genesis_ipc.h` (magic `GEN1`, version 1, fixed frames,
 monotonic sequence IDs, deadlines).

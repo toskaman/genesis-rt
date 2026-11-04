@@ -13,7 +13,7 @@ Full matrix: `docs/compliance-matrix.md`. This page states the entry facts.
   so Apache-2.0 — also the license the OpenBridge design system converges
   to — was chosen instead. See the compliance matrix for the full analysis.
 - **Sponsor support:** none sought, none received; no commercial QNX license.
-  QNX Everywhere non-commercial terms will be used for target runs.
+  QNX non-commercial (Education) terms used for target runs.
 - **Availability:** public repository, QEMU-only target needs, retained
   through the judging period (ends 29 Jan 2027).
 - **Language:** English throughout. **Video:** pending, will be <3:00, public

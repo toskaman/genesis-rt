@@ -28,10 +28,12 @@ What it does:
   rejected, never guessed).
 - **Compile** — deterministic codegen emits QNX C build files: identical
   input always yields byte-identical output with hashed provenance.
-- **Run natively** — five QNX processes: a policy-enforcing guard server
-  (native `MsgReceive`/`MsgReply`), a periodic controller (`MsgSend`, no
-  bypass path), a simulated device endpoint, a `/dev/genesis/status`
-  resource manager, and a supervisor holding sole reset authority.
+- **Run natively** — six QNX processes: a policy-enforcing guard server
+  (native `MsgReceive`/`MsgReply`, live stats endpoint), a periodic
+  controller (`MsgSend`, no bypass path, 2 s guard-call timeout), a
+  simulated device endpoint, a live `/dev/genesis/status` resource
+  manager, a supervisor (bounded RESPAWN, then GIVE_UP halt), and an
+  on-target 9-check fault-injection client.
 - **Break** — an 8-scenario fault lab (stale sensor, over-limit command,
   planner crash, delayed/dropped/corrupted messages, disconnect) with
   explicit oracles and recorded seeds.
@@ -47,9 +49,10 @@ The guard policy is implemented once in C and mirrored in Python, with a
 compiled conformance harness proving identical decisions on every vector.
 
 Honest scope: host fault results are simulated; on-target QNX 8.0/QEMU
-execution is implemented and documented, and passports always report
-`qnx_verified` explicitly. Simulation-only, prototype-grade, no safety
-certification claimed. Judges start at `docs/jury/START_HERE.md`.
+execution is verified (6/6 matrix, 9/9 IPC checks, `qcc` 0 warnings),
+and passports always report `qnx_verified` explicitly. Simulation-only,
+prototype-grade, no safety certification claimed. Judges start at
+`docs/jury/START_HERE.md`.
 
 ## How we use QNX (paste-ready)
 
@@ -72,7 +75,7 @@ git clone https://github.com/toskaman/genesis-rt.git && cd genesis-rt
 pip install pytest pyyaml
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
-python -m pytest tests/ -q   # green + 1 honest QNX skip
+python -m pytest tests/ -q   # green, 127 tests (QNX build runs w/ SDK, else honest skip)
 ```
 
 Open `ui/dashboard.html` and load the passport to inspect every verdict.

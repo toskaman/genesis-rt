@@ -1,13 +1,42 @@
 # Progress log
 
+## 2026-11-04 (later) — P0 Wave B : cible QNX durcie, 6/6 + red-green (`f00f7c0`)
+
+- Guard : vrai `msglen` émetteur (`MsgReceive`+`_msg_info`, BAD_SIZE réel),
+  pulses jamais répondus, endpoint stats (allows/denies/last_reason/
+  last_seq/dropped). Status : requête IPC live par lecture (timeout 2 s).
+  Superviseur : RESPAWN borné (×3, backoff 1/2/4 s) + GIVE_UP avec halt
+  (aucun survivant orphelin). Contrôleur : timeout `TimerTimeout` 2 s,
+  `clock_nanosleep` absolu, remplissage `0xFF` fail-closed. Faultinject :
+  9 checks (bad_version, nan_linear, short_frame).
+- `qcc` : 6 binaires, 0 warning. Matrice on-target 6/6 PASS
+  (target_info, faultinject 9/9, status_live compteurs exacts,
+  controller_flow, supervisor_respawn, supervisor_giveup) →
+  `demo --target-record` verdict PASS `qnx_verified: True`, replay valide.
+- Red-green prouvé : anciens guard/status/supervisor vs nouveaux oracles
+  → 2/6 (faultinject `short_frame reason=7 want 3`, status_live statique,
+  2 étapes superviseur FAIL). Méthode reproductible : restaurer les 3
+  fichiers depuis le commit parent, rebuild, `put`, `verify`.
+- G2/G3/G4 confirmés OUI (cible). Reste : vidéo (fin projet), Devpost.
+
+## 2026-11-04 (later) — P0 Wave A : crédibilité host (`b6787ac`)
+
+- Guard Python fail-closed (OverflowError, limites malformées, parité C),
+  oracles Fault Lab réfutables + tests de sabotage, orchestrateur passeport
+  partiel véridique, API (temp IR par requête, 400, 1 worker, fix 422),
+  dashboard XSS-échappé + re-vérification chaîne en JS pur, IR anti-bool,
+  manifest codegen (digests templates, anti-injection), tests PASS
+  démasqués (17 vecteurs conformance NaN/inf, golden non-vacueux).
+- Suite 127/127 verte, 0 skip. CI verte.
+
 ## 2026-11-04 (later) — vérifié sur vrai QNX 8.0 (QEMU)
 
 - QSTI 0.5.0 booté sous QEMU 11.1 (WHPX, `-cpu host`, boot disque ;
   `-kernel` direct et CPU émulé stallent le loader — documenté).
 - SSH cible OK (`qnxuser`, `QNX qnxqemu 8.0.0 x86_64`) ; 6 binaires natifs
-  transférés et exécutés. Matrice on-target 5/5 : faultinject 6/6 via IPC
-  natif, resmgr lu via `/dev/genesis/status` (root), 60/60 ALLOW à 100 ms,
-  superviseur stable (4 processus), device résident.
+  transférés et exécutés. Matrice on-target 6/6 : faultinject 9/9 via IPC
+  natif, status live via `/dev/genesis/status` (root), 60+ ALLOW à 100 ms,
+  superviseur RESPAWN/GIVE_UP prouvé, device résident.
 - Bugs trouvés PAR la cible et corrigés : `io_read` resmgr (offset/EOF,
   OCB opaque), device qui exitait, attente SSH/exec sans timeout.
 - `qnx_verified: True` de bout en bout : `qnx_target.py verify` →
@@ -21,7 +50,7 @@
 - Corrigés par le vrai `qcc` : include `common/` manquant dans le
   makefile généré (+test de régression), `-lm` requis à l'édition de
   liens, `dispatch_block` QNX8 (contexte alloc), `stdlib.h` manquant.
-- 5 binaires natifs `elf64-x86-64`, zéro warning. Détection SDK auto
+- 6 binaires natifs `elf64-x86-64`, zéro warning. Détection SDK auto
   sans variables d'env (candidats standards + env enfant).
 - Suite complète verte, 0 skip (le test QNX build tourne vraiment).
 - Paquet `com.qnx.qnx800.quickstart.qemu` 0.5.0 installé ; extraction
@@ -56,7 +85,7 @@
 
 - Implemented: Machine IR v1 (schema + strict validator), deterministic
   codegen + templates, guard policy in C and Python with conformance
-  harness, 5 QNX-native processes, simulator, 8-scenario fault lab with
+  harness, 6 QNX-native processes, simulator, 8-scenario fault lab with
   oracles, hash-linked evidence passport, fail-closed gate, orchestrator,
   CLI, optional FastAPI API, static dashboard, examples (AMR + conveyor).
 - Tested: full pytest suite green (unit/property/integration/faults/
@@ -72,14 +101,14 @@
 
 - G0 license/redistribution clean: YES (Apache-2.0, no SDK material in repo)
 - G1 deterministic codegen: YES (tested)
-- G2 QNX native build/run evidenced: PENDING (SDK setup)
-- G3 guard rejects on real target: PENDING (SDK setup; host-proven)
-- G4 QNX-specific sources visible/tested: PARTIAL (sources + host conformance)
+- G2 QNX native build/run evidenced: YES (qcc 0 warnings, 6/6 on-target)
+- G3 guard rejects on real target: YES (9/9 IPC checks incl. BAD_SIZE/NaN)
+- G4 QNX-specific sources visible/tested: YES (msg passing, resmgr, timers, supervision)
 - G5 no-test⇒no-pass: YES (tested)
 - G6 seeded reproducible faults: YES (tested)
 - G7 clock boundaries separated: YES (methodology + code)
 - G8 simulation-only outputs: YES (enforced by IR + validator)
 - G9 hardening basics: PARTIAL (timeouts, argv lists, fuzz-ish property tests)
-- G10 clean-install repro: PENDING (needs independent reviewer + SDK)
+- G10 clean-install repro: PARTIAL (fresh-clone host green; independent reviewer + SDK pending)
 - G11 real demo video <3:00: PENDING
 - G12 README pitch/arch/commands/limitations/FAQ: YES
