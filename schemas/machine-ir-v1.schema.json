@@ -92,7 +92,8 @@
           "items": {
             "enum": ["nominal_navigation", "speed_command_over_limit", "stale_proximity_150ms",
                      "planner_process_crash", "delayed_command", "dropped_message",
-                     "corrupted_message", "simulator_disconnect"]
+                     "corrupted_message", "simulator_disconnect", "belt_jam",
+                     "estop_pressed"]
           }
         }
       }

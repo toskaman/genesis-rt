@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit tests: strict Machine IR validation."""
 import copy
+import json
 
 import pytest
 
-from genesis_rt.ir import IRValidationError, guard_limits, load_ir_file, validate_ir
+from genesis_rt.ir import (IRValidationError, SCENARIO_IDS, guard_limits,
+                           load_ir_file, validate_ir)
 
 
 def test_amr_example_valid_json_and_yaml(repo_root):
@@ -22,6 +24,17 @@ def test_amr_example_valid_json_and_yaml(repo_root):
 def test_conveyor_example_valid(repo_root):
     c = load_ir_file(repo_root / "examples" / "conveyor-demo" / "machine-ir.json")
     assert c["machine"]["kind"] == "conveyor"
+
+
+def test_schema_scenario_enum_matches_registry(repo_root):
+    """The published v1 schema must accept every registered scenario id:
+    adding a scenario without updating the schema breaks the contract."""
+    schema = json.loads((repo_root / "schemas" / "machine-ir-v1.schema.json"
+                         ).read_text(encoding="utf-8"))
+    enum = schema["properties"]["verification"]["properties"][
+        "scenarios"]["items"]["enum"]
+    assert set(enum) == set(SCENARIO_IDS), (
+        set(SCENARIO_IDS) ^ set(enum))
 
 
 def test_rejects_unknown_top_level_key(amr_ir_dict):
