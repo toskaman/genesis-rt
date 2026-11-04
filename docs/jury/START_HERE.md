@@ -25,7 +25,7 @@ Open `ui/dashboard.html`, load the passport, and every verdict links to data.
 python -m pytest tests/ -q
 ```
 
-Expect green (129 tests). With an SDK the QNX build test compiles the
+Expect green (310 tests). With an SDK the QNX build test compiles the
 6 native binaries for real; without one it reports an honest skip —
 never a QNX pass.
 

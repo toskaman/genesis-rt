@@ -1,5 +1,20 @@
 # Progress log
 
+## 2026-11-04 (later) -- Polish final + audit P5 (video/Devpost au user)
+
+- Docs : README (Studio), jury 11/11 + 310 tests, limitations
+  (HAM absent QSTI, UI statique), baseline perf cible, codelab
+  etape 5 (sudo + cleanup + note STALE_SEQ). Secrets : mot de
+  passe cible uniquement via env, aucun secret en historique.
+- P5 : clone frais `C:\tmp` -> 310/310 vert + `validate`/`generate`
+  /`demo` PASS/`replay` valid (meme machine ; relecteur independant
+  hors de portee). Temporaires sous `artifacts/` : gitignore ;
+  `replay` demande un chemin explicite sous PowerShell (pas de glob).
+- Acceptation finale : P0-P3 + codelab + perf + Studio livres et
+  prouves (CI verte). Restent : video demo <3:00 (user, plan dans
+  `docs/demo-video-plan.md`) + soumission Devpost (brouillon dans
+  `docs/devpost-draft.md`, chiffres 11/11 + 310 a jour).
+
 ## 2026-11-04 (later) -- P2 #19b bench perf cible (tier max)
 
 - `faultinject bench N` : N round trips MsgSend nominaux, horloge

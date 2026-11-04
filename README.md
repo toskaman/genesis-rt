@@ -51,7 +51,9 @@ python scripts/run_verified_demo.py
 python scripts/replay.py artifacts/runs/*/passport.json
 ```
 
-Then open `ui/dashboard.html` in a browser and load the passport.
+Then open `ui/studio.html` in a browser (six-tab workspace: IR, generated
+source, trace replay, scenarios, passport, run commands) or
+`ui/dashboard.html` (passport inspector only) and load the passport.
 
 With a QNX SDP 8.0 SDK installed: [docs/quickstart-qnx8-qemu.md](docs/quickstart-qnx8-qemu.md)
 (`scripts/qnx_env_check.py` probes your setup; without an SDK the pipeline
