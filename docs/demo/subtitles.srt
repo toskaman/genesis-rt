@@ -1,0 +1,93 @@
+1
+00:00:00,500 --> 00:00:06,000
+Embedded machines must behave predictably —
+especially when something fails.
+
+2
+00:00:06,000 --> 00:00:12,000
+GENESIS RT turns machine requirements into
+native QNX software, then proves how it behaves
+when things go wrong.
+
+3
+00:00:12,500 --> 00:00:21,000
+Everything starts from a readable contract:
+sensors, actuators, safety limits,
+state transitions.
+
+4
+00:00:21,000 --> 00:00:29,500
+The tooling validates strictly — invalid
+input is rejected, never guessed.
+
+5
+00:00:30,500 --> 00:00:41,000
+One click generates the native QNX controller:
+guard server, periodic controller, device
+endpoint, telemetry, supervisor.
+
+6
+00:00:41,000 --> 00:00:51,500
+Deterministic codegen — the same contract
+always yields byte-identical sources.
+
+7
+00:00:52,500 --> 00:01:03,000
+The controller compiles clean and runs
+natively on QNX 8.0: synchronous message
+passing, process isolation, live telemetry.
+
+8
+00:01:03,000 --> 00:01:14,500
+Sixteen on-target checks pass, and a thousand
+performance samples are recorded for regression.
+
+9
+00:01:15,500 --> 00:01:26,000
+Now we break it on purpose. A seeded fault —
+a stale proximity reading — is injected.
+
+10
+00:01:26,000 --> 00:01:37,500
+The guard denies the unsafe command and the
+machine stops safe. Every run is reproducible
+from its seed.
+
+11
+00:01:38,500 --> 00:01:49,000
+The failure becomes evidence. The twin replays
+the exact trace, and the evidence graph links
+the failed check to its requirement.
+
+12
+00:01:49,000 --> 00:01:59,500
+Cause, not vibes.
+
+13
+00:02:00,500 --> 00:02:12,000
+Change one limit in the contract, and watch
+behavior change on the target: the denied
+probe is now allowed.
+
+14
+00:02:12,000 --> 00:02:24,500
+The limit check fails closed, exactly as
+designed. Before and after, side by side,
+from real campaigns.
+
+15
+00:02:25,500 --> 00:02:34,000
+The evidence passport seals the run:
+hash-chained, replayable without our servers.
+
+16
+00:02:34,000 --> 00:02:42,500
+Modify one byte and replay rejects it.
+Missing proof always fails closed.
+
+17
+00:02:43,500 --> 00:02:55,000
+GENESIS RT: from machine intent to verifiable
+QNX behavior. Specify, compile, run, break,
+prove — with evidence your whole team
+can inspect.

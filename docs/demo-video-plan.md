@@ -15,5 +15,12 @@ retired: pipelines and target ops run from Studio Live since Wave 7/8):
 
 Rules: public YouTube upload, no copyrighted audio, no mockups, editable
 subtitles — if a step is not yet recorded on target, show the host run
-and label it honestly. Full capture/narration/subtitle assets: Wave 8
-Task 14 (this revision only retires the terminal-centric cut).
+and label it honestly.
+
+Wave 10 assets (all in `docs/demo/`): `CAPTURE_PLAN.md` (shot list +
+status), `NARRATION.md`, `subtitles.srt` (timed, editable),
+`SHOT_EVIDENCE.md` (every claim → file/op/command), 3 verified
+1080p screenshots, and `footage-raw-studio-2026-11-05.webm`
+(42 s authentic take: judge A→C + real fault job + BEFORE
+decision + BEFORE/AFTER compare). Voice track + final edit +
+YouTube upload remain an owner handoff.

@@ -41,6 +41,10 @@ What it does:
 - **Prove** — a hash-chained evidence passport plus a fail-closed release
   gate: missing, skipped, crashed or tampered evidence always yields FAIL,
   and a sabotaged revision is proven blocked before the fix passes.
+  One click exports a reviewable evidence dossier (report + raw data +
+  offline verify); the release-decision panel explains every verdict
+  in plain sentences; a before/after view diffs two campaigns side
+  by side.
 
 QNX-specific substance: synchronous native message passing with a fixed
 versioned protocol (magic/version/monotonic sequence/deadlines), a
@@ -62,8 +66,11 @@ every command executed, host blocks CI-enforced).
 
 Honest scope: host fault results are simulated; on-target QNX 8.0/QEMU
 execution is verified (16/16 matrix, 9/9 IPC checks, `qcc` 0 warnings),
-and passports always report `qnx_verified` explicitly. Simulation-only,
-prototype-grade, no safety certification claimed. Judges start at
+and passports always report `qnx_verified` explicitly. A public,
+SDK-free evidence pack (`evidence/qnx8-x86_64-verified-b22cea1/`,
+34 files + independent `verify.py`) lets anyone replay the native
+campaign and its tamper control. Simulation-only, prototype-grade,
+no safety certification claimed. Judges start at
 `docs/jury/START_HERE.md`.
 
 ## How we use QNX (paste-ready)
