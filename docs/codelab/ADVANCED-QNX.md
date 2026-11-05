@@ -368,7 +368,12 @@ the pidfile.
 
 ## Cleanup (host)
 
+Remove the scratch outputs — including the Lab 3 demo run, so a
+later `artifacts/runs/*/passport.json` glob still matches exactly
+one file:
+
 ```sh-harness
+python -c "import json,os,shutil; d=json.load(open(os.environ['CODELAB_TMP']+'/demo.json')); shutil.rmtree('artifacts/runs/'+d['run_id'])"
 rm -rf $CODELAB_TMP/lab-a $CODELAB_TMP/lab-b $CODELAB_TMP/demo.json $CODELAB_TMP/which.txt $CODELAB_TMP/tampered.json $CODELAB_TMP/tamper.log $CODELAB_TMP/guard_vector $CODELAB_TMP/make.log
 ```
 
