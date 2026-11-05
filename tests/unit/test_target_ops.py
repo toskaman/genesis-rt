@@ -215,3 +215,75 @@ def test_failure_after_boot_runs_bounded_cleanup(runner, monkeypatch):
     assert states["wait_ssh"] == "failed"
     assert states["qemu_stop"] == "done"
     assert states["qemu_verify"] == "pending"
+
+
+def test_built_binaries_excludes_sources(tmp_path):
+    gen = tmp_path / "gen"
+    gen.mkdir()
+    (gen / "genesis_guard").write_text("elf", encoding="utf-8")
+    for name in ("genesis_build_gen.mk", "genesis_config_gen.h",
+                 "genesis_machine_gen.c", "other.txt", "README.md"):
+        (gen / name).write_text("x", encoding="utf-8")
+    assert tgt._built_binaries(gen) == [str(gen / "genesis_guard")]
+
+
+def test_wait_ssh_banner_true_and_silent_false():
+    import socket
+    import threading as _th
+
+    def _serve(banner, box, stop):
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+        box["port"] = srv.getsockname()[1]
+        box["ready"].set()
+        srv.settimeout(15)
+        try:
+            conn, _ = srv.accept()
+            with conn:
+                if banner:
+                    conn.sendall(banner)
+                stop.wait(15)
+        except OSError:
+            pass
+        finally:
+            srv.close()
+
+    box, stop = {"ready": _th.Event()}, _th.Event()
+    t = _th.Thread(target=_serve, args=(b"SSH-2.0-test\r\n", box, stop),
+                   daemon=True)
+    t.start()
+    assert box["ready"].wait(timeout=10)
+    try:
+        assert tgt._wait_ssh_banner(box["port"], 10) is True
+    finally:
+        stop.set()
+        t.join(timeout=10)
+
+    box2, stop2 = {"ready": _th.Event()}, _th.Event()
+    t2 = _th.Thread(target=_serve, args=(None, box2, stop2), daemon=True)
+    t2.start()
+    assert box2["ready"].wait(timeout=10)
+    try:
+        t0 = time.monotonic()
+        assert tgt._wait_ssh_banner(box2["port"], 3) is False
+        assert time.monotonic() - t0 < 10
+    finally:
+        stop2.set()
+        t2.join(timeout=10)
+
+
+def test_step_stdout_captured_on_failure(runner, monkeypatch):
+    def _loud_fail(ctx):
+        print("X-DIAG-789 unique-failure-marker")
+        return (False, "boom")
+
+    monkeypatch.setitem(tgt.STEP_IMPLS, "validate", _loud_fail)
+    for name in ("env", "generate", "build"):
+        monkeypatch.setitem(tgt.STEP_IMPLS, name, _stub_ok(name))
+    rec = runner.start("build-only", params={"ir": {}})
+    final = _poll_state(runner, rec["op_id"])
+    assert final["state"] == "FAILED"
+    assert "boom" in final["reason"]
+    assert "X-DIAG-789 unique-failure-marker" in final["reason"]

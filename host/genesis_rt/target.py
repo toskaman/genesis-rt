@@ -20,6 +20,8 @@ land in Task 3b (SEALING/REPLAYING states already reserved).
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import logging
 import re
@@ -154,6 +156,13 @@ def _validate_params(steps: list[str], params: dict[str, Any]) -> dict[str, Any]
 
 def _is_int(v: Any, lo: int, hi: int) -> bool:
     return isinstance(v, int) and not isinstance(v, bool) and lo <= v <= hi
+
+
+def _with_tail(detail: str, buf: io.StringIO, limit: int = 400) -> str:
+    tail = buf.getvalue()[-limit:].strip()
+    if tail:
+        return f"{detail}\n--- step output tail ---\n{tail}"
+    return detail
 
 
 # -- runner -----------------------------------------------------------
@@ -383,8 +392,13 @@ class TargetRunner:
                 if target_state is not None:
                     self._set_state(op_id, target_state)
                 self._set_step(op_id, name, "running", "")
+                # Capture the step's stdout: cmd_* diagnostics land in the
+                # record on failure instead of only the server log. Safe in
+                # practice: one live op, and pipeline logging uses stderr.
+                buf = io.StringIO()
                 try:
-                    ok, detail = impls[name](ctx)
+                    with contextlib.redirect_stdout(buf):
+                        ok, detail = impls[name](ctx)
                 except TargetBlocked as exc:
                     self._set_step(op_id, name, "blocked", str(exc))
                     self._finish(op_id, "BLOCKED", str(exc))
@@ -395,10 +409,12 @@ class TargetRunner:
                     return
                 except Exception as exc:  # noqa: BLE001 — step fault → FAILED
                     detail = f"{type(exc).__name__}: {exc}"
+                    detail = _with_tail(detail, buf)
                     self._set_step(op_id, name, "failed", detail)
                     self._finish(op_id, "FAILED", detail)
                     return
                 if not ok:
+                    detail = _with_tail(detail, buf)
                     self._set_step(op_id, name, "failed", detail)
                     self._finish(op_id, "FAILED", detail)
                     return
@@ -496,6 +512,15 @@ def _step_generate(ctx: dict[str, Any]) -> tuple[bool, str]:
     return True, f"{len(files)} files, ir {sha[:12]}"
 
 
+_GEN_SRC_SUFFIXES = {".mk", ".h", ".c"}
+
+
+def _built_binaries(gen_dir: Path) -> list[str]:
+    """QNX target binaries: genesis_* files that are not build sources."""
+    return sorted(str(p) for p in gen_dir.glob("genesis_*")
+                  if p.is_file() and p.suffix not in _GEN_SRC_SUFFIXES)
+
+
 def _step_build(ctx: dict[str, Any]) -> tuple[bool, str]:
     from .build_adapter import build_qnx
     gen_dir = ctx["artifacts"].get("gen_dir")
@@ -504,7 +529,7 @@ def _step_build(ctx: dict[str, Any]) -> tuple[bool, str]:
     rec = build_qnx(gen_dir, timeout=int(ctx["params"].get("build_timeout", 600)))
     if rec.get("status") == "blocked":
         raise TargetBlocked("QNX SDK missing at build time")
-    bins = sorted(str(p) for p in Path(gen_dir).glob("genesis_*") if p.is_file())
+    bins = _built_binaries(Path(gen_dir))
     ctx["artifacts"]["binaries"] = bins
     if rec.get("status") != "ok":
         slim = {k: v for k, v in rec.items() if isinstance(v, (str, int, bool))}
@@ -554,15 +579,44 @@ def _step_qemu_boot(ctx: dict[str, Any]) -> tuple[bool, str]:
     return True, f"QEMU pid {proc.pid} alive"
 
 
+def _wait_ssh_banner(port: int, budget_s: float) -> bool:
+    """True when an SSH banner arrives before the budget expires.
+
+    A bare TCP connect is not readiness (QEMU user-net accepts while the
+    guest is still booting). Sequential single-connection probes only.
+    """
+    import socket
+    deadline = time.monotonic() + budget_s
+    while time.monotonic() < deadline:
+        try:
+            sock = socket.create_connection(("127.0.0.1", port), timeout=5)
+        except OSError:
+            time.sleep(2)
+            continue
+        try:
+            remaining = max(0.5, min(5.0, deadline - time.monotonic()))
+            sock.settimeout(remaining)
+            banner = sock.recv(64)
+        except OSError:
+            banner = b""
+        finally:
+            try:
+                sock.close()
+            except OSError:
+                pass
+        if banner.startswith(b"SSH-"):
+            return True
+        time.sleep(5)
+    return False
+
+
 def _step_wait_ssh(ctx: dict[str, Any]) -> tuple[bool, str]:
-    qt = _qt()
     params = ctx["params"]
-    rc = qt.cmd_wait_ssh(argparse.Namespace(
-        ssh_port=int(params.get("ssh_port", 2222)),
-        wait=int(params.get("wait", 300))))
-    if rc != 0:
-        return False, "ssh port never opened (see op params wait/ssh_port)"
-    return True, "ssh port open"
+    port = int(params.get("ssh_port", 2222))
+    wait = int(params.get("wait", 300))
+    if _wait_ssh_banner(port, wait):
+        return True, f"ssh banner on port {port}"
+    return False, f"no ssh banner after {wait}s (guest sshd not up?)"
 
 
 def _step_qemu_put(ctx: dict[str, Any]) -> tuple[bool, str]:
