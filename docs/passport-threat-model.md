@@ -90,7 +90,19 @@ SSH with invented uname/cksum.
 - **platform pin**: only `qnx8_x86_64_qemu` records feed QNX tiers today.
   Numbers measured under QEMU/TCG are reproducibility data, not hardware
   timing guarantees.
-- **matrix pin**: exactly the 12 known checks, in order. A renamed,
+- **build set (provenance v2, multi-build)**: the matrix also runs
+  executables the pipeline under test did not build (`genesis_guard_conv`
+  from a conveyor IR build, `genesis_guard_v2` from an AMR IR v2 build).
+  Each one must be registered in a build set derived from the passport of
+  the build that produced it (`scripts/build_set.py`), and every staged
+  executable must belong to exactly one build. Refused: unattributed or
+  ambiguous executables, staged bytes that differ from the registered
+  build, wrong machine kind / schema version / source binary, an entry
+  reusing the primary build id or one build id for two IRs, a required
+  secondary missing. `scripts/replay.py --source-passport` re-derives each
+  entry from its source passport. Cost: a campaign needs the passports of
+  every build it stages. See `docs/multi-build-provenance.md`.
+- **matrix pin**: exactly the 14 known checks, in order. A renamed,
   dropped, or extra check fails closed.
 - **perf binding**: same staged rendezvous + window + platform, plus
   nearest-rank percentiles (no interpolation — reported values are always
@@ -105,7 +117,11 @@ SSH with invented uname/cksum.
    `GENESIS_TARGET_PASSWORD` env var.
 4. TCG timing numbers must never be quoted as hardware real-time bounds.
 5. Legacy records without provenance cap at `QNX_EXECUTED`, never FAIL —
-   a compatibility floor, not a finding.
+   a compatibility floor, not a finding. Provenance v1 records that stage
+   executables from other builds (every matrix run before 5 Nov 2026) are
+   capped the same way under provenance v2: they are never upgraded.
+6. A build-set entry is only as trustworthy as its source passport; an
+   operator who forges a whole source passport is A3 (undefeated).
 
 ## 6. Verify it yourself
 
