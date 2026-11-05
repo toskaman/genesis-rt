@@ -65,6 +65,7 @@ ol.phases li.pass { color:var(--ok); border-color:var(--ok); }
 <code>http://127.0.0.1:8077/</code>). Source, Twin, Lab, Passport, Diff
 and Run keep working on local files with no backend.</p>
 <div class="tabs" role="tablist">
+<button role="tab" aria-selected="false" data-tab="judge">Judge</button>
 <button role="tab" aria-selected="true" data-tab="projects">Projects</button>
 <button role="tab" aria-selected="false" data-tab="designer">Designer</button>
 <button role="tab" aria-selected="false" data-tab="source">Source</button>
@@ -77,6 +78,14 @@ and Run keep working on local files with no backend.</p>
 <button role="tab" aria-selected="false" data-tab="evidence">Evidence</button>
 <button role="tab" aria-selected="false" data-tab="run">Run</button>
 </div>
+
+<section class="tabpage" id="tab-judge" role="tabpanel">
+<h2>Judge Mode — guided tour</h2>
+<p class="note">Seven stages, each driving the real product below.
+LIVE runs against the backend now; ARCHIVED shows the committed
+sample while the backend is offline.</p>
+<div id="judge-out"><p class="note">Loading…</p></div>
+</section>
 
 <section class="tabpage active" id="tab-projects" role="tabpanel">
 <h2>Projects</h2>
@@ -803,7 +812,81 @@ function renderStatusHtml(online, env) {
   return '<div class="banner">Backend <span class="pass">live</span> · ' + sdk +
     ' · ' + qemu + ' <span class="note">(native build ' +
     (e.sdk_present ? 'available' : 'unavailable — host pipeline only') +
-    '; target runs stay on the CLI in this milestone)</span></div>';
+    '; target runs via the Target tab (needs SDK+QEMU))</span></div>';
+}
+
+/* -- Judge Mode (pure core, node-tested) --
+ * Seven guided stages; every action drives the real product (tab
+ * navigation or a live backend call). No mock runs, no inert buttons:
+ * with the backend offline the actions disable and the banner names
+ * the archived sample instead. */
+function judgeStages() {
+  return [
+    { id: 'machine', title: 'A · The machine', tab: 'designer',
+      action: 'judge-open-example',
+      proves: 'The virtual industrial cell: sensors, actuators, safety limits.',
+      source: 'examples/amr-demo/machine-ir.json' },
+    { id: 'software', title: 'B · The generated QNX software', tab: 'source',
+      action: 'judge-open-source',
+      proves: 'Real generated C and the native IPC architecture.',
+      source: 'target/qnx8 + generated build files' },
+    { id: 'failure', title: 'C · The failure', tab: 'pipeline',
+      action: 'judge-run-fault',
+      proves: 'A real reproducible fault run (host simulation, labeled).',
+      source: 'POST /jobs (scenario stale_proximity_150ms)' },
+    { id: 'diagnosis', title: 'D · The diagnosis', tab: 'evidence',
+      action: 'judge-open-evidence',
+      proves: 'Twin trace and Evidence Graph explain the failure.',
+      source: 'job passport' },
+    { id: 'correction', title: 'E · The correction', tab: 'designer',
+      action: 'judge-open-designer',
+      proves: 'A bounded, validated specification change.',
+      source: 'PUT /projects/{pid}' },
+    { id: 'verification', title: 'F · The verification', tab: 'pipeline',
+      action: 'judge-run-verify',
+      proves: 'Rerun plus independent replay: did the fix work?',
+      source: 'POST /jobs + replay' },
+    { id: 'value', title: 'G · The value', tab: 'passport',
+      action: 'judge-open-dossier',
+      proves: 'Release eligibility and an exportable evidence dossier.',
+      source: 'passport + gate verdict' },
+  ];
+}
+function judgeClamp(idx) {
+  const n = judgeStages().length;
+  if (!(idx >= 0)) return 0;
+  return idx >= n ? n - 1 : idx;
+}
+function renderJudgeHtml(idx, st) {
+  const stages = judgeStages();
+  const i = judgeClamp(idx);
+  const online = !!(st && st.online);
+  let h = '<ol class="phases">';
+  for (let k = 0; k < stages.length; k++) {
+    const mark = k < i ? 'done' : (k === i ? 'active' : 'todo');
+    h += '<li class="' + (k < i ? 'pass' : '') + '">' +
+      esc(stages[k].title) + ' · ' + mark + '</li>';
+  }
+  h += '</ol>';
+  const s = stages[i];
+  h += '<h3>' + esc(s.title) + ' <span class="note">[' +
+    (online ? 'LIVE' : 'ARCHIVED') + ']</span></h3>';
+  h += '<p>' + esc(s.proves) + '</p>';
+  h += '<p class="note">source: <code>' + esc(s.source) + '</code></p>';
+  const status = (st && st.note) || (online ? 'Ready.' :
+    'Backend offline: actions disabled. Archived sample run-d10a0b458552 ' +
+    '(PASS host, qnx_verified false, 8/8 scenarios) — ' +
+    'artifacts/samples/golden_demo_passport.example.json.');
+  h += '<div class="banner" role="status">' + esc(status) + '</div>';
+  h += '<div class="row">';
+  h += '<button class="ghost" data-jnav="prev"' +
+    (i === 0 ? ' disabled' : '') + '>Prev</button>';
+  h += '<button class="act" data-jaction="' + esc(s.action) + '"' +
+    (online ? '' : ' disabled') + '>' + esc(s.title) + '</button>';
+  h += '<button class="ghost" data-jnav="next"' +
+    (i === stages.length - 1 ? ' disabled' : '') + '>Next</button>';
+  h += '</div>';
+  return h;
 }
 
 function renderProjectsHtml(projects) {
@@ -1514,6 +1597,7 @@ function onTabSwitch(name) {
   if (typeof Live !== 'undefined' && Live && Live.es && name !== 'pipeline') Live.closeStream();
   if (typeof Live !== 'undefined' && Live && Live.closeTargetStream && name !== 'target') Live.closeTargetStream();
   if (name !== 'twin' && typeof stopTwin === 'function') stopTwin();
+  if (name === 'judge' && typeof renderJudge === 'function') renderJudge();
 }
 document.getElementById('irfile').addEventListener('change', async (e) => {
   const f = e.target.files[0]; if (!f) return;
@@ -2992,6 +3076,88 @@ function wireExplorer() {
   el('cx-replay').addEventListener('click', cxReplay);
 }
 
+/* -- Judge Mode (wiring; DOM + backend) -- */
+function renderJudge() {
+  const st = (typeof Live !== 'undefined' && Live.judge) || { idx: 0 };
+  st.online = (typeof Live !== 'undefined' && Live.online) || false;
+  el('judge-out').innerHTML = renderJudgeHtml(st.idx, st);
+}
+function judgeSetIdx(d) {
+  Live.judge.idx = judgeClamp(Live.judge.idx + d);
+  renderJudge();
+}
+function judgeNote(text) {
+  Live.judge.note = text;
+  renderJudge();
+}
+function judgeGotoDesignerWithExample() {
+  switchTab('designer');
+  try {
+    const sel = el('des-example');
+    const opt = Array.prototype.find.call(sel.options || [],
+      (o) => o.value.indexOf('amr-demo|') === 0);
+    if (opt) {
+      sel.value = opt.value;
+      sel.dispatchEvent(new Event('change'));
+      return 'AMR cell opened in the Designer (live).';
+    }
+  } catch (e) { /* fall through to plain navigation */ }
+  return 'Designer opened (pick the amr-demo example).';
+}
+async function judgeRunJob(scenarios, label) {
+  const got = await api('/examples/amr-demo/machine-ir.json');
+  const body = { ir: got.ir };
+  if (scenarios) body.scenarios = scenarios;
+  const job = await postJson('/jobs', body);
+  Live.jobId = job.job_id;
+  Live.jobEvents = [];
+  storeSet('studio.job', job.job_id);
+  switchTab('pipeline');
+  openJob(job.job_id);
+  return label + ' started live: ' + job.job_id + ' (watch the Pipeline tab).';
+}
+async function judgeAction(action) {
+  try {
+    if (action === 'judge-open-example') {
+      judgeNote(judgeGotoDesignerWithExample());
+    } else if (action === 'judge-open-source') {
+      switchTab('source');
+      judgeNote('Source tab opened: inspect the generated build files.');
+    } else if (action === 'judge-run-fault') {
+      judgeNote(await judgeRunJob(['stale_proximity_150ms'], 'Fault run'));
+    } else if (action === 'judge-open-evidence') {
+      switchTab('evidence');
+      judgeNote('Evidence tab opened: load the job passport to diagnose.');
+    } else if (action === 'judge-open-designer') {
+      switchTab('designer');
+      judgeNote('Designer opened: edit a limit, validate, save a revision.');
+    } else if (action === 'judge-run-verify') {
+      judgeNote(await judgeRunJob(null, 'Verification rerun'));
+    } else if (action === 'judge-open-dossier') {
+      switchTab('passport');
+      judgeNote('Passport tab opened: inspect verdicts, export the dossier.');
+    } else {
+      judgeNote('Unknown judge action: ' + action);
+    }
+  } catch (e) {
+    judgeNote('Action failed: ' + ((e && e.message) || e));
+  }
+}
+function wireJudge() {
+  if (!Live.judge) Live.judge = { idx: 0, note: '' };
+  renderJudge();
+  el('judge-out').addEventListener('click', (e) => {
+    const nav = e.target.closest ? e.target.closest('button[data-jnav]') : null;
+    if (nav && !nav.disabled) {
+      judgeSetIdx(nav.dataset.jnav === 'next' ? 1 : -1);
+      return;
+    }
+    const b = e.target.closest ? e.target.closest('button[data-jaction]') : null;
+    if (!b || b.disabled) return;
+    judgeAction(b.dataset.jaction);
+  });
+}
+
 /* -- boot ---------------- */
 function wireLive() {
   el('projects-out').addEventListener('click', async (e) => {
@@ -3107,6 +3273,7 @@ function wireLive() {
   el('pipe-refresh').addEventListener('click', refreshHistory);
   wireEvidence();
   wireExplorer();
+  wireJudge();
   if (typeof window !== 'undefined' && window.addEventListener) {
     window.addEventListener('beforeunload', () => Live.closeStream());
   }
@@ -3134,8 +3301,9 @@ async function refreshLive() {
     el('graph-out').innerHTML = '<p class="note">Backend offline.</p>';
   }
   try {
-    const tabs = ['projects', 'designer', 'source', 'pipeline', 'twin',
-                  'lab', 'passport', 'diff', 'evidence', 'run'];
+    const tabs = ['judge', 'projects', 'designer', 'source', 'pipeline',
+                  'target', 'twin', 'lab', 'passport', 'diff', 'evidence',
+                  'run'];
     const t = storeGet('studio.tab');
     if (t && tabs.indexOf(t) >= 0) switchTab(t);
   } catch (e) { /* never break boot on restore */ }
