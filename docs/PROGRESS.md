@@ -22,6 +22,10 @@
   A→G in headless Chromium against live uvicorn (2 real host jobs,
   release banner, zero console/HTTP errors) + target-tab check; CI
   installs Chromium and runs it (no new skips).
+- §12 native before/after: IR 1.2→1.6 → new digest, new binary
+  (4b76cc1c→b65afcb4), banner 1.600, probe 1.5 flips DENY→ALLOW,
+  15/16, op FAILED at verify, nothing sealed (fail-closed).
+  AFTER = op-df9b3668e5f7. Doc: `docs/jury/BEFORE_AFTER_NATIVE.md`.
 - F6 dossier export: `GET /target/ops/{id}/dossier` ZIP (report.html
   + manifest + raw evidence + VERIFY.md) + one-click Studio button;
   fail-closed verdict display, secret redaction, 25 MiB cap. 11 tests.
