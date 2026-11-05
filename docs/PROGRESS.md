@@ -1,5 +1,19 @@
 # Progress log
 
+## 2026-11-05 -- Wave 9 §25: red-team round 1 (replay swap fixed)
+
+- Attack A1 (evidence swap at replay) SUCCEEDED pre-fix: `_step_replay`
+  never bound the file to the op, so a valid foreign passport with
+  a matching verdict replayed as ours. Fixed: replay requires
+  `run_id == op_id` and `ir_sha256 == sealed sha`. Failing-first
+  tests kept (`test_replay_rejects_foreign_op_passport`,
+  `test_replay_rejects_ir_mismatch`); real SDK seal→replay path
+  still green.
+- Report `docs/audits/RED_TEAM_ROUND1.md`: all 19 §25 items mapped
+  (18 HOLD with pinning tests, 1 FIXED), 2 accepted residuals
+  (point-in-time evidence, unsealed server-side op records).
+- Suite 838/838 green, 0 skips (CI on push).
+
 ## 2026-11-05 -- Wave 9 Phase 2: Judge Mode + Decision link + bench repro
 
 - Judge Mode (@f1954a5): guided 7-stage tab (A machine → G value),

@@ -327,13 +327,13 @@ def test_seal_refuses_without_build_record(tmp_path, amr_ir):
     assert "no qnx build record" in detail
 
 
-def _sealed_passport(tmp_path, amr_ir):
+def _sealed_passport(tmp_path, amr_ir, run_id="op-seal-test"):
     from genesis_rt import evidence as ev
     from genesis_rt import gate
     from genesis_rt.projects import validate_any
     _, valid = validate_any(amr_ir)
     manifest = {"ir_sha256": "0" * 64, "files": []}
-    passport = ev.build_passport("op-x", valid, manifest, [],
+    passport = ev.build_passport(run_id, valid, manifest, [],
                                  None, None, None, None)
     verdict = gate.evaluate(passport, [])
     ev.attach_verdict(passport, verdict)
@@ -346,10 +346,36 @@ def test_replay_accepts_sealed_passport(tmp_path, amr_ir):
     ppath, verdict = _sealed_passport(tmp_path, amr_ir)
     ctx = _seal_ctx(tmp_path, amr_ir,
                     {"passport": str(ppath), "wanted": [],
-                     "verdict": verdict["verdict"]})
+                     "verdict": verdict["verdict"],
+                     "ir_sha256": "0" * 64})
     ok, detail = tgt._step_replay(ctx)
     assert ok is True, detail
     assert ctx["artifacts"]["replay"]["verdict"] == verdict["verdict"]
+
+
+def test_replay_rejects_foreign_op_passport(tmp_path, amr_ir):
+    # Red-team: a VALID passport sealed for another op (same verdict)
+    # swapped onto this op's path must not replay as ours.
+    ppath, verdict = _sealed_passport(tmp_path, amr_ir,
+                                      run_id="op-aaaaaaaaaaaa")
+    ctx = _seal_ctx(tmp_path, amr_ir,
+                    {"passport": str(ppath), "wanted": [],
+                     "verdict": verdict["verdict"],
+                     "ir_sha256": "0" * 64})
+    ok, detail = tgt._step_replay(ctx)
+    assert ok is False, detail
+    assert "op-aaaaaaaaaaaa" in detail or "run_id" in detail
+
+
+def test_replay_rejects_ir_mismatch(tmp_path, amr_ir):
+    ppath, verdict = _sealed_passport(tmp_path, amr_ir)
+    ctx = _seal_ctx(tmp_path, amr_ir,
+                    {"passport": str(ppath), "wanted": [],
+                     "verdict": verdict["verdict"],
+                     "ir_sha256": "f" * 64})
+    ok, detail = tgt._step_replay(ctx)
+    assert ok is False, detail
+    assert "ir_sha256" in detail
 
 
 def test_replay_rejects_tampered_passport(tmp_path, amr_ir):

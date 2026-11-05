@@ -854,6 +854,19 @@ def _step_replay(ctx: dict[str, Any]) -> tuple[bool, str]:
         passport = load_passport(ppath)
     except Exception as exc:
         return False, f"replay refused: {exc}"
+    # Bind the file to THIS op: a valid passport sealed for another
+    # op (or another IR) swapped onto our path must not replay as
+    # ours, even when its verdict string happens to match.
+    if passport.get("run_id") != ctx["op_id"]:
+        return False, (f"replay refused: passport run_id "
+                       f"{passport.get('run_id')!r} != op {ctx['op_id']}")
+    ir_blocks = [r.get("body", {}) for r in passport.get("chain", [])
+                 if isinstance(r, dict) and r.get("kind") == "ir"]
+    sealed_sha = ctx["artifacts"].get("ir_sha256")
+    if not ir_blocks or ir_blocks[0].get("ir_sha256") != sealed_sha:
+        return False, ("replay refused: passport ir_sha256 "
+                       f"{ir_blocks[0].get('ir_sha256') if ir_blocks else None!r} "
+                       f"!= sealed {sealed_sha!r}")
     errors = verify_chain(passport)
     if errors:
         return False, f"chain invalid: {errors[0]}"
