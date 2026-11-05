@@ -1,5 +1,18 @@
 # Progress log
 
+## 2026-11-05 -- Wave 9 §17: competitive landscape & buyer dossier
+
+- `docs/business/COMPETITIVE_LANDSCAPE.md`: source-backed vendor
+  notes (QNX Tool Suite, Simulink/ECoder, SCADE/TargetLink,
+  Parasoft/LDRA/VectorCAST/Coco, Jama/Codebeamer/Polarion/DOORS,
+  RapiTime), 10-dimension assessment matrix, 3 buyer personas,
+  adoption/integration/pricing hypotheses (all labeled),
+  pilot-partner criteria (no invented names), 5 PMF risks with
+  kill criteria. Consistent with COMMERCIAL_VISION §4
+  (complementary framing, no unmeasured superiority).
+- Falsifiable claims spot-checked (simulation_only gate,
+  Apache-2.0/no-CLA, suite counts); docs guard 6/6.
+
 ## 2026-11-05 -- Wave 9 §20: advanced QNX codelab + anti-rot harness
 
 - `docs/codelab/ADVANCED-QNX.md`: 6 labs (guard microscope incl.

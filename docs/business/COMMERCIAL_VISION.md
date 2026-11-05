@@ -86,6 +86,10 @@ generate code — it generates independently replayable evidence about
 the behavior of the code. None of the tools above ship a
 contract→target→replay loop in one Apache-2.0 package.
 
+Deep dive (Wave 9 §17): `COMPETITIVE_LANDSCAPE.md` — sourced
+vendor notes, 10-dimension matrix, buyer personas, integration
+roadmap, pricing hypotheses, pilot-partner criteria, PMF risks.
+
 ## 5. QNX advantage
 
 - The product exercises what makes QNX QNX: microkernel message
