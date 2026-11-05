@@ -10,6 +10,7 @@ only committed example IR files or validated uploads are accepted.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -37,6 +38,21 @@ if BaseModel is not None:
         run_a: str
         run_b: str
 
+    class ValidateRequest(BaseModel):
+        ir: dict[str, Any]
+
+    class ProjectCreate(BaseModel):
+        name: str | None = None
+        from_example: str | None = None
+        from_file: str | None = None
+        ir: dict[str, Any] | None = None
+
+    class ProjectUpdate(BaseModel):
+        ir: dict[str, Any]
+
+    class ProjectDuplicate(BaseModel):
+        name: str
+
 else:  # pragma: no cover - import-time fallback without the api extra
     RunRequest = None  # type: ignore[assignment, misc]
     CompareRequest = None  # type: ignore[assignment, misc]
@@ -51,6 +67,14 @@ MAX_SCENARIOS = 32
 # the API re-checks early for 400 mapping, run_pipeline enforces it.
 from .jobs import JobConflict, JobManager, JobNotFound
 from .orchestrator import MAX_RUN_ID_LEN, valid_run_id as _valid_run_id
+
+# Studio Live: committed example files openable as projects (allowlist;
+# the intentionally-broken cell fixture is excluded from listings).
+EXAMPLE_FILES: dict[str, tuple[str, ...]] = {
+    "amr-demo": ("machine-ir.json", "machine-ir-v2.json"),
+    "conveyor-demo": ("machine-ir.json", "machine-ir-v2.json"),
+    "cell-demo": ("cell-ir.json",),
+}
 
 
 def _db(path: Path) -> sqlite3.Connection:
@@ -80,7 +104,8 @@ def _loopback_origin(origin: str) -> bool:
 def create_app() -> Any:
     try:
         from fastapi import FastAPI, Header, HTTPException, Request  # type: ignore[import-not-found]
-        from fastapi.responses import (JSONResponse,  # type: ignore[import-not-found]
+        from fastapi.responses import (FileResponse,  # type: ignore[import-not-found]
+                                       JSONResponse,
                                        StreamingResponse)
     except ImportError as exc:
         raise RuntimeError("API extra missing: pip install -e '.[api]'") from exc
@@ -89,13 +114,17 @@ def create_app() -> Any:
 
     from contextlib import asynccontextmanager
 
+    from .build_adapter import probe as probe_env
     from .compare import compare_runs
     from .ir import IRValidationError, SCENARIO_IDS, validate_ir
     from .ir_v2 import validate_v2
     from .orchestrator import active_runs, request_cancel
+    from .projects import (ProjectFull, ProjectNotFound, ProjectStore,
+                           summarize, validate_any, valid_project_id)
 
     db_path = ARTIFACTS / "runs.db"
     mgr = JobManager(db_path, ARTIFACTS)
+    store = ProjectStore(ARTIFACTS.parent / "studio" / "projects")
 
     @asynccontextmanager
     async def _lifespan(app: Any) -> Any:
@@ -404,5 +433,228 @@ def create_app() -> Any:
 
         return StreamingResponse(_stream(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache"})
+
+    _GEN_SUFFIXES = (".h", ".c", ".mk")
+    _GEN_NAME = re.compile(r"genesis_[A-Za-z0-9_.\-]+")
+    _GEN_MAX_BYTES = 512 * 1024
+
+    def _job_gen_dir(job_id: str) -> Path:
+        if not _valid_run_id(job_id):
+            raise HTTPException(400, "invalid job id")
+        rec = mgr.get(job_id)
+        if rec is None:
+            raise HTTPException(404, "unknown job")
+        if not rec["run_dir"]:
+            raise HTTPException(409, "job has no artifacts yet")
+        candidate = (Path(rec["run_dir"]) / "generated").resolve()
+        base = ARTIFACTS.resolve()
+        if base not in candidate.parents and candidate != base:
+            raise HTTPException(409, "job dir escapes artifacts")
+        if not candidate.is_dir():
+            raise HTTPException(409, "generated sources not on disk")
+        return candidate
+
+    @app.get("/jobs/{job_id}/files")
+    def list_job_files(job_id: str) -> JSONResponse:
+        gen_dir = _job_gen_dir(job_id)
+        files = []
+        for child in sorted(gen_dir.iterdir(), key=lambda p: p.name):
+            if (child.is_file() and _GEN_NAME.fullmatch(child.name)
+                    and child.suffix in _GEN_SUFFIXES):
+                files.append({"name": child.name,
+                              "bytes": child.stat().st_size})
+        return JSONResponse({"job_id": job_id, "files": files})
+
+    @app.get("/jobs/{job_id}/files/{name}")
+    def read_job_file(job_id: str, name: str) -> JSONResponse:
+        gen_dir = _job_gen_dir(job_id)
+        if not _GEN_NAME.fullmatch(name) or Path(name).suffix not in _GEN_SUFFIXES:
+            raise HTTPException(400, "invalid file name")
+        target = (gen_dir / name).resolve()
+        if gen_dir != target.parent:
+            raise HTTPException(400, "invalid file name")
+        if not target.is_file():
+            raise HTTPException(404, "unknown file")
+        size = target.stat().st_size
+        if size > _GEN_MAX_BYTES:
+            raise HTTPException(409, f"file too large to preview ({size} bytes)")
+        try:
+            text = target.read_text(encoding="utf-8")
+        except (OSError, ValueError) as exc:
+            raise HTTPException(409, f"file unreadable: {exc}") from exc
+        return JSONResponse({"job_id": job_id, "name": name, "text": text})
+
+    # -- Studio Live: examples, validation, projects, env, static --
+    def _example_doc(example: str, file: str) -> dict[str, Any]:
+        if example not in EXAMPLE_FILES or file not in EXAMPLE_FILES[example]:
+            raise HTTPException(400, "unknown example file")
+        candidate = (REPO_ROOT / "examples" / example / file).resolve()
+        if REPO_ROOT / "examples" not in candidate.parents:
+            raise HTTPException(400, "invalid example name")
+        try:
+            return json.loads(candidate.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise HTTPException(409, f"example unreadable: {exc}") from exc
+
+    @app.get("/examples")
+    def list_examples() -> JSONResponse:
+        out = []
+        for example, files in EXAMPLE_FILES.items():
+            entries = []
+            for file in files:
+                try:
+                    doc = _example_doc(example, file)
+                    version, valid = validate_any(doc)
+                    entries.append({"file": file, "ok": True,
+                                    "summary": summarize(version, valid)})
+                except (HTTPException, IRValidationError) as exc:
+                    entries.append({"file": file, "ok": False,
+                                    "error": str(exc)})
+            out.append({"example": example, "files": entries})
+        return JSONResponse({"examples": out})
+
+    @app.post("/validate")
+    def validate_payload(req: ValidateRequest) -> JSONResponse:
+        raw = json.dumps(req.ir).encode("utf-8")
+        if len(raw) > MAX_IR_BYTES:
+            raise HTTPException(400, "IR payload too large")
+        try:
+            version, valid = validate_any(req.ir)
+        except IRValidationError as exc:
+            raise HTTPException(400, f"invalid IR: {exc}") from exc
+        return JSONResponse({"ok": True, "summary": summarize(version, valid)})
+
+    def _project_or_404(pid: str) -> str:
+        if not valid_project_id(pid):
+            raise HTTPException(400, "invalid project id")
+        return pid
+
+    @app.post("/projects", status_code=201)
+    def create_project(req: ProjectCreate) -> JSONResponse:
+        sources = [req.ir is not None, req.from_example is not None]
+        if sum(sources) != 1:
+            raise HTTPException(400, "provide exactly one of 'ir', 'from_example'")
+        if req.from_file is not None and req.from_example is None:
+            raise HTTPException(400, "'from_file' needs 'from_example'")
+        try:
+            if req.ir is not None:
+                doc = req.ir
+            else:
+                assert req.from_example is not None
+                if req.from_example not in EXAMPLE_FILES:
+                    raise HTTPException(404, "unknown example")
+                fname = req.from_file or EXAMPLE_FILES[req.from_example][0]
+                doc = _example_doc(req.from_example, fname)
+            name = req.name
+            if name is None:
+                try:
+                    _, valid = validate_any(doc)
+                    name = valid.get("machine", {}).get("id") or req.from_example or "untitled"
+                except IRValidationError:
+                    name = req.from_example or "untitled"
+            created = store.create(name, doc)
+        except ProjectNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except IRValidationError as exc:
+            raise HTTPException(400, f"invalid IR: {exc}") from exc
+        except ValueError as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        return JSONResponse(created, status_code=201)
+
+    @app.get("/projects")
+    def list_projects() -> JSONResponse:
+        return JSONResponse({"projects": store.list()})
+
+    @app.get("/projects/{pid}")
+    def get_project(pid: str) -> JSONResponse:
+        try:
+            return JSONResponse(store.get(_project_or_404(pid)))
+        except ProjectNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @app.put("/projects/{pid}")
+    def save_project(pid: str, req: ProjectUpdate) -> JSONResponse:
+        try:
+            return JSONResponse(store.save_revision(_project_or_404(pid), req.ir))
+        except ProjectNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except IRValidationError as exc:
+            raise HTTPException(400, f"invalid IR: {exc}") from exc
+        except ProjectFull as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+
+    @app.post("/projects/{pid}/duplicate", status_code=201)
+    def duplicate_project(pid: str, req: ProjectDuplicate) -> JSONResponse:
+        try:
+            created = store.duplicate(_project_or_404(pid), req.name)
+        except ProjectNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except (ValueError, IRValidationError) as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        return JSONResponse(created, status_code=201)
+
+    @app.get("/projects/{pid}/history")
+    def project_history(pid: str) -> JSONResponse:
+        try:
+            return JSONResponse({"revisions": store.history(_project_or_404(pid))})
+        except ProjectNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @app.get("/projects/{pid}/revisions/{rev}")
+    def project_revision(pid: str, rev: int) -> JSONResponse:
+        try:
+            return JSONResponse(store.revision(_project_or_404(pid), rev))
+        except ProjectNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @app.get("/projects/{pid}/diff")
+    def project_diff(pid: str, rev_from: int = 1, rev_to: int = 0) -> JSONResponse:
+        try:
+            head = store.get(_project_or_404(pid))["head"]
+            diff = store.diff(pid, rev_from, rev_to or head)
+        except ProjectNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+        return JSONResponse(diff)
+
+    @app.get("/projects/{pid}/export")
+    def export_project(pid: str) -> JSONResponse:
+        try:
+            bundle = store.export(_project_or_404(pid))
+        except ProjectNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+        return JSONResponse(
+            bundle, headers={"Content-Disposition":
+                             f"attachment; filename={pid}.genesis-project.json"})
+
+    @app.get("/env")
+    def read_env() -> JSONResponse:
+        return JSONResponse({"api": "0.2.0", "environment": probe_env()})
+
+    _UI_FILES = {"studio.html": "text/html",
+                 "dashboard.html": "text/html",
+                 "genesis_verify.js": "text/javascript"}
+
+    def _ui_file(name: str) -> FileResponse:
+        return FileResponse(REPO_ROOT / "ui" / name,
+                            media_type=_UI_FILES[name],
+                            headers={"Cache-Control": "no-cache"})
+
+    @app.get("/")
+    def _index() -> FileResponse:
+        return _ui_file("studio.html")
+
+    @app.get("/studio.html")
+    def _studio() -> FileResponse:
+        return _ui_file("studio.html")
+
+    @app.get("/dashboard.html")
+    def _dashboard() -> FileResponse:
+        return _ui_file("dashboard.html")
+
+    @app.get("/genesis_verify.js")
+    def _verify_js() -> FileResponse:
+        return _ui_file("genesis_verify.js")
 
     return app

@@ -256,3 +256,51 @@ def test_get_active_run_reports_202(client, amr_ir_dict, monkeypatch):
     r = client.get("/runs/run-live-1")
     assert r.status_code == 202
     assert r.json() == {"run_id": "run-live-1", "status": "active"}
+
+
+def test_job_files_list_and_read(client, amr_ir_dict):
+    r = client.post("/runs", json={"ir": amr_ir_dict, "run_id": "run-files-1",
+                                   "scenarios": ["nominal_navigation"]})
+    assert r.status_code == 200
+    r = client.get("/jobs/run-files-1/files")
+    assert r.status_code == 200
+    names = {f["name"] for f in r.json()["files"]}
+    assert {"genesis_config_gen.h", "genesis_build_gen.mk"} <= names
+    r = client.get("/jobs/run-files-1/files/genesis_config_gen.h")
+    assert r.status_code == 200
+    assert "amr-demo-01" in r.json()["text"]  # provenance header
+    r = client.get("/jobs/run-files-1/files/genesis_build_gen.mk")
+    assert r.status_code == 200 and len(r.json()["text"]) > 100
+
+
+def test_job_files_errors(client):
+    assert client.get("/jobs/run-ghost/files").status_code == 404
+    r = client.get("/jobs/run-ghost/files/genesis_config_gen.h")
+    assert r.status_code == 404
+    r = client.post("/runs", json={"example": "amr-demo",
+                                   "run_id": "run-files-2",
+                                   "scenarios": ["nominal_navigation"]})
+    assert r.status_code == 200
+    assert client.get("/jobs/run-files-2/files/foo.txt").status_code == 400
+    assert client.get("/jobs/run-files-2/files/genesis_evil.exe").status_code == 400
+    assert client.get("/jobs/run-files-2/files/genesis_missing.h").status_code == 404
+
+
+def test_async_job_passport_opens_via_runs_export(client, amr_ir_dict):
+    import time
+
+    r = client.post("/jobs", json={"ir": amr_ir_dict, "run_id": "run-async-pp",
+                                   "scenarios": ["nominal_navigation"]})
+    assert r.status_code == 202
+    state = None
+    for _ in range(120):
+        rec = client.get("/jobs/run-async-pp").json()
+        state = rec["state"]
+        if state == "succeeded":
+            break
+        assert state in ("queued", "running"), rec
+        time.sleep(1)
+    assert state == "succeeded", state
+    exp = client.get("/runs/run-async-pp/export")
+    assert exp.status_code == 200
+    assert exp.json()["run_id"] == "run-async-pp"
