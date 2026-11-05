@@ -35,7 +35,7 @@ def _stub_ok(name):
 
 
 def _stub_all(monkeypatch):
-    for name in ("validate", "env", "generate", "build"):
+    for name in ("validate", "env", "generate", "build", "seal", "replay"):
         monkeypatch.setitem(tgt.STEP_IMPLS, name, _stub_ok(name))
 
 
@@ -45,7 +45,7 @@ def test_op_lifecycle_stub_steps(runner, monkeypatch):
     assert rec["state"] == "PENDING"
     final = _poll_state(runner, rec["op_id"])
     assert final["state"] == "COMPLETED"
-    assert [s["state"] for s in final["steps"]] == ["done"] * 4
+    assert [s["state"] for s in final["steps"]] == ["done"] * 6
     evts = runner.events(rec["op_id"])
     assert [e["seq"] for e in evts] == list(range(len(evts)))
     assert evts[0]["kind"] == "op_started"
@@ -74,7 +74,7 @@ def test_duplicate_live_op_rejected(runner, monkeypatch):
         return (True, "slow ok")
 
     monkeypatch.setitem(tgt.STEP_IMPLS, "validate", _slow)
-    for name in ("env", "generate", "build"):
+    for name in ("env", "generate", "build", "seal", "replay"):
         monkeypatch.setitem(tgt.STEP_IMPLS, name, _stub_ok(name))
     rec = runner.start("build-only", params={"ir": {}})
     assert started.wait(timeout=10)
@@ -134,6 +134,7 @@ def test_blocked_step_skips_rest(runner, monkeypatch):
     assert final["state"] == "BLOCKED"
     assert "SDK" in final["reason"]
     assert [s["state"] for s in final["steps"]] == ["done", "blocked",
+                                                   "pending", "pending",
                                                    "pending", "pending"]
 
 
@@ -299,3 +300,65 @@ def test_step_stdout_captured_on_failure(runner, monkeypatch):
     assert final["state"] == "FAILED"
     assert "boom" in final["reason"]
     assert "X-DIAG-789 unique-failure-marker" in final["reason"]
+
+
+def _seal_ctx(tmp_path, amr_ir, artifacts=None, params=None):
+    work = tmp_path / "w"
+    work.mkdir(exist_ok=True)
+    return {"op_id": "op-seal-test",
+            "params": {"ir": amr_ir, **(params or {})},
+            "work_dir": str(work),
+            "artifacts": dict(artifacts or {})}
+
+
+def test_seal_refuses_without_gen_manifest(tmp_path, amr_ir):
+    ok, detail = tgt._step_seal(_seal_ctx(tmp_path, amr_ir))
+    assert ok is False
+    assert "no gen manifest" in detail
+
+
+def test_seal_refuses_without_build_record(tmp_path, amr_ir):
+    man = tmp_path / "w" / "manifest.json"
+    man.parent.mkdir(exist_ok=True)
+    man.write_text(json.dumps({"ir_sha256": "abc"}), encoding="utf-8")
+    ctx = _seal_ctx(tmp_path, amr_ir, {"gen_manifest": str(man)})
+    ok, detail = tgt._step_seal(ctx)
+    assert ok is False
+    assert "no qnx build record" in detail
+
+
+def _sealed_passport(tmp_path, amr_ir):
+    from genesis_rt import evidence as ev
+    from genesis_rt import gate
+    from genesis_rt.projects import validate_any
+    _, valid = validate_any(amr_ir)
+    manifest = {"ir_sha256": "0" * 64, "files": []}
+    passport = ev.build_passport("op-x", valid, manifest, [],
+                                 None, None, None, None)
+    verdict = gate.evaluate(passport, [])
+    ev.attach_verdict(passport, verdict)
+    ppath = tmp_path / "passport.json"
+    ev.save_passport(passport, ppath)
+    return ppath, verdict
+
+
+def test_replay_accepts_sealed_passport(tmp_path, amr_ir):
+    ppath, verdict = _sealed_passport(tmp_path, amr_ir)
+    ctx = _seal_ctx(tmp_path, amr_ir,
+                    {"passport": str(ppath), "wanted": [],
+                     "verdict": verdict["verdict"]})
+    ok, detail = tgt._step_replay(ctx)
+    assert ok is True, detail
+    assert ctx["artifacts"]["replay"]["verdict"] == verdict["verdict"]
+
+
+def test_replay_rejects_tampered_passport(tmp_path, amr_ir):
+    ppath, verdict = _sealed_passport(tmp_path, amr_ir)
+    doc = json.loads(ppath.read_text(encoding="utf-8"))
+    doc["chain"][2]["body"]["status"] = "ok"  # flip build body, keep JSON valid
+    ppath.write_text(json.dumps(doc), encoding="utf-8")
+    ctx = _seal_ctx(tmp_path, amr_ir,
+                    {"passport": str(ppath), "wanted": [],
+                     "verdict": verdict["verdict"]})
+    ok, detail = tgt._step_replay(ctx)
+    assert ok is False, detail

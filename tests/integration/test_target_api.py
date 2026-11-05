@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+from pathlib import Path
 
 import pytest
 
@@ -42,7 +43,7 @@ def _poll_op(cli, op_id, timeout=30):
 
 
 def _stub_all(monkeypatch):
-    for name in ("validate", "env", "generate", "build"):
+    for name in ("validate", "env", "generate", "build", "seal", "replay"):
         monkeypatch.setitem(tgt_mod.STEP_IMPLS, name,
                             lambda ctx, n=name: (True, f"{n} stub ok"))
 
@@ -87,7 +88,7 @@ def test_target_duplicate_live_409(client, monkeypatch):
         return (True, "slow ok")
 
     monkeypatch.setitem(tgt_mod.STEP_IMPLS, "validate", _slow)
-    for name in ("env", "generate", "build"):
+    for name in ("env", "generate", "build", "seal", "replay"):
         monkeypatch.setitem(tgt_mod.STEP_IMPLS, name,
                             lambda ctx: (True, "stub ok"))
     try:
@@ -142,7 +143,7 @@ def test_target_blocked_never_pass(client, monkeypatch):
     assert "PASS" not in json.dumps(rec)
 
 
-def test_build_only_op_real_build(client, amr_ir):
+def test_build_only_op_real_build_seal_replay(client, amr_ir, tmp_path):
     from genesis_rt.build_adapter import probe
     if not probe()["sdk_present"]:
         pytest.skip("QNX SDK not installed (honest skip, not a pass)")
@@ -152,3 +153,8 @@ def test_build_only_op_real_build(client, amr_ir):
     rec = _poll_op(client, r.json()["op_id"], timeout=300)
     assert rec["state"] == "COMPLETED", rec
     assert rec["artifacts"].get("binaries"), rec["artifacts"]
+    passport = Path(rec["artifacts"]["passport"])
+    assert passport.is_file()
+    assert rec["artifacts"]["verdict"] == "PASS"
+    assert rec["artifacts"]["qnx_verified"] is False  # host-only op
+    assert "replay" in json.dumps(rec["artifacts"])

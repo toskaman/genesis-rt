@@ -48,13 +48,15 @@ STEP_STATE: dict[str, str | None] = {
     "qemu_verify": "VERIFYING",
     "qemu_perf": "MEASURING",
     "qemu_stop": None,  # teardown: tracked step, no state transition
+    "seal": "SEALING",
+    "replay": "REPLAYING",
 }
 
 WORKFLOWS: dict[str, list[str]] = {
     "full": ["validate", "env", "generate", "build", "probe_image",
              "qemu_boot", "wait_ssh", "qemu_put", "qemu_verify",
-             "qemu_perf", "qemu_stop"],
-    "build-only": ["validate", "env", "generate", "build"],
+             "qemu_perf", "qemu_stop", "seal", "replay"],
+    "build-only": ["validate", "env", "generate", "build", "seal", "replay"],
     "verify-only": ["env", "probe_image", "qemu_boot", "wait_ssh",
                     "qemu_verify", "qemu_stop"],
 }
@@ -102,8 +104,9 @@ def _qt() -> Any:
 
 # -- params -----------------------------------------------------------
 def _validate_params(steps: list[str], params: dict[str, Any]) -> dict[str, Any]:
-    allowed = {"ir", "build_timeout", "image_dir", "memory", "accel", "cpu",
-               "ssh_port", "user", "wait", "src", "samples", "build_set"}
+    allowed = {"ir", "scenarios", "build_timeout", "image_dir", "memory",
+               "accel", "cpu", "ssh_port", "user", "wait", "src", "samples",
+               "build_set"}
     unknown = sorted(set(params) - allowed)
     if unknown:
         raise TargetOpError(f"unknown op params: {unknown}")
@@ -142,6 +145,11 @@ def _validate_params(steps: list[str], params: dict[str, Any]) -> dict[str, Any]
         raise TargetOpError("param 'samples' must be 10..100000")
     if "build_set" in out and not Path(out["build_set"]).is_file():
         raise TargetOpError(f"param 'build_set' missing file: {out['build_set']!r}")
+    if "scenarios" in out:
+        sc = out["scenarios"]
+        if (not isinstance(sc, list) or not sc
+                or any(not isinstance(s, str) or not s for s in sc)):
+            raise TargetOpError("param 'scenarios' must be a non-empty string list")
     need_ir = {"validate", "generate"} & set(steps)
     if need_ir and "ir" not in out:
         raise TargetOpError(f"steps {sorted(need_ir)} require param 'ir'")
@@ -516,7 +524,11 @@ def _step_generate(ctx: dict[str, Any]) -> tuple[bool, str]:
         return False, f"codegen failed: {exc}"
     files = manifest.get("files", [])
     sha = str(manifest.get("ir_sha256", "?"))
+    manifest_path = Path(ctx["work_dir"]) / "gen-manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True),
+                             encoding="utf-8")
     ctx["artifacts"]["gen_dir"] = str(out)
+    ctx["artifacts"]["gen_manifest"] = str(manifest_path)
     ctx["artifacts"]["ir_sha256"] = sha
     return True, f"{len(files)} files, ir {sha[:12]}"
 
@@ -538,6 +550,10 @@ def _step_build(ctx: dict[str, Any]) -> tuple[bool, str]:
     rec = build_qnx(gen_dir, timeout=int(ctx["params"].get("build_timeout", 600)))
     if rec.get("status") == "blocked":
         raise TargetBlocked("QNX SDK missing at build time")
+    build_rec_path = Path(ctx["work_dir"]) / "qnx-build-record.json"
+    build_rec_path.write_text(json.dumps(rec, indent=2, sort_keys=True, default=str),
+                              encoding="utf-8")
+    ctx["artifacts"]["qnx_build_record"] = str(build_rec_path)
     bins = _built_binaries(Path(gen_dir))
     ctx["artifacts"]["binaries"] = bins
     if rec.get("status") != "ok":
@@ -730,6 +746,91 @@ def _step_qemu_stop(ctx: dict[str, Any]) -> tuple[bool, str]:
     return True, f"QEMU pid {pid} stopped"
 
 
+def _step_seal(ctx: dict[str, Any]) -> tuple[bool, str]:
+    """Seal an Evidence Passport: host sims + build + target records + gate.
+
+    Mirrors run_pipeline's seal recipe (faultlab sims, build_passport,
+    gate verdict, never a vacuous PASS). A gate FAIL fails the op: a
+    COMPLETED op always carries a PASS passport.
+    """
+    from . import faultlab
+    from .evidence import attach_verdict, build_passport, save_passport
+    from .gate import evaluate
+    from .projects import validate_any
+    params = ctx["params"]
+    work = Path(ctx["work_dir"])
+    try:
+        _, valid = validate_any(params["ir"])
+    except Exception as exc:
+        return False, f"invalid IR at seal: {exc}"
+    # Refuse before running sims: seal requires generate+build artifacts.
+    manifest_path = Path(ctx["artifacts"].get("gen_manifest", ""))
+    if not manifest_path.is_file():
+        return False, "no gen manifest (generate step did not run?)"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    build_rec_path = ctx["artifacts"].get("qnx_build_record")
+    if not build_rec_path or not Path(build_rec_path).is_file():
+        return False, "no qnx build record (build step did not run?)"
+    build_rec = json.loads(Path(build_rec_path).read_text(encoding="utf-8"))
+    wanted = params.get("scenarios") or list(valid["verification"]["scenarios"])
+    try:
+        results = faultlab.run_all(valid, wanted)
+    except Exception as exc:
+        return False, f"host sims failed: {exc}"
+    target_rec = None
+    target_rec_path = work / "target" / "qnx-target-record.json"
+    if target_rec_path.is_file():
+        target_rec = json.loads(target_rec_path.read_text(encoding="utf-8"))
+    perf_rec = None
+    perf_rec_path = work / "perf" / "qnx-perf-record.json"
+    if perf_rec_path.is_file():
+        perf_rec = json.loads(perf_rec_path.read_text(encoding="utf-8"))
+    try:
+        passport = build_passport(ctx["op_id"], valid, manifest, results,
+                                  build_rec, target_rec, None, perf_rec)
+    except Exception as exc:
+        return False, f"passport build failed: {exc}"
+    verdict = evaluate(passport, wanted)
+    attach_verdict(passport, verdict)
+    passport_path = work / "passport.json"
+    save_passport(passport, passport_path)
+    ctx["artifacts"]["passport"] = str(passport_path)
+    ctx["artifacts"]["verdict"] = verdict["verdict"]
+    ctx["artifacts"]["wanted"] = wanted
+    ctx["artifacts"]["qnx_verified"] = verdict["qnx_verified"]
+    if verdict["verdict"] != "PASS":
+        top = "; ".join(verdict.get("reasons", [])[:3])
+        return False, f"gate FAIL: {top}"
+    return True, (f"sealed PASS (qnx_verified={verdict['qnx_verified']}, "
+                   f"{len(wanted)} scenarios)")
+
+
+def _step_replay(ctx: dict[str, Any]) -> tuple[bool, str]:
+    """Independent replay: recompute chain + gate from the sealed file."""
+    from .evidence import load_passport, verify_chain
+    from .gate import evaluate
+    ppath = ctx["artifacts"].get("passport")
+    if not ppath or not Path(ppath).is_file():
+        return False, "no sealed passport (seal step did not run?)"
+    try:
+        passport = load_passport(ppath)
+    except Exception as exc:
+        return False, f"replay refused: {exc}"
+    errors = verify_chain(passport)
+    if errors:
+        return False, f"chain invalid: {errors[0]}"
+    wanted = ctx["artifacts"].get("wanted", [])
+    verdict = evaluate(passport, wanted)
+    sealed = ctx["artifacts"].get("verdict")
+    if verdict["verdict"] != sealed:
+        return False, (f"replay verdict {verdict['verdict']} differs from "
+                       f"sealed {sealed}")
+    ctx["artifacts"]["replay"] = {"verdict": verdict["verdict"],
+                                  "qnx_verified": verdict["qnx_verified"]}
+    return True, (f"replay matches ({verdict['verdict']}, "
+                   f"qnx_verified={verdict['qnx_verified']})")
+
+
 STEP_IMPLS: dict[str, StepFn] = {
     "validate": _step_validate,
     "env": _step_env,
@@ -742,4 +843,6 @@ STEP_IMPLS: dict[str, StepFn] = {
     "qemu_verify": _step_qemu_verify,
     "qemu_perf": _step_qemu_perf,
     "qemu_stop": _step_qemu_stop,
+    "seal": _step_seal,
+    "replay": _step_replay,
 }
