@@ -1084,6 +1084,11 @@ function renderTargetHtml(opId, reduced, record) {
   const state = rec.state || reduced.state;
   let h = '<div class="banner">op <code>' + esc(opId) + '</code> · state <b>' +
     esc(state) + '</b> · phase <code>' + esc(reduced.phase) + '</code></div>';
+  if (reduced.state !== 'active' && opId) {
+    h += '<p><a id="top-dossier" href="/target/ops/' +
+      encodeURIComponent(opId) + '/dossier">Export dossier (.zip)</a> ' +
+      '<span class="note">portable report + evidence + offline verify</span></p>';
+  }
   if (state === 'BLOCKED' || state === 'FAILED') {
     h += '<div class="banner"><span class="fail">' +
       esc(rec.reason || 'see log') + '</span></div>';

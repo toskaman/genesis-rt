@@ -137,3 +137,22 @@ def test_tab_chrome_present():
                "renderTargetOpsHtml", "targetRun", "openTargetOp",
                "openTargetStream", "refreshTargetHistory"):
         assert f"function {fn}(" in html
+
+
+@node
+def test_html_dossier_link_only_when_settled(tmp_path):
+    settled = json.dumps({
+        "id": "op-abc123def456",
+        "events": [{"seq": 0, "kind": "op_started", "message": "x"},
+                   {"seq": 1, "kind": "op_completed", "message": "done"}],
+        "record": {"op_id": "op-abc123def456", "state": "COMPLETED"}})
+    active = json.dumps({
+        "id": "op-abc123def456",
+        "events": [{"seq": 0, "kind": "op_started", "message": "x"}],
+        "record": {"op_id": "op-abc123def456", "state": "EXECUTING"}})
+    (done_html, live_html) = _run_js([{"fn": "tophtml", "arg": settled},
+                                      {"fn": "tophtml", "arg": active}],
+                                     tmp_path)
+    assert 'id="top-dossier"' in done_html
+    assert "/target/ops/op-abc123def456/dossier" in done_html
+    assert "top-dossier" not in live_html

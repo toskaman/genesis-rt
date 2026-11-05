@@ -595,6 +595,22 @@ def create_app() -> Any:
             raise HTTPException(404, "unknown op")
         return JSONResponse(rec)
 
+    @app.get("/target/ops/{op_id}/dossier")
+    def get_target_dossier(op_id: str) -> Any:
+        from fastapi.responses import Response  # type: ignore[import-not-found]
+
+        from .dossier import DossierError, build_dossier_zip
+        if not valid_op_id(op_id):
+            raise HTTPException(400, "invalid op id")
+        try:
+            blob = build_dossier_zip(trunner.ops_dir, op_id, ARTIFACTS)
+        except DossierError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+        return Response(
+            content=blob, media_type="application/zip",
+            headers={"Content-Disposition":
+                     f"attachment; filename=dossier-{op_id}.zip"})
+
     @app.delete("/target/ops/{op_id}")
     def cancel_target_op(op_id: str) -> JSONResponse:
         if not valid_op_id(op_id):
