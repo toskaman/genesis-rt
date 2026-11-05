@@ -40,6 +40,14 @@ def test_examples_lists_committed_files(client):
     assert cell["cell-ir.json"]["ok"] is True
 
 
+def test_read_example_raw(client):
+    r = client.get("/examples/amr-demo/machine-ir.json")
+    assert r.status_code == 200
+    assert r.json()["ir"]["machine"]["id"] == "amr-demo-01"
+    assert client.get("/examples/amr-demo/cell-ir-broken.json").status_code == 400
+    assert client.get("/examples/nope/machine-ir.json").status_code == 400
+
+
 def test_validate_ok_and_invalid(client, amr_ir_dict):
     r = client.post("/validate", json={"ir": amr_ir_dict})
     assert r.status_code == 200

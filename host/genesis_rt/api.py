@@ -304,6 +304,24 @@ def create_app() -> Any:
             headers={"Content-Disposition":
                      f"attachment; filename={run_id}.passport.json"})
 
+    @app.get("/runs/{run_id}/passport/raw")
+    def raw_passport(run_id: str) -> Any:
+        from fastapi.responses import Response  # type: ignore[import-not-found]
+
+        if not _valid_run_id(run_id):
+            raise HTTPException(400, "invalid run id")
+        conn = _db(db_path)
+        try:
+            row = conn.execute("SELECT passport FROM runs WHERE run_id=?",
+                               (run_id,)).fetchone()
+        finally:
+            conn.close()
+        if row is None:
+            raise HTTPException(404, "unknown run")
+        # Exact stored bytes (not re-serialized): browser chain
+        # re-verification is literal-sensitive by design.
+        return Response(content=row[0], media_type="application/json")
+
     @app.post("/compare")
     def compare_stored(req: CompareRequest) -> JSONResponse:
         for rid in (req.run_a, req.run_b):
@@ -512,6 +530,11 @@ def create_app() -> Any:
                                     "error": str(exc)})
             out.append({"example": example, "files": entries})
         return JSONResponse({"examples": out})
+
+    @app.get("/examples/{example}/{file}")
+    def read_example(example: str, file: str) -> JSONResponse:
+        return JSONResponse({"example": example, "file": file,
+                             "ir": _example_doc(example, file)})
 
     @app.post("/validate")
     def validate_payload(req: ValidateRequest) -> JSONResponse:

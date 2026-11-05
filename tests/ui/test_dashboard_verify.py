@@ -64,6 +64,21 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
       return { n: t.events.length, headLen: t.headLen, truncated: t.truncated,
                kind: t.kind, keys: t.events.length ? Object.keys(t.events[0]).sort() : [] };
     }
+    if (c.fn === 'status') { const j = JSON.parse(c.arg); return renderStatusHtml(j.online, j.env); }
+    if (c.fn === 'projects') return renderProjectsHtml(JSON.parse(c.arg));
+    if (c.fn === 'history') return renderHistoryHtml(JSON.parse(c.arg));
+    if (c.fn === 'irdiff') return renderIrDiffHtml(JSON.parse(c.arg));
+    if (c.fn === 'stategraph') return stateGraphSvg(JSON.parse(c.arg));
+    if (c.fn === 'summary') return renderSummaryHtml(JSON.parse(c.arg));
+    if (c.fn === 'jobreduce') {
+      const r = reduceJobEvents(JSON.parse(c.arg));
+      return { state: r.state, phase: r.phase, verdict: r.verdict,
+               n: r.log.length, lastSeq: r.lastSeq };
+    }
+    if (c.fn === 'jobhtml') { const j = JSON.parse(c.arg); return renderJobHtml(j.id, reduceJobEvents(j.events), j.error || null); }
+    if (c.fn === 'jobs') return renderJobsHtml(JSON.parse(c.arg));
+    if (c.fn === 'keyerr') return keyFromError(c.arg);
+    if (c.fn === 'scen') return renderScenarioChecks(JSON.parse(c.arg));
     throw new Error('unknown fn ' + c.fn);
   });
   fs.writeFileSync(process.argv[3], JSON.stringify(out));
@@ -289,3 +304,153 @@ def test_noncanonical_number_literal_invalid_in_js(amr_ir, tmp_path):
     assert evidence.verify_chain(json.loads(touched)) == []
     got = _run_js([{"fn": "verify", "arg": touched}], tmp_path)
     assert len(got[0]) > 0
+
+
+# -- Studio Live pure core (node) -------------------------------------
+
+
+@node
+def test_live_status_online_offline(tmp_path):
+    (off,) = _run_js([{"fn": "status",
+                       "arg": json.dumps({"online": False, "env": None})}],
+                     tmp_path)
+    assert "offline" in off and "serve" in off
+    env = {"api": "0.2.0",
+           "environment": {"sdk_present": True,
+                           "qemu": {"present": False}}}
+    (on,) = _run_js([{"fn": "status",
+                       "arg": json.dumps({"online": True, "env": env})}],
+                     tmp_path)
+    assert "live" in on and "SDK" in on and "no QEMU" in on
+
+
+@node
+def test_live_projects_and_escape(tmp_path):
+    (empty,) = _run_js([{"fn": "projects", "arg": "[]"}], tmp_path)
+    assert "No projects yet" in empty
+    rows = [{"pid": "prj-abcdef012345", "name": "<script>x</script>",
+             "machine": "amr-demo-01", "schema_version": 1, "head": 2}]
+    (got,) = _run_js([{"fn": "projects", "arg": json.dumps(rows)}], tmp_path)
+    assert "<script>" not in got and "&lt;script&gt;" in got
+    assert "prj-abcdef012345" in got and "amr-demo-01" in got
+
+
+@node
+def test_live_history_and_irdiff(tmp_path):
+    from genesis_rt.projects import ir_diff
+
+    revs = [{"rev": 1, "machine": "amr-demo-01", "ir_sha256": "a" * 64},
+            {"rev": 2, "machine": "amr-demo-01", "ir_sha256": "b" * 64}]
+    (hist,) = _run_js([{"fn": "history", "arg": json.dumps(revs)}], tmp_path)
+    assert "r1" in hist and "r2" in hist and "a" * 16 in hist
+    diff = ir_diff({"control": {"v": 1.2}, "gone": 1},
+                   {"control": {"v": 0.9}, "new": 2})
+    diff["from"], diff["to"] = 1, 2
+    (got,) = _run_js([{"fn": "irdiff", "arg": json.dumps(diff)}], tmp_path)
+    assert "control.v" in got and "GONE" not in got
+    assert "removed" in got and "added" in got and "changed" in got
+    same = {"from": 1, "to": 1, "changed": [], "truncated": False}
+    (got,) = _run_js([{"fn": "irdiff", "arg": json.dumps(same)}], tmp_path)
+    assert "identical" in got
+
+
+def _v2_summary(repo_root):
+    from genesis_rt.ir_v2 import load_ir_v2_file
+    from genesis_rt.projects import summarize
+
+    v2 = load_ir_v2_file(repo_root / "examples" / "amr-demo"
+                         / "machine-ir-v2.json")
+    return summarize(2, v2)
+
+
+@node
+def test_live_state_graph_v2(repo_root, tmp_path):
+    summary = _v2_summary(repo_root)
+    (svg,) = _run_js([{"fn": "stategraph", "arg": json.dumps(summary)}],
+                     tmp_path)
+    assert svg.count('data-state=') == 3
+    assert "init" in svg and "safe_stop" in svg
+    assert 'class="node init"' in svg and 'class="node safe"' in svg
+    assert "start" in svg  # transition event label
+    (fallback,) = _run_js([{"fn": "stategraph",
+                            "arg": json.dumps({"states": []})}],
+                          tmp_path)
+    assert "No state machine" in fallback and "<svg" not in fallback
+
+
+@node
+def test_live_summary_renders_backend_facts(repo_root, tmp_path):
+    summary = _v2_summary(repo_root)
+    (got,) = _run_js([{"fn": "summary", "arg": json.dumps(summary)}],
+                     tmp_path)
+    assert "amr-demo-01" in got and "schema" in got
+    assert "states / transitions" in got
+    assert "stale_sensor" in got  # fault responses
+    assert summary["ir_sha256"][:16] in got
+
+
+@node
+def test_live_job_reducer_dedupes_and_reads_verdict(tmp_path):
+    events = [
+        {"job_id": "j", "seq": 0, "kind": "queued", "message": "job accepted"},
+        {"job_id": "j", "seq": 1, "kind": "started", "message": "worker picked up job"},
+        {"job_id": "j", "seq": 1, "kind": "started", "message": "worker picked up job"},
+        {"job_id": "j", "seq": 2, "kind": "validated", "message": "machine=x"},
+        {"job_id": "j", "seq": 3, "kind": "verdict", "message": "verdict=PASS level=1"},
+        {"job_id": "j", "seq": 4, "kind": "done", "message": "verdict=PASS"},
+        {"not": "an event"},
+    ]
+    (got,) = _run_js([{"fn": "jobreduce", "arg": json.dumps(events)}],
+                     tmp_path)
+    assert got == {"state": "succeeded", "phase": "succeeded",
+                   "verdict": "PASS", "n": 5, "lastSeq": 4}
+    mid = [{"job_id": "j", "seq": 0, "kind": "queued", "message": "q"},
+           {"job_id": "j", "seq": 2, "kind": "generated", "message": "status=ok"}]
+    (got,) = _run_js([{"fn": "jobreduce", "arg": json.dumps(mid)}], tmp_path)
+    assert (got["state"], got["phase"]) == ("active", "generated")
+
+
+@node
+def test_live_job_html_paints_verdict_and_error(tmp_path):
+    events = [{"job_id": "j", "seq": 0, "kind": "queued", "message": "q"}]
+    payload = {"id": "run-1", "events": events, "error": None}
+    (got,) = _run_js([{"fn": "jobhtml", "arg": json.dumps(payload)}],
+                     tmp_path)
+    assert "run-1" in got and "queued" in got
+    assert "aria-live" in got  # progress announced to screen readers
+    failed = {"id": "run-2", "events": events, "error": "boom <b>"}
+    (got,) = _run_js([{"fn": "jobhtml", "arg": json.dumps(failed)}],
+                     tmp_path)
+    assert "boom &lt;b&gt;" in got and "boom <b>" not in got
+
+
+@node
+def test_live_jobs_list_and_empty(tmp_path):
+    (empty,) = _run_js([{"fn": "jobs", "arg": "[]"}], tmp_path)
+    assert "No runs yet" in empty
+    rows = [{"job_id": "run-a", "state": "succeeded", "verdict": "PASS"},
+            {"job_id": "run-b", "state": "running", "verdict": None}]
+    (got,) = _run_js([{"fn": "jobs", "arg": json.dumps(rows)}], tmp_path)
+    assert "run-a" in got and "run-b" in got and "PASS" in got
+
+
+@node
+def test_live_key_from_error(tmp_path):
+    calls = [
+        {"fn": "keyerr",
+         "arg": "invalid IR: control.max_linear_speed_mps must be a number"},
+        {"fn": "keyerr", "arg": "ir-v2: $.states[2]: unknown state 'x'"},
+        {"fn": "keyerr", "arg": "something went wrong"},
+    ]
+    got = _run_js(calls, tmp_path)
+    assert got == ["max_linear_speed_mps", "states", None]
+
+
+@node
+def test_live_scenario_checks(tmp_path):
+    (got,) = _run_js([{"fn": "scen",
+                       "arg": json.dumps(["nominal_navigation", "dropped>x"])}],
+                     tmp_path)
+    assert got.count('checked') == 2 and "dropped&gt;x" in got
+    (empty,) = _run_js([{"fn": "scen", "arg": "[]"}], tmp_path)
+    assert "No scenarios" in empty

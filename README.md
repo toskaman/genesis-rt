@@ -57,9 +57,12 @@ python scripts/run_verified_demo.py
 python scripts/replay.py artifacts/runs/*/passport.json
 ```
 
-Then open `ui/studio.html` in a browser (seven-tab workspace: IR, generated
-source, trace replay, scenarios, passport, passport diff, run commands) or
-`ui/dashboard.html` (passport inspector only) and load the passport.
+Then start the live workbench (`PYTHONPATH=host python -m genesis_rt.cli
+serve`) and open http://127.0.0.1:8077/ — Studio Live: projects with
+revision history, a Machine IR designer with state graphs, and an SSE
+pipeline runner (validate → generate → run → passport → diff), plus the
+trace/passport/diff inspectors. `ui/dashboard.html` stays a dependency-free
+passport inspector that also works straight from disk.
 
 With a QNX SDP 8.0 SDK installed: [docs/quickstart-qnx8-qemu.md](docs/quickstart-qnx8-qemu.md)
 (`scripts/qnx_env_check.py` probes your setup; without an SDK the pipeline

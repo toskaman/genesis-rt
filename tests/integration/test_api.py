@@ -286,6 +286,23 @@ def test_job_files_errors(client):
     assert client.get("/jobs/run-files-2/files/genesis_missing.h").status_code == 404
 
 
+def test_raw_passport_serves_exact_stored_bytes(client, amr_ir_dict, tmp_path):
+    import json as _json
+
+    from genesis_rt import evidence as _evidence
+
+    r = client.post("/runs", json={"ir": amr_ir_dict, "run_id": "run-raw-1",
+                                   "scenarios": ["nominal_navigation"]})
+    assert r.status_code == 200
+    raw = client.get("/runs/run-raw-1/passport/raw")
+    assert raw.status_code == 200
+    on_disk = (tmp_path / "artifacts" / "run-raw-1" / "passport.json"
+               ).read_text(encoding="utf-8")
+    assert raw.text == on_disk  # byte-exact: browser re-verification holds
+    assert _evidence.verify_chain(_json.loads(raw.text)) == []
+    assert client.get("/runs/run-ghost/passport/raw").status_code == 404
+
+
 def test_async_job_passport_opens_via_runs_export(client, amr_ir_dict):
     import time
 

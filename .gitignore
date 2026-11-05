@@ -19,6 +19,7 @@ artifacts/qemu-boot/
 artifacts/qemu-boot-*/
 artifacts/gen-*/
 artifacts/stage/
+artifacts/studio/
 # Local UI state
 ui/*.local.json
 # Editors / OS

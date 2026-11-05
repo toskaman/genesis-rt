@@ -61,6 +61,15 @@
   orchestrator checkpoints. `POST /runs` stays a sync facade with an
   unchanged response shape. Loopback-only, foreign-Origin writes 403.
   Cancelled/failed/crashed/interrupted jobs never carry a verdict.
+- **Studio Live** (`ui/studio.html` + `/projects`, `/validate`,
+  `/examples`, `/env`, `/jobs/.../files`, `/runs/.../passport/raw`):
+  projects are server-side IR revisions under git-ignored
+  `artifacts/studio/projects` (validated, atomic writes, capped
+  history); the Designer edits JSON against authoritative backend
+  validation with a read-only v2 state graph; the Pipeline tab streams
+  the same job events the API exposes and opens byte-exact passports
+  so the browser re-verifies the literal hash chain. Static
+  file-inspection tabs work with no backend.
 
 ## QNX-native target (all in `target/qnx8/`)
 

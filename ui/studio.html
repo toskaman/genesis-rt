@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <!-- Copyright 2026 GENESIS RT contributors, SPDX-License-Identifier: Apache-2.0 -->
-<!-- GENESIS Studio: static seven-tab workspace. Loads real artifacts from disk;
-     every verdict is recomputed live. No backend, no network, no mock runs. -->
+<!-- GENESIS Studio Live: Projects/Designer/Pipeline run against the local
+     backend (serve); Source/Twin/Lab/Passport/Diff/Run inspect local
+     files with every verdict recomputed live. No mock runs. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>GENESIS RT — Studio</title>
 <style>
 :root { color-scheme: dark; --bg:#0d1117; --fg:#e6edf3; --ok:#3fb950; --bad:#f85149; --mut:#8b949e; }
@@ -26,17 +28,40 @@ pre.cmd { background:#161b22; border:1px solid #30363d; padding:.6rem .8rem; ove
 canvas.twin { border:1px solid #30363d; width:100%; max-width:40rem; background:#010409; }
 .twinctl button { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.3rem .7rem; margin-right:.4rem; cursor:pointer; }
 tr.pick { cursor:pointer; } tr.pick:hover td { background:#161b22; }
+#live-status { margin:1rem 0; }
+.row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; margin:.6rem 0; }
+.row label { font-size:.85rem; color:var(--mut); }
+select, input[type=text], input[type=number] { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.4rem .6rem; font-size:.9rem; max-width:100%; }
+button.act { background:#1f6feb; color:#fff; border:1px solid #1f6feb; padding:.4rem .8rem; cursor:pointer; font-size:.9rem; }
+button.ghost { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.4rem .8rem; cursor:pointer; font-size:.9rem; }
+button.act:disabled, button.ghost:disabled { opacity:.45; cursor:default; }
+textarea.editor { width:100%; min-height:16rem; background:#010409; color:var(--fg); border:1px solid #30363d; font-family:ui-monospace,monospace; font-size:.8rem; padding:.6rem; box-sizing:border-box; }
+svg.graph { border:1px solid #30363d; background:#010409; max-width:40rem; width:100%; }
+svg.graph .edge { stroke:#8b949e; stroke-width:1.5; }
+svg.graph .elabel { fill:#8b949e; font-size:10px; text-anchor:middle; }
+svg.graph .node rect { fill:#161b22; stroke:#8b949e; }
+svg.graph .node.init rect { stroke:#1f6feb; stroke-width:2; }
+svg.graph .node.safe rect { stroke:#3fb950; stroke-width:2; }
+svg.graph .nlabel { fill:#e6edf3; font-size:11px; text-anchor:middle; }
+svg.graph g.node { cursor:pointer; }
+ol.phases { display:flex; gap:.4rem; flex-wrap:wrap; list-style:none; padding:0; font-size:.8rem; }
+ol.phases li { border:1px solid #30363d; padding:.2rem .5rem; color:var(--mut); }
+ol.phases li.pass { color:var(--ok); border-color:var(--ok); }
+.errflash { border:1px solid var(--bad); }
 </style>
 </head>
 <body>
-<h1>GENESIS RT <small>Studio — specify → compile → run → break → prove</small></h1>
-<p class="note">Static page, no build step, no network. Open real artifacts
-(IR JSON, generated C, passport JSON) and every check below is recomputed
-live in your browser. Nothing here executes a pipeline: the Run tab gives
-you the exact commands, and you drop the fresh outputs back here.</p>
+<h1>GENESIS RT <small>Studio Live — specify → compile → run → break → prove</small></h1>
+<div id="live-status" role="status"><p class="note">Probing backend…</p></div>
+<p class="note">Projects, Designer and Pipeline need the live backend
+(<code>PYTHONPATH=host python -m genesis_rt.cli serve</code>, then open
+<code>http://127.0.0.1:8077/</code>). Source, Twin, Lab, Passport, Diff
+and Run keep working on local files with no backend.</p>
 <div class="tabs" role="tablist">
-<button role="tab" aria-selected="true" data-tab="intent">Intent</button>
+<button role="tab" aria-selected="true" data-tab="projects">Projects</button>
+<button role="tab" aria-selected="false" data-tab="designer">Designer</button>
 <button role="tab" aria-selected="false" data-tab="source">Source</button>
+<button role="tab" aria-selected="false" data-tab="pipeline">Pipeline</button>
 <button role="tab" aria-selected="false" data-tab="twin">Twin</button>
 <button role="tab" aria-selected="false" data-tab="lab">Lab</button>
 <button role="tab" aria-selected="false" data-tab="passport">Passport</button>
@@ -44,11 +69,52 @@ you the exact commands, and you drop the fresh outputs back here.</p>
 <button role="tab" aria-selected="false" data-tab="run">Run</button>
 </div>
 
-<section class="tabpage active" id="tab-intent" role="tabpanel">
-<h2>Machine intent</h2>
+<section class="tabpage active" id="tab-projects" role="tabpanel">
+<h2>Projects</h2>
+<div id="projects-out"><p class="note">Loading…</p></div>
+<h3>Create</h3>
+<div class="row">
+<label for="newproj-name">name</label>
+<input type="text" id="newproj-name" maxlength="64" placeholder="my-robot">
+<label for="newproj-example">from example</label>
+<select id="newproj-example" aria-label="example source"></select>
+<button class="act" id="newproj-create">Create project</button>
+</div>
+<div class="row">
+<label for="importfile">or import IR file</label>
+<input type="file" id="importfile" accept=".json">
+<button class="ghost" id="import-create">Import as project</button>
+</div>
+<div id="project-detail"></div>
+</section>
+
+<section class="tabpage" id="tab-designer" role="tabpanel">
+<h2>Machine designer</h2>
+<div class="row">
+<label for="des-example">example</label>
+<select id="des-example" aria-label="open example"></select>
+<label for="des-project">project</label>
+<select id="des-project" aria-label="open project"></select>
+<label for="irfile">file</label>
 <input type="file" id="irfile" accept=".json">
-<div id="intent-out"><p class="note">Open a Machine IR JSON file
-(e.g. <code>examples/amr-demo/machine-ir.json</code>).</p></div>
+</div>
+<div class="row">
+<button class="act" id="des-validate">Validate (Ctrl+Enter)</button>
+<button class="ghost" id="des-save" disabled>Save to project</button>
+<label for="des-savename">save as</label>
+<input type="text" id="des-savename" maxlength="64" placeholder="name">
+<button class="ghost" id="des-saveas">Save as new</button>
+</div>
+<div id="designer-err" role="alert"></div>
+<label for="designer-text">Machine IR JSON</label>
+<textarea class="editor" id="designer-text" spellcheck="false"
+  placeholder="Open an example, a project, or a file — then edit and validate."></textarea>
+<h3>State graph</h3>
+<div id="designer-graph"><p class="note">Validates with the backend; v2
+machines render their state-transition graph here (read-only; the JSON
+above is the single source of truth).</p></div>
+<h3>Summary</h3>
+<div id="intent-out"><p class="note">No IR loaded.</p></div>
 </section>
 
 <section class="tabpage" id="tab-source" role="tabpanel">
@@ -57,6 +123,24 @@ you the exact commands, and you drop the fresh outputs back here.</p>
 <div id="source-out"><p class="note">Open generated files
 (<code>genesis_config_gen.h</code>, <code>genesis_machine_gen.c</code>,
 …). Provenance headers are pinned against the loaded IR.</p></div>
+</section>
+
+<section class="tabpage" id="tab-pipeline" role="tabpanel">
+<h2>Pipeline</h2>
+<div class="row">
+<label for="pipe-example">example</label>
+<select id="pipe-example" aria-label="run example"></select>
+<label for="pipe-project">project</label>
+<select id="pipe-project" aria-label="run project head"></select>
+<button class="act" id="pipe-run">Run verification</button>
+<button class="ghost" id="pipe-cancel" disabled>Cancel</button>
+</div>
+<div class="row" id="pipe-scenarios"><p class="note">Pick a source to list
+its verification scenarios.</p></div>
+<div id="pipe-out"><p class="note">No run yet.</p></div>
+<h3>History</h3>
+<div class="row"><button class="ghost" id="pipe-refresh">Refresh history</button></div>
+<div id="pipe-history"><p class="note">Not loaded.</p></div>
 </section>
 
 <section class="tabpage" id="tab-twin" role="tabpanel">
@@ -346,23 +430,273 @@ function renderDiffHtml(textA, textB) {
   return h + '</table>';
 }
 
+/* Studio Live pure core (no DOM): tested under node alongside the
+ * static core. Every interpolated value goes through esc(). */
+
+function renderStatusHtml(online, env) {
+  if (!online) {
+    return '<div class="banner">Backend <b>offline</b>: Source, Twin, Lab, ' +
+      'Passport, Diff and Run work on local files. Start the live backend ' +
+      '(<code>PYTHONPATH=host python -m genesis_rt.cli serve</code>) and open ' +
+      '<code>http://127.0.0.1:8077/</code> for Projects, Designer and Pipeline.</div>';
+  }
+  const e = (env && env.environment) || {};
+  const sdk = e.sdk_present ? '<span class="pass">SDK</span>'
+                            : '<span class="note">no SDK</span>';
+  const qemu = (e.qemu && e.qemu.present) ? '<span class="pass">QEMU</span>'
+                                          : '<span class="note">no QEMU</span>';
+  return '<div class="banner">Backend <span class="pass">live</span> · ' + sdk +
+    ' · ' + qemu + ' <span class="note">(native build ' +
+    (e.sdk_present ? 'available' : 'unavailable — host pipeline only') +
+    '; target runs stay on the CLI in this milestone)</span></div>';
+}
+
+function renderProjectsHtml(projects) {
+  if (!projects.length) {
+    return '<p class="note">No projects yet. Create one from an example below.</p>';
+  }
+  let h = '<table><tr><th>name</th><th>machine</th><th>schema</th>' +
+    '<th>head</th><th></th></tr>';
+  for (const p of projects) {
+    h += '<tr><td><code>' + esc(p.name) + '</code></td><td><code>' + esc(p.machine) +
+      '</code></td><td><code>v' + esc(p.schema_version) + '</code></td><td><code>r' +
+      esc(p.head) + '</code></td><td><button class="ghost" data-open="' + esc(p.pid) +
+      '">open</button></td></tr>';
+  }
+  return h + '</table>';
+}
+
+function renderHistoryHtml(revs) {
+  if (!revs.length) return '<p class="note">No revisions.</p>';
+  let h = '<table><tr><th>rev</th><th>machine</th><th>ir_sha256</th></tr>';
+  for (const r of revs) {
+    h += '<tr><td><code>r' + esc(r.rev) + '</code></td><td><code>' + esc(r.machine) +
+      '</code></td><td><code>' + esc(String(r.ir_sha256).slice(0, 16)) + '…</code></td></tr>';
+  }
+  return h + '</table>';
+}
+
+function renderIrDiffHtml(diff) {
+  const rows = (diff && diff.changed) || [];
+  let h = '<p class="note">r' + esc(diff.from) + ' → r' + esc(diff.to) + ': ' +
+    esc(rows.length) + ' change(s)' +
+    (diff.truncated ? ' (truncated at 200)' : '') + '</p>';
+  if (!rows.length) return h + '<p class="note">Revisions identical.</p>';
+  h += '<table><tr><th>path</th><th>kind</th><th>before</th><th>after</th></tr>';
+  for (const c of rows) {
+    const cls = c.kind === 'added' ? 'pass' : (c.kind === 'removed' ? 'fail' : '');
+    h += '<tr><td><code>' + esc(c.path) + '</code></td><td class="' + esc(cls) + '">' +
+      esc(c.kind) + '</td><td><code>' + esc(JSON.stringify(c.before)) +
+      '</code></td><td><code>' + esc(JSON.stringify(c.after)) + '</code></td></tr>';
+  }
+  return h + '</table>';
+}
+
+/* Read-only state-transition graph for v2 summaries. Single-row layout,
+ * capped counts, states clickable via data-state (glue locates the id
+ * in the editor). v1 renders an honest fallback, never a fake graph. */
+function stateGraphSvg(summary) {
+  const states = (summary && summary.states) || [];
+  const trans = (summary && summary.transitions) || [];
+  if (!states.length) {
+    return '<p class="note">No state machine in this IR (v1 contracts are ' +
+      'listed in the summary). State graphs render for schema v2 machines.</p>';
+  }
+  const shown = states.slice(0, 40), edges = trans.slice(0, 120);
+  const W = 620, gap = (W - 40) / Math.max(1, shown.length - 1 || 1);
+  const x0 = shown.length > 1 ? 20 : W / 2;
+  const pos = {};
+  shown.forEach((s, i) => { pos[s.id] = { x: x0 + i * gap, y: 60 }; });
+  let h = '<svg class="graph" width="100%" viewBox="0 0 ' + W +
+    ' 130" role="img" aria-label="state-transition graph">';
+  for (let ei = 0; ei < edges.length; ei++) {
+    const t = edges[ei];
+    const a = pos[t.from], b = pos[t.to];
+    if (!a || !b) continue;
+    if (t.from === t.to) {
+      h += '<line x1="' + a.x + '" y1="42" x2="' + (a.x + 12) +
+        '" y2="42" class="edge" />';
+      continue;
+    }
+    const x1 = a.x + 34, x2 = b.x - 34;
+    // Parallel edges share one span: stagger label height by edge
+    // index so two events between the same states stay readable.
+    const fwd = x2 >= x1;
+    const ly = fwd ? (54 - (ei % 2) * 14) : (78 + (ei % 2) * 12);
+    const ey = fwd ? 60 : 66;
+    h += '<line x1="' + x1 + '" y1="' + ey + '" x2="' + x2 + '" y2="' + ey +
+      '" class="edge" />';
+    h += '<text x="' + ((x1 + x2) / 2) + '" y="' + ly + '" class="elabel">' +
+      esc(t.event || '') + '</text>';
+  }
+  shown.forEach((s) => {
+    const p = pos[s.id];
+    const cls = s.initial ? 'node init' : (s.safe ? 'node safe' : 'node');
+    h += '<g class="' + cls + '" data-state="' + esc(s.id) +
+      '" tabindex="0" role="button" aria-label="state ' + esc(s.id) + '">' +
+      '<rect x="' + (p.x - 34) + '" y="42" width="68" height="36" rx="6" />' +
+      '<text x="' + p.x + '" y="64" class="nlabel">' + esc(s.id) + '</text></g>';
+  });
+  h += '</svg>';
+  if (states.length > shown.length || trans.length > edges.length) {
+    h += '<p class="note">Graph capped (first 40 states / 120 transitions).</p>';
+  }
+  return h;
+}
+
+/* Fold SSE job events into render state. Deduplicates by seq so a fresh
+ * stream (?after=-1) after reconnect never double-counts. */
+var JOB_PHASES = ['queued', 'started', 'validated', 'generated', 'built',
+                  'verified', 'verdict'];
+function reduceJobEvents(events) {
+  const seen = {};
+  const log = [];
+  let state = 'active', verdict = null, lastSeq = -1;
+  const kinds = [];
+  for (const e of events || []) {
+    if (!e || typeof e.seq !== 'number' || seen[e.seq]) continue;
+    seen[e.seq] = true;
+    if (e.seq > lastSeq) lastSeq = e.seq;
+    log.push(e);
+    if (e.kind === 'done') state = 'succeeded';
+    else if (e.kind === 'failed') state = 'failed';
+    else if (e.kind === 'cancelled') state = 'cancelled';
+    else if (e.kind === 'interrupted') state = 'interrupted';
+    else if (kinds.indexOf(e.kind) < 0) kinds.push(e.kind);
+    if (e.kind === 'verdict' || e.kind === 'done') {
+      const m = /verdict=([A-Z]+)/.exec(e.message || '');
+      if (m) verdict = m[1];
+    }
+  }
+  let phase = 'queued';
+  const order = ['started', 'validated', 'generated', 'built', 'verified', 'verdict'];
+  for (const k of order) {
+    if (kinds.indexOf(k) >= 0 || (k === 'verdict' && verdict)) phase = k;
+  }
+  if (state !== 'active') phase = state;
+  return { state: state, phase: phase, verdict: verdict, log: log,
+           lastSeq: lastSeq };
+}
+
+function renderJobHtml(jobId, reduced, error) {
+  let h = '<div class="banner">job <code>' + esc(jobId) + '</code> · state <b>' +
+    esc(reduced.state) + '</b> · phase <code>' + esc(reduced.phase) + '</code>';
+  if (reduced.verdict) {
+    h += ' · verdict <b class="' +
+      (reduced.verdict === 'PASS' ? 'pass' : 'fail') + '">' +
+      esc(reduced.verdict) + '</b>';
+  }
+  if (error) h += ' · <span class="fail">' + esc(error) + '</span>';
+  h += '</div><ol class="phases">';
+  const upto = JOB_PHASES.indexOf(reduced.phase);
+  for (const p of JOB_PHASES) {
+    const done = reduced.state !== 'active' || JOB_PHASES.indexOf(p) <= upto;
+    h += '<li class="' + (done ? 'pass' : '') + '">' + esc(p) + '</li>';
+  }
+  h += '</ol><pre class="cmd" aria-live="polite">';
+  for (const e of reduced.log.slice(-30)) {
+    h += '#' + esc(e.seq) + ' ' + esc(e.kind) + ' ' + esc(e.message) + '\n';
+  }
+  return h + '</pre>';
+}
+
+function renderJobsHtml(jobs) {
+  if (!jobs.length) {
+    return '<p class="note">No runs yet. Start one above.</p>';
+  }
+  let h = '<table><tr><th>job</th><th>state</th><th>verdict</th><th></th></tr>';
+  for (const j of jobs) {
+    const cls = j.verdict === 'PASS' ? 'pass'
+      : (j.state === 'succeeded' ? 'fail' : '');
+    h += '<tr><td><code>' + esc(j.job_id) + '</code></td><td>' + esc(j.state) +
+      '</td><td class="' + esc(cls) + '">' + esc(j.verdict || '—') +
+      '</td><td><button class="ghost" data-job="' + esc(j.job_id) +
+      '">open</button></td></tr>';
+  }
+  return h + '</table>';
+}
+
+/* Backend validation summary: machine facts, counts, guard limits,
+ * scenarios, contracts, fault responses. Rendered only from a 200
+ * /validate (or project GET) response — never synthesized. */
+function renderSummaryHtml(summary) {
+  const m = summary.machine || {};
+  const c = summary.counts || {};
+  const ctl = summary.control || {};
+  let h = '<table><tr><th>field</th><th>value</th></tr>';
+  h += '<tr><td>machine.id</td><td><code>' + esc(m.id) + '</code></td></tr>';
+  h += '<tr><td>machine.kind</td><td><code>' + esc(m.kind) + '</code></td></tr>';
+  h += '<tr><td>schema</td><td><code>v' + esc(summary.schema_version) + '</code></td></tr>';
+  h += '<tr><td>execution_target</td><td><code>' + esc(m.execution_target) +
+    '</code></td></tr>';
+  h += '<tr><td>simulation_only</td><td><code>' + esc(m.simulation_only) +
+    '</code></td></tr>';
+  if (ctl.period_ms !== undefined) {
+    h += '<tr><td>period_ms</td><td><code>' + esc(ctl.period_ms) + '</code></td></tr>';
+  }
+  if (ctl.max_linear_speed_mps !== undefined) {
+    h += '<tr><td>max_linear_speed_mps</td><td><code>' +
+      esc(ctl.max_linear_speed_mps) + '</code></td></tr>';
+  }
+  if (ctl.max_angular_speed_radps !== undefined) {
+    h += '<tr><td>max_angular_speed_radps</td><td><code>' +
+      esc(ctl.max_angular_speed_radps) + '</code></td></tr>';
+  }
+  const cnt = (k) => (c[k] !== undefined ? esc(c[k]) : '?');
+  h += '<tr><td>sensors / actuators</td><td><code>' + cnt('sensors') + ' / ' +
+    cnt('actuators') + '</code></td></tr>';
+  h += '<tr><td>contracts / scenarios</td><td><code>' + cnt('contracts') + ' / ' +
+    cnt('scenarios') + '</code></td></tr>';
+  if (c.states !== undefined) {
+    h += '<tr><td>states / transitions</td><td><code>' + cnt('states') + ' / ' +
+      cnt('transitions') + '</code></td></tr>';
+  }
+  h += '<tr><td>ir_sha256</td><td><code>' +
+    esc(String(summary.ir_sha256 || '').slice(0, 16)) + '…</code></td></tr>';
+  h += '</table>';
+  const chips = (list) => (list || []).map((s) => '<code>' + esc(s) + '</code>').join(' · ');
+  h += '<h3>Verification scenarios</h3><p>' + chips(summary.scenarios) + '</p>';
+  h += '<h3>Safety contracts</h3><p>' + chips(summary.contracts) + '</p>';
+  if (summary.fault_responses) {
+    h += '<h3>Fault responses</h3><p>' + chips(summary.fault_responses) + '</p>';
+  }
+  return h;
+}
+
+/* Extract the most specific IR key from a validator message so the
+ * Designer can locate it in the editor. v1 dotted paths and v2 $.paths. */
+function keyFromError(message) {
+  const dotted = /(?:^|[\s"'()])([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+)/.exec(message || '');
+  if (dotted) {
+    const parts = dotted[1].split('.');
+    return parts[parts.length - 1];
+  }
+  const rooted = /\$\.([A-Za-z_][A-Za-z0-9_]*)/.exec(message || '');
+  return rooted ? rooted[1] : null;
+}
+
 /* DOM glue. */
 const Studio = { irSha: null, passport: null, scens: [], twin: null, twinIdx: 0, twinTimer: null,
                  diffA: null, diffB: null };
+function switchTab(name) {
+  document.querySelectorAll('.tabs button').forEach(
+    (x) => x.setAttribute('aria-selected', x.dataset.tab === name ? 'true' : 'false'));
+  document.querySelectorAll('.tabpage').forEach(
+    (p) => p.classList.toggle('active', p.id === 'tab-' + name));
+  onTabSwitch(name);
+}
 document.querySelectorAll('.tabs button').forEach((b) => {
-  b.addEventListener('click', () => {
-    document.querySelectorAll('.tabs button').forEach(
-      (x) => x.setAttribute('aria-selected', x === b ? 'true' : 'false'));
-    document.querySelectorAll('.tabpage').forEach(
-      (p) => p.classList.toggle('active', p.id === 'tab-' + b.dataset.tab));
-  });
+  b.addEventListener('click', () => { switchTab(b.dataset.tab); });
 });
+function onTabSwitch(name) {
+  try {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('studio.tab', name);
+  } catch (e) { /* private mode: persistence unavailable */ }
+  if (typeof Live !== 'undefined' && Live && Live.es && name !== 'pipeline') Live.closeStream();
+}
 document.getElementById('irfile').addEventListener('change', async (e) => {
   const f = e.target.files[0]; if (!f) return;
-  const text = await f.text();
-  const r = renderIntentHtml(text);
-  Studio.irSha = r.ok ? r.sha : null;
-  document.getElementById('intent-out').innerHTML = r.html;
+  designerUseText(await f.text(), null, null);
 });
 function maybeDiff() {
   if (Studio.diffA && Studio.diffB) {
@@ -383,16 +717,14 @@ document.getElementById('srcfiles').addEventListener('change', async (e) => {
   for (const f of e.target.files) files.push({ name: f.name, text: await f.text() });
   document.getElementById('source-out').innerHTML = renderSourceHtml(files, Studio.irSha);
 });
-document.getElementById('ppfile').addEventListener('change', async (e) => {
-  const f = e.target.files[0]; if (!f) return;
-  const text = await f.text();
+function usePassportText(text) {
   const r = renderPassportHtml(text);
   document.getElementById('pp-out').innerHTML = r.html;
   if (!r.ok || !r.chainOk) {
     Studio.passport = null; Studio.scens = [];
     document.getElementById('lab-out').innerHTML =
       '<p class="fail">Passport invalid: Lab and Twin stay empty (no unverified replay).</p>';
-    return;
+    return false;
   }
   Studio.passport = JSON.parse(text);
   Studio.scens = passportScenarios(Studio.passport);
@@ -403,6 +735,11 @@ document.getElementById('ppfile').addEventListener('change', async (e) => {
       if (scen) openTwin(scen);
     });
   });
+  return true;
+}
+document.getElementById('ppfile').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  usePassportText(await f.text());
 });
 
 function openTwin(scen) {
@@ -420,10 +757,7 @@ function openTwin(scen) {
   h += '<p class="twinctl"><button id="twinplay">play</button>' +
     '<button id="twinstep">step</button><button id="twinback">|◀</button></p>';
   document.getElementById('twin-out').innerHTML = h;
-  document.querySelectorAll('.tabs button').forEach(
-    (x) => x.setAttribute('aria-selected', x.dataset.tab === 'twin' ? 'true' : 'false'));
-  document.querySelectorAll('.tabpage').forEach(
-    (p) => p.classList.toggle('active', p.id === 'tab-twin'));
+  switchTab('twin');
   document.getElementById('twinplay').addEventListener('click', (ev) => {
     if (Studio.twinTimer) {
       clearInterval(Studio.twinTimer); Studio.twinTimer = null; ev.target.textContent = 'play';
@@ -514,6 +848,618 @@ function drawTwin() {
       ' fault=' + (cur.fault || 'none');
   }
 }
+
+/* Studio Live glue (browser only; liveBoot gates on a real DOM). */
+var Live = { online: false, env: null, examples: [], projectPid: null,
+             pipeSource: null, jobId: null, jobEvents: [], es: null,
+             esFails: 0 };
+Live.closeStream = function () {
+  if (Live.es) { try { Live.es.close(); } catch (e) { /* already gone */ } }
+  Live.es = null;
+  var cancel = document.getElementById('pipe-cancel');
+  if (cancel) cancel.disabled = true;
+};
+
+function el(id) { return document.getElementById(id); }
+
+function storeGet(k) {
+  try {
+    return (typeof sessionStorage !== 'undefined') ? sessionStorage.getItem(k) : null;
+  } catch (e) { return null; }
+}
+function storeSet(k, v) {
+  try {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(k, v || '');
+  } catch (e) { /* private mode */ }
+}
+
+async function api(path, opts) {
+  let r;
+  try {
+    r = await fetch(path, opts);
+  } catch (e) {
+    throw new Error('backend unreachable (start serve and open http://127.0.0.1:8077/)');
+  }
+  let body = null;
+  try { body = await r.json(); } catch (e) { body = null; }
+  if (!r.ok) {
+    const detail = (body && (body.error || body.detail)) || r.statusText;
+    throw new Error('HTTP ' + r.status + ': ' + detail);
+  }
+  return body;
+}
+async function apiText(path) {
+  let r;
+  try {
+    r = await fetch(path);
+  } catch (e) {
+    throw new Error('backend unreachable (start serve and open http://127.0.0.1:8077/)');
+  }
+  const text = await r.text();
+  if (!r.ok) throw new Error('HTTP ' + r.status + ': ' + text.slice(0, 300));
+  return text;
+}
+function postJson(path, obj) {
+  return api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify(obj) });
+}
+function putJson(path, obj) {
+  return api(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify(obj) });
+}
+function errHtml(prefix, e) {
+  return '<p class="fail">' + esc(prefix) + ': ' + esc((e && e.message) || e) + '</p>';
+}
+
+/* -- Projects tab ---------------- */
+function exampleOptions() {
+  const opts = ['<option value="">— pick —</option>'];
+  for (const e of Live.examples) {
+    for (const f of e.files) {
+      if (!f.ok) continue;
+      const v = e.example + '|' + f.file;
+      opts.push('<option value="' + esc(v) + '">' + esc(v) + '</option>');
+    }
+  }
+  return opts.join('');
+}
+function summaryForExample(value) {
+  const bar = (value || '').indexOf('|');
+  if (bar < 0) return null;
+  const ex = Live.examples.find((e) => e.example === value.slice(0, bar));
+  if (!ex) return null;
+  const f = ex.files.find((x) => x.file === value.slice(bar + 1));
+  return (f && f.ok) ? f.summary : null;
+}
+async function loadExamples() {
+  const data = await api('/examples');
+  Live.examples = data.examples;
+  const html = exampleOptions();
+  el('newproj-example').innerHTML = html;
+  el('des-example').innerHTML = html;
+  el('pipe-example').innerHTML = html;
+}
+async function loadProjects() {
+  const data = await api('/projects');
+  el('projects-out').innerHTML = renderProjectsHtml(data.projects);
+  const opts = ['<option value="">— pick —</option>'];
+  for (const p of data.projects) {
+    opts.push('<option value="' + esc(p.pid) + '">' + esc(p.name) +
+      ' (r' + esc(p.head) + ')</option>');
+  }
+  el('des-project').innerHTML = opts.join('');
+  el('pipe-project').innerHTML = opts.join('');
+  const saved = storeGet('studio.project');
+  if (saved && data.projects.some((p) => p.pid === saved)) {
+    Live.projectPid = saved;
+    el('des-project').value = saved;
+    el('des-save').disabled = false;
+  }
+}
+async function openProject(pid) {
+  const proj = await api('/projects/' + encodeURIComponent(pid));
+  designerUseText(JSON.stringify(proj.ir, null, 2), proj.summary, proj.pid);
+  el('des-project').value = proj.pid;
+  await renderProjectDetail(proj.pid, proj);
+  switchTab('designer');
+}
+async function renderProjectDetail(pid, proj) {
+  proj = proj || await api('/projects/' + encodeURIComponent(pid));
+  const hist = await api('/projects/' + encodeURIComponent(pid) + '/history');
+  let h = '<h3><code>' + esc(proj.name) + '</code> — head r' + esc(proj.head) + '</h3>';
+  h += renderHistoryHtml(hist.revisions);
+  h += '<div class="row"><label>diff r</label>' +
+    '<input type="number" id="pdiff-from" min="1" value="1" aria-label="diff from revision">' +
+    '<label>… r</label>' +
+    '<input type="number" id="pdiff-to" min="1" value="' + esc(proj.head) +
+    '" aria-label="diff to revision">' +
+    '<button class="ghost" id="pdiff-btn">Compare</button></div><div id="pdiff-out"></div>';
+  h += '<div class="row"><label for="pdup-name">duplicate as</label>' +
+    '<input type="text" id="pdup-name" maxlength="64">' +
+    '<button class="ghost" id="pdup-btn">Duplicate</button>' +
+    '<a id="pexp-link" href="/projects/' + esc(pid) + '/export">export JSON</a></div>';
+  h += '<div id="pdetail-err" role="alert"></div>';
+  el('project-detail').innerHTML = h;
+  el('pdiff-btn').addEventListener('click', async () => {
+    const a = el('pdiff-from').value, b = el('pdiff-to').value;
+    try {
+      const diff = await api('/projects/' + encodeURIComponent(pid) +
+        '/diff?rev_from=' + encodeURIComponent(a) + '&rev_to=' + encodeURIComponent(b));
+      el('pdiff-out').innerHTML = renderIrDiffHtml(diff);
+    } catch (e) { el('pdiff-out').innerHTML = errHtml('diff failed', e); }
+  });
+  el('pdup-btn').addEventListener('click', async () => {
+    const name = el('pdup-name').value.trim();
+    if (!name) {
+      el('pdetail-err').innerHTML = '<p class="fail">Duplicate needs a name.</p>';
+      return;
+    }
+    try {
+      const dup = await postJson('/projects/' + encodeURIComponent(pid) + '/duplicate',
+                                 { name: name });
+      await loadProjects();
+      await renderProjectDetail(dup.pid, null);
+    } catch (e) { el('pdetail-err').innerHTML = errHtml('duplicate failed', e); }
+  });
+}
+
+/* -- Designer tab ---------------- */
+function designerUseText(text, summary, pid) {
+  el('designer-text').value = text;
+  if (pid) {
+    Live.projectPid = pid;
+    storeSet('studio.project', pid);
+  }
+  const r = renderIntentHtml(text);
+  Studio.irSha = r.ok ? r.sha : null;
+  el('intent-out').innerHTML = r.html;
+  if (summary) {
+    el('intent-out').innerHTML = renderSummaryHtml(summary) + r.html;
+    el('designer-graph').innerHTML = stateGraphSvg(summary);
+    el('designer-err').innerHTML = '';
+  } else {
+    designerValidate();
+  }
+  el('des-save').disabled = !Live.projectPid;
+}
+function locateInEditor(needle) {
+  if (!needle) return false;
+  const ta = el('designer-text');
+  const i = ta.value.indexOf(needle);
+  if (i < 0) return false;
+  ta.focus();
+  ta.setSelectionRange(i, i + needle.length);
+  ta.classList.add('errflash');
+  setTimeout(() => ta.classList.remove('errflash'), 1200);
+  return true;
+}
+function locateKey(key) {
+  return locateInEditor('"' + key + '"');
+}
+function locateState(id) {
+  return locateInEditor('"id": "' + id + '"') ||
+    locateInEditor('"id":"' + id + '"') ||
+    locateInEditor('"' + id + '"');
+}
+async function designerValidate() {
+  const ta = el('designer-text');
+  const text = ta.value;
+  if (!text.trim()) {
+    el('designer-err').innerHTML = '<p class="note">Editor empty.</p>';
+    return;
+  }
+  let doc;
+  try {
+    doc = JSON.parse(text);
+  } catch (e) {
+    el('designer-err').innerHTML = errHtml('not valid JSON', e);
+    return;
+  }
+  const r = renderIntentHtml(text);
+  Studio.irSha = r.ok ? r.sha : null;
+  el('intent-out').innerHTML = r.html;
+  try {
+    const res = await postJson('/validate', { ir: doc });
+    el('intent-out').innerHTML = renderSummaryHtml(res.summary) + r.html;
+    el('designer-graph').innerHTML = stateGraphSvg(res.summary);
+    el('designer-err').innerHTML =
+      '<p class="pass">Backend validation: OK (schema v' +
+      esc(res.summary.schema_version) + ', ' +
+      esc(res.summary.machine.id) + ')</p>';
+  } catch (e) {
+    el('designer-err').innerHTML = errHtml('backend validation failed', e);
+    const key = keyFromError(e.message);
+    if (key && !locateKey(key)) {
+      el('designer-err').innerHTML +=
+        '<p class="note">Field <code>' + esc(key) +
+        '</code> not found in the editor text.</p>';
+    }
+  }
+}
+async function designerSave() {
+  if (!Live.projectPid) return;
+  let doc;
+  try {
+    doc = JSON.parse(el('designer-text').value);
+  } catch (e) {
+    el('designer-err').innerHTML = errHtml('not valid JSON', e);
+    return;
+  }
+  try {
+    const saved = await putJson('/projects/' + encodeURIComponent(Live.projectPid),
+                                { ir: doc });
+    el('designer-graph').innerHTML = stateGraphSvg(saved.summary);
+    el('designer-err').innerHTML = saved.unchanged
+      ? '<p class="note">No changes vs head r' + esc(saved.head) + ' (not saved).</p>'
+      : '<p class="pass">Saved as r' + esc(saved.head) + '.</p>';
+    await loadProjects();
+  } catch (e) { el('designer-err').innerHTML = errHtml('save failed', e); }
+}
+async function designerSaveAs() {
+  const name = el('des-savename').value.trim();
+  if (!name) {
+    el('designer-err').innerHTML = '<p class="fail">Save-as needs a name.</p>';
+    return;
+  }
+  let doc;
+  try {
+    doc = JSON.parse(el('designer-text').value);
+  } catch (e) {
+    el('designer-err').innerHTML = errHtml('not valid JSON', e);
+    return;
+  }
+  try {
+    const created = await postJson('/projects', { name: name, ir: doc });
+    Live.projectPid = created.pid;
+    storeSet('studio.project', created.pid);
+    el('des-save').disabled = false;
+    el('designer-err').innerHTML = '<p class="pass">Created project <code>' +
+      esc(created.name) + '</code>.</p>';
+    await loadProjects();
+    el('des-project').value = created.pid;
+  } catch (e) { el('designer-err').innerHTML = errHtml('save-as failed', e); }
+}
+
+/* -- Pipeline tab ---------------- */
+function renderScenarioChecks(scenarios) {
+  if (!scenarios || !scenarios.length) {
+    return '<p class="note">No scenarios for this source.</p>';
+  }
+  let h = '';
+  for (const s of scenarios) {
+    h += '<label><input type="checkbox" data-scen="' + esc(s) +
+      '" checked> <code>' + esc(s) + '</code></label> ';
+  }
+  return h;
+}
+function checkedScenarios() {
+  const out = [];
+  el('pipe-scenarios').querySelectorAll('input[data-scen]:checked').forEach((c) => {
+    out.push(c.dataset.scen);
+  });
+  return out;
+}
+async function pipeSourceChanged() {
+  const exVal = el('pipe-example').value, prVal = el('pipe-project').value;
+  Live.pipeSource = null;
+  if (exVal) {
+    const summary = summaryForExample(exVal);
+    if (!summary) return;
+    Live.pipeSource = { kind: 'example', value: exVal };
+    el('pipe-scenarios').innerHTML = renderScenarioChecks(summary.scenarios);
+  } else if (prVal) {
+    try {
+      const proj = await api('/projects/' + encodeURIComponent(prVal));
+      Live.pipeSource = { kind: 'project', pid: prVal };
+      el('pipe-scenarios').innerHTML = renderScenarioChecks(proj.summary.scenarios);
+    } catch (e) { el('pipe-scenarios').innerHTML = errHtml('source failed', e); }
+  } else {
+    el('pipe-scenarios').innerHTML =
+      '<p class="note">Pick a source to list its verification scenarios.</p>';
+  }
+}
+async function pipeRun() {
+  if (!Live.pipeSource) {
+    el('pipe-out').innerHTML = '<p class="fail">Pick an example or project first.</p>';
+    return;
+  }
+  const scenarios = checkedScenarios();
+  if (!scenarios.length) {
+    el('pipe-out').innerHTML = '<p class="fail">Select at least one scenario.</p>';
+    return;
+  }
+  el('pipe-run').disabled = true;
+  try {
+    let ir;
+    if (Live.pipeSource.kind === 'example') {
+      const bar = Live.pipeSource.value.indexOf('|');
+      const ex = Live.pipeSource.value.slice(0, bar);
+      const file = Live.pipeSource.value.slice(bar + 1);
+      ir = (await api('/examples/' + encodeURIComponent(ex) + '/' +
+                      encodeURIComponent(file))).ir;
+    } else {
+      ir = (await api('/projects/' + encodeURIComponent(Live.pipeSource.pid))).ir;
+    }
+    const job = await postJson('/jobs', { ir: ir, scenarios: scenarios });
+    Live.jobId = job.job_id;
+    Live.jobEvents = [];
+    storeSet('studio.job', job.job_id);
+    openStream(job.job_id);
+    refreshHistory();
+  } catch (e) {
+    el('pipe-out').innerHTML = errHtml('run failed', e);
+  } finally {
+    el('pipe-run').disabled = false;
+  }
+}
+function renderPipeOut() {
+  const reduced = reduceJobEvents(Live.jobEvents);
+  const err = reduced.state === 'failed' ? Live.jobError : null;
+  el('pipe-out').innerHTML = renderJobHtml(Live.jobId, reduced, err) +
+    '<div id="pipe-actions"></div>';
+  return reduced;
+}
+function openStream(jobId) {
+  Live.closeStream();
+  Live.jobId = jobId;
+  Live.jobEvents = [];
+  Live.esFails = 0;
+  storeSet('studio.job', jobId);
+  renderPipeOut();
+  el('pipe-cancel').disabled = false;
+  if (typeof EventSource !== 'function') {
+    el('pipe-out').innerHTML += '<p class="note">Streaming unsupported here; ' +
+      '<button class="ghost" id="pipe-once">refresh once</button></p>';
+    el('pipe-once').addEventListener('click', () => openJob(jobId));
+    return;
+  }
+  const es = new EventSource('/jobs/' + encodeURIComponent(jobId) + '/events');
+  Live.es = es;
+  // NOTE: the server sends *named* events (event: <kind>); those never
+  // reach onmessage, so every known kind gets an explicit listener.
+  const onRow = (ev) => {
+    try {
+      Live.jobEvents.push(JSON.parse(ev.data));
+    } catch (e) { return; }
+    const reduced = renderPipeOut();
+    if (reduced.state !== 'active') finishJob(jobId);
+  };
+  const kinds = ['message', 'queued', 'started', 'validated', 'generated',
+                 'built', 'verified', 'verdict', 'done', 'failed',
+                 'cancelled', 'interrupted'];
+  for (const k of kinds) es.addEventListener(k, onRow);
+  es.onerror = () => {
+    Live.esFails += 1;
+    if (reduceJobEvents(Live.jobEvents).state !== 'active' || Live.esFails > 2) {
+      openJob(jobId);  // terminal already, or stream broken: single refresh
+    }
+  };
+}
+async function finishJob(jobId) {
+  Live.closeStream();
+  try {
+    const rec = await api('/jobs/' + encodeURIComponent(jobId));
+    Live.jobError = rec.error || null;
+    renderPipeOut();
+    const acts = el('pipe-actions');
+    if (rec.state === 'succeeded') {
+      let h = '<div class="row"><button class="ghost" id="job-files">Generated files</button>' +
+        '<button class="ghost" id="job-passport">Open passport</button>' +
+        '<button class="ghost" id="job-diffa">Send to Diff A</button>' +
+        '<button class="ghost" id="job-diffb">Send to Diff B</button></div>' +
+        '<div id="job-files-out"></div>';
+      acts.innerHTML = h;
+      el('job-files').addEventListener('click', async () => {
+        try {
+          const listing = await api('/jobs/' + encodeURIComponent(jobId) + '/files');
+          let f = '<div class="row">';
+          for (const file of listing.files) {
+            f += '<button class="ghost" data-file="' + esc(file.name) + '">' +
+              esc(file.name) + '</button> ';
+          }
+          el('job-files-out').innerHTML = f + '</div><pre class="cmd" id="job-filetext"></pre>';
+          el('job-files-out').querySelectorAll('button[data-file]').forEach((b) => {
+            b.addEventListener('click', async () => {
+              try {
+                const got = await api('/jobs/' + encodeURIComponent(jobId) + '/files/' +
+                                      encodeURIComponent(b.dataset.file));
+                el('job-filetext').textContent = got.text;
+              } catch (e) { el('job-filetext').textContent = 'failed: ' + e.message; }
+            });
+          });
+        } catch (e) { el('job-files-out').innerHTML = errHtml('files failed', e); }
+      });
+      const rawPassport = () => apiText('/runs/' + encodeURIComponent(jobId) + '/passport/raw');
+      el('job-passport').addEventListener('click', async () => {
+        try {
+          if (usePassportText(await rawPassport())) switchTab('passport');
+        } catch (e) { acts.innerHTML += errHtml('passport failed', e); }
+      });
+      el('job-diffa').addEventListener('click', async () => {
+        try {
+          Studio.diffA = await rawPassport(); maybeDiff(); switchTab('diff');
+        } catch (e) { acts.innerHTML += errHtml('diff A failed', e); }
+      });
+      el('job-diffb').addEventListener('click', async () => {
+        try {
+          Studio.diffB = await rawPassport(); maybeDiff(); switchTab('diff');
+        } catch (e) { acts.innerHTML += errHtml('diff B failed', e); }
+      });
+    }
+    refreshHistory();
+  } catch (e) {
+    el('pipe-out').innerHTML += errHtml('job detail failed', e);
+  }
+}
+async function openJob(jobId) {
+  Live.closeStream();
+  Live.jobId = jobId;
+  Live.jobEvents = [];
+  storeSet('studio.job', jobId);
+  try {
+    const rec = await api('/jobs/' + encodeURIComponent(jobId));
+    if (rec.state === 'succeeded' || rec.state === 'failed' ||
+        rec.state === 'cancelled' || rec.state === 'interrupted') {
+      Live.jobError = rec.error || null;
+      if (rec.state === 'succeeded') {
+        el('pipe-out').innerHTML = '<p class="note">Loading job…</p>';
+      }
+      finishJob(jobId);
+    } else {
+      openStream(jobId);  // active: attach a fresh stream (dedupe by seq)
+    }
+  } catch (e) { el('pipe-out').innerHTML = errHtml('open job failed', e); }
+}
+async function refreshHistory() {
+  try {
+    const data = await api('/jobs');
+    el('pipe-history').innerHTML = renderJobsHtml(data.jobs);
+    el('pipe-history').querySelectorAll('button[data-job]').forEach((b) => {
+      b.addEventListener('click', () => openJob(b.dataset.job));
+    });
+  } catch (e) { el('pipe-history').innerHTML = errHtml('history failed', e); }
+}
+
+/* -- boot ---------------- */
+function wireLive() {
+  el('projects-out').addEventListener('click', async (e) => {
+    const b = e.target.closest ? e.target.closest('button[data-open]') : null;
+    if (!b) return;
+    try {
+      await openProject(b.dataset.open);
+    } catch (err) {
+      el('project-detail').innerHTML = errHtml('open failed', err);
+    }
+  });
+  el('newproj-create').addEventListener('click', async () => {
+    const src = el('newproj-example').value;
+    const name = el('newproj-name').value.trim();
+    el('project-detail').innerHTML = '';
+    if (!src) {
+      el('project-detail').innerHTML = '<p class="fail">Pick an example source.</p>';
+      return;
+    }
+    const bar = src.indexOf('|');
+    const payload = { from_example: src.slice(0, bar), from_file: src.slice(bar + 1) };
+    if (name) payload.name = name;
+    try {
+      const created = await postJson('/projects', payload);
+      el('newproj-name').value = '';
+      await loadProjects();
+      await renderProjectDetail(created.pid, created);
+    } catch (e) { el('project-detail').innerHTML = errHtml('create failed', e); }
+  });
+  el('import-create').addEventListener('click', async () => {
+    const f = el('importfile').files[0];
+    const name = el('newproj-name').value.trim();
+    if (!f) {
+      el('project-detail').innerHTML = '<p class="fail">Choose a file to import.</p>';
+      return;
+    }
+    let doc;
+    try {
+      doc = JSON.parse(await f.text());
+    } catch (e) {
+      el('project-detail').innerHTML = errHtml('import is not valid JSON', e);
+      return;
+    }
+    const payload = { ir: doc };
+    if (name) payload.name = name;
+    try {
+      const created = await postJson('/projects', payload);
+      await loadProjects();
+      await renderProjectDetail(created.pid, created);
+    } catch (e) { el('project-detail').innerHTML = errHtml('import failed', e); }
+  });
+  el('des-example').addEventListener('change', async (e) => {
+    const v = e.target.value;
+    if (!v) return;
+    el('des-project').value = '';
+    const bar = v.indexOf('|');
+    try {
+      const got = await api('/examples/' + encodeURIComponent(v.slice(0, bar)) + '/' +
+                            encodeURIComponent(v.slice(bar + 1)));
+      designerUseText(JSON.stringify(got.ir, null, 2), summaryForExample(v), null);
+    } catch (err) { el('designer-err').innerHTML = errHtml('open example failed', err); }
+  });
+  el('des-project').addEventListener('change', async (e) => {
+    if (!e.target.value) return;
+    el('des-example').value = '';
+    try {
+      await openProject(e.target.value);
+    } catch (err) { el('designer-err').innerHTML = errHtml('open project failed', err); }
+  });
+  el('des-validate').addEventListener('click', designerValidate);
+  el('des-save').addEventListener('click', designerSave);
+  el('des-saveas').addEventListener('click', designerSaveAs);
+  el('designer-text').addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'Enter') designerValidate();
+  });
+  const graphGo = (e) => {
+    const g = e.target.closest ? e.target.closest('g[data-state]') : null;
+    if (g) locateState(g.dataset.state);
+  };
+  el('designer-graph').addEventListener('click', graphGo);
+  el('designer-graph').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); graphGo(e); }
+  });
+  el('pipe-example').addEventListener('change', (e) => {
+    if (e.target.value) el('pipe-project').value = '';
+    pipeSourceChanged();
+  });
+  el('pipe-project').addEventListener('change', (e) => {
+    if (e.target.value) el('pipe-example').value = '';
+    pipeSourceChanged();
+  });
+  el('pipe-run').addEventListener('click', pipeRun);
+  el('pipe-cancel').addEventListener('click', async () => {
+    if (!Live.jobId) return;
+    try {
+      await api('/jobs/' + encodeURIComponent(Live.jobId), { method: 'DELETE' });
+      el('pipe-cancel').disabled = true;
+    } catch (e) {
+      el('pipe-out').innerHTML += errHtml('cancel failed', e);
+    }
+  });
+  el('pipe-refresh').addEventListener('click', refreshHistory);
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('beforeunload', () => Live.closeStream());
+  }
+}
+async function refreshLive() {
+  try {
+    await api('/health');
+    Live.online = true;
+    Live.env = await api('/env');
+    el('live-status').innerHTML = renderStatusHtml(true, Live.env);
+    await loadExamples();
+    await loadProjects();
+    await refreshHistory();
+    const lastJob = storeGet('studio.job');
+    if (lastJob) openJob(lastJob).catch((e) => {
+      el('pipe-out').innerHTML = errHtml('restore job failed', e);
+    });
+  } catch (e) {
+    Live.online = false;
+    el('live-status').innerHTML = renderStatusHtml(false, null);
+    el('projects-out').innerHTML =
+      '<p class="note">Backend offline: Projects, Designer and Pipeline need serve.</p>';
+    el('pipe-history').innerHTML = '<p class="note">Backend offline.</p>';
+  }
+  try {
+    const tabs = ['projects', 'designer', 'source', 'pipeline', 'twin',
+                  'lab', 'passport', 'diff', 'run'];
+    const t = storeGet('studio.tab');
+    if (t && tabs.indexOf(t) >= 0) switchTab(t);
+  } catch (e) { /* never break boot on restore */ }
+}
+function liveBoot() {
+  const root = document.getElementById('tab-projects');
+  if (!root || typeof root.querySelector !== 'function') return;  // node shim
+  wireLive();
+  refreshLive();
+}
+liveBoot();
 </script>
 </body>
 </html>
