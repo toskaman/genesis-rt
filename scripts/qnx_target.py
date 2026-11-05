@@ -14,10 +14,13 @@ package installed via QNX Software Center, unpacked with unpack_qemu_image.sh.
 from __future__ import annotations
 
 import argparse
+import functools
+import hashlib
 import json
 import os
 import platform
 import re
+import signal
 import socket
 import subprocess
 import sys
@@ -51,6 +54,161 @@ def _ssh_is_penalty_box_signature(exc: Exception) -> bool:
     """
     text = str(exc).lower()
     return "banner" in text or "not allowed at this time" in text
+
+
+class TargetBusy(Exception):
+    """Another native campaign owns the target staging area."""
+
+
+DEFAULT_TARGET_LOCK = REPO_ROOT / "artifacts" / ".target.lock"
+
+
+class TargetLock:
+    """Cross-process single-owner campaign lock (Windows-safe, no fcntl).
+
+    The lock file holds ``{"owner": ..., "pid": ...}``. Creation is atomic
+    (O_EXCL); a lock whose pid is dead is reclaimed as stale. Only the
+    owning pid may release. Guarantees §14: no two incompatible native
+    campaigns (put/verify/perf/sched) run concurrently.
+    """
+
+    def __init__(self, path: Path | None = None, owner: str = "") -> None:
+        self.path = Path(path) if path else DEFAULT_TARGET_LOCK
+        self.owner = owner or f"pid={os.getpid()}"
+
+    @staticmethod
+    def _pid_alive(pid: int) -> bool:
+        # No os.kill() probe: the holder is usually our own pid and
+        # self-signaling kills the tree under sandboxed Windows runners.
+        # _pid_is_gone() observes liveness without signaling (a zombie
+        # holder counts as dead, so its lock is reclaimable).
+        return not _pid_is_gone(pid)
+
+    def acquire(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        payload = json.dumps({"owner": self.owner, "pid": os.getpid(),
+                              "since": time.time()})
+        try:
+            fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            pass
+        else:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(payload)
+            return
+        # Lock file exists: live owner blocks, stale lock is reclaimed.
+        try:
+            holder = json.loads(self.path.read_text(encoding="utf-8"))
+            holder_pid = int(holder.get("pid", -1))
+        except (OSError, ValueError):
+            holder_pid = -1
+            holder = {}
+        if holder_pid > 0 and self._pid_alive(holder_pid):
+            raise TargetBusy(f"held by {holder.get('owner', '?')} "
+                             f"(pid {holder_pid})")
+        try:
+            self.path.unlink()
+        except OSError:
+            pass
+        fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(payload)
+        except BaseException:
+            try:
+                self.path.unlink()
+            except OSError:
+                pass
+            raise
+
+    def release(self) -> None:
+        try:
+            holder = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        if int(holder.get("pid", -1)) == os.getpid():
+            try:
+                self.path.unlink()
+            except OSError:
+                pass
+
+    def __enter__(self) -> "TargetLock":
+        self.acquire()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.release()
+
+
+def _with_target_lock(func):
+    """Refuse (exit 2) when another native campaign owns the target."""
+    @functools.wraps(func)
+    def wrapper(args):
+        try:
+            with TargetLock(owner=f"{func.__name__} pid={os.getpid()}"):
+                return func(args)
+        except TargetBusy as exc:
+            print(f"target: {exc}; one native campaign at a time")
+            return 2
+    return wrapper
+
+
+def write_stage_manifest(path: str | Path, dest: str,
+                         files: list[Path]) -> dict:
+    """Record what `put` staged: sha256 + POSIX cksum + size per file.
+
+    Written atomically (tmp + os.replace) after ALL uploads succeed, so
+    an interrupted staging never leaves a manifest claiming more than
+    reached the target.
+    """
+    entries = {}
+    for src in files:
+        blob = Path(src).read_bytes()
+        crc, size = provenance.cksum_posix(blob)
+        entries[Path(src).name] = {
+            "sha256": hashlib.sha256(blob).hexdigest(),
+            "cksum": crc,
+            "size": size,
+        }
+    manifest = {"dest": dest, "created_utc": _utcnow(), "files": entries}
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out.with_suffix(out.suffix + ".tmp")
+    tmp.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                   encoding="utf-8")
+    os.replace(tmp, out)
+    return manifest
+
+
+def load_stage_manifest(path: str | Path) -> dict:
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("files"), dict):
+        raise ValueError("not a stage manifest")
+    return data
+
+
+def check_staged_against_manifest(staged: dict | None,
+                                  manifest: dict) -> list[str]:
+    """Errors when on-target binaries differ from the staging manifest.
+
+    Missing binaries and cksum/size mismatches are hard errors (stale or
+    foreign binary ran). Extra on-target files are NOT flagged here —
+    secondary executables are attributed by the build set instead.
+    """
+    errors: list[str] = []
+    if staged is None:
+        return ["on-target cksum inventory unavailable"]
+    for name, want in manifest.get("files", {}).items():
+        got = staged.get(name)
+        if got is None:
+            errors.append(f"staged binary missing on target: {name}")
+        elif (got.get("cksum") != want.get("cksum")
+              or got.get("size") != want.get("size")):
+            errors.append(f"staged binary differs from manifest: {name} "
+                          f"(target cksum={got.get('cksum')} "
+                          f"size={got.get('size')}, manifest "
+                          f"cksum={want.get('cksum')} size={want.get('size')})")
+    return errors
 
 
 def probe_image(image_dir: Path) -> dict:
@@ -238,6 +396,129 @@ def cmd_boot(args: argparse.Namespace) -> int:
         print("result: INCONCLUSIVE — no boot markers observed (inspect transcript)")
         return 3
     print("result: BOOT MARKERS OBSERVED — on-target genesis runs are the next step")
+    return 0
+
+
+def _qemu_pidfile(image_dir: Path) -> Path:
+    """Pidfile written by `boot` via QEMU `-pidfile` (mirrors build_qemu_argv)."""
+    out = image_dir / "output" if (image_dir / "output").is_dir() else image_dir
+    return out / "qemu.pid"
+
+
+def _pid_is_qemu(pid: int) -> bool:
+    """True only when pid exists and its image looks like a QEMU system process.
+
+    PID-reuse guard: never signal a pid that is not QEMU. Windows uses
+    tasklist image-name matching (no new dependency); POSIX reads /proc.
+    Deliberately no os.kill() probe: the image check answers existence
+    by itself, and signaling must never touch our own pid.
+    """
+    if platform.system() == "Windows":
+        try:
+            proc = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                                  capture_output=True, text=True, timeout=15)
+        except OSError:
+            return False
+        return "qemu-system-" in proc.stdout.lower()
+    try:
+        cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().decode("utf-8", "replace")
+    except OSError:
+        return False
+    return "qemu-system-" in cmdline
+
+
+def _win_pid_listed(pid: int) -> bool:
+    """True when tasklist still lists pid (Windows liveness oracle).
+
+    os.kill(pid, 0) is not usable here: on Windows it succeeds while
+    any handle to the process is open, so a terminated-but-unreaped
+    process (e.g. a Popen child the caller has not wait()ed yet) is
+    wrongly reported alive. tasklist only lists live processes.
+    """
+    try:
+        proc = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                              capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return True  # unknown: keep waiting (safe direction, still bounded)
+    return f'"{pid}"' in proc.stdout
+
+
+def _pid_is_gone(pid: int) -> bool:
+    """True when pid has terminated, including terminated-but-unreaped.
+
+    A zombie still owns its pid (POSIX) or kernel object (Windows)
+    while the spawner has not reaped it, but the process itself is
+    dead: for a stop-waiter that counts as gone.
+    """
+    if platform.system() == "Windows":
+        return not _win_pid_listed(pid)
+    if Path("/proc").is_dir():
+        try:
+            stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+        except OSError:
+            return True
+        state = stat.rsplit(")", 1)[1].split()[0] if ")" in stat else ""
+        return state in ("Z", "X", "x")
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return True
+    return False
+
+
+def _wait_pid_gone(pid: int, budget_s: float) -> bool:
+    deadline = time.monotonic() + budget_s
+    while time.monotonic() < deadline:
+        if _pid_is_gone(pid):
+            return True
+        time.sleep(1)
+    return _pid_is_gone(pid)
+
+
+def cmd_stop(args: argparse.Namespace) -> int:
+    """Stop the QEMU instance recorded in output/qemu.pid (bounded, verified).
+
+    Refuses to signal a pid that is not a live QEMU process (PID reuse);
+    a stale pidfile is cleared and reported as already-stopped. Exit 0
+    when nothing is left running, 1 when the process survives SIGKILL.
+    """
+    pidfile = _qemu_pidfile(Path(args.image_dir))
+    try:
+        pid = int(pidfile.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        print(f"stop: no pid recorded at {pidfile}; nothing running")
+        return 0
+    if not _pid_is_qemu(pid):
+        print(f"stop: pid {pid} is not a live QEMU process; clearing stale {pidfile}")
+        try:
+            pidfile.unlink()
+        except OSError:
+            pass
+        return 0
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    except OSError as exc:
+        print(f"stop: cannot signal pid {pid}: {exc}", file=sys.stderr)
+        return 1
+    if not _wait_pid_gone(pid, 20):
+        if platform.system() == "Windows":
+            subprocess.run(["taskkill", "/PID", str(pid), "/F"],
+                           capture_output=True, timeout=30)
+        else:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                pass
+        if not _wait_pid_gone(pid, 10):
+            print(f"stop: pid {pid} still alive; {pidfile} kept", file=sys.stderr)
+            return 1
+    try:
+        pidfile.unlink()
+    except OSError:
+        pass
+    print(f"stop: QEMU pid {pid} stopped; {pidfile} cleared")
     return 0
 
 
@@ -913,6 +1194,7 @@ def _parse_sched_observed(body: str) -> str | None:
     return m.group(1) if m else None
 
 
+@_with_target_lock
 def cmd_sched(args: argparse.Namespace) -> int:
     import os
     password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
@@ -1009,6 +1291,7 @@ def cmd_sched(args: argparse.Namespace) -> int:
     return 0 if all_ok else 1
 
 
+@_with_target_lock
 def cmd_perf(args: argparse.Namespace) -> int:
     import os
     password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
@@ -1085,8 +1368,8 @@ def cmd_perf(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+@_with_target_lock
 def cmd_verify(args: argparse.Namespace) -> int:
-    import hashlib
     import os
     live = [n for n, _ in TARGET_MATRIX]
     if live != list(provenance.EXPECTED_TARGET_CHECKS):
@@ -1099,6 +1382,14 @@ def cmd_verify(args: argparse.Namespace) -> int:
         print(f"verify: REFUSED — cannot bind --ir: {exc}")
         return 2
     build_set, bs_err = _load_build_set(getattr(args, "build_set", None))
+    manifest = None
+    manifest_path = getattr(args, "require_manifest", None)
+    if manifest_path:
+        try:
+            manifest = load_stage_manifest(manifest_path)
+        except (OSError, ValueError) as exc:
+            print(f"verify: REFUSED — --require-manifest unusable: {exc}")
+            return 2
     password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
     try:
         client = _ssh_client(args.ssh_port, args.user, password)
@@ -1136,6 +1427,14 @@ def cmd_verify(args: argparse.Namespace) -> int:
         staged, staged_err = _fetch_staged(client)
         if staged_err:
             prov_errors.append(staged_err)
+        manifest_errors: list[str] = []
+        if manifest is not None and not staged_err:
+            manifest_errors = check_staged_against_manifest(staged, manifest)
+            for problem in manifest_errors:
+                print(f"verify: STALE/MISMATCHED — {problem}")
+                prov_errors.append(problem)
+            if manifest_errors:
+                all_ok = False  # wrong binary ran: never a PASS
     finally:
         client.close()
     finished = _utcnow()
@@ -1165,6 +1464,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
               "ir": ir_binding,
               "staged": staged,
               "build_set": build_set,
+              "stage_manifest": ({"path": manifest_path,
+                                  "errors": manifest_errors or None}
+                                 if manifest is not None else None),
               "transcripts": transcripts,
               "note": "executed on QNX 8.0 QEMU target over SSH; transcripts beside record"}
     (out_dir / "qnx-target-record.json").write_text(
@@ -1176,9 +1478,15 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 0 if all_ok else 1
 
 
+@_with_target_lock
 def cmd_put(args: argparse.Namespace) -> int:
     import os
     password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
+    if getattr(args, "manifest_out", None):
+        for src in args.src:  # fail before touching the target
+            if not Path(src).is_file():
+                print(f"put: REFUSED — missing local file: {src}")
+                return 2
     try:
         client = _ssh_client(args.ssh_port, args.user, password)
     except Exception as exc:
@@ -1196,9 +1504,41 @@ def cmd_put(args: argparse.Namespace) -> int:
             sftp.put(src, dst)
             sftp.chmod(dst, 0o755)
             print(f"put: {src} -> {dst}")
+        if getattr(args, "manifest_out", None):
+            manifest = write_stage_manifest(
+                args.manifest_out, args.dest, [Path(s) for s in args.src])
+            print(f"put: manifest ({len(manifest['files'])} files) -> "
+                  f"{args.manifest_out}")
         return 0
     finally:
         client.close()
+
+
+def cmd_identity(args: argparse.Namespace) -> int:
+    """Inspect target identity: uname + staged-binary cksum inventory."""
+    import os
+    password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
+    try:
+        client = _ssh_client(args.ssh_port, args.user, password)
+    except Exception as exc:
+        print(f"ssh: connect/auth failed: {type(exc).__name__}: {exc}")
+        return 2
+    try:
+        uname, uname_err = _fetch_uname(client)
+        staged, staged_err = _fetch_staged(client, args.dest)
+    finally:
+        client.close()
+    info = {"target": _target_identity_block(uname),
+            "dest": args.dest, "staged": staged,
+            "error": uname_err or staged_err}
+    print(json.dumps(info, indent=2, sort_keys=True))
+    if args.out:
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(info, indent=2, sort_keys=True) + "\n",
+                            encoding="utf-8")
+        print(f"transcript: {out_path}")
+    return 0 if uname else 1
 
 
 def main() -> int:
@@ -1221,6 +1561,9 @@ def main() -> int:
     w.add_argument("--ssh-port", type=int, default=2222)
     w.add_argument("--wait", type=int, default=300)
     w.set_defaults(func=cmd_wait_ssh)
+    st = sub.add_parser("stop", help="stop the QEMU instance in output/qemu.pid")
+    st.add_argument("image_dir")
+    st.set_defaults(func=cmd_stop)
     r = sub.add_parser("run", help="run commands on target over SSH (paramiko)")
     r.add_argument("--ssh-port", type=int, default=2222)
     r.add_argument("--user", default="root")
@@ -1236,8 +1579,20 @@ def main() -> int:
     t.add_argument("--password", default=None,
                    help="prefer GENESIS_TARGET_PASSWORD env var")
     t.add_argument("--dest", default="/tmp/genesis")
+    t.add_argument("--manifest-out", default=None,
+                   help="write an atomic staging manifest (sha256+cksum) "
+                        "after all uploads succeed")
     t.add_argument("src", nargs="+")
     t.set_defaults(func=cmd_put)
+    i = sub.add_parser("identity", help="inspect target identity (uname + "
+                                        "staged-binary inventory)")
+    i.add_argument("--ssh-port", type=int, default=2222)
+    i.add_argument("--user", default="qnxuser")
+    i.add_argument("--password", default=None,
+                   help="prefer GENESIS_TARGET_PASSWORD env var")
+    i.add_argument("--dest", default="/tmp/genesis")
+    i.add_argument("--out", default=None)
+    i.set_defaults(func=cmd_identity)
     v = sub.add_parser("verify", help="run the on-target verification matrix over SSH")
     v.add_argument("--ssh-port", type=int, default=2222)
     v.add_argument("--user", default="qnxuser")
@@ -1252,6 +1607,10 @@ def main() -> int:
                    help="machine IR JSON this run is bound to "
                         "(machine id + digest embedded; required for "
                         "QNX_BEHAVIOR_VERIFIED and above)")
+    v.add_argument("--require-manifest", default=None,
+                   help="staging manifest from `put --manifest-out`; "
+                        "refuse when missing/invalid, FAIL when on-target "
+                        "binaries differ (stale staging)")
     v.set_defaults(func=cmd_verify)
     f = sub.add_parser("perf", help="measure target IPC round-trip latency over SSH")
     f.add_argument("--ssh-port", type=int, default=2222)
