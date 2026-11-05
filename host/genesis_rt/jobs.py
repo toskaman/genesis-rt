@@ -36,6 +36,9 @@ CANCEL_POLL_S = 5.0
 # §15: completion Events are per-job memory; evict terminal jobs' events
 # past this cap (wait() falls back to a DB read for evicted jobs).
 MAX_TRACKED_JOBS = 200
+# Wave 8 §7: live jobs (queued+running) past this cap are refused with
+# JobOverloaded (HTTP 429) instead of queueing unbounded work.
+MAX_LIVE_JOBS = 50
 
 log = logging.getLogger("genesis.jobs")
 
@@ -46,6 +49,10 @@ class JobConflict(Exception):
 
 class JobNotFound(Exception):
     """No such job id (maps to HTTP 404)."""
+
+
+class JobOverloaded(Exception):
+    """Live-job capacity reached (maps to HTTP 429)."""
 
 
 def _connect(db_path: Path) -> sqlite3.Connection:
@@ -69,9 +76,11 @@ def _connect(db_path: Path) -> sqlite3.Connection:
 
 class JobManager:
     def __init__(self, db_path: str | Path, artifacts_dir: str | Path,
-                 max_workers: int = MAX_WORKERS) -> None:
+                 max_workers: int = MAX_WORKERS,
+                 max_live: int = MAX_LIVE_JOBS) -> None:
         self.db_path = Path(db_path)
         self.artifacts = Path(artifacts_dir)
+        self._max_live = max_live
         self._pool = ThreadPoolExecutor(max_workers=max_workers,
                                         thread_name_prefix="genesis-job")
         # RLock: _emit/_set_state re-enter from cancel()/worker paths that
@@ -122,6 +131,14 @@ class JobManager:
         with self._lock:
             if self._closed:
                 raise RuntimeError("job manager is closed")
+            conn = _connect(self.db_path)
+            try:
+                live = conn.execute("SELECT COUNT(*) FROM jobs WHERE state IN "
+                                    "('queued','running')").fetchone()[0]
+            finally:
+                conn.close()
+            if live >= self._max_live:
+                raise JobOverloaded(f"job capacity reached ({live} live)")
             job_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
             if not valid_run_id(job_id):
                 raise ValueError(f"invalid run_id: {job_id!r}")

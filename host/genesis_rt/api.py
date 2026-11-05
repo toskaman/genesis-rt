@@ -109,7 +109,7 @@ from .evidence_graph import (GraphTooLarge, InvalidPassport, build_graph,
 from .explorer import (ExplorerInputError, ExplorerUnsupported, explore,
                        replay)
 from .impact import analyze_impact, release_status
-from .jobs import JobConflict, JobManager, JobNotFound
+from .jobs import JobConflict, JobManager, JobNotFound, JobOverloaded
 from .orchestrator import MAX_RUN_ID_LEN, valid_run_id as _valid_run_id
 from .twin import TwinChainError, TwinInputError, TwinTooLarge, track_from_passport
 
@@ -270,6 +270,10 @@ def create_app() -> Any:
         except JobConflict as exc:
             _drop(tmp_ir)
             return JSONResponse({"error": f"run conflict: {exc}"}, status_code=409)
+        except JobOverloaded as exc:
+            _drop(tmp_ir)
+            return JSONResponse({"error": f"server busy: {exc}"},
+                                status_code=429, headers={"Retry-After": "5"})
         try:
             rec = mgr.wait(job_id, timeout=900)
         except TimeoutError:
@@ -416,6 +420,10 @@ def create_app() -> Any:
         except JobConflict as exc:
             _drop(tmp_ir)
             return JSONResponse({"error": f"run conflict: {exc}"}, status_code=409)
+        except JobOverloaded as exc:
+            _drop(tmp_ir)
+            return JSONResponse({"error": f"server busy: {exc}"},
+                                status_code=429, headers={"Retry-After": "5"})
         return JSONResponse({"job_id": job_id, "state": "queued"},
                             status_code=202)
 

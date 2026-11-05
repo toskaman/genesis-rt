@@ -341,3 +341,15 @@ def test_origin_guard_rejects_foreign_writes(client):
                     headers=ok)
     assert r.status_code == 202, r.text
     _poll_state(client, r.json()["job_id"])
+
+
+def test_jobs_overload_returns_429_without_orphan_upload(client, app, tmp_path,
+                                                         monkeypatch, amr_ir):
+    (tmp_path / "artifacts").mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(app.state.jobs, "_max_live", 0)
+    before = set((tmp_path / "artifacts").glob("upload-*.ir.json"))
+    r = client.post("/jobs", json={"ir": amr_ir})
+    assert r.status_code == 429, r.text
+    assert r.headers.get("retry-after") == "5"
+    after = set((tmp_path / "artifacts").glob("upload-*.ir.json"))
+    assert after == before
