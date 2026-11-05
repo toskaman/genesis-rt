@@ -163,9 +163,13 @@ def _machine_name(ir: dict[str, Any] | None) -> str:
     return str(mach) if mach else "unnamed machine"
 
 
-def render_report(op_id: str, rec: dict[str, Any], files: dict[str, bytes],
-                  redacted: list[str]) -> tuple[str, str]:
-    """Return (report.html, verdict) with verdict in PASS/FAIL/NOT VERIFIED."""
+def assess_op(op_id: str, rec: dict[str, Any],
+              files: dict[str, bytes]) -> dict[str, Any]:
+    """Verdict + explanation inputs shared by the report and /decision.
+
+    verdict is PASS only for COMPLETED + gate PASS + qnx_verified +
+    a clean chain replay; anything else is FAIL or NOT VERIFIED.
+    """
     passport = _load_json(files.get("passport.json", b"")) or {}
     ir = _load_json(files.get("ir.json", b""))
     target = _load_json(files.get("transcripts/qnx-target-record.json",
@@ -179,20 +183,93 @@ def render_report(op_id: str, rec: dict[str, Any], files: dict[str, bytes],
     state = str(rec.get("state", "?"))
     if state == "COMPLETED" and gate == "PASS" and qnx_verified \
             and not chain_errors:
-        verdict, badge = "PASS", "pass"
+        verdict = "PASS"
     elif gate == "FAIL" or state in ("FAILED", "INTERRUPTED"):
-        verdict, badge = "FAIL", "fail"
+        verdict = "FAIL"
     else:
-        verdict, badge = "NOT VERIFIED", "unknown"
+        verdict = "NOT VERIFIED"
 
     checks = target.get("checks", []) if isinstance(target, dict) else []
     if not isinstance(checks, list):
         checks = []
-    n_pass = sum(1 for c in checks
-                 if isinstance(c, dict) and c.get("passed"))
+    passed = [c for c in checks if isinstance(c, dict)]
+    failed = [str(c.get("name", "?")) for c in passed if not c.get("passed")]
     samples = perf.get("raw_samples_us", []) \
         if isinstance(perf, dict) else []
-    qcc_raw = ((build.get("environment") or {}).get("qcc_version") or "")
+    missing = [n for n in ("ir.json", "passport.json",
+                           "transcripts/qnx-target-record.json",
+                           "performance/qnx-perf-record.json",
+                           "qnx-build-record.json")
+               if n not in files]
+    gate_body = {}
+    for r in passport.get("chain", []):
+        if isinstance(r, dict) and r.get("kind") == "gate_verdict" \
+                and isinstance(r.get("body"), dict):
+            gate_body = r["body"]
+    return {
+        "op_id": op_id,
+        "verdict": verdict,
+        "state": state,
+        "gate": gate,
+        # Old passports predate level/release_eligible; fall back to
+        # the legacy tier key and to the gate itself.
+        "gate_level": str(gate_body.get("level")
+                          or gate_body.get("tier") or "?"),
+        "release_eligible": bool(gate_body.get(
+            "release_eligible", gate == "PASS")) and not chain_errors,
+        "qnx_verified": qnx_verified,
+        "machine": _machine_name(ir),
+        "ir_digest": str(((rec.get("artifacts") or {}).get("ir_sha256")
+                         or (target.get("ir") or {}).get("ir_sha256")
+                         or "?")),
+        "toolchain": " ".join(str(
+            (build.get("environment") or {}).get("qcc_version") or "")
+            .split())[:160],
+        "matrix": {"passed": sum(1 for c in passed if c.get("passed")),
+                   "total": len(passed), "failed": failed},
+        "perf_samples": len(samples) if isinstance(samples, list) else 0,
+        "missing_evidence": missing,
+        "chain_errors": [str(e)[:200] for e in chain_errors],
+        "why": _why_lines(verdict, state, gate, qnx_verified,
+                           chain_errors, missing, failed),
+    }
+
+
+def _why_lines(verdict: str, state: str, gate: str, qnx_verified: bool,
+               chain_errors: list[str], missing: list[str],
+               failed: list[str]) -> list[str]:
+    """One-sentence causes, deterministic order, no raw JSON needed."""
+    if verdict == "PASS":
+        return ["all gates green: COMPLETED + gate PASS + "
+                "QNX-verified + clean replay"]
+    lines = []
+    if state != "COMPLETED":
+        lines.append(f"op did not complete (state {state})")
+    if gate != "PASS":
+        lines.append(f"gate verdict is {gate}, not PASS")
+    if not qnx_verified:
+        lines.append("not QNX-verified (host-only or unverified target run)")
+    if chain_errors:
+        lines.append(f"evidence replay failed: {chain_errors[0]}"[:160])
+    for name in missing:
+        lines.append(f"missing evidence: {name}")
+    for name in failed:
+        lines.append(f"native check failed: {name}")
+    return lines or ["unexplained non-pass (report this as a bug)"]
+
+
+def render_report(op_id: str, rec: dict[str, Any], files: dict[str, bytes],
+                  redacted: list[str]) -> tuple[str, str]:
+    """Return (report.html, verdict) with verdict in PASS/FAIL/NOT VERIFIED."""
+    a = assess_op(op_id, rec, files)
+    verdict = a["verdict"]
+    badge = {"PASS": "pass", "FAIL": "fail"}.get(verdict, "unknown")
+    target = _load_json(files.get("transcripts/qnx-target-record.json",
+                                  b"")) or {}
+    checks = target.get("checks", []) if isinstance(target, dict) else []
+    if not isinstance(checks, list):
+        checks = []
+    n_pass = a["matrix"]["passed"]
     rows = []
     for c in checks:
         if not isinstance(c, dict):
@@ -206,19 +283,15 @@ def render_report(op_id: str, rec: dict[str, Any], files: dict[str, bytes],
     matrix_html = ("\n".join(rows) if rows else
                    '<tr><td colspan="3" class="unknown">'
                    "no matrix checks recorded — NOT VERIFIED</td></tr>")
-    missing = [n for n in ("ir.json", "passport.json",
-                           "transcripts/qnx-target-record.json",
-                           "performance/qnx-perf-record.json",
-                           "qnx-build-record.json")
-               if n not in files]
-    missing_html = ("none" if not missing else
-                    ", ".join(f"<code>{_esc(m)}</code>" for m in missing))
-    replay_html = ("PASS — chain replays clean" if not chain_errors else
-                   "FAIL — " + _esc("; ".join(chain_errors), 500))
+    missing_html = ("none" if not a["missing_evidence"] else
+                    ", ".join(f"<code>{_esc(m)}</code>"
+                              for m in a["missing_evidence"]))
+    replay_html = ("PASS — chain replays clean"
+                   if not a["chain_errors"] else
+                   "FAIL — " + _esc("; ".join(a["chain_errors"]), 500))
     red_html = ("none" if not redacted else
                 ", ".join(f"<code>{_esc(r, 120)}</code>" for r in redacted))
-    ir_digest = ((rec.get("artifacts") or {}).get("ir_sha256")
-                 or (target.get("ir") or {}).get("ir_sha256") or "?")
+    why_html = "".join(f"<li>{_esc(w, 200)}</li>" for w in a["why"])
 
     body = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
@@ -239,22 +312,24 @@ workflow <code>{_esc((rec.get("workflow") or "?"), 60)}</code> ·
 <span class="badge {badge}">{_esc(verdict, 16)}</span></p>
 <h2>Executive summary</h2>
 <table><tr><th>Item</th><th>Value</th></tr>
-<tr><td>Machine</td><td>{_esc(_machine_name(ir), 120)}</td></tr>
-<tr><td>Op state</td><td>{_esc(state, 32)}</td></tr>
-<tr><td>Gate verdict</td><td>{_esc(gate, 16)}</td></tr>
-<tr><td>QNX verified</td><td>{_esc(qnx_verified, 8)}</td></tr>
+<tr><td>Machine</td><td>{_esc(a["machine"], 120)}</td></tr>
+<tr><td>Op state</td><td>{_esc(a["state"], 32)}</td></tr>
+<tr><td>Gate verdict</td><td>{_esc(a["gate"], 16)}</td></tr>
+<tr><td>Release eligible</td><td>{_esc(a["release_eligible"], 8)}</td></tr>
+<tr><td>QNX verified</td><td>{_esc(a["qnx_verified"], 8)}</td></tr>
 <tr><td>Matrix</td><td>{n_pass}/{len(checks)} checks passed</td></tr>
-<tr><td>Perf samples</td><td>{len(samples) if isinstance(samples, list)
-                               else "?"}</td></tr>
-<tr><td>IR digest</td><td><code>{_esc(ir_digest, 80)}</code></td></tr>
-<tr><td>Toolchain</td><td>{_esc(" ".join(str(qcc_raw).split())[:160])}</td></tr>
+<tr><td>Perf samples</td><td>{_esc(a["perf_samples"], 8)}</td></tr>
+<tr><td>IR digest</td><td><code>{_esc(a["ir_digest"], 80)}</code></td></tr>
+<tr><td>Toolchain</td><td>{_esc(a["toolchain"], 160)}</td></tr>
 <tr><td>Missing evidence</td><td>{missing_html}</td></tr>
 <tr><td>Redacted keys</td><td>{red_html}</td></tr></table>
+<h2>Why this verdict</h2>
+<ul>{why_html}</ul>
 <h2>Verification matrix (native QNX)</h2>
 <table><tr><th>Check</th><th>Result</th><th>Detail</th></tr>
 {matrix_html}</table>
 <h2>Evidence replay</h2>
-<p class="{"pass" if not chain_errors else "fail"}">{replay_html}</p>
+<p class="{"pass" if not a["chain_errors"] else "fail"}">{replay_html}</p>
 <p class="note">Replayed with the repo verifier over the bundled
 passport.json. Digests of every bundled file are in manifest.json.</p>
 <h2>Change impact</h2>

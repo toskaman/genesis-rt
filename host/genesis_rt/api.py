@@ -611,6 +611,18 @@ def create_app() -> Any:
             headers={"Content-Disposition":
                      f"attachment; filename=dossier-{op_id}.zip"})
 
+    @app.get("/target/ops/{op_id}/decision")
+    def get_target_decision(op_id: str) -> JSONResponse:
+        from .dossier import DossierError, assess_op, collect_op_files
+        if not valid_op_id(op_id):
+            raise HTTPException(400, "invalid op id")
+        try:
+            files, rec, _red = collect_op_files(trunner.ops_dir, op_id,
+                                                ARTIFACTS)
+        except DossierError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+        return JSONResponse(assess_op(op_id, rec, files))
+
     @app.delete("/target/ops/{op_id}")
     def cancel_target_op(op_id: str) -> JSONResponse:
         if not valid_op_id(op_id):

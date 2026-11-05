@@ -1088,6 +1088,8 @@ function renderTargetHtml(opId, reduced, record) {
     h += '<p><a id="top-dossier" href="/target/ops/' +
       encodeURIComponent(opId) + '/dossier">Export dossier (.zip)</a> ' +
       '<span class="note">portable report + evidence + offline verify</span></p>';
+    h += '<div id="top-decision"><p class="note">Loading release ' +
+      'decision…</p></div>';
   }
   if (state === 'BLOCKED' || state === 'FAILED') {
     h += '<div class="banner"><span class="fail">' +
@@ -1124,6 +1126,30 @@ function renderTargetHtml(opId, reduced, record) {
     h += '#' + esc(e.seq) + ' ' + esc(e.kind) + ' ' + esc(e.message) + '\n';
   }
   return h + '</pre>';
+}
+function renderDecisionHtml(d) {
+  const v = (d && d.verdict) || 'NOT VERIFIED';
+  const cls = v === 'PASS' ? 'pass' : (v === 'FAIL' ? 'fail' : 'unknown');
+  const m = (d && d.matrix) || {};
+  let h = '<h3>Release decision: <span class="' + cls + '">' + esc(v) +
+    '</span></h3>';
+  h += '<p>gate <b>' + esc(d.gate) + '</b> · level <code>' +
+    esc(d.gate_level) + '</code> · release eligible <b>' +
+    esc(d.release_eligible) + '</b> · QNX verified <b>' +
+    esc(d.qnx_verified) + '</b> · matrix ' + esc(m.passed) + '/' +
+    esc(m.total) + ' · replay ' +
+    (((d.chain_errors || []).length === 0)
+      ? '<span class="pass">clean</span>'
+      : '<span class="fail">FAILED</span>') + '</p>';
+  h += '<ul>' + (d.why || []).map((w) => '<li>' + esc(w) + '</li>').join('') +
+    '</ul>';
+  const miss = (d.missing_evidence || []).map((x) => '<code>' + esc(x) +
+    '</code>').join(' · ') || 'none';
+  const fail = (m.failed || []).map((x) => '<code>' + esc(x) +
+    '</code>').join(' · ') || 'none';
+  h += '<p class="note">missing evidence: ' + miss +
+    ' · failed checks: ' + fail + '</p>';
+  return h;
 }
 function renderTargetOpsHtml(ops) {
   if (!ops.length) {
@@ -2644,7 +2670,27 @@ Live.closeTargetStream = function () {
 function renderTargetOut() {
   const reduced = reduceTargetEvents(Live.opEvents);
   el('top-out').innerHTML = renderTargetHtml(Live.opId, reduced, Live.opRecord);
+  if (Live.opId && reduced.state !== 'active' &&
+      Live.decisionOpId !== Live.opId) {
+    Live.decisionOpId = Live.opId;
+    loadTargetDecision(Live.opId);
+  } else if (!Live.opId || reduced.state === 'active') {
+    Live.decisionOpId = null;
+  }
   return reduced;
+}
+async function loadTargetDecision(opId) {
+  try {
+    const d = await api('/target/ops/' + encodeURIComponent(opId) +
+      '/decision');
+    const box = el('top-decision');
+    if (box && Live.opId === opId) box.innerHTML = renderDecisionHtml(d);
+  } catch (e) {
+    const box = el('top-decision');
+    if (box && Live.opId === opId) {
+      box.innerHTML = errHtml('release decision failed', e);
+    }
+  }
 }
 async function openTargetOp(opId) {
   Live.closeTargetStream();

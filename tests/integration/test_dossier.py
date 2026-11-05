@@ -210,3 +210,61 @@ def test_endpoint_dossier_errors(client):
         == 404
     assert client.get("/target/ops/op-111111111111/dossier").status_code \
         == 409
+
+
+def test_assess_pass_op(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    files, rec, _red = dos_mod.collect_op_files(ops, OP)
+    a = dos_mod.assess_op(OP, rec, files)
+    assert a["verdict"] == "PASS"
+    assert a["release_eligible"] is True
+    assert a["gate_level"] == "QNX_EXECUTED"  # legacy tier fallback
+    assert a["matrix"] == {"passed": 2, "total": 2, "failed": []}
+    assert a["perf_samples"] == 2
+    assert a["missing_evidence"] == [] and a["chain_errors"] == []
+    assert a["why"] == ["all gates green: COMPLETED + gate PASS + "
+                        "QNX-verified + clean replay"]
+
+
+def test_assess_failed_op_explains_why(tmp_path):
+    ops = _write_op(tmp_path / "ops", state="FAILED", gate="FAIL")
+    files, rec, _red = dos_mod.collect_op_files(ops, OP)
+    a = dos_mod.assess_op(OP, rec, files)
+    assert a["verdict"] == "FAIL"
+    assert a["release_eligible"] is False
+    assert "op did not complete (state FAILED)" in a["why"]
+    assert "gate verdict is FAIL, not PASS" in a["why"]
+    assert "not QNX-verified (host-only or unverified target run)" \
+        in a["why"]
+    assert "native check failed: c2" in a["why"]
+    # Report and endpoint share the same assessment.
+    report, verdict = dos_mod.render_report(OP, rec, files, _red)
+    assert verdict == "FAIL"
+    assert "Why this verdict" in report
+    assert "native check failed: c2" in report
+
+
+def test_assess_tampered_op_not_verified(tmp_path):
+    ops = _write_op(tmp_path / "ops", tamper_passport=True)
+    files, rec, _red = dos_mod.collect_op_files(ops, OP)
+    a = dos_mod.assess_op(OP, rec, files)
+    assert a["verdict"] == "NOT VERIFIED"
+    assert a["release_eligible"] is False
+    assert any(w.startswith("evidence replay failed:") for w in a["why"])
+
+
+def test_endpoint_decision_roundtrip(client):
+    r = client.get(f"/target/ops/{OP}/decision")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["op_id"] == OP and body["verdict"] == "PASS"
+    assert body["release_eligible"] is True
+    assert body["matrix"] == {"passed": 2, "total": 2, "failed": []}
+    assert isinstance(body["why"], list) and body["why"]
+    assert body["chain_errors"] == []
+
+
+def test_endpoint_decision_errors(client):
+    assert client.get("/target/ops/not-an-id/decision").status_code == 400
+    assert client.get("/target/ops/op-000000000000/decision").status_code \
+        == 404

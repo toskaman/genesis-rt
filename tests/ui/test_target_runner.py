@@ -48,6 +48,9 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
       return renderTargetHtml(j.id, reduceTargetEvents(j.events), j.record);
     }
     if (c.fn === 'tops') return renderTargetOpsHtml(JSON.parse(c.arg));
+    if (c.fn === 'topdecision') {
+      return renderDecisionHtml(JSON.parse(c.arg));
+    }
     throw new Error('unknown fn ' + c.fn);
   });
   fs.writeFileSync(process.argv[3], JSON.stringify(out));
@@ -134,9 +137,10 @@ def test_tab_chrome_present():
                 "top-out", "top-refresh", "top-history"):
         assert f'id="{cid}"' in html
     for fn in ("reduceTargetEvents", "renderTargetHtml",
-               "renderTargetOpsHtml", "targetRun", "openTargetOp",
-               "openTargetStream", "refreshTargetHistory"):
-        assert f"function {fn}(" in html
+               "renderTargetOpsHtml", "renderDecisionHtml", "targetRun",
+               "openTargetOp", "openTargetStream", "refreshTargetHistory",
+               "loadTargetDecision"):
+        assert f"function {fn}(" in html or f"async function {fn}(" in html
 
 
 @node
@@ -156,3 +160,40 @@ def test_html_dossier_link_only_when_settled(tmp_path):
     assert 'id="top-dossier"' in done_html
     assert "/target/ops/op-abc123def456/dossier" in done_html
     assert "top-dossier" not in live_html
+
+
+@node
+def test_html_decision_placeholder_only_when_settled(tmp_path):
+    settled = json.dumps({
+        "id": "op-abc123def456",
+        "events": [{"seq": 0, "kind": "op_started", "message": "x"},
+                   {"seq": 1, "kind": "op_completed", "message": "done"}],
+        "record": {"op_id": "op-abc123def456", "state": "COMPLETED"}})
+    active = json.dumps({
+        "id": "op-abc123def456",
+        "events": [{"seq": 0, "kind": "op_started", "message": "x"}],
+        "record": {"op_id": "op-abc123def456", "state": "EXECUTING"}})
+    (done_html, live_html) = _run_js([{"fn": "tophtml", "arg": settled},
+                                      {"fn": "tophtml", "arg": active}],
+                                     tmp_path)
+    assert 'id="top-decision"' in done_html
+    assert "top-decision" not in live_html
+
+
+@node
+def test_decision_renders_verdict_why_and_escapes(tmp_path):
+    evil = "<img src=x onerror=alert(1)>"
+    decision = {
+        "op_id": "op-abc123def456", "verdict": "FAIL", "state": "FAILED",
+        "gate": "deny", "gate_level": "qnx-verified",
+        "release_eligible": False, "qnx_verified": False,
+        "matrix": {"total": 16, "passed": 15, "failed": ["limits_differ"],
+                   "all_passed": False},
+        "missing_evidence": [], "chain_errors": [],
+        "why": ["native check failed: limits_differ", evil],
+    }
+    (html,) = _run_js([{"fn": "topdecision", "arg": json.dumps(decision)}],
+                      tmp_path)
+    assert "Release decision" in html
+    assert "FAIL" in html and "limits_differ" in html
+    assert "<img" not in html and "&lt;img" in html
