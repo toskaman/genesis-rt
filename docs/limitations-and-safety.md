@@ -20,6 +20,12 @@
    Fleet/HAM policy integration is documented but not automated.
 8. **Security posture** is hackathon-grade: local-first, no auth, no sandbox
    beyond timeouts and argv lists. See `SECURITY.md`.
+9. **v2 has no cell semantics.** `industrial_cell` stays on the v1 path:
+   v2 validation and v1→v2 migration reject it loudly instead of dropping
+   the `cell` block or crashing.
+10. **No arm kinematics.** `robotic_arm_virtual` passes schema validation but
+    the host mirror runs it on the differential-drive corridor; no
+    arm-specific physics exists on host or target yet.
 
 If any of these is a surprise, the submission has failed its honesty goal —
 please file an issue.

@@ -9,6 +9,9 @@ untyped actuator/sensor units, implicit fault responses). Rules:
   whitelist; unknown keys are rejected;
 - v1 superset: v2 machine kinds, condition ids, action ids and scenario ids
   include every v1 value, so migration never renames user vocabulary;
+  the one exception is ``industrial_cell`` (and its coordination block),
+  which v2 explicitly rejects: no v2 cell semantics exist yet, so a loud
+  IRValidationError replaces a silent drop or a raw KeyError;
 - cross-references resolve: transitions/commands/telemetry/fault_responses
   must point at declared components, and fault entry states must be safe;
 - no silent invention: ``migrate_v1_to_v2`` derives every v2-only field
@@ -56,6 +59,7 @@ SENSOR_UNITS: dict[str, tuple[str, ...]] = {
     "joint_rad": ("rad",),
     "belt_speed_mps": ("mps",),
     "estop_bool": ("bool",),
+    "presence_bool": ("bool",),
 }
 FIELD_UNITS = ("m", "mps", "rad", "radps", "m_rad", "pct", "bool", "ms", "hz")
 
@@ -195,6 +199,9 @@ def _validate_machine(machine: Any) -> None:
     kind = _need_str(machine, "kind", "machine")
     if kind not in MACHINE_KINDS:
         raise _fail("machine.kind", f"unknown kind '{kind}'")
+    if kind == "industrial_cell":
+        raise _fail("machine.kind", "'industrial_cell' is v1-only in this release: "
+                                    "v2 has no cell coordination semantics")
     _need_str(machine, "profile", "machine")
     target = _need_str(machine, "execution_target", "machine")
     if target != EXECUTION_TARGET:
@@ -229,8 +236,11 @@ def _validate_components(
         ctype = _need_str(item, "type", path)
         if ctype not in known_types:
             raise _fail(path, f"unknown type '{ctype}'")
+        allowed = unit_table.get(ctype)
+        if allowed is None:  # fail closed, never a raw KeyError
+            raise _fail(path, f"type '{ctype}' has no v2 unit mapping")
         unit = _need_str(item, "unit", path)
-        if unit not in unit_table[ctype]:
+        if unit not in allowed:
             raise _fail(path, f"unit '{unit}' incompatible with type '{ctype}'")
         if section == "actuators":
             bounds = item.get("bounds")
@@ -558,15 +568,30 @@ def migrate_v1_to_v2(v1: dict[str, Any]) -> dict[str, Any]:
 
     v1 = validate_ir(v1)
     machine = v1["machine"]
+    if machine["kind"] == "industrial_cell":
+        raise IRValidationError(
+            "ir-v2: migrate: 'industrial_cell' is v1-only in this release: "
+            "v2 has no cell coordination semantics (the v1 'cell' block "
+            "cannot be migrated)"
+        )
     control = v1["control"]
     max_lin = float(control["max_linear_speed_mps"])
     max_ang = float(control["max_angular_speed_radps"])
+
+    def _default_unit(table: dict[str, tuple[str, ...]], ctype: str,
+                      where: str) -> str:
+        units = table.get(ctype)
+        if units is None:  # fail closed, never a raw KeyError
+            raise IRValidationError(
+                f"ir-v2: migrate: {where} type '{ctype}' has no v2 unit mapping"
+            )
+        return units[0]
 
     actuators = [
         {
             "id": a["id"],
             "type": a["type"],
-            "unit": ACTUATOR_UNITS[a["type"]][0],
+            "unit": _default_unit(ACTUATOR_UNITS, a["type"], "actuator"),
             "bounds": {"min": -max_lin, "max": max_lin}
             if a["type"] in ("velocity_command", "belt_speed_command")
             else {"min": -max_ang, "max": max_ang},
@@ -579,7 +604,7 @@ def migrate_v1_to_v2(v1: dict[str, Any]) -> dict[str, Any]:
         {
             "id": s["id"],
             "type": s["type"],
-            "unit": SENSOR_UNITS[s["type"]][0],
+            "unit": _default_unit(SENSOR_UNITS, s["type"], "sensor"),
             "freshness_limit_ms": float(s.get("freshness_limit_ms", 100)),
             "origin": MIGRATED_ORIGIN,
         }
@@ -606,7 +631,8 @@ def migrate_v1_to_v2(v1: dict[str, Any]) -> dict[str, Any]:
             "actuator": a["id"],
             "deadline_ms": float(control["period_ms"]),
             "fields": [
-                {"name": "value", "unit": ACTUATOR_UNITS[a["type"]][0],
+                {"name": "value",
+                 "unit": _default_unit(ACTUATOR_UNITS, a["type"], "actuator"),
                  "min": -max_lin, "max": max_lin}
             ],
             "origin": MIGRATED_ORIGIN,

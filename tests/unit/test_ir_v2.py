@@ -385,3 +385,34 @@ def test_cli_validate_unknown_version(tmp_path):
     p = tmp_path / "v9.json"
     p.write_text(json.dumps({"schema_version": 9}), encoding="utf-8")
     assert main(["validate", str(p)]) != 0
+
+
+# --- Wave 7 M1: presence_bool / industrial_cell fail-closed ---
+
+def _as_presence(doc):
+    doc["sensors"][0]["type"] = "presence_bool"
+    doc["sensors"][0]["unit"] = "bool"
+
+
+def test_v2_presence_bool_sensor_validates(amr_v2_dict):
+    out = validate_v2(_mutate(amr_v2_dict, _as_presence))
+    assert out["sensors"][0]["unit"] == "bool"
+
+
+def test_v2_industrial_cell_kind_rejected(amr_v2_dict):
+    with pytest.raises(IRValidationError, match="v1-only"):
+        validate_v2(_mutate(amr_v2_dict, lambda d: d["machine"].__setitem__("kind", "industrial_cell")))
+
+
+def test_migrate_cell_refused(cell_ir):
+    with pytest.raises(IRValidationError, match="v1-only"):
+        migrate_v1_to_v2(cell_ir)
+
+
+def test_migrate_presence_sensor_ok(amr_ir):
+    def _add_presence(doc):
+        doc["sensors"].append({"id": "presence-0", "type": "presence_bool",
+                               "freshness_limit_ms": 100})
+    v2 = migrate_v1_to_v2(_mutate(amr_ir, _add_presence))
+    by_id = {s["id"]: s for s in v2["sensors"]}
+    assert by_id["presence-0"]["unit"] == "bool"
