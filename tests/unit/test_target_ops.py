@@ -362,3 +362,82 @@ def test_replay_rejects_tampered_passport(tmp_path, amr_ir):
                      "verdict": verdict["verdict"]})
     ok, detail = tgt._step_replay(ctx)
     assert ok is False, detail
+
+
+def test_extra_src_missing_file_rejected(runner, tmp_path):
+    with pytest.raises(tgt.TargetOpError):
+        runner.start("build-only", params={"ir": {}, "extra_src": ["nope"]})
+    assert list((tmp_path / "ops").glob("op-*.json")) == []
+
+
+def test_put_cleans_staging_and_appends_extra_src(tmp_path, monkeypatch):
+    calls = {}
+
+    class _FakeQt:
+        def cmd_run(self, args):
+            calls["clean"] = list(args.command)
+            return 0
+
+        def cmd_put(self, args):
+            calls["put"] = list(args.src)
+            return 0
+
+    monkeypatch.setattr(tgt, "_qt", lambda: _FakeQt())
+    extra = tmp_path / "genesis_guard_conv"
+    extra.write_text("x", encoding="utf-8")
+    ctx = {"params": {"extra_src": [str(extra)]},
+           "work_dir": str(tmp_path), "artifacts": {"binaries": ["a", "b"]}}
+    ok, detail = tgt._step_qemu_put(ctx)
+    assert ok is True, detail
+    assert calls["clean"] == ["rm -f /tmp/genesis/genesis_*"]
+    assert calls["put"] == ["a", "b", str(extra)]
+
+
+def test_put_cleanup_failure_aborts_before_put(tmp_path, monkeypatch):
+    calls = []
+
+    class _FakeQt:
+        def cmd_run(self, args):
+            return 2
+
+        def cmd_put(self, args):
+            calls.append(list(args.src))
+            return 0
+
+    monkeypatch.setattr(tgt, "_qt", lambda: _FakeQt())
+    ctx = {"params": {}, "work_dir": str(tmp_path),
+           "artifacts": {"binaries": ["a"]}}
+    ok, detail = tgt._step_qemu_put(ctx)
+    assert ok is False
+    assert "staging cleanup rc=2" in detail
+    assert calls == []
+
+
+def test_perf_passes_build_set(tmp_path, monkeypatch):
+    calls = {}
+
+    class _FakeQt:
+        def cmd_perf(self, args):
+            calls["build_set"] = args.build_set
+            return 0
+
+    monkeypatch.setattr(tgt, "_qt", lambda: _FakeQt())
+    ctx = {"params": {"build_set": "bs.json"}, "work_dir": str(tmp_path),
+           "artifacts": {}}
+    ok, detail = tgt._step_qemu_perf(ctx)
+    assert ok is True, detail
+    assert calls["build_set"] == "bs.json"
+
+
+def test_validate_normalizes_ir_in_record(runner, monkeypatch, amr_ir_dict):
+    from genesis_rt.projects import validate_any
+    for name in ("env", "generate", "build", "seal", "replay"):
+        monkeypatch.setitem(tgt.STEP_IMPLS, name, _stub_ok(name))
+    raw_scenarios = list(amr_ir_dict["verification"]["scenarios"])
+    _, want = validate_any(amr_ir_dict)
+    assert want["verification"]["scenarios"] != raw_scenarios  # raw file order
+    rec = runner.start("build-only", params={"ir": amr_ir_dict})
+    final = _poll_state(runner, rec["op_id"])
+    assert final["state"] == "COMPLETED"
+    got = final["params"]["ir"]["verification"]["scenarios"]
+    assert got == want["verification"]["scenarios"]

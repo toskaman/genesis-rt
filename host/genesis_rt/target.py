@@ -106,7 +106,7 @@ def _qt() -> Any:
 def _validate_params(steps: list[str], params: dict[str, Any]) -> dict[str, Any]:
     allowed = {"ir", "scenarios", "build_timeout", "image_dir", "memory",
                "accel", "cpu", "ssh_port", "user", "wait", "src", "samples",
-               "build_set"}
+               "build_set", "extra_src"}
     unknown = sorted(set(params) - allowed)
     if unknown:
         raise TargetOpError(f"unknown op params: {unknown}")
@@ -141,6 +141,12 @@ def _validate_params(steps: list[str], params: dict[str, Any]) -> dict[str, Any]
         for s in out["src"]:
             if not isinstance(s, str) or not Path(s).is_file():
                 raise TargetOpError(f"param 'src' missing file: {s!r}")
+    if "extra_src" in out:
+        if not isinstance(out["extra_src"], list) or not out["extra_src"]:
+            raise TargetOpError("param 'extra_src' must be a non-empty file list")
+        for s in out["extra_src"]:
+            if not isinstance(s, str) or not Path(s).is_file():
+                raise TargetOpError(f"param 'extra_src' missing file: {s!r}")
     if "samples" in out and not _is_int(out["samples"], 10, 100000):
         raise TargetOpError("param 'samples' must be 10..100000")
     if "build_set" in out and not Path(out["build_set"]).is_file():
@@ -486,6 +492,18 @@ class TargetRunner:
             rec["artifacts"] = safe
             self._write_record(rec)
 
+    def _save_params(self, op_id: str, params: dict[str, Any]) -> None:
+        """Persist post-start param updates (validate step normalization)."""
+        with self._lock:
+            rec = self.get(op_id)
+            if rec is None:
+                return
+            try:
+                rec["params"] = json.loads(json.dumps(params))
+            except (TypeError, ValueError):
+                return  # keep the start-time params rather than corrupt
+            self._write_record(rec)
+
 
 # -- real steps ---------------------------------------------------------
 def _step_validate(ctx: dict[str, Any]) -> tuple[bool, str]:
@@ -494,9 +512,15 @@ def _step_validate(ctx: dict[str, Any]) -> tuple[bool, str]:
         _, valid = validate_any(ctx["params"]["ir"])
     except Exception as exc:
         return False, f"invalid IR: {exc}"
+    # Normalize once, up front: validation sorts IR lists, so the raw
+    # posted doc and the normalized form digest differently. Every later
+    # step (generate manifest, verify --ir binding, seal) must use the
+    # normalized form or provenance binding fails loudly at the gate.
+    ctx["params"]["ir"] = valid
+    ctx["runner"]._save_params(ctx["op_id"], ctx["params"])
     mid = valid.get("machine", {}).get("id", "?") if isinstance(valid, dict) else "?"
     ctx["artifacts"]["machine_id"] = mid
-    return True, f"IR valid (machine={mid})"
+    return True, f"IR valid (machine={mid}, normalized)"
 
 
 def _step_env(ctx: dict[str, Any]) -> tuple[bool, str]:
@@ -648,8 +672,21 @@ def _step_qemu_put(ctx: dict[str, Any]) -> tuple[bool, str]:
     qt = _qt()
     params = ctx["params"]
     src = params.get("src") or ctx["artifacts"].get("binaries") or []
+    extra = params.get("extra_src") or []
+    src = list(src) + [s for s in extra if s not in src]
     if not src:
         return False, "nothing to stage (no binaries built, no src given)"
+    # Hermetic staging: the QEMU disk persists across boots, so leftovers
+    # from previous campaigns would run unattributed. Drop them before
+    # staging so verify observes exactly this op's files. Fixed command
+    # (runner constant, no user input) confined to the staging dir.
+    rc_clean = _unlocked(qt.cmd_run)(argparse.Namespace(
+        command=[f"rm -f {GUEST_STAGING_DIR}/genesis_*"], timeout=60,
+        ssh_port=int(params.get("ssh_port", 2222)),
+        user=params.get("user", DEFAULT_TARGET_USER), password=None,
+        out=None))
+    if rc_clean != 0:
+        return False, f"staging cleanup rc={rc_clean}"
     manifest_out = str(Path(ctx["work_dir"]) / "stage-manifest.json")
     rc = _unlocked(qt.cmd_put)(argparse.Namespace(
         src=list(src), dest=GUEST_STAGING_DIR,
@@ -659,7 +696,7 @@ def _step_qemu_put(ctx: dict[str, Any]) -> tuple[bool, str]:
     if rc != 0:
         return False, f"put rc={rc}"
     ctx["artifacts"]["stage_manifest"] = manifest_out
-    return True, f"{len(src)} files staged + manifest"
+    return True, f"{len(src)} files staged + manifest (staging cleaned)"
 
 
 def _step_qemu_verify(ctx: dict[str, Any]) -> tuple[bool, str]:
@@ -688,6 +725,7 @@ def _step_qemu_perf(ctx: dict[str, Any]) -> tuple[bool, str]:
     rc = _unlocked(qt.cmd_perf)(argparse.Namespace(
         password=None, ssh_port=int(params.get("ssh_port", 2222)),
         user=params.get("user", DEFAULT_TARGET_USER),
+        build_set=params.get("build_set"),
         samples=int(params.get("samples", 1000)), out=str(out)))
     if rc != 0:
         return False, f"perf rc={rc} (see {out})"
