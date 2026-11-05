@@ -227,5 +227,7 @@ def test_compare_renders_sides_diff_and_escapes(tmp_path):
                       tmp_path)
     assert "op-aaaaaaaaaaaaaaaa" in html and "op-bbbbbbbbbbbbbbbb" in html
     assert "limits_differ" in html and "(changed)" in html
+    assert "/target/ops/op-aaaaaaaaaaaaaaaa/dossier" in html
+    assert "/target/ops/op-bbbbbbbbbbbbbbbb/dossier" in html
     assert "2/2" in html and "1/2" in html
     assert "<script>" not in html and "&lt;script&gt;" in html

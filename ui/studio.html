@@ -1167,9 +1167,11 @@ function renderCompareHtml(c) {
   const chg = (changed, txt) => (changed
     ? '<span class="fail">' + esc(txt) + ' (changed)</span>'
     : esc(txt));
+  const dos = (o) => '<br><a href="/target/ops/' +
+    encodeURIComponent(o.op_id || '') + '/dossier">dossier (.zip)</a>';
   let h = '<table><tr><th></th><th>Before<br><code>' +
-    esc(b.op_id) + '</code></th><th>After<br><code>' +
-    esc(a.op_id) + '</code></th></tr>';
+    esc(b.op_id) + '</code>' + dos(b) + '</th><th>After<br><code>' +
+    esc(a.op_id) + '</code>' + dos(a) + '</th></tr>';
   h += '<tr><td>Verdict</td><td class="' + vcls(b.verdict) + '">' +
     esc(b.verdict) + '</td><td class="' + vcls(a.verdict) + '">' +
     esc(a.verdict) + '</td></tr>';
