@@ -1,6 +1,6 @@
 # Progress log
 
-## 2026-11-05 -- P1 Wave 5 : jury delivery (en cours)
+## 2026-11-05 -- P1 Wave 5 : jury delivery (termine)
 
 - Clone frais GitHub : `run_verified_demo.py` PASS + suite 525/525
   (@a642cd0) ; le glob `replay.py artifacts/runs/*/passport.json` du
@@ -13,8 +13,15 @@
 - Re-preuve sans SSH : replay ancre v2 run-079ce9374c58 -> 16/16
   transcripts + 2/2 build-set + PASS exit 0 ; tamper controle ->
   MODIFIED exit 1. Demo C re-verifiee live (FAIL->PASS, 3 fixed).
-- Bloque : SSH cible (GENESIS_TARGET_PASSWORD perdu) -> cleanup
-  sondes 4A + re-run matrice 16/16 en attente du mot de passe.
+- SSH cible retabli (image-default via GENESIS_TARGET_PASSWORD ;
+  candidats fournis refuses) -> cleanup /tmp/genesis (rm *.log,
+  9 binaires conserves, 0 process), 3 producteurs frais re-executes
+  (cell run-19742302c723, conv run-5fc173416e61, v2 run-1918800f0ca5).
+- Cycle frais post-cleanup PASS : matrice 16/16 (qnx-final5),
+  perf 1000/1000 p50 253.8 (stable vs 254.7 Run 3), passeport
+  MEASURED run-449210581ea2, replay ancre 16/16 + 2/2 build-set +
+  gate PASS (ancre bfce46ac...9a34ff7), tamper -> MODIFIED refuse.
+  Wave 5 termine ; video <3:00 + Devpost a l'utilisateur.
 
 ## 2026-11-05 -- P2 Wave 4C : dossier commercial
 
