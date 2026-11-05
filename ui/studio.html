@@ -69,6 +69,7 @@ and Run keep working on local files with no backend.</p>
 <button role="tab" aria-selected="false" data-tab="designer">Designer</button>
 <button role="tab" aria-selected="false" data-tab="source">Source</button>
 <button role="tab" aria-selected="false" data-tab="pipeline">Pipeline</button>
+<button role="tab" aria-selected="false" data-tab="target">Target</button>
 <button role="tab" aria-selected="false" data-tab="twin">Twin</button>
 <button role="tab" aria-selected="false" data-tab="lab">Lab</button>
 <button role="tab" aria-selected="false" data-tab="passport">Passport</button>
@@ -149,6 +150,28 @@ its verification scenarios.</p></div>
 <h3>History</h3>
 <div class="row"><button class="ghost" id="pipe-refresh">Refresh history</button></div>
 <div id="pipe-history"><p class="note">Not loaded.</p></div>
+</section>
+
+<section class="tabpage" id="tab-target" role="tabpanel">
+<h2>QNX target runner</h2>
+<p class="note">Native campaign on the QEMU target: validate → build → stage →
+verify → measure. IR comes from the source picked in the Pipeline tab.</p>
+<div class="row">
+<label for="top-workflow">workflow</label>
+<select id="top-workflow" aria-label="target workflow">
+<option value="full">full (validate → build → stage → verify → measure)</option>
+<option value="build-only">build-only</option>
+<option value="verify-only">verify-only</option>
+</select>
+<label for="top-image">image dir</label>
+<input type="text" id="top-image" placeholder="…/qemu (needed for QEMU steps)">
+<button class="act" id="top-run">Run on target</button>
+<button class="ghost" id="top-cancel" disabled>Cancel</button>
+</div>
+<div id="top-out"><p class="note">No target op yet.</p></div>
+<h3>History</h3>
+<div class="row"><button class="ghost" id="top-refresh">Refresh history</button></div>
+<div id="top-history"><p class="note">Not loaded.</p></div>
 </section>
 
 <section class="tabpage" id="tab-twin" role="tabpanel">
@@ -948,6 +971,82 @@ function renderJobsHtml(jobs) {
   return h + '</table>';
 }
 
+/* Target ops: fold SSE op events into render state (dedup by seq). */
+var TARGET_PHASES = ['PENDING', 'VALIDATING', 'BUILDING', 'STAGING',
+                     'VERIFYING', 'MEASURING', 'SEALING', 'REPLAYING',
+                     'COMPLETED'];
+function reduceTargetEvents(events) {
+  const seen = {};
+  const log = [];
+  let state = 'active', phase = 'PENDING', lastSeq = -1;
+  for (const e of events || []) {
+    if (!e || typeof e.seq !== 'number' || seen[e.seq]) continue;
+    seen[e.seq] = true;
+    if (e.seq > lastSeq) lastSeq = e.seq;
+    log.push(e);
+    if (e.kind === 'state' && e.message) phase = e.message;
+    if (e.kind === 'op_completed') state = 'COMPLETED';
+    else if (e.kind === 'op_failed') state = 'FAILED';
+    else if (e.kind === 'op_cancelled') state = 'CANCELLED';
+    else if (e.kind === 'op_blocked') state = 'BLOCKED';
+    else if (e.kind === 'interrupted') state = 'INTERRUPTED';
+  }
+  return { state: state, phase: phase, log: log, lastSeq: lastSeq };
+}
+function renderTargetHtml(opId, reduced, record) {
+  const rec = record || {};
+  const state = rec.state || reduced.state;
+  let h = '<div class="banner">op <code>' + esc(opId) + '</code> · state <b>' +
+    esc(state) + '</b> · phase <code>' + esc(reduced.phase) + '</code></div>';
+  if (state === 'BLOCKED' || state === 'FAILED') {
+    h += '<div class="banner"><span class="fail">' +
+      esc(rec.reason || 'see log') + '</span></div>';
+  }
+  h += '<ol class="phases">';
+  const upto = TARGET_PHASES.indexOf(reduced.phase);
+  for (const p of TARGET_PHASES) {
+    const done = reduced.state !== 'active' || TARGET_PHASES.indexOf(p) <= upto;
+    h += '<li class="' + (done ? 'pass' : '') + '">' + esc(p) + '</li>';
+  }
+  h += '</ol>';
+  const steps = rec.steps || [];
+  if (steps.length) {
+    h += '<table><tr><th>step</th><th>state</th><th>detail</th></tr>';
+    for (const s of steps) {
+      h += '<tr><td><code>' + esc(s.name) + '</code></td><td>' + esc(s.state) +
+        '</td><td>' + esc(s.detail || '') + '</td></tr>';
+    }
+    h += '</table>';
+  }
+  const arts = rec.artifacts || {};
+  const keys = Object.keys(arts);
+  if (keys.length) {
+    h += '<table><tr><th>artifact</th><th>value</th></tr>';
+    for (const k of keys) {
+      h += '<tr><td><code>' + esc(k) + '</code></td><td><code>' +
+        esc(String(arts[k])) + '</code></td></tr>';
+    }
+    h += '</table>';
+  }
+  h += '<pre class="cmd" aria-live="polite">';
+  for (const e of reduced.log.slice(-30)) {
+    h += '#' + esc(e.seq) + ' ' + esc(e.kind) + ' ' + esc(e.message) + '\n';
+  }
+  return h + '</pre>';
+}
+function renderTargetOpsHtml(ops) {
+  if (!ops.length) {
+    return '<p class="note">No target ops yet. Start one above.</p>';
+  }
+  let h = '<table><tr><th>op</th><th>workflow</th><th>state</th><th></th></tr>';
+  for (const o of ops) {
+    h += '<tr><td><code>' + esc(o.op_id) + '</code></td><td>' + esc(o.workflow) +
+      '</td><td>' + esc(o.state) + '</td><td><button class="ghost" data-op="' +
+      esc(o.op_id) + '">open</button></td></tr>';
+  }
+  return h + '</table>';
+}
+
 /* Backend validation summary: machine facts, counts, guard limits,
  * scenarios, contracts, fault responses. Rendered only from a 200
  * /validate (or project GET) response — never synthesized. */
@@ -1413,6 +1512,7 @@ function onTabSwitch(name) {
     if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('studio.tab', name);
   } catch (e) { /* private mode: persistence unavailable */ }
   if (typeof Live !== 'undefined' && Live && Live.es && name !== 'pipeline') Live.closeStream();
+  if (typeof Live !== 'undefined' && Live && Live.closeTargetStream && name !== 'target') Live.closeTargetStream();
   if (name !== 'twin' && typeof stopTwin === 'function') stopTwin();
 }
 document.getElementById('irfile').addEventListener('change', async (e) => {
@@ -2441,6 +2541,124 @@ function openStream(jobId) {
     }
   };
 }
+
+/* -- Target tab ---------------- */
+Live.opId = null; Live.opEvents = []; Live.opRecord = null;
+Live.topEs = null; Live.topEsFails = 0;
+Live.closeTargetStream = function () {
+  if (Live.topEs) { try { Live.topEs.close(); } catch (e) { /* gone */ } }
+  Live.topEs = null;
+};
+function renderTargetOut() {
+  const reduced = reduceTargetEvents(Live.opEvents);
+  el('top-out').innerHTML = renderTargetHtml(Live.opId, reduced, Live.opRecord);
+  return reduced;
+}
+async function openTargetOp(opId) {
+  Live.closeTargetStream();
+  Live.opId = opId; Live.opEvents = []; Live.opRecord = null;
+  Live.topEsFails = 0;
+  storeSet('studio.op', opId);
+  renderTargetOut();
+  el('top-cancel').disabled = false;
+  try {
+    Live.opRecord = await api('/target/ops/' + encodeURIComponent(opId));
+    renderTargetOut();
+    openTargetStream(opId);
+  } catch (e) {
+    el('top-out').innerHTML = errHtml('open op failed', e);
+  }
+}
+function openTargetStream(opId) {
+  Live.closeTargetStream();
+  if (typeof EventSource !== 'function') {
+    el('top-out').innerHTML += '<p class="note">Streaming unsupported here; ' +
+      '<button class="ghost" id="top-once">refresh once</button></p>';
+    el('top-once').addEventListener('click', () => openTargetOp(opId));
+    return;
+  }
+  const es = new EventSource('/target/ops/' + encodeURIComponent(opId) + '/events');
+  Live.topEs = es;
+  const onRow = (ev) => {
+    try {
+      Live.opEvents.push(JSON.parse(ev.data));
+    } catch (e) { return; }
+    const reduced = renderTargetOut();
+    if (reduced.state !== 'active') finishTargetOp(opId);
+  };
+  const kinds = ['message', 'op_started', 'state', 'step_running', 'step_done',
+                 'step_failed', 'step_blocked', 'op_completed', 'op_failed',
+                 'op_cancelled', 'op_blocked', 'interrupted'];
+  for (const k of kinds) es.addEventListener(k, onRow);
+  es.onerror = () => {
+    Live.topEsFails += 1;
+    if (reduceTargetEvents(Live.opEvents).state !== 'active' || Live.topEsFails > 2) {
+      openTargetOp(opId);
+    }
+  };
+}
+async function finishTargetOp(opId) {
+  Live.closeTargetStream();
+  el('top-cancel').disabled = true;
+  try {
+    Live.opRecord = await api('/target/ops/' + encodeURIComponent(opId));
+    renderTargetOut();
+  } catch (e) { /* record keeps streaming state */ }
+  refreshTargetHistory();
+}
+async function targetRun() {
+  if (!Live.pipeSource) {
+    el('top-out').innerHTML = '<p class="fail">Pick an example or project in the Pipeline tab first.</p>';
+    return;
+  }
+  const workflow = el('top-workflow').value || 'full';
+  const imageDir = el('top-image').value.trim();
+  if ((workflow === 'full' || workflow === 'verify-only') && !imageDir) {
+    el('top-out').innerHTML = '<p class="fail">Image dir is required for QEMU workflows.</p>';
+    return;
+  }
+  el('top-run').disabled = true;
+  try {
+    const env = await api('/env');
+    if (!env.environment || !env.environment.sdk_present) {
+      el('top-out').innerHTML = '<div class="banner"><span class="fail">Native target unavailable: QNX SDK not installed.</span> Host verification in the Pipeline tab still works.</div>';
+      return;
+    }
+    let ir;
+    if (Live.pipeSource.kind === 'example') {
+      const bar = Live.pipeSource.value.indexOf('|');
+      const ex = Live.pipeSource.value.slice(0, bar);
+      const file = Live.pipeSource.value.slice(bar + 1);
+      ir = (await api('/examples/' + encodeURIComponent(ex) + '/' +
+                      encodeURIComponent(file))).ir;
+    } else {
+      ir = (await api('/projects/' + encodeURIComponent(Live.pipeSource.pid))).ir;
+    }
+    const params = { ir: ir };
+    if (imageDir) params.image_dir = imageDir;
+    const op = await postJson('/target/ops', { workflow: workflow, params: params });
+    Live.opId = op.op_id;
+    Live.opEvents = [];
+    storeSet('studio.op', op.op_id);
+    openTargetOp(op.op_id);
+    refreshTargetHistory();
+  } catch (e) {
+    el('top-out').innerHTML = errHtml('target run failed', e);
+  } finally {
+    el('top-run').disabled = false;
+  }
+}
+async function refreshTargetHistory() {
+  try {
+    const body = await api('/target/ops?limit=20');
+    el('top-history').innerHTML = renderTargetOpsHtml(body.ops || []);
+    el('top-history').querySelectorAll('button[data-op]').forEach((b) => {
+      b.addEventListener('click', () => openTargetOp(b.dataset.op));
+    });
+  } catch (e) {
+    el('top-history').innerHTML = errHtml('history failed', e);
+  }
+}
 async function finishJob(jobId) {
   Live.closeStream();
   try {
@@ -2866,6 +3084,17 @@ function wireLive() {
     pipeSourceChanged();
   });
   el('pipe-run').addEventListener('click', pipeRun);
+  el('top-run').addEventListener('click', targetRun);
+  el('top-cancel').addEventListener('click', async () => {
+    if (!Live.opId) return;
+    try {
+      await api('/target/ops/' + encodeURIComponent(Live.opId), { method: 'DELETE' });
+      openTargetOp(Live.opId);
+    } catch (e) {
+      el('top-out').innerHTML = errHtml('cancel failed', e);
+    }
+  });
+  el('top-refresh').addEventListener('click', refreshTargetHistory);
   el('pipe-cancel').addEventListener('click', async () => {
     if (!Live.jobId) return;
     try {
