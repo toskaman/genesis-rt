@@ -3,6 +3,7 @@
 Category: **Developer Tooling & Host Tools**.
 Video: `<paste public YouTube URL, < 3:00>` — record per `docs/demo-video-plan.md`.
 Repo: https://github.com/toskaman/genesis-rt
+Codelab (bonus box): https://github.com/toskaman/genesis-rt/blob/main/docs/codelab/README.md
 
 ## Title
 
@@ -48,6 +49,15 @@ process supervision (with QNX HAM documented as a deployment complement).
 The guard policy is implemented once in C and mirrored in Python, with a
 compiled conformance harness proving identical decisions on every vector.
 
+Beyond the single machine: an industrial cell demo (AMR + conveyor +
+transfer interlocks, all native), Machine IR v2 with multi-build
+provenance (every staged binary attributed to its producer build), a
+4-configuration SCHED_FIFO/SCHED_RR scheduling campaign measured
+on-target, and a 28-case AI-planning eval set (valid, ambiguous,
+dangerous, wrong-units, injection, out-of-domain) scoring 28/28 with
+the bundled offline provider. A verified 45-minute codelab takes a new
+engineer from contract to running native IPC (see the codelab URL below).
+
 Honest scope: host fault results are simulated; on-target QNX 8.0/QEMU
 execution is verified (16/16 matrix, 9/9 IPC checks, `qcc` 0 warnings),
 and passports always report `qnx_verified` explicitly. Simulation-only,
@@ -75,7 +85,7 @@ git clone https://github.com/toskaman/genesis-rt.git && cd genesis-rt
 pip install pytest pyyaml
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
-python -m pytest tests/ -q   # 487 pass + 3 honest skips without the QNX SDK (5 Nov 2026)
+python -m pytest tests/ -q   # 524 pass + 3 honest QNX-build skips without the SDK; 527 pass with it (5 Nov 2026)
 ```
 
 Open `ui/dashboard.html` and load the passport to inspect every verdict.

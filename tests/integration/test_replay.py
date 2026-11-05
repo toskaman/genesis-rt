@@ -64,6 +64,33 @@ def test_replay_accepts_bound_passport(amr_ir, bound_evidence, tmp_path,
     assert "provenance: ir=" in proc.stdout
 
 
+def test_replay_glob_resolves_single_match(amr_ir, bound_evidence,
+                                            tmp_path, repo_root):
+    # PowerShell passes `artifacts/runs/*/passport.json` literally, so the
+    # verifier expands globs itself (judge path on Windows).
+    p, full = _passport(amr_ir, bound_evidence, "replay-glob")
+    sub = tmp_path / "run-xyz"
+    sub.mkdir()
+    _save(sub, p)
+    pattern = str(sub.parent / "run-*" / "passport.json")
+    proc = _replay(repo_root, pattern, "--required", *full)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "chain: valid" in proc.stdout
+
+
+def test_replay_glob_refuses_ambiguous_match(amr_ir, bound_evidence,
+                                               tmp_path, repo_root):
+    p, full = _passport(amr_ir, bound_evidence, "replay-glob2")
+    for tag in ("run-a", "run-b"):
+        sub = tmp_path / tag
+        sub.mkdir()
+        _save(sub, p)
+    pattern = str(tmp_path / "run-*" / "passport.json")
+    proc = _replay(repo_root, pattern, "--required", *full)
+    assert proc.returncode == 2
+    assert "pass one explicitly" in proc.stderr
+
+
 def test_replay_detects_tamper_without_recompute(amr_ir, bound_evidence,
                                                  tmp_path, repo_root):
     p, full = _passport(amr_ir, bound_evidence, "replay-tamper")

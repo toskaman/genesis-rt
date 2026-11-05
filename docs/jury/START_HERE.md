@@ -18,6 +18,8 @@ PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
 
 Expect: `verdict: PASS`, `qnx_verified: false`, `chain: valid`, `gate: PASS`.
 Open `ui/dashboard.html`, load the passport, and every verdict links to data.
+On Windows PowerShell, prefix the two commands with
+`$env:PYTHONPATH='host';` instead of `PYTHONPATH=host`.
 
 ## 2. Full test suite (3 min)
 
@@ -25,7 +27,8 @@ Open `ui/dashboard.html`, load the passport, and every verdict links to data.
 python -m pytest tests/ -q
 ```
 
-Expect green (518 tests). With an SDK the QNX build test compiles the
+Expect green (527 tests with an SDK; without one the 3 QNX-build tests
+report honest skips: 524 + 3). With an SDK the QNX build test compiles the
 6 native binaries per machine build for real (7 for the cell, 9 staged on target: bound set + `genesis_guard_conv` + `genesis_guard_v2`); without one it reports an honest skip —
 never a QNX pass.
 
@@ -35,6 +38,9 @@ never a QNX pass.
 - `TECHNICAL_EVIDENCE.md` — where each QNX/honesty claim lives in code.
 - `KNOWN_LIMITATIONS.md` — what we do NOT claim.
 - `COMPLIANCE.md` — rules checklist, license decision, original-work note.
+- `DEMO_WALKTHROUGH.md` — the three demo paths with exact outputs.
+- `WHY_QNX.md` / `WHY_GENESIS_RT.md` — the two one-page pitches.
+- `JUDGE_SCORECARD.md` — internal self-assessment with evidence links.
 
 ## 4. QNX-native substance (no SDK needed to inspect)
 

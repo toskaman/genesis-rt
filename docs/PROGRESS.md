@@ -1,5 +1,44 @@
 # Progress log
 
+## 2026-11-05 -- P1 Wave 5 : jury delivery (en cours)
+
+- Clone frais GitHub : `run_verified_demo.py` PASS + suite 525/525
+  (@a642cd0) ; le glob `replay.py artifacts/runs/*/passport.json` du
+  parcours juge ne passait pas sous PowerShell -> `replay.py` etend
+  les globs lui-meme (1 match ok, 0/ambigu -> exit 2) + 2 tests.
+- Docs jury : 518/487 -> chiffres mesures (527 passe avec SDK,
+  524 + 3 skips honnetes sans SDK via simu probe), Devpost rafraichi
+  (cellule, v2, sched, eval 28, codelab URL bonus).
+- Reste : 4 docs jury (scorecard, walkthrough, why-*), audit final §26.
+
+## 2026-11-05 -- P2 Wave 4C : dossier commercial
+
+- `docs/business/COMMERCIAL_VISION.md` : utilisateur cible, 8 cas
+  d'usage, paysage (positionnement par categorie, sans superiorite
+  non mesuree), 5 hypotheses a valider, obstacles honnetes, 4 options
+  de modele (open core recommande), licences (QNX Everywhere !=
+  usage commercial), roadmap, pitch 60 s.
+
+## 2026-11-05 -- P1 Wave 4B : AI eval 28 cas
+
+- Dataset `evals/planning_eval.json` 15 -> 28 cas (toutes classes
+  §11 : valides, ambigus, dangereux, unites, injection, hors-domaine ;
+  transitions impossibles + refs manquantes en stub-provider).
+- 2 vrais bugs trouves par TDD : requetes ambigues (1er kind gagne
+  en silence) et unites fausses ("5 km/h" -> defaut 1.2 silencieux)
+  -> rejets guides + 7 tests. CLI `plan` route via `plan_machine`.
+- `docs/planning-eval.md` : criteres, resultats 28/28, 3 regressions,
+  limites. Suite 525/525.
+
+## 2026-11-05 -- P2 Wave 4A : codelab reecrit et reverifie live
+
+- Toutes les commandes reexecutees (hote + cible /tmp/genesis) :
+  trouves 2 inexactitudes (binaires 7->9 selon build, step 5
+  superviseur vs chaine manuelle STALE_SEQ) -> corrigees.
+- Nouveau codelab : variantes Windows+Linux, sorties attendues reelles,
+  schema archi, troubleshooting (9 entrees), cleanup, limites, URL
+  Devpost finale.
+
 ## 2026-11-05 -- P1 Wave 3C : scheduling sched + perf refresh
 
 - `qnx_target.py sched` : 4 configs (baseline 10r/10r, fifo_guard,

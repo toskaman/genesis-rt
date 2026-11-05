@@ -30,6 +30,7 @@ are reported as "not replayed" (exit 1 when --require-build-set-replay).
 from __future__ import annotations
 
 import argparse
+import glob
 import hashlib
 import sys
 from pathlib import Path
@@ -143,7 +144,22 @@ def main() -> int:
     ap.add_argument("--require-build-set-replay", action="store_true",
                     help="fail unless every build-set entry is replayed")
     args = ap.parse_args()
-    passport = load_passport(args.passport)
+    passport_arg = args.passport
+    if glob.has_magic(passport_arg):
+        matches = sorted(glob.glob(passport_arg))
+        if len(matches) == 1:
+            passport_arg = matches[0]
+        elif not matches:
+            print(f"error: no passport matches {passport_arg!r}",
+                  file=sys.stderr)
+            return 2
+        else:
+            print(f"error: {len(matches)} passports match; pass one explicitly:",
+                  file=sys.stderr)
+            for m in matches[:8]:
+                print(f"  {m}", file=sys.stderr)
+            return 2
+    passport = load_passport(passport_arg)
     errors = verify_chain(passport)
     print(f"chain: {'valid' if not errors else 'INVALID'}")
     for e in errors:
