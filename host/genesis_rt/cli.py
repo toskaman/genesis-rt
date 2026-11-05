@@ -29,8 +29,8 @@ def _cmd_validate(args: argparse.Namespace) -> int:
 
 def _cmd_plan(args: argparse.Namespace) -> int:
     from .ir import canonical_json
-    from .planner import propose
-    ir = propose(args.request, machine_id=args.machine_id)
+    from .planning import plan_machine
+    ir = plan_machine(args.request, machine_id=args.machine_id)
     out = args.out or f"{args.machine_id}.json"
     Path(out).write_text(json.dumps(ir, indent=2) + "\n", encoding="utf-8")
     print(f"proposal written: {out} ({ir['machine']['kind']})")

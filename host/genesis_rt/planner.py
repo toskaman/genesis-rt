@@ -84,6 +84,12 @@ _KIND_SCENARIOS = {
 
 _PERIOD_RE = re.compile(r"(\d+)\s*ms")
 _SPEED_RE = re.compile(r"(\d+(?:\.\d+)?)\s*m/s")
+# Wrong-but-plausible units: rejected with guidance instead of silently
+# defaulted, so "5 km/h" never becomes an unasked-for 1.2 m/s machine.
+_WRONG_SPEED_RE = re.compile(
+    r"(\d+(?:\.\d+)?)\s*(km/h|kph|mph|cm/s|mm/s|m/min|ft/s)\b")
+_WRONG_PERIOD_RE = re.compile(r"(\d+)\s*(?:seconds?|sec)\b")
+_PERIOD_WORDS = ("period", "cycle", "control")
 
 
 class PlannerRejection(ValueError):
@@ -98,22 +104,32 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
     if len(text) > 2000:
         raise PlannerRejection("request too long; keep it under 2000 characters")
 
-    kind: str | None = None
+    matched: list[str] = []
     words = set(re.findall(r"[a-z0-9]+", text))
     for hints, candidate in _KIND_HINTS:
         # Whole-word match: "robotic arm" must not fire the "robot" hint,
         # and "alarm" must not fire "arm".
         if any(h in words for h in hints):
-            kind = candidate
-            break
-    if kind is None:
+            matched.append(candidate)
+    if not matched:
         raise PlannerRejection(
             "unknown machine kind; mention one of: robot/rover/AMR, conveyor/belt, arm/gripper")
+    if len(matched) > 1:
+        raise PlannerRejection(
+            f"ambiguous machine kind ({', '.join(sorted(matched))}); "
+            "name exactly one machine in the request")
+    kind = matched[0]
 
     period_ms = 10
     m = _PERIOD_RE.search(text)
     if m:
         period_ms = int(m.group(1))
+    else:
+        w = _WRONG_PERIOD_RE.search(text)
+        if w and any(pw in text for pw in _PERIOD_WORDS):
+            raise PlannerRejection(
+                f"period {w.group(1)} seconds is not milliseconds; "
+                "state the control period in ms (1..1000)")
     if not 1 <= period_ms <= 1000:
         raise PlannerRejection(f"period {period_ms}ms out of range 1..1000")
 
@@ -121,6 +137,12 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
     m = _SPEED_RE.search(text)
     if m:
         max_linear = float(m.group(1))
+    else:
+        w = _WRONG_SPEED_RE.search(text)
+        if w:
+            raise PlannerRejection(
+                f"speed {w.group(1)} {w.group(2)} is not m/s; "
+                "state speeds in m/s within (0, 10]")
     if not 0.0 < max_linear <= 10.0:
         raise PlannerRejection(f"max speed {max_linear} m/s out of range (0, 10]")
 

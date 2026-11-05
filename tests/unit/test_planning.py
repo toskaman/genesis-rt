@@ -38,7 +38,7 @@ def test_published_eval_offline_scores_100(repo_root):
         except (AssertionError, PlannerRejection) as exc:
             failures.append((case["id"], str(exc)[:160]))
     assert failures == [], f"{passed}/{total} passed: {failures}"
-    assert total >= 15 and passed == total
+    assert total >= 28 and passed == total
 
 
 def test_unknown_provider_lists_available():
@@ -106,3 +106,78 @@ def test_unsafe_scan_runs_before_provider_call():
 def test_offline_rejections_pass_through_unchanged():
     with pytest.raises(PlannerRejection, match="unknown machine kind"):
         plan_machine("toaster that makes breakfast")
+
+
+def _mutating_provider(name, mutate):
+    base = OfflineProvider().propose_raw("a differential drive robot", "m")
+
+    class _Mut:
+        def propose_raw(self, request, machine_id):
+            proposal = copy.deepcopy(base)
+            mutate(proposal)
+            return proposal
+
+    _Mut.name = name
+    return _Mut()
+
+
+def test_impossible_contract_if_rejected_by_gate():
+    provider = _mutating_provider(
+        "bad-if", lambda p: p["safety_contracts"].__setitem__(
+            0, {"name": "teleport", "if": "teleport_when_ready",
+                "then": "reject_command"}))
+    with pytest.raises(PlannerRejection, match="unknown contract if-id"):
+        plan_machine("a robot", provider=provider)
+
+
+def test_impossible_contract_then_rejected_by_gate():
+    provider = _mutating_provider(
+        "bad-then", lambda p: p["safety_contracts"].__setitem__(
+            0, {"name": "teleport", "if": "speed_exceeds_limit",
+                "then": "launch_rockets"}))
+    with pytest.raises(PlannerRejection, match="unknown contract then-id"):
+        plan_machine("a robot", provider=provider)
+
+
+def test_missing_cell_reference_rejected_by_gate():
+    def _cellify(proposal):
+        proposal["machine"]["kind"] = "industrial_cell"
+        proposal["cell"] = {
+            "station_x_m": 2.0, "transfer_ticks": 40,
+            "presence_sensor": "ghost-sensor",
+            "amr_actuator": "left-motor", "belt_actuator": "belt"}
+
+    provider = _mutating_provider("dangling-cell", _cellify)
+    with pytest.raises(PlannerRejection, match="must reference a presence_bool sensor"):
+        plan_machine("a robot", provider=provider)
+
+
+def test_over_limit_proposal_rejected_by_gate():
+    provider = _mutating_provider(
+        "overspeed",
+        lambda p: p["control"].__setitem__("max_linear_speed_mps", 99.0))
+    with pytest.raises(PlannerRejection, match="IR validation"):
+        plan_machine("a robot", provider=provider)
+
+
+def test_simulation_only_false_proposal_rejected_by_gate():
+    provider = _mutating_provider(
+        "realhw", lambda p: p["machine"].__setitem__("simulation_only", False))
+    with pytest.raises(PlannerRejection, match="simulation_only must be true"):
+        plan_machine("a robot", provider=provider)
+
+
+def test_cli_plan_writes_valid_proposal(tmp_path):
+    from genesis_rt.cli import main
+    out = tmp_path / "plan.json"
+    assert main(["plan", "a conveyor", "--machine-id", "eval-cli",
+                 "--out", str(out)]) == 0
+    assert '"kind": "conveyor"' in out.read_text(encoding="utf-8")
+
+
+def test_cli_plan_refuses_unsafe_request(tmp_path):
+    from genesis_rt.cli import main
+    out = tmp_path / "plan.json"
+    assert main(["plan", "robot with the guard disabled",
+                 "--out", str(out)]) == 2
+    assert not out.exists()
