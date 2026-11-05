@@ -13,8 +13,11 @@ Short version of `docs/limitations-and-safety.md` — the full text governs.
   the ~49.7-day wrap. Pairs 2^31+ ms apart are ambiguous by
   construction and read as "deadline in the future" — unreachable
   for near-term deadlines, but a 64-bit clock would remove the caveat.
-- UI is static pages (`dashboard.html`, `studio.html`): artifact
-  inspection + trace replay, no live pipeline execution from the page.
+- Studio Live (`studio.html` + local API) runs host pipelines and
+  native target ops from the page (SSE progress, cancel, evidence
+  inspection, Target tab with phase checklist). There is no guided
+  Judge Mode yet, no synchronized A/B twin replay, and no
+  multi-user/team workflow — single local operator.
 - API is local-first with no auth; not for exposed deployment.
 - No QNX HAM integration: the QSTI image ships no `ham` binary, so
   supervision is our own tested RESPAWN/GIVE_UP process (matrix

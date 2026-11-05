@@ -85,7 +85,7 @@ git clone https://github.com/toskaman/genesis-rt.git && cd genesis-rt
 pip install pytest pyyaml
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
-python -m pytest tests/ -q   # 524 pass + 3 honest QNX-build skips without the SDK; 527 pass with it (5 Nov 2026)
+python -m pytest tests/ -q   # 831 pass, 0 skip with the QNX SDK (5 Nov 2026, this box); CI runs the same suite SDK-less with honest skips
 ```
 
 Open `ui/dashboard.html` and load the passport to inspect every verdict.

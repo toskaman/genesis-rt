@@ -1,15 +1,19 @@
-# Demo video plan (target 2:40–2:50, hard cap < 3:00)
+# Demo video plan (target 2:40–2:55, hard cap < 3:00)
 
-Record only genuine runs. Suggested shot list with narration cues:
+Record only genuine runs. Studio-first shot list (the CLI-only cut is
+retired: pipelines and target ops run from Studio Live since Wave 7/8):
 
 | Time | Shot (screen capture) | Narration |
 |---|---|---|
-| 0:00–0:20 | Terminal: `genesis-rt plan` → validated IR (show `machine-ir.json`) | "Intent becomes a typed machine contract — invalid specs are rejected, never guessed." |
-| 0:20–0:45 | Terminal: `generate` + `cat genesis_config_gen.h`; `diff` of two runs | "Deterministic codegen: same contract, byte-identical QNX build files." |
-| 0:45–1:15 | QEMU/target terminal: `make qnx`, `./genesis_supervisor`, ALLOW log lines; `cat /dev/genesis/status` | "Native QNX 8.0: message-passing guard, controller, resource manager — on a real target." |
-| 1:15–1:45 | Terminal: `faults` output 8/8; highlight one DENY + safe-stop + recovery | "We break it on purpose: stale sensor, over-limit command — the guard denies and recovers." |
-| 1:45–2:15 | `scripts/replay.py` output + `ui/dashboard.html` with passport loaded | "Every claim links to a hash-chained evidence passport. Tamper with it and the gate fails." |
-| 2:15–2:40 | Break-then-fix: sabotaged run FAIL → fixed run PASS (acceptance test) | "A bad revision cannot ship. The fixed one proves it. Specify, compile, run, break, prove." |
+| 0:00–0:15 | Studio: open AMR cell project, IR contract + safety limits | "A machine contract you can read — and the tooling rejects invalid specs." |
+| 0:15–0:40 | Studio: run pipeline (SSE progress) → generated QNX C sources | "One click: deterministic codegen, same contract, byte-identical QNX build files." |
+| 0:40–1:10 | Studio Target tab: phase checklist → 16/16 matrix PASS on QNX 8.0 | "Native QNX 8.0 on a real target: guard, controller, supervision — verified, not asserted." |
+| 1:10–1:40 | Studio: inject stale-sensor fault → DENY + safe-stop in trace | "We break it on purpose — the guard denies and the machine stops safe." |
+| 1:40–2:10 | Counterexample Explorer + Evidence Graph on the failure | "The failure becomes a linked, inspectable counterexample — cause, not vibes." |
+| 2:10–2:35 | Apply fix → rerun → PASS passport + independent replay | "Fix, rerun, prove: the passport and its replay say whether it worked." |
+| 2:35–2:55 | Release eligibility + export dossier | "A reviewable evidence dossier — and an honest gate when proof is missing." |
 
-Rules: public YouTube upload, no copyrighted audio, no mockups — if a step
-is not yet recorded on target, show the host run and label it honestly.
+Rules: public YouTube upload, no copyrighted audio, no mockups, editable
+subtitles — if a step is not yet recorded on target, show the host run
+and label it honestly. Full capture/narration/subtitle assets: Wave 8
+Task 14 (this revision only retires the terminal-centric cut).

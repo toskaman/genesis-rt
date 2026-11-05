@@ -1,5 +1,23 @@
 # Progress log
 
+## 2026-11-05 -- Wave 8 §8 remainder + §17 retention + judge docs
+
+- DNS-rebinding audit closed (`docs/local-security-model.md`): 5
+  layers verified (loopback bind, no CORS, Origin guard, JSON-only
+  writes, 31-route GET inventory), each pinned
+  (`test_rebinding_posture.py` 4/4 + `test_serve_bind.py` 1/1);
+  Host validation assessed unnecessary, documented why.
+- Retention (`docs/retention-and-cleanup.md`): measured growth
+  (~332 KiB/full op, ~167 KiB/run, 1.3 MiB runs.db), caps table,
+  worker cleanup verified (tmp unlink, QEMU wait-reap, SSE
+  terminal-close), manual purge SQL validated on a DB copy.
+  No auto-delete of user evidence, by policy.
+- Judge docs de-staled (Finding E): KNOWN_LIMITATIONS (Studio Live
+  + Target tab), devpost/REPRODUCE/START_HERE/SCORECARD/COMMERCIAL/
+  planning-eval counts → 831/831 verified, demo-video-plan goes
+  Studio-first (full Task 14 assets pending).
+- Suite 831/831 green, 0 skips (CI on push).
+
 ## 2026-11-05 -- Wave 8 Task 3b + Task 4: sealed passports + formal campaign
 
 - Runner SEAL/REPLAY real (@4dcbe3f): seal mirrors run_pipeline

@@ -33,9 +33,33 @@ NOT assumed secure against the browser (drive-by sites) or malicious inputs.
   bounded time/output/concurrency per step; single campaign lock.
 - QNX credentials live in server-side config, never reach Studio JS.
 
-## Residual risks / not verified in this pass
+## DNS-rebinding posture (audited 2026-11-05, Wave 8 §8 remainder)
 
-- `Host`-header validation and DNS-rebinding posture unaudited here.
+Drive-by page reaching the loopback API via a rebond name is blocked
+in layers (each pinned by a test):
+
+- **Loopback bind** (`cli.py:_cmd_serve`): `127.0.0.1`, 1 worker.
+  Pinned: `tests/unit/test_serve_bind.py`.
+- **No CORS middleware**: a preflighted cross-origin `fetch` earns no
+  `access-control-allow-origin`, so the browser blocks the write.
+  Pinned: `test_preflight_earns_no_cors_allowance`.
+- **Origin guard** (above): simple cross-origin writes rejected 403.
+- **JSON-only writes**: an Origin-less form POST dies at body
+  validation (422) before any job/op exists.
+  Pinned: `test_form_post_rejected_without_execution`.
+- **GET inventory** (`test_get_route_inventory_matches_audit`, 31
+  routes incl. FastAPI docs): audited side-effect free. The only
+  writes reachable from a GET are idempotent store init
+  (`_db()`: sqlite file + additive migrations, no attacker data).
+  Adding a GET route fails the test until the audit list grows.
+- **Host header**: deliberately NOT validated. With the five layers
+  above, no browser vector reaches a state change; `Host` checking
+  would only constrain already-trusted local callers.
+
+## Residual risks / trust assumptions
+
 - No operator authentication: any local process/user can call the API.
   Appropriate for a local dev tool; do not expose the port beyond loopback.
-- JSON body depth/nesting limits rely on framework defaults.
+- JSON body depth/nesting limits rely on framework defaults for
+  missing-Origin (local) callers; foreign-Origin bodies are rejected
+  pre-parse by the middleware.
