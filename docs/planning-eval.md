@@ -63,7 +63,7 @@ returned IR rather than in the request text.
 ## Latest measured result (2026-11-05, this repo)
 
 - `offline`: **28/28 (100%)** — `pytest tests/unit/test_planning.py`
-  (15 tests incl. the eval runner, all green; full suite 851/851).
+  (15 tests incl. the eval runner, all green; full suite 856/856).
 
 ## Regressions the set caught
 

@@ -1,0 +1,40 @@
+{"seq": 0, "kind": "op_started", "message": "workflow=full", "ts": 1793908221.9987733}
+{"seq": 1, "kind": "state", "message": "VALIDATING", "ts": 1793908222.0012403}
+{"seq": 2, "kind": "step_running", "message": "validate: ", "ts": 1793908222.0026531}
+{"seq": 3, "kind": "step_done", "message": "validate: IR valid (machine=amr-demo-01, normalized)", "ts": 1793908222.0047941}
+{"seq": 4, "kind": "state", "message": "VALIDATING", "ts": 1793908222.0067647}
+{"seq": 5, "kind": "step_running", "message": "env: ", "ts": 1793908222.007933}
+{"seq": 6, "kind": "step_done", "message": "env: SDK present (qcc=cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.", "ts": 1793908222.2494948}
+{"seq": 7, "kind": "state", "message": "BUILDING", "ts": 1793908222.251502}
+{"seq": 8, "kind": "step_running", "message": "generate: ", "ts": 1793908222.252608}
+{"seq": 9, "kind": "step_done", "message": "generate: 2 files, ir 356dc135f27f", "ts": 1793908222.2561386}
+{"seq": 10, "kind": "state", "message": "BUILDING", "ts": 1793908222.2582686}
+{"seq": 11, "kind": "step_running", "message": "build: ", "ts": 1793908222.2592118}
+{"seq": 12, "kind": "step_done", "message": "build: build ok, 6 binaries", "ts": 1793908223.5633717}
+{"seq": 13, "kind": "state", "message": "STAGING", "ts": 1793908223.5660398}
+{"seq": 14, "kind": "step_running", "message": "probe_image: ", "ts": 1793908223.567333}
+{"seq": 15, "kind": "step_done", "message": "probe_image: image probed", "ts": 1793908223.5696745}
+{"seq": 16, "kind": "state", "message": "STAGING", "ts": 1793908223.5719516}
+{"seq": 17, "kind": "step_running", "message": "qemu_boot: ", "ts": 1793908223.5733688}
+{"seq": 18, "kind": "step_done", "message": "qemu_boot: QEMU pid 32456 alive", "ts": 1793908234.0734763}
+{"seq": 19, "kind": "state", "message": "STAGING", "ts": 1793908234.0757027}
+{"seq": 20, "kind": "step_running", "message": "wait_ssh: ", "ts": 1793908234.0767822}
+{"seq": 21, "kind": "step_done", "message": "wait_ssh: ssh banner on port 2222", "ts": 1793908249.4802024}
+{"seq": 22, "kind": "state", "message": "STAGING", "ts": 1793908249.4825277}
+{"seq": 23, "kind": "step_running", "message": "qemu_put: ", "ts": 1793908249.4838386}
+{"seq": 24, "kind": "step_done", "message": "qemu_put: 9 files staged + manifest (staging cleaned)", "ts": 1793908251.850272}
+{"seq": 25, "kind": "state", "message": "VERIFYING", "ts": 1793908251.8518305}
+{"seq": 26, "kind": "step_running", "message": "qemu_verify: ", "ts": 1793908251.8526888}
+{"seq": 27, "kind": "step_done", "message": "qemu_verify: target matrix PASS (see C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-0350e9bd4818\\target)", "ts": 1793908425.9771225}
+{"seq": 28, "kind": "state", "message": "MEASURING", "ts": 1793908425.979223}
+{"seq": 29, "kind": "step_running", "message": "qemu_perf: ", "ts": 1793908425.9802284}
+{"seq": 30, "kind": "step_done", "message": "qemu_perf: perf done (see C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-0350e9bd4818\\perf)", "ts": 1793908432.498026}
+{"seq": 31, "kind": "step_running", "message": "qemu_stop: ", "ts": 1793908432.4996994}
+{"seq": 32, "kind": "step_done", "message": "qemu_stop: QEMU pid 32456 stopped", "ts": 1793908432.773442}
+{"seq": 33, "kind": "state", "message": "SEALING", "ts": 1793908432.774881}
+{"seq": 34, "kind": "step_running", "message": "seal: ", "ts": 1793908432.775656}
+{"seq": 35, "kind": "step_done", "message": "seal: sealed PASS (qnx_verified=True, 8 scenarios)", "ts": 1793908432.857697}
+{"seq": 36, "kind": "state", "message": "REPLAYING", "ts": 1793908432.8593316}
+{"seq": 37, "kind": "step_running", "message": "replay: ", "ts": 1793908432.86024}
+{"seq": 38, "kind": "step_done", "message": "replay: replay matches (PASS, qnx_verified=True)", "ts": 1793908432.8644838}
+{"seq": 39, "kind": "op_completed", "message": "all steps done", "ts": 1793908432.8659704}

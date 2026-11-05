@@ -11,7 +11,10 @@
 - Recovery ownership: crash recovery reaps only dead/absent owners
   (+24h pid-reuse backstop); `test_serve_bind` no longer touches
   the real store. Trigger: it reaped a live campaign op mid-verify.
-- Suite 851/851 green, 0 skips (CI on push; SDK-less 846 + 5).
+- F1 evidence pack `evidence/qnx8-x86_64-verified-b22cea1/` (34 files,
+  op-0350e9bd4818: 13/13, 16/16, 1000 samples, PASS) + `verify.py`
+  (digests, chain, bindings, anchor) + 5 pack tests.
+- Suite 856/856 green, 0 skips (CI on push; SDK-less 851 + 5).
 
 ## 2026-11-05 -- Wave 9 §17: competitive landscape & buyer dossier
 
@@ -41,7 +44,7 @@
   SDK-gates Lab 5, pins lab/block coverage. Fixed along the
   way: Store-stub `python` under QNX sh, backslash env paths
   in python one-liners, set-e vs intentional-failure line.
-- Suite 851/851 green, 0 skips (CI on push; SDK-less 846 + 5).
+- Suite 841/841 green, 0 skips (at §20 landing; SDK-less 836 + 5).
 
 ## 2026-11-05 -- Wave 9 §25: red-team round 1 (replay swap fixed)
 

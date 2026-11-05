@@ -121,7 +121,7 @@ roadmap, pricing hypotheses, pilot-partner criteria, PMF risks.
 
 ## 7. Adoption obstacles (honest)
 
-- **Prototype maturity:** a ~851-test host suite (5 Nov 2026: 851 passed with SDK, 0 skips; SDK-free 846 passed + 5 honest skips) and a 16-step matrix are strong
+- **Prototype maturity:** a ~856-test host suite (5 Nov 2026: 856 passed with SDK, 0 skips; SDK-free 851 passed + 5 honest skips) and a 16-step matrix are strong
   for a hackathon, thin for production. Needs hardening sprints,
   fuzzing depth (§13), and long-session robustness (§15).
 - **QNX licensing:** see §9 — customers need their own commercial QNX

@@ -1,0 +1,35 @@
+{
+ "note": "digests only; QNX binaries excluded (may statically link QNX libc)",
+ "binaries": {
+  "genesis_controller": {
+   "cksum": 3578346603,
+   "sha256": "fec7de1814f5c98de1534be8122894ae5e577c3302ec753594474f672938c96e",
+   "size": 13992
+  },
+  "genesis_device": {
+   "cksum": 821448259,
+   "sha256": "9a5b9d559e09bd6c9565bf8c747cf2fdb6daef62de882badffea097c39d1c2c8",
+   "size": 14248
+  },
+  "genesis_faultinject": {
+   "cksum": 2873279048,
+   "sha256": "05add5a5c9a3afe1fb671b5ab9faf54d7fb7a3c17b6fdeab61abb66b44f54769",
+   "size": 13920
+  },
+  "genesis_guard": {
+   "cksum": 3399525707,
+   "sha256": "4b76cc1c1a909553ef7f3ee3ae0f655f6fa1dc58064ee67201f850c952664b0d",
+   "size": 14360
+  },
+  "genesis_status": {
+   "cksum": 2106263109,
+   "sha256": "cd97edad966dc001b9cfb8d4d98f01a209da2e7c44ec93ebbaeb64023b99ac35",
+   "size": 15144
+  },
+  "genesis_supervisor": {
+   "cksum": 3075822595,
+   "sha256": "86f23d4edd37052dd87bb884f74e8d7776378a4813e0a3df3b26223b06169465",
+   "size": 14296
+  }
+ }
+}

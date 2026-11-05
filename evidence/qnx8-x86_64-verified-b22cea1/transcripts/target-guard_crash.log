@@ -1,0 +1,13 @@
+$ cd /tmp/genesis; slay genesis_guard 2>/dev/null; slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null; slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1; rm -f device-gc.log guard-gc.log ctrl-gc.log; ./genesis_device > device-gc.log 2>&1 & ./genesis_guard > guard-gc.log 2>&1 & GPID=$!; sleep 2; ./genesis_controller 50 > ctrl-gc.log 2>&1 & sleep 4; echo BEFORE=$(grep -c APPLY device-gc.log); slay -9 genesis_guard; sleep 3; echo AFTER=$(grep -c APPLY device-gc.log); echo NONGUARD=$(grep APPLY device-gc.log | grep -vc "from_pid=$GPID "); echo ALIVE=$(pidin -F %n 2>/dev/null | grep -c genesis_guard); echo ---CTRL-GC-TAIL---; tail -5 ctrl-gc.log; slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; true
+BEFORE=81
+AFTER=82
+NONGUARD=0
+ALIVE=0
+---CTRL-GC-TAIL---
+controller: seq=79 decision=ALLOW reason=0 state=1
+controller: seq=80 decision=ALLOW reason=0 state=1
+controller: seq=81 decision=ALLOW reason=0 state=1
+controller: seq=82 decision=ALLOW reason=0 state=1
+controller: MsgSend failed: Bad file descriptor
+
+[exit=0]
