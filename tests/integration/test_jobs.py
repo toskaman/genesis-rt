@@ -263,8 +263,9 @@ def test_restart_marks_abandoned_interrupted(tmp_path):
     db = tmp_path / "runs.db"
     m1 = JobManager(db, tmp_path / "artifacts")
     conn = sqlite3.connect(str(db))
-    conn.execute("INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?)",
-                 ("run-ghost-1", "running", None, None, None, None, 1.0, 1.0))
+    conn.execute("INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?)",
+                 ("run-ghost-1", "running", None, None, None, None,
+                  1.0, 1.0, None))  # NULL owner: pre-ownership record
     conn.commit()
     conn.close()
     m1.close()

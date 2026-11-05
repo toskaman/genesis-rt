@@ -9,7 +9,11 @@ crash recovery, and job-correlated structured logs.
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
+import subprocess
+import sys
+import time
 
 import pytest
 
@@ -72,9 +76,9 @@ def test_recovery_marks_abandoned_interrupted(tmp_path, caplog):
     first = JobManager(db, tmp_path / "artifacts")
     conn = sqlite3.connect(str(db))
     try:
-        conn.execute("INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?)",
+        conn.execute("INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?)",
                      ("orphan-01", "running", None, None, None, None,
-                      1.0, 1.0))
+                      1.0, 1.0, None))  # NULL owner: pre-ownership record
         conn.commit()
     finally:
         conn.close()
@@ -87,6 +91,54 @@ def test_recovery_marks_abandoned_interrupted(tmp_path, caplog):
         assert rec["state"] == "interrupted"
         assert rec["verdict"] != "PASS"
         assert "job=orphan-01" in caplog.text
+    finally:
+        second.close()
+
+
+def _dead_pid():
+    """A pid naming no live process (barring instant pid reuse)."""
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc.wait()
+    return proc.pid
+
+
+def _plant_job(db_path, job_id, state, owner_pid, updated):
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute("INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?)",
+                     (job_id, state, None, None, None, None,
+                      updated, updated, owner_pid))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_recovery_spares_live_owner_job(tmp_path):
+    """A second manager must not reap a job whose owner is alive."""
+    db = tmp_path / "runs.db"
+    first = JobManager(db, tmp_path / "artifacts")
+    now = time.time()
+    _plant_job(db, "live-01", "running", os.getpid(), now)
+    first.close()
+    second = JobManager(db, tmp_path / "artifacts")
+    try:
+        assert second.get("live-01")["state"] == "running"
+    finally:
+        second.close()
+
+
+def test_recovery_reaps_dead_owner_job(tmp_path):
+    db = tmp_path / "runs.db"
+    first = JobManager(db, tmp_path / "artifacts")
+    now = time.time()
+    _plant_job(db, "dead-01", "running", _dead_pid(), now)
+    first.close()
+    second = JobManager(db, tmp_path / "artifacts")
+    try:
+        rec = second.get("dead-01")
+        assert rec is not None and rec["state"] == "interrupted"
+        kinds = [e["kind"] for e in second.events("dead-01")]
+        assert "interrupted" in kinds
     finally:
         second.close()
 

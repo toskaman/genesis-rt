@@ -25,6 +25,7 @@ import copy
 import io
 import json
 import logging
+import os
 import re
 import subprocess
 import sys
@@ -33,6 +34,8 @@ import time
 import uuid
 from pathlib import Path
 from typing import Any, Callable
+
+from .jobs import OWNER_STALE_AFTER_S, pid_alive
 
 log = logging.getLogger("genesis.target")
 
@@ -287,14 +290,28 @@ class TargetRunner:
         return out
 
     def _recover(self) -> None:
+        # Ownership-guarded: only reap ops whose owner process is gone
+        # (or records untouched for OWNER_STALE_AFTER_S). A blind reap
+        # here killed a live campaign op on 2026-11-05 when a test
+        # constructed a second runner against the same store.
+        now = time.time()
         for path in sorted(self.ops_dir.glob("op-*.json")):
             try:
                 rec = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 continue
             if rec.get("state") not in TERMINAL_TARGET:
+                owner = rec.get("owner_pid")
+                if (isinstance(owner, int) and pid_alive(owner)
+                        and (now - (rec.get("updated") or 0))
+                        <= OWNER_STALE_AFTER_S):
+                    continue
+                stale = (now - (rec.get("updated") or 0)) > OWNER_STALE_AFTER_S
                 rec["state"] = "INTERRUPTED"
-                rec["reason"] = "previous process ended before completion"
+                rec["reason"] = ("stale: no update for 24h (possible pid reuse)"
+                                 if stale and isinstance(owner, int)
+                                 and pid_alive(owner)
+                                 else "previous process ended before completion")
                 self._write_record(rec)
                 self._emit(rec["op_id"], "interrupted", rec["reason"])
                 log.warning("op=%s recovered as interrupted", rec.get("op_id"))
@@ -332,7 +349,7 @@ class TargetRunner:
                "steps": [{"name": n, "state": "pending", "detail": ""}
                          for n in steps],
                "params": validated, "artifacts": {},
-               "created": now, "updated": now}
+               "created": now, "updated": now, "owner_pid": os.getpid()}
         self._write_record(rec)
         self._emit(op_id, "op_started", f"workflow={workflow}")
         cancel_evt = threading.Event()

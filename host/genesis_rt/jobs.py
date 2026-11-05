@@ -13,7 +13,9 @@ verdict. Event rows carry (job_id, seq, kind, message, ts) for SSE replay.
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
+import subprocess
 import threading
 import time
 import uuid
@@ -39,8 +41,48 @@ MAX_TRACKED_JOBS = 200
 # Wave 8 §7: live jobs (queued+running) past this cap are refused with
 # JobOverloaded (HTTP 429) instead of queueing unbounded work.
 MAX_LIVE_JOBS = 50
+# Recovery backstop: a non-terminal row untouched for longer than this is
+# reaped even when its owner pid looks alive (pid reuse guard). Genuine
+# jobs/ops finish in minutes; nothing legitimate runs this long.
+OWNER_STALE_AFTER_S = 24 * 3600
 
 log = logging.getLogger("genesis.jobs")
+
+
+def pid_alive(pid: int) -> bool:
+    """True when pid names a live process. Never signals: Windows tasklist
+    listing, POSIX /proc (os.kill(pid, 0) fallback where /proc is absent).
+    On any check failure assume alive: a missed reap leaves a cosmetic
+    stuck row, while a wrong reap kills somebody else's live work."""
+    if pid == os.getpid():
+        return True
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    if os.name == "nt":
+        try:
+            proc = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                capture_output=True, text=True, timeout=15)
+        except (OSError, subprocess.SubprocessError):
+            return True
+        for line in proc.stdout.splitlines():
+            fields = line.split('","')
+            if len(fields) >= 2 and fields[1].strip('" ') == str(pid):
+                return True
+        return False
+    if os.path.isdir(f"/proc/{pid}"):
+        return True
+    if os.path.isdir("/proc"):
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return True
+    return True
 
 
 class JobConflict(Exception):
@@ -63,13 +105,17 @@ def _connect(db_path: Path) -> sqlite3.Connection:
                  "(run_id TEXT PRIMARY KEY, verdict TEXT, passport TEXT, run_dir TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS jobs "
                  "(job_id TEXT PRIMARY KEY, state TEXT, verdict TEXT, run_dir TEXT,"
-                 " error TEXT, summary TEXT, created REAL, updated REAL)")
+                 " error TEXT, summary TEXT, created REAL, updated REAL,"
+                 " owner_pid INTEGER)")
     conn.execute("CREATE TABLE IF NOT EXISTS events "
                  "(job_id TEXT, seq INTEGER, kind TEXT, message TEXT, ts REAL,"
                  " PRIMARY KEY(job_id, seq))")
     cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
     if "summary" not in cols:  # additive migration for the sync facade
         conn.execute("ALTER TABLE jobs ADD COLUMN summary TEXT")
+        conn.commit()
+    if "owner_pid" not in cols:  # recovery ownership (Wave 10)
+        conn.execute("ALTER TABLE jobs ADD COLUMN owner_pid INTEGER")
         conn.commit()
     return conn
 
@@ -104,21 +150,35 @@ class JobManager:
         self._pool.shutdown(wait=True, cancel_futures=True)
 
     def _recover(self) -> None:
-        """Mark rows a dead process left behind as honestly interrupted."""
+        """Mark rows a dead process left behind as honestly interrupted.
+
+        Ownership-guarded: a second manager (test, CLI, parallel server)
+        must not reap rows whose owner process is still alive — that
+        killed a live campaign op on 2026-11-05 (test_serve_bind built
+        an app against the real store). Only dead/absent owners, or
+        rows untouched for OWNER_STALE_AFTER_S (pid-reuse backstop),
+        are reaped."""
         conn = _connect(self.db_path)
         try:
-            rows = conn.execute("SELECT job_id FROM jobs WHERE state IN "
-                                "('queued','running')").fetchall()
-            for (job_id,) in rows:
+            rows = conn.execute("SELECT job_id, owner_pid, updated FROM jobs "
+                                "WHERE state IN ('queued','running')").fetchall()
+            for job_id, owner_pid, updated in rows:
                 now_wall = time.time()
+                if (isinstance(owner_pid, int) and pid_alive(owner_pid)
+                        and (now_wall - (updated or 0)) <= OWNER_STALE_AFTER_S):
+                    continue
+                stale = (now_wall - (updated or 0)) > OWNER_STALE_AFTER_S
+                reason = ("stale: no update for 24h (possible pid reuse)"
+                          if stale and isinstance(owner_pid, int)
+                          and pid_alive(owner_pid)
+                          else "previous process ended before completion")
                 conn.execute("UPDATE jobs SET state='interrupted', "
                              "error='process ended before completion', "
                              "updated=? WHERE job_id=?", (now_wall, job_id))
                 nxt = conn.execute("SELECT COALESCE(MAX(seq),-1)+1 FROM events "
                                    "WHERE job_id=?", (job_id,)).fetchone()[0]
                 conn.execute("INSERT OR IGNORE INTO events VALUES (?,?,?,?,?)",
-                             (job_id, nxt, "interrupted",
-                              "previous process ended before completion", now_wall))
+                             (job_id, nxt, "interrupted", reason, now_wall))
                 log.warning("job=%s recovered as interrupted", job_id)
             conn.commit()
         finally:
@@ -152,9 +212,10 @@ class JobManager:
                                            "passport.json").exists():
                     raise JobConflict(f"run_id collision: {job_id} exists")
                 now_wall = time.time()
-                conn.execute("INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?)",
+                conn.execute("INSERT OR REPLACE INTO jobs VALUES "
+                             "(?,?,?,?,?,?,?,?,?)",
                              (job_id, "queued", None, None, None, None,
-                              now_wall, now_wall))
+                              now_wall, now_wall, os.getpid()))
                 conn.execute("DELETE FROM events WHERE job_id=?", (job_id,))
                 conn.execute("INSERT INTO events VALUES (?,?,?,?,?)",
                              (job_id, 0, "queued", "job accepted", now_wall))

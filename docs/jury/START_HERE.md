@@ -27,8 +27,8 @@ On Windows PowerShell, prefix the two commands with
 python -m pytest tests/ -q
 ```
 
-Expect green (846 with SDK, 0 skips — 5 Nov 2026, this box;
-SDK-free: 841 passed + 5 honest skips — 4 QNX-build + 1 SDK-only
+Expect green (851 with SDK, 0 skips — 5 Nov 2026, this box;
+SDK-free: 846 passed + 5 honest skips — 4 QNX-build + 1 SDK-only
 codelab — without an
 SDK; +1 cksum-conformance where coreutils is absent). With an SDK the
 QNX build test compiles the 6 native binaries per machine build for

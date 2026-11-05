@@ -1,5 +1,18 @@
 # Progress log
 
+## 2026-11-05 -- Wave 10 Sprint A: baseline, boot fix, F4, recovery fix
+
+- Baseline 851/851 green, 0 skips (`docs/audits/WAVE10_BASELINE.md`).
+- Boot hardening: `build_qemu_argv` pins `format=vmdk|qcow2|raw`
+  (a torn .vmdk descriptor probed as raw → guest lost its disk,
+  campaign failed at wait_ssh; descriptor repaired, backup kept).
+- F4: Judge Mode + synchronized A/B twin replay documented as
+  implemented (verified in `ui/studio.html`); 2 anti-rot tests.
+- Recovery ownership: crash recovery reaps only dead/absent owners
+  (+24h pid-reuse backstop); `test_serve_bind` no longer touches
+  the real store. Trigger: it reaped a live campaign op mid-verify.
+- Suite 851/851 green, 0 skips (CI on push; SDK-less 846 + 5).
+
 ## 2026-11-05 -- Wave 9 §17: competitive landscape & buyer dossier
 
 - `docs/business/COMPETITIVE_LANDSCAPE.md`: source-backed vendor
@@ -28,7 +41,7 @@
   SDK-gates Lab 5, pins lab/block coverage. Fixed along the
   way: Store-stub `python` under QNX sh, backslash env paths
   in python one-liners, set-e vs intentional-failure line.
-- Suite 846/846 green, 0 skips (CI on push; SDK-less 841 + 5).
+- Suite 851/851 green, 0 skips (CI on push; SDK-less 846 + 5).
 
 ## 2026-11-05 -- Wave 9 §25: red-team round 1 (replay swap fixed)
 

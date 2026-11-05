@@ -34,9 +34,9 @@ def test_terminal_job_queryable_without_completion_event(tmp_path):
     try:
         conn = sqlite3.connect(str(tmp_path / "runs.db"))
         try:
-            conn.execute("INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?)",
+            conn.execute("INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?)",
                          ("run-evicted-1", "succeeded", "PASS", None,
-                          None, None, 1.0, 2.0))
+                          None, None, 1.0, 2.0, None))
             conn.commit()
         finally:
             conn.close()

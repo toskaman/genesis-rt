@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Wave 8 §5: target op state machine + runner (stub steps, no QEMU)."""
 import json
+import os
+import subprocess
+import sys
 import threading
 import time
 
@@ -149,6 +152,62 @@ def test_interrupted_recovery_marks_stale_live(tmp_path):
     try:
         rec = r.get("op-abc123def456")
         assert rec["state"] == "INTERRUPTED"
+    finally:
+        r.close()
+
+
+def _dead_pid():
+    """A pid naming no live process (barring instant pid reuse)."""
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc.wait()
+    return proc.pid
+
+
+def _write_op(ops_dir, op_id, state, owner_pid, updated):
+    ops_dir.mkdir(exist_ok=True)
+    (ops_dir / f"{op_id}.json").write_text(json.dumps({
+        "op_id": op_id, "workflow": "full", "state": state,
+        "reason": "", "steps": [], "created": updated, "updated": updated,
+        "owner_pid": owner_pid, "artifacts": {}}), encoding="utf-8")
+
+
+def test_recover_spares_live_owner_op(tmp_path):
+    """A second runner must not reap an op whose owner is alive (this
+    killed a live campaign op on 2026-11-05)."""
+    now = time.time()
+    _write_op(tmp_path / "ops", "op-liveowner01", "VERIFYING",
+              os.getpid(), now)
+    r = tgt.TargetRunner(tmp_path / "ops", tmp_path / "target.lock")
+    try:
+        assert r.get("op-liveowner01")["state"] == "VERIFYING"
+    finally:
+        r.close()
+
+
+def test_recover_reaps_dead_owner_op(tmp_path):
+    now = time.time()
+    _write_op(tmp_path / "ops", "op-deadowner01", "VERIFYING",
+              _dead_pid(), now)
+    r = tgt.TargetRunner(tmp_path / "ops", tmp_path / "target.lock")
+    try:
+        rec = r.get("op-deadowner01")
+        assert rec["state"] == "INTERRUPTED"
+        assert rec["reason"] == "previous process ended before completion"
+    finally:
+        r.close()
+
+
+def test_recover_reaps_ancient_op_despite_live_pid(tmp_path):
+    """Pid-reuse backstop: untouched for >24h is reaped even when the
+    recorded pid happens to be alive."""
+    now = time.time()
+    _write_op(tmp_path / "ops", "op-ancient0001", "VERIFYING",
+              os.getpid(), now - 25 * 3600)
+    r = tgt.TargetRunner(tmp_path / "ops", tmp_path / "target.lock")
+    try:
+        rec = r.get("op-ancient0001")
+        assert rec["state"] == "INTERRUPTED"
+        assert "pid reuse" in rec["reason"]
     finally:
         r.close()
 
