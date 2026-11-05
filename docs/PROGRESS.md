@@ -1,5 +1,23 @@
 # Progress log
 
+## 2026-11-05 -- Wave 8 Phase A: API/Target Runner + fresh native proof
+
+- §6 Origin guard now covers PUT/PATCH (was POST/DELETE only; PUT
+  /projects/{pid} proven writable cross-origin before the fix); negative
+  tests; docs/local-security-model.md.
+- §7 bounded job admission: MAX_LIVE_JOBS=50, JobOverloaded→429 +
+  Retry-After, no orphan tmp on refusal; burst/stress tests.
+- §5 Studio Target Runner: TargetRunner (9-state machine, file store,
+  single campaign lock shared with the qnx_target.py CLI, cancel,
+  honest BLOCKED, bounded QEMU cleanup, stdout capture on failure),
+  5 Origin-guarded endpoints, Studio Target tab + node harness.
+- Fresh native proof op-a507c7ecb9cf (this box, TCG): 11/11 steps,
+  qcc 12.2.0 build, 16/16 target matrix PASS on QNX 8.0.0 x86_64,
+  0 orphans; artifacts under artifacts/runs/target-ops/ (git-ignored).
+  WHPX still broken on host (needs reboot); TCG+cpu max boots.
+- Crash fix (audit): os.kill() on self kills sandboxed trees; liveness
+  now observed via tasklist//proc (no signaling where unneeded).
+
 ## 2026-11-05 -- Wave 7 M1+M2+M3§8 : Studio Live + Evidence Graph
 
 - M1 reliability (§5+§7 @bdeac07/119d442): version-aware CLI, docs pins
