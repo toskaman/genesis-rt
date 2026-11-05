@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .ir import canonical_json
+from .ir import canonical_json, guard_limits
 
 PASSPORT_VERSION = 1
 GENESIS_PREV = "GENESIS" + "0" * 57  # 64-char genesis previous-hash
@@ -90,10 +90,15 @@ def build_passport(run_id: str, ir: dict[str, Any],
                    pipeline_error: dict[str, Any] | None = None,
                    qnx_perf: dict[str, Any] | None = None) -> dict[str, Any]:
     chain: list[dict[str, Any]] = []
+    try:
+        ir_limits: dict[str, Any] | None = guard_limits(ir)
+    except (KeyError, TypeError, ValueError):
+        ir_limits = None  # non-v1 shapes carry no v1 control block
     _chain_append(chain, "ir", {"ir_sha256": codegen_manifest["ir_sha256"],
                                 "schema_version": ir.get("schema_version", 1),
                                 "machine": ir["machine"],
-                                "scenarios": ir["verification"]["scenarios"]})
+                                "scenarios": ir["verification"]["scenarios"],
+                                "limits": ir_limits})
     _chain_append(chain, "codegen", codegen_manifest)
     _chain_append(chain, "qnx_build", qnx_build or {"status": "missing"})
     _chain_append(chain, "qnx_target", qnx_target or {"status": "missing"})

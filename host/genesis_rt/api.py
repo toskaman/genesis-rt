@@ -34,8 +34,13 @@ if BaseModel is not None:
         scenarios: list[str] | None = None
         run_id: str | None = None  # client-chosen id (cancellable runs)
 
+    class CompareRequest(BaseModel):
+        run_a: str
+        run_b: str
+
 else:  # pragma: no cover - import-time fallback without the api extra
     RunRequest = None  # type: ignore[assignment, misc]
+    CompareRequest = None  # type: ignore[assignment, misc]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 ARTIFACTS = REPO_ROOT / "artifacts" / "runs"
@@ -56,6 +61,10 @@ def _db(path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("CREATE TABLE IF NOT EXISTS runs "
                  "(run_id TEXT PRIMARY KEY, verdict TEXT, passport TEXT)")
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(runs)")}
+    if "run_dir" not in cols:  # additive migration for /compare
+        conn.execute("ALTER TABLE runs ADD COLUMN run_dir TEXT")
+        conn.commit()
     return conn
 
 
@@ -68,9 +77,11 @@ def create_app() -> Any:
     if RunRequest is None:
         raise RuntimeError("API extra missing: pip install -e '.[api]'")
 
+    from .compare import compare_runs
     from .ir import IRValidationError, SCENARIO_IDS, validate_ir
     from .ir_v2 import validate_v2
-    from .orchestrator import CancelledRun, PipelineError, request_cancel, run_pipeline
+    from .orchestrator import (CancelledRun, PipelineError, active_runs,
+                               request_cancel, run_pipeline)
 
     app = FastAPI(title="GENESIS RT orchestrator", version="0.1.0")
     db_path = ARTIFACTS / "runs.db"
@@ -145,8 +156,11 @@ def create_app() -> Any:
         passport_text = Path(summary["passport"]).read_text(encoding="utf-8")
         conn = _db(db_path)
         try:
-            conn.execute("INSERT OR REPLACE INTO runs VALUES (?,?,?)",
-                         (summary["run_id"], summary["verdict"], passport_text))
+            conn.execute(
+                "INSERT OR REPLACE INTO runs (run_id, verdict, passport,"
+                " run_dir) VALUES (?,?,?,?)",
+                (summary["run_id"], summary["verdict"], passport_text,
+                 str(summary["run_dir"])))
             conn.commit()
         finally:
             conn.close()
@@ -172,7 +186,76 @@ def create_app() -> Any:
         finally:
             conn.close()
         if row is None:
+            if run_id in active_runs():
+                return JSONResponse({"run_id": run_id, "status": "active"},
+                                    status_code=202)
             raise HTTPException(404, "unknown run")
         return JSONResponse(json.loads(row[0]))
+
+    @app.get("/runs")
+    def list_runs(limit: int = 50) -> JSONResponse:
+        if not 1 <= limit <= 200:
+            raise HTTPException(400, "limit must be 1..200")
+        conn = _db(db_path)
+        try:
+            rows = conn.execute(
+                "SELECT run_id, verdict FROM runs ORDER BY rowid DESC"
+                " LIMIT ?", (limit,)).fetchall()
+        finally:
+            conn.close()
+        return JSONResponse({"runs": [{"run_id": r[0], "verdict": r[1]}
+                                      for r in rows]})
+
+    @app.get("/runs/{run_id}/export")
+    def export_run(run_id: str) -> JSONResponse:
+        if not _valid_run_id(run_id):
+            raise HTTPException(400, "invalid run id")
+        conn = _db(db_path)
+        try:
+            row = conn.execute("SELECT passport FROM runs WHERE run_id=?",
+                               (run_id,)).fetchone()
+        finally:
+            conn.close()
+        if row is None:
+            raise HTTPException(404, "unknown run")
+        return JSONResponse(
+            json.loads(row[0]),
+            headers={"Content-Disposition":
+                     f"attachment; filename={run_id}.passport.json"})
+
+    @app.post("/compare")
+    def compare_stored(req: CompareRequest) -> JSONResponse:
+        for rid in (req.run_a, req.run_b):
+            if not _valid_run_id(rid):
+                raise HTTPException(400, f"invalid run id: {rid!r}")
+        conn = _db(db_path)
+        try:
+            rows = {r[0]: r[1] for r in conn.execute(
+                "SELECT run_id, run_dir FROM runs WHERE run_id IN (?,?)",
+                (req.run_a, req.run_b)).fetchall()}
+        finally:
+            conn.close()
+        missing = [r for r in (req.run_a, req.run_b) if r not in rows]
+        if missing:
+            raise HTTPException(404, f"unknown runs: {missing}")
+        dirs = []
+        base = ARTIFACTS.resolve()
+        for rid in (req.run_a, req.run_b):
+            stored = rows[rid]
+            if not stored:
+                raise HTTPException(
+                    409, f"run {rid} predates run_dir tracking")
+            candidate = Path(stored).resolve()
+            if base not in candidate.parents and candidate != base:
+                raise HTTPException(409, f"run {rid} dir escapes artifacts")
+            if not (candidate / "passport.json").is_file():
+                raise HTTPException(
+                    409, f"run {rid} artifacts no longer on disk")
+            dirs.append(candidate)
+        try:
+            comp = compare_runs(dirs[0], dirs[1])
+        except ValueError as exc:
+            raise HTTPException(409, f"cannot compare: {exc}") from exc
+        return JSONResponse(comp)
 
     return app

@@ -22,6 +22,8 @@
 | Bounded supervision | `target/qnx8/supervisor/genesis_supervisor.c` (RESPAWN×3 + GIVE_UP halt) | `supervisor_respawn`/`supervisor_giveup` matrix steps |
 | Generated transitions drive runtime | `host/genesis_rt/codegen_v2.py` + guard v2 tail (`-DGENESIS_MACHINE_V2`) | `v2_transitions` step (v1/v2 bidirect. contrast, 9/9 on v2 binary) |
 | Oracle bite (red-green) | old guard/status/supervisor vs new oracles → 2/6 FAIL | `docs/PROGRESS.md` (Wave B entry, reproducible method) |
+| Counterfactual compare | `host/genesis_rt/compare.py` (contract diff, fixed/broken, perf delta, binaries hashed) + `POST /compare` | `tests/integration/test_compare.py` (cell 0.3→1.2: 3 fixed), `examples/cell-demo/README.md` (Demo C) |
+| Local run history/export | `host/genesis_rt/api.py` (`GET /runs`, `GET /runs/{id}/export`, active→202) | `tests/integration/test_api.py` (history/compare/export/409 paths) |
 | Clock separation | `docs/evidence-methodology.md` | sim `t_ms` vs envelope `created_utc` |
 
 QNX-specific technology bonus mapping: native synchronous message passing

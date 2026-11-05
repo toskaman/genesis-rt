@@ -64,6 +64,12 @@ def request_cancel(run_id: str) -> bool:
         return False
 
 
+def active_runs() -> frozenset[str]:
+    """Snapshot of currently executing run ids (for status queries)."""
+    with _ACTIVE_LOCK:
+        return frozenset(_ACTIVE)
+
+
 def _check_cancelled(run_id: str, run_dir: Path, steps: dict[str, Any]) -> None:
     with _ACTIVE_LOCK:
         cancelled = run_id in _CANCELLED

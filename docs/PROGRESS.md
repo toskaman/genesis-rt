@@ -1,5 +1,22 @@
 # Progress log
 
+## 2026-11-05 -- P1 Wave 2B : counterfactual + API (Demo C, history/export)
+
+- Passeport : record `ir` embarque `limits` (guard_limits, None pour
+  non-v1) ; additif, chaines existantes intactes.
+- `compare` : diff contrat champ-par-champ, delta mesures qnx_perf
+  (p50/p95/p99/max), listes fixed/broken, `release_changed`,
+  binaires hashes (plus de dump binaire -> plus de crash console).
+- Demo C : `cell-ir-broken.json` (1 ligne : 0.3 m/s) -> FAIL/NONE
+  1/4 ; fixed -> PASS ; compare : `0.3 -> 1.2`, 3 fixed, verdict
+  True. Walkthrough `examples/cell-demo/README.md`, Studio Diff.
+- API : `GET /runs` (historique, limit 1..200), `POST /compare`
+  (run_ids, 404/409 honnetes, confinement ARTIFACTS),
+  `GET /runs/{id}/export` (download), run actif -> 202 ;
+  migration DB `run_dir` additive ; `orchestrator.active_runs()`.
+- 11 tests (5 compare, 6 API). Suite hote 452/452.
+  Chiffres canoniques : 452 tests, matrice 13/13, 9 stages.
+
 ## 2026-11-05 -- P1 Wave 2A : GENESIS CELL (industrial cell end-to-end)
 
 - IR `industrial_cell` + bloc `cell` (stations, transfert, interlock),

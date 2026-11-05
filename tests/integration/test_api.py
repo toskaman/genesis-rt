@@ -1,6 +1,7 @@
 # Copyright 2026 GENESIS RT contributors
 # SPDX-License-Identifier: Apache-2.0
 """Integration tests: API isolation, error mapping, concurrency."""
+import copy
 import json
 import threading
 
@@ -178,3 +179,80 @@ def test_get_run_roundtrip_and_errors(client, amr_ir_dict):
     assert got.json()["run_id"] == run_id
     assert client.get("/runs/does-not-exist").status_code == 404
     assert client.get("/runs/../evil").status_code in (400, 404, 405)
+
+
+def test_history_lists_runs_newest_first(client, amr_ir_dict):
+    for rid in ("run-hist-1", "run-hist-2"):
+        r = client.post("/runs", json={"ir": amr_ir_dict, "run_id": rid,
+                                       "scenarios": ["nominal_navigation"]})
+        assert r.status_code == 200
+    hist = client.get("/runs")
+    assert hist.status_code == 200
+    ids = [e["run_id"] for e in hist.json()["runs"]]
+    assert ids == ["run-hist-2", "run-hist-1"]
+    assert all("verdict" in e for e in hist.json()["runs"])
+    assert client.get("/runs?limit=1").json()["runs"] == [
+        {"run_id": "run-hist-2", "verdict": "PASS"}]
+    assert client.get("/runs?limit=0").status_code == 400
+    assert client.get("/runs?limit=500").status_code == 400
+
+
+def test_export_downloads_passport(client, amr_ir_dict):
+    r = client.post("/runs", json={"ir": amr_ir_dict, "run_id": "run-exp-1",
+                                   "scenarios": ["nominal_navigation"]})
+    assert r.status_code == 200
+    exp = client.get("/runs/run-exp-1/export")
+    assert exp.status_code == 200
+    assert exp.json()["run_id"] == "run-exp-1"
+    assert "attachment" in exp.headers["content-disposition"]
+    assert "run-exp-1.passport.json" in exp.headers["content-disposition"]
+    assert client.get("/runs/run-missing/export").status_code == 404
+
+
+def test_compare_two_runs(client, repo_root, amr_ir_dict):
+    a = client.post("/runs", json={"ir": amr_ir_dict, "run_id": "run-cmp-a",
+                                   "scenarios": ["nominal_navigation"]})
+    mutated = copy.deepcopy(amr_ir_dict)
+    mutated["control"]["max_linear_speed_mps"] = 0.5
+    b = client.post("/runs", json={"ir": mutated, "run_id": "run-cmp-b",
+                                   "scenarios": ["nominal_navigation"]})
+    assert a.status_code == 200 and b.status_code == 200
+    r = client.post("/compare", json={"run_a": "run-cmp-a",
+                                      "run_b": "run-cmp-b"})
+    assert r.status_code == 200, r.text
+    comp = r.json()
+    assert comp["contract"]["limits_changed"] == {
+        "max_linear_speed_mps": [1.2, 0.5]}
+    assert comp["run_a"] == "run-cmp-a" and comp["run_b"] == "run-cmp-b"
+
+
+def test_compare_unknown_and_invalid_ids(client):
+    r = client.post("/compare", json={"run_a": "run-ghost",
+                                      "run_b": "run-ghost-2"})
+    assert r.status_code == 404
+    r = client.post("/compare", json={"run_a": "../evil", "run_b": "run-x"})
+    assert r.status_code == 400
+
+
+def test_compare_missing_artifacts_is_409(client, amr_ir_dict, tmp_path):
+    import shutil
+
+    a = client.post("/runs", json={"ir": amr_ir_dict, "run_id": "run-cmp-c",
+                                   "scenarios": ["nominal_navigation"]})
+    b = client.post("/runs", json={"ir": amr_ir_dict, "run_id": "run-cmp-d",
+                                   "scenarios": ["nominal_navigation"]})
+    assert a.status_code == 200 and b.status_code == 200
+    shutil.rmtree(tmp_path / "artifacts" / "run-cmp-c")
+    r = client.post("/compare", json={"run_a": "run-cmp-c",
+                                      "run_b": "run-cmp-d"})
+    assert r.status_code == 409
+    assert "no longer on disk" in r.text
+
+
+def test_get_active_run_reports_202(client, amr_ir_dict, monkeypatch):
+    from genesis_rt import orchestrator
+
+    monkeypatch.setattr(orchestrator, "_ACTIVE", {"run-live-1"})
+    r = client.get("/runs/run-live-1")
+    assert r.status_code == 202
+    assert r.json() == {"run_id": "run-live-1", "status": "active"}
