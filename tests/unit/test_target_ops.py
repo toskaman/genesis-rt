@@ -189,3 +189,29 @@ def test_two_runners_share_file_lock(tmp_path, monkeypatch):
     finally:
         r1.close()
         r2.close()
+
+
+def test_failure_after_boot_runs_bounded_cleanup(runner, monkeypatch):
+    called = []
+
+    def _boot(ctx):
+        ctx["artifacts"]["qemu_pid"] = 424242
+        return (True, "boot stub ok")
+
+    def _stop(ctx):
+        called.append("stop")
+        return (True, "stop stub ok")
+
+    for name in ("validate", "env", "generate", "build", "probe_image"):
+        monkeypatch.setitem(tgt.STEP_IMPLS, name, _stub_ok(name))
+    monkeypatch.setitem(tgt.STEP_IMPLS, "qemu_boot", _boot)
+    monkeypatch.setitem(tgt.STEP_IMPLS, "wait_ssh", lambda ctx: (False, "no ssh"))
+    monkeypatch.setitem(tgt.STEP_IMPLS, "qemu_stop", _stop)
+    rec = runner.start("full", params={"ir": {}, "image_dir": str(runner.ops_dir)})
+    final = _poll_state(runner, rec["op_id"])
+    assert final["state"] == "FAILED"
+    assert called == ["stop"]
+    states = {s["name"]: s["state"] for s in final["steps"]}
+    assert states["wait_ssh"] == "failed"
+    assert states["qemu_stop"] == "done"
+    assert states["qemu_verify"] == "pending"

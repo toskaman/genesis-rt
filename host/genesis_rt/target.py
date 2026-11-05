@@ -409,6 +409,10 @@ class TargetRunner:
             else:
                 self._finish(op_id, "COMPLETED", "all steps done")
         finally:
+            try:
+                self._cleanup_qemu(op_id, ctx)
+            except Exception:
+                pass  # cleanup never masks the op outcome
             with self._lock:
                 self._threads.pop(op_id, None)
                 self._cancel.pop(op_id, None)
@@ -416,6 +420,24 @@ class TargetRunner:
                 lock.release()
             except OSError:
                 pass
+
+    def _cleanup_qemu(self, op_id: str, ctx: dict[str, Any]) -> None:
+        """Bounded cleanup (§5): stop a booted QEMU unless already stopped."""
+        if not ctx["artifacts"].get("qemu_pid"):
+            return
+        rec = self.get(op_id)
+        if rec is not None:
+            for step in rec.get("steps", []):
+                if step["name"] == "qemu_stop" and step["state"] == "done":
+                    return
+        self._set_step(op_id, "qemu_stop", "running", "failure cleanup")
+        try:
+            ok, detail = STEP_IMPLS["qemu_stop"](ctx)
+        except Exception as exc:  # noqa: BLE001 — best effort
+            ok, detail = False, f"{type(exc).__name__}: {exc}"
+        self._set_step(op_id, "qemu_stop", "done" if ok else "failed",
+                       f"cleanup: {detail}")
+        self._emit(op_id, "cleanup", detail[:200])
 
     def _save_artifacts(self, op_id: str, artifacts: dict[str, Any]) -> None:
         with self._lock:
