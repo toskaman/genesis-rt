@@ -87,6 +87,11 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'banner') return renderReleaseBannerHtml(JSON.parse(c.arg));
     if (c.fn === 'explore') return renderExploreHtml(JSON.parse(c.arg));
     if (c.fn === 'cxreplay') return renderCxReplayHtml(JSON.parse(c.arg));
+    if (c.fn === 'twinfold') { const j = JSON.parse(c.arg); return twinFold(j.trace, j.source || 'host-sim'); }
+    if (c.fn === 'twinframeat') { const j = JSON.parse(c.arg); return twinFrameAt(j.track, j.t); }
+    if (c.fn === 'twinsource') return twinDescribeSource(JSON.parse(c.arg));
+    if (c.fn === 'twinevent') { const j = JSON.parse(c.arg); return renderTwinEventHtml(j.frame, j.scen, j.note); }
+    if (c.fn === 'twinmarkers') return renderTwinMarkersHtml(JSON.parse(c.arg));
     throw new Error('unknown fn ' + c.fn);
   });
   fs.writeFileSync(process.argv[3], JSON.stringify(out));
@@ -721,3 +726,99 @@ def test_live_cxreplay_renders_violated_and_fixed(amr_ir_dict, tmp_path):
     assert "deterministic" in got_same
     assert "violated" in got_fixed and ">NO<" in got_fixed
     assert "fix check" in got_fixed
+
+
+def _twin_traces(amr_ir, cell_ir, repo_root):
+    from genesis_rt.ir import validate_ir
+
+    conv = validate_ir(json.loads(
+        (repo_root / "examples" / "conveyor-demo" / "machine-ir.json")
+        .read_text(encoding="utf-8")))
+    return [
+        ("diff", faultlab.run_scenario(amr_ir, "corrupted_message")["trace"]),
+        ("belt", faultlab.run_scenario(conv, "belt_jam")["trace"]),
+        ("cell", faultlab.run_scenario(
+            cell_ir, "cell_estop_during_transfer")["trace"]),
+    ]
+
+
+@node
+def test_twin_fold_matches_python(amr_ir, cell_ir, tmp_path, repo_root):
+    from genesis_rt.twin import fold_trace
+
+    traces = _twin_traces(amr_ir, cell_ir, repo_root)
+    calls = [{"fn": "twinfold",
+              "arg": json.dumps({"trace": trace})} for _, trace in traces]
+    got = _run_js(calls, tmp_path)
+    for (kind, trace), js_track in zip(traces, got):
+        py_track = fold_trace(trace)
+        assert js_track["kind"] == kind == py_track["kind"]
+        assert js_track["frames"] == py_track["frames"]
+        assert js_track["markers"] == py_track["markers"]
+        assert js_track["truncated"] is False
+        assert js_track["interp"] == "stepwise-hold"
+
+
+@node
+def test_twin_fold_slim_trace_matches_python(amr_ir, tmp_path):
+    from genesis_rt.twin import fold_trace
+
+    text = _fresh_passport(amr_ir, tmp_path)
+    body = [r["body"] for r in json.loads(text)["chain"]
+            if r["kind"] == "scenario:dropped_message"][0]
+    (js_track,) = _run_js(
+        [{"fn": "twinfold", "arg": json.dumps({"trace": body["trace"]})}],
+        tmp_path)
+    py_track = fold_trace(body["trace"])
+    assert js_track["truncated"] is True
+    assert js_track["gap_at"] == py_track["gap_at"] == 20
+    assert js_track["frames"] == py_track["frames"]
+    assert js_track["markers"] == py_track["markers"]
+
+
+@node
+def test_twin_frame_at_and_source_match_python(amr_ir, tmp_path):
+    from genesis_rt.twin import describe_source, fold_trace, frame_at
+
+    res = faultlab.run_scenario(amr_ir, "corrupted_message")
+    track = fold_trace(res["trace"])
+    times = [-1, 0, track["frames"][10]["t_ms"] + 1,
+             track["frames"][-1]["t_ms"] + 10 ** 6]
+    calls = [{"fn": "twinframeat",
+              "arg": json.dumps({"track": track, "t": t})} for t in times]
+    assert _run_js(calls, tmp_path) == [frame_at(track, t) for t in times]
+    text = _fresh_passport(amr_ir, tmp_path)
+    (host_only,) = _run_js([{"fn": "twinsource", "arg": text}], tmp_path)
+    assert host_only == describe_source(json.loads(text))
+    assert host_only["run_source"] == "host-only"
+    bound = {"chain": [{"kind": "gate_verdict",
+                        "body": {"verdict": "PASS", "qnx_verified": True}}]}
+    (qnx,) = _run_js([{"fn": "twinsource", "arg": json.dumps(bound)}],
+                     tmp_path)
+    assert qnx == describe_source(bound)
+    assert qnx["track_source"] == "host-sim"
+
+
+@node
+def test_twin_event_and_markers_render_and_escape(amr_ir, tmp_path):
+    from genesis_rt.twin import fold_trace
+
+    res = faultlab.run_scenario(amr_ir, "corrupted_message")
+    track = fold_trace(res["trace"])
+    frame = dict(track["frames"][100])
+    frame["reason"] = '<script>alert("x")</script>'
+    scen = {"name": res["scenario"], "checks": res["checks"]}
+    (html,) = _run_js(
+        [{"fn": "twinevent",
+          "arg": json.dumps({"frame": frame, "scen": scen,
+                             "note": "host-only run"})}], tmp_path)
+    assert "&lt;script&gt;" in html
+    assert "<script>" not in html
+    assert "guard decision" in html
+    assert "per-scenario oracle results" in html
+    assert res["checks"][0]["name"] in html
+    (markers,) = _run_js(
+        [{"fn": "twinmarkers", "arg": json.dumps(track["markers"])}],
+        tmp_path)
+    assert "fault corrupted started" in markers
+    assert "data-tw=" in markers

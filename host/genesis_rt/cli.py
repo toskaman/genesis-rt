@@ -253,6 +253,20 @@ def _cmd_replay(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_twin(args: argparse.Namespace) -> int:
+    from .twin import render_track_text, track_from_passport
+    passport = json.loads(Path(args.passport).read_text(encoding="utf-8"))
+    track = track_from_passport(passport, args.scenario)
+    text = json.dumps(track, indent=2, sort_keys=True) if args.json \
+        else render_track_text(track)
+    if args.out:
+        Path(args.out).write_text(text if text.endswith("\n") else text + "\n",
+                                  encoding="utf-8")
+    else:
+        print(text if text.endswith("\n") else text + "\n", end="")
+    return 0
+
+
 def _cmd_check_env(args: argparse.Namespace) -> int:
     from .build_adapter import probe
     print(json.dumps(probe(), indent=2))
@@ -335,6 +349,12 @@ def build_parser() -> argparse.ArgumentParser:
     rp.add_argument("--repo-root", default=".",
                     help="checkout root (locates target/qnx8)")
     rp.set_defaults(func=_cmd_replay)
+    tw = sub.add_parser("twin", help="fold a passport scenario into a replay track")
+    tw.add_argument("passport", help="evidence passport JSON file")
+    tw.add_argument("--scenario", required=True, help="scenario name to fold")
+    tw.add_argument("--json", action="store_true")
+    tw.add_argument("--out", default=None, help="write the track JSON here")
+    tw.set_defaults(func=_cmd_twin)
     c = sub.add_parser("check-env", help="probe for a QNX SDK toolchain")
     c.set_defaults(func=_cmd_check_env)
     sv = sub.add_parser("serve", help="start the local web API (needs api extra)")

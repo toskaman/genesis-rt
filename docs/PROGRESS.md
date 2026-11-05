@@ -42,7 +42,19 @@
   native). `explore` + `replay` CLI, `POST /explore` +
   `POST /explore/replay`, Studio Lab explorer section with
   fix-replay; browser 11/11 incl. host-discovered finding.
-- Suite 708/708 with SDK (SDK-free 705 + 3 honest QNX-build skips);
+- M3 §10 Twin 2.0: `twin.py` folds any scenario trace into a
+  replay track (frames + timeline markers under stepwise-hold:
+  last recorded tick shown, gaps flagged never bridged);
+  chain-verified passports only, run source labeled honestly
+  (host-only / qnx-bound, ticks stay host-sim). `twin` CLI,
+  `POST /twin/frames`, Studio Twin tab rebuilt: cell schematic
+  (AMR/belt/station/presence/interlock/phase/leg), scrub + speed
+  + event nav + markers + scenario select + A/B sync compare,
+  marker→trace/guard/checks sync, one-click Evidence Graph jump;
+  single interval, canvas+textContent paints, loop stops on
+  pause/tab-switch. JS/Python fold parity node-tested; browser
+  30/30 incl. screenshots.
+- Suite 729/729 with SDK (SDK-free 726 + 3 honest QNX-build skips);
   jury pins + architecture updated; consistency guard green.
 
 ## 2026-11-05 -- P1 Wave 5 : jury delivery (termine)

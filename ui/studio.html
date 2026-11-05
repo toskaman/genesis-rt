@@ -28,6 +28,12 @@ input[type=file] { margin:1rem 0; }
 pre.cmd { background:#161b22; border:1px solid #30363d; padding:.6rem .8rem; overflow-x:auto; font-size:.82rem; }
 canvas.twin { border:1px solid #30363d; width:100%; max-width:40rem; background:#010409; }
 .twinctl button { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.3rem .7rem; margin-right:.4rem; cursor:pointer; }
+.twinctl button:disabled { opacity:.45; cursor:default; }
+input[type=range].twinscrub { width:100%; max-width:40rem; margin:.4rem 0; }
+.twinmarkers button { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.2rem .5rem; margin:0 .3rem .3rem 0; cursor:pointer; font-size:.8rem; }
+.twinmarkers button.sev-fail { border-color:#f85149; } .twinmarkers button.sev-warn { border-color:#d29922; }
+table.twinside { max-width:40rem; } table.twinside td:first-child { color:var(--mut); width:9rem; }
+.twin-ev pre { background:#010409; border:1px solid #30363d; padding:.5rem; overflow-x:auto; font-size:.78rem; max-width:40rem; }
 tr.pick { cursor:pointer; } tr.pick:hover td { background:#161b22; }
 #live-status { margin:1rem 0; }
 .row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; margin:.6rem 0; }
@@ -210,6 +216,7 @@ chain is re-verified live; a stored PASS is shown only when valid.</p></div>
 re-verified; the delta table appears only when both are valid.</p>
 <p>A (before): <input type="file" id="diffile-a" accept=".json"></p>
 <p>B (after): <input type="file" id="diffile-b" accept=".json"></p>
+<p><button class="ghost" id="diff-twin">Replay A/B in Twin</button></p>
 <div id="diff-out"><p class="note">No comparison yet.</p></div>
 </section>
 
@@ -467,6 +474,226 @@ function traceEvents(scen) {
   const headTicks = head.filter(e => e && e.kind === 'tick').length;
   const kind = ticks.length && ('position' in ticks[0]) ? 'belt' : 'diff';
   return { events: ticks, headLen: headTicks, truncated: truncated, kind: kind };
+}
+
+/* Twin 2.0 pure core: an exact mirror of host/genesis_rt/twin.py.
+ * node tests fold the same traces in both languages and compare
+ * frames + markers for equality. */
+const TWIN_INTERP = 'stepwise-hold';
+const TWIN_INTERP_LABEL = 'stepwise hold: each frame shows the last ' +
+  'recorded tick; nothing is interpolated and gaps are never bridged';
+function twinPyStr(v) { return (v === null || v === undefined) ? 'None' : String(v); }
+function twinIsNum(v) { return typeof v === 'number' && isFinite(v); }
+function twinSplitTrace(trace) {
+  if (Array.isArray(trace)) {
+    return { head: trace, tail: [], truncated: false,
+             eventCount: trace.length, digest: null };
+  }
+  if (trace === null || typeof trace !== 'object' || Array.isArray(trace)) {
+    throw new Error('trace must be a list or a slim-trace object');
+  }
+  if (Array.isArray(trace.events)) {
+    return { head: trace.events, tail: [], truncated: false,
+             eventCount: trace.events.length,
+             digest: ('digest' in trace) ? trace.digest : null };
+  }
+  if (!('events_head' in trace) && !('events_tail' in trace)) {
+    throw new Error('trace object carries no events');
+  }
+  const head = ('events_head' in trace) ? trace.events_head : [];
+  const tail = ('events_tail' in trace) ? trace.events_tail : [];
+  if (!Array.isArray(head) || !Array.isArray(tail)) {
+    throw new Error('slim trace needs events_head/events_tail lists');
+  }
+  return { head: head, tail: tail,
+           truncated: ('truncated' in trace) ? !!trace.truncated : true,
+           eventCount: ('event_count' in trace) ? trace.event_count : null,
+           digest: ('digest' in trace) ? trace.digest : null };
+}
+function twinDetectKind(ticks) {
+  for (const t of ticks) {
+    if (t && typeof t === 'object' && ('cell_phase' in t)) return 'cell';
+  }
+  for (const t of ticks) {
+    if (t && typeof t === 'object' && ('position' in t)) return 'belt';
+  }
+  return 'diff';
+}
+function twinMotionOf(kind, tick) {
+  const g = (k) => ((k in tick) ? tick[k] : null);
+  if (kind === 'cell') {
+    return { cell_phase: g('cell_phase'), presence: g('presence'),
+             presence_fresh: g('presence_fresh'), transfers: g('transfers'),
+             transfer_ticks: g('transfer_ticks'), inhibited: g('inhibited'),
+             amr_x: g('amr_x'), belt_pos: g('belt_pos'),
+             belt_jammed: g('belt_jammed') };
+  }
+  if (kind === 'belt') {
+    return { position: g('position'), speed: g('speed'), jammed: g('jammed') };
+  }
+  return { x: g('x'), y: g('y'), theta: g('theta') };
+}
+function twinFold(trace, source) {
+  const src = (source === undefined) ? 'host-sim' : source;
+  if (src !== 'host-sim' && src !== 'qnx-target') {
+    throw new Error('unknown track source: ' + src);
+  }
+  const sp = twinSplitTrace(trace);
+  const events = sp.head.concat(sp.tail);
+  if (events.length > 20000 * 5) throw new Error('trace exceeds twin budget');
+  const isTick = (e) => e && typeof e === 'object' && e.kind === 'tick';
+  const headTicks = sp.head.filter(isTick).length;
+  const ticks = sp.head.filter(isTick).concat(sp.tail.filter(isTick));
+  if (ticks.length > 20000) throw new Error('trace exceeds twin budget');
+  for (const t of ticks) {
+    if (!twinIsNum(t.t)) throw new Error('tick without numeric t_ms');
+  }
+  const kind = twinDetectKind(ticks);
+  const side = {};
+  for (const e of events) {
+    if (e && typeof e === 'object' && e.kind !== 'tick' && twinIsNum(e.t)) {
+      const k = Math.trunc(e.t);
+      if (!(k in side)) side[k] = [];
+      side[k].push(String(e.kind));
+    }
+  }
+  const frames = ticks.map((tick, idx) => {
+    const ev = side[Math.trunc(tick.t)] || [];
+    const frame = {
+      i: idx, t_ms: tick.t,
+      fault: ('fault' in tick) ? tick.fault : 'none',
+      decision: ('decision' in tick) ? tick.decision : null,
+      reason: ('reason' in tick) ? tick.reason : null,
+      guard_state: ('guard_state' in tick) ? tick.guard_state
+        : (('state' in tick) ? tick.state : null),
+      gap_after: !!(sp.truncated && idx + 1 === headTicks &&
+                    idx + 1 < ticks.length),
+      motion: twinMotionOf(kind, tick),
+      events: Array.from(new Set(ev)).sort(),
+    };
+    if (kind === 'cell') frame.leg = ('leg' in tick) ? tick.leg : null;
+    return frame;
+  });
+  const track = {
+    version: 1, kind: kind, source: src, interp: TWIN_INTERP,
+    interp_label: TWIN_INTERP_LABEL, truncated: sp.truncated,
+    gap_at: sp.truncated ? headTicks : null, event_count: sp.eventCount,
+    digest: sp.digest, frames: frames, markers: [],
+  };
+  track.markers = twinMarkers(kind, frames, sp.truncated, headTicks);
+  return track;
+}
+function twinMarkers(kind, frames, truncated, headTicks) {
+  const markers = [];
+  const mk = (idx, label, severity) =>
+    ({ i: idx, t_ms: frames[idx].t_ms, label: label, severity: severity });
+  if (truncated && headTicks > 0 && headTicks < frames.length) {
+    markers.push({ i: headTicks, t_ms: frames[headTicks].t_ms,
+                   label: 'trace gap: head+tail only, never bridged',
+                   severity: 'warn' });
+  }
+  let prev = '{init}';
+  frames.forEach((frame, idx) => {
+    const fault = ('fault' in frame) ? frame.fault : 'none';
+    if (fault !== prev) {
+      if (fault !== null && fault !== undefined && fault !== 'none') {
+        markers.push(mk(idx, 'fault ' + fault + ' started', 'warn'));
+      } else if (prev !== '{init}' && prev !== null && prev !== undefined &&
+                 prev !== 'none') {
+        markers.push(mk(idx, 'fault cleared', 'info'));
+      }
+      prev = fault;
+    }
+    if (idx === 0) return;
+    const before = frames[idx - 1];
+    const denying = (d) => d !== null && d !== undefined && d !== 'ALLOW';
+    if (denying(frame.decision) && !denying(before.decision)) {
+      markers.push(mk(idx, 'guard ' + frame.decision + ': ' +
+                    twinPyStr(frame.reason), 'fail'));
+    }
+    if (frame.guard_state !== before.guard_state) {
+      markers.push(mk(idx, 'guard state -> ' + twinPyStr(frame.guard_state),
+                       'warn'));
+    }
+    if (kind === 'cell' &&
+        frame.motion.cell_phase !== before.motion.cell_phase) {
+      markers.push(mk(idx, 'phase -> ' + twinPyStr(frame.motion.cell_phase),
+                       'info'));
+    }
+  });
+  frames.forEach((frame, idx) => {
+    for (const name of frame.events) {
+      if (name === 'supervisor_reset_armed') {
+        markers.push(mk(idx, 'supervisor re-arm', 'info'));
+      } else if (name === 'planner_gap') {
+        markers.push(mk(idx, 'planner gap (no controller command)', 'warn'));
+      }
+    }
+  });
+  markers.sort((a, b) => (a.i - b.i) ||
+    (a.label < b.label ? -1 : (a.label > b.label ? 1 : 0)));
+  return markers;
+}
+function twinFrameAt(track, t) {
+  const frames = track.frames || [];
+  if (!frames.length) throw new Error('track holds no frames');
+  if (t < frames[0].t_ms) return 0;
+  let lo = 0;
+  for (let idx = 0; idx < frames.length; idx++) {
+    if (frames[idx].t_ms <= t) lo = idx;
+    else break;
+  }
+  return lo;
+}
+function twinDescribeSource(passport) {
+  let body = {};
+  for (const r of ((passport && passport.chain) || [])) {
+    if (r && r.kind === 'gate_verdict' && r.body &&
+        typeof r.body === 'object') body = r.body;
+  }
+  const qnx = body.qnx_verified === true;
+  return qnx
+    ? { run_source: 'qnx-bound', qnx_verified: true, track_source: 'host-sim',
+        note: 'QNX-bound run: native target checks passed, but the ' +
+          'replayed ticks are host-simulation records' }
+    : { run_source: 'host-only', qnx_verified: false, track_source: 'host-sim',
+        note: 'host-only run: replay shows host-simulation ticks' };
+}
+function renderTwinMarkersHtml(markers, cap) {
+  const lim = cap || 60;
+  let h = '';
+  const shown = markers.slice(0, lim);
+  for (const m of shown) {
+    h += '<button data-tw="' + esc(m.i) + '" class="sev-' + esc(m.severity) +
+      '" aria-label="jump to ' + esc(m.label) + '">@' + esc(m.t_ms) +
+      'ms ' + esc(m.label) + '</button>';
+  }
+  if (markers.length > lim) {
+    h += '<span class="note">+' + esc(markers.length - lim) +
+      ' more (first ' + esc(lim) + ' shown)</span>';
+  }
+  return h || '<span class="note">No timeline markers.</span>';
+}
+function renderTwinEventHtml(frame, scen, runNote) {
+  let h = '<h4>Frame <code>#' + esc(frame.i) + '</code> @' +
+    esc(frame.t_ms) + 'ms</h4>';
+  h += '<p>guard decision: <b>' + esc(twinPyStr(frame.decision)) +
+    '</b> reason <code>' + esc(twinPyStr(frame.reason)) +
+    '</code> · guard state <code>' + esc(twinPyStr(frame.guard_state)) +
+    '</code> · fault <code>' + esc(twinPyStr(frame.fault)) + '</code></p>';
+  h += '<pre>' + esc(JSON.stringify(frame, null, 1)) + '</pre>';
+  h += '<p class="note">Frame restates tick #' + esc(frame.i) +
+    ' of the recorded trace (' + esc(runNote || 'host-simulation') +
+    '); stepwise hold — no interpolation.</p>';
+  const checks = (scen && scen.checks) || [];
+  h += '<p>Scenario checks (per-scenario oracle results, not per-tick):</p>';
+  h += '<table><tr><th>check</th><th>result</th><th>detail</th></tr>';
+  for (const c of checks) {
+    h += '<tr><td><code>' + esc(c.name) + '</code></td><td class="' +
+      (c.passed ? 'pass' : 'fail') + '">' + (c.passed ? 'pass' : 'FAIL') +
+      '</td><td>' + esc(c.detail || '') + '</td></tr>';
+  }
+  return h + '</table>';
 }
 
 /* Broken-vs-fixed delta. Both inputs must be valid passports with
@@ -1166,7 +1393,8 @@ function renderCxReplayHtml(res) {
 }
 
 /* DOM glue. */
-const Studio = { irSha: null, passport: null, scens: [], twin: null, twinIdx: 0, twinTimer: null,
+const Studio = { irSha: null, passport: null, scens: [], twinA: null, twinB: null,
+                 twinT: 0, twinSpeed: 1, twinTimer: null,
                  diffA: null, diffB: null, graph: null, graphPassportText: null,
                  graphRun: null, passportText: null, impact: null,
                  impactPid: null, impactTo: null };
@@ -1185,6 +1413,7 @@ function onTabSwitch(name) {
     if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('studio.tab', name);
   } catch (e) { /* private mode: persistence unavailable */ }
   if (typeof Live !== 'undefined' && Live && Live.es && name !== 'pipeline') Live.closeStream();
+  if (name !== 'twin' && typeof stopTwin === 'function') stopTwin();
 }
 document.getElementById('irfile').addEventListener('change', async (e) => {
   const f = e.target.files[0]; if (!f) return;
@@ -1203,6 +1432,18 @@ document.getElementById('diffile-a').addEventListener('change', async (e) => {
 document.getElementById('diffile-b').addEventListener('change', async (e) => {
   const f = e.target.files[0]; if (!f) return;
   Studio.diffB = await f.text(); maybeDiff();
+});
+document.getElementById('diff-twin').addEventListener('click', () => {
+  if (!Studio.diffA || !Studio.diffB) {
+    document.getElementById('diff-out').innerHTML =
+      '<p class="fail">Load both passports first.</p>';
+    return;
+  }
+  const err = twinCompareTexts(Studio.diffA, Studio.diffB);
+  if (err) {
+    document.getElementById('diff-out').innerHTML =
+      '<p class="fail">' + esc(err) + '</p>';
+  }
 });
 document.getElementById('srcfiles').addEventListener('change', async (e) => {
   const files = [];
@@ -1235,111 +1476,543 @@ document.getElementById('ppfile').addEventListener('change', async (e) => {
   usePassportText(await f.text());
 });
 
-function openTwin(scen) {
-  if (Studio.twinTimer) { clearInterval(Studio.twinTimer); Studio.twinTimer = null; }
-  Studio.twin = traceEvents(scen);
-  Studio.twinIdx = 0;
-  Studio.twinName = scen.name;
-  let h = '<h3><code>' + esc(scen.name) + '</code> — ' + esc(Studio.twin.events.length) +
-    ' ticks (' + esc(Studio.twin.kind === 'belt' ? 'belt' : 'corridor') + ')</h3>';
-  if (Studio.twin.truncated) {
-    h += '<div class="banner">truncated trace: head+tail only, gap marked ‖ (never interpolated)</div>';
+/* Twin 2.0 glue: one interval per session, per-frame canvas redraw
+ * plus textContent updates only (no per-frame DOM rebuild). */
+function stopTwin() {
+  if (Studio.twinTimer) {
+    clearInterval(Studio.twinTimer); Studio.twinTimer = null;
   }
+  const b = document.getElementById('twinplay');
+  if (b) b.textContent = 'play';
+}
+function twinSetText(id, text) {
+  const e = document.getElementById(id);
+  if (e) e.textContent = text;
+}
+function twinGeom(kind, frames) {
+  const nums = (pick) => frames.map(pick).filter(twinIsNum);
+  const span = (vals, pad) => {
+    if (!vals.length) return [0, 1];
+    let lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    if (hi - lo < 1e-9) { lo -= pad; hi += pad; }
+    return [lo, hi];
+  };
+  if (kind === 'cell') {
+    const ax = span(nums((f) => f.motion.amr_x), 0.5);
+    const bp = span(nums((f) => f.motion.belt_pos), 0.5);
+    return { ax0: ax[0], ax1: ax[1], bp0: bp[0], bp1: bp[1] };
+  }
+  if (kind === 'belt') {
+    const p = span(nums((f) => f.motion.position), 0.5);
+    return { p0: p[0], p1: p[1] };
+  }
+  const xs = span(nums((f) => f.motion.x), 0.01);
+  return { x0: xs[0], x1: xs[1] };
+}
+function twinSideDefs(kind) {
+  const S = (v) => twinPyStr(v);
+  const defs = [
+    ['time', (f) => f.t_ms + 'ms'],
+    ['fault', (f) => S(f.fault)],
+    ['decision', (f) => S(f.decision)],
+    ['reason', (f) => S(f.reason)],
+    ['guard', (f) => S(f.guard_state)],
+    ['events', (f) => f.events.join(', ') || '—'],
+  ];
+  if (kind === 'cell') {
+    return defs.concat([
+      ['phase', (f) => S(f.motion.cell_phase)],
+      ['leg', (f) => S(f.leg)],
+      ['presence', (f) => S(f.motion.presence)],
+      ['presence fresh', (f) => S(f.motion.presence_fresh)],
+      ['inhibited', (f) => S(f.motion.inhibited)],
+      ['transfers', (f) => S(f.motion.transfers)],
+      ['amr x', (f) => S(f.motion.amr_x)],
+      ['belt pos', (f) => S(f.motion.belt_pos)],
+      ['belt jam', (f) => S(f.motion.belt_jammed)],
+    ]);
+  }
+  if (kind === 'belt') {
+    return defs.concat([
+      ['position', (f) => S(f.motion.position)],
+      ['speed', (f) => S(f.motion.speed)],
+      ['jammed', (f) => S(f.motion.jammed)],
+    ]);
+  }
+  return defs.concat([
+    ['x', (f) => S(f.motion.x)],
+    ['y', (f) => S(f.motion.y)],
+    ['theta', (f) => S(f.motion.theta)],
+  ]);
+}
+function openTwin(scen) {
+  stopTwin();
+  Studio.twinB = null; Studio.twinBText = null; Studio.twinBDoc = null;
+  let track;
+  try {
+    track = twinFold(scen.trace || {});
+  } catch (e) {
+    document.getElementById('twin-out').innerHTML =
+      '<p class="fail">Trace not replayable: ' + esc(e.message) + '</p>';
+    switchTab('twin');
+    return;
+  }
+  if (!track.frames.length) {
+    document.getElementById('twin-out').innerHTML =
+      '<p class="note">Scenario carries no ticks — nothing to replay.</p>';
+    switchTab('twin');
+    return;
+  }
+  const run = twinDescribeSource(Studio.passport);
+  Studio.twinA = { track: track, scen: scen, run: run,
+                   geom: twinGeom(track.kind, track.frames),
+                   sideDefs: twinSideDefs(track.kind),
+                   stationX: (scen.stats && twinIsNum(scen.stats.station_x_m))
+                     ? scen.stats.station_x_m : null };
+  Studio.twinT = track.frames[0].t_ms;
+  if (!Studio.twinSpeed) Studio.twinSpeed = 1;
+  const lastT = track.frames[track.frames.length - 1].t_ms;
+  const scenOpts = Studio.scens.map((s) =>
+    '<option value="' + esc(s.name) + '"' +
+    (s.name === scen.name ? ' selected' : '') + '>' + esc(s.name) +
+    ' (' + esc(s.status) + ')</option>').join('');
+  let h = '<h3><code>' + esc(scen.name) + '</code> — ' +
+    esc(track.frames.length) + ' frames (' + esc(track.kind) + ')</h3>';
+  h += '<div class="banner" id="twin-src">' + esc(run.note) + ' · ' +
+    esc(track.interp_label) + '</div>';
+  if (track.truncated) {
+    h += '<div class="banner">truncated trace: head+tail only, gap marked ' +
+      '‖ at frame ' + esc(track.gap_at) + ' (never interpolated)</div>';
+  }
+  h += '<div class="row"><label for="twin-scen">scenario</label>' +
+    '<select id="twin-scen" aria-label="twin scenario">' + scenOpts +
+    '</select><label for="twin-speed">speed</label>' +
+    '<select id="twin-speed" aria-label="playback speed">' +
+    [0.5, 1, 2, 4].map((s) => '<option value="' + s + '"' +
+      (Studio.twinSpeed === s ? ' selected' : '') + '>' + s + '×</option>'
+    ).join('') + '</select></div>';
   h += '<canvas class="twin" id="twincv" width="640" height="240"></canvas>';
+  h += '<table class="twinside"><tbody>';
+  Studio.twinA.sideDefs.forEach((d, n) => {
+    h += '<tr><td>' + esc(d[0]) + '</td><td><code id="twv-' + n +
+      '">—</code></td></tr>';
+  });
+  h += '</tbody></table>';
   h += '<p class="note" id="twinstat"></p>';
-  h += '<p class="twinctl"><button id="twinplay">play</button>' +
-    '<button id="twinstep">step</button><button id="twinback">|◀</button></p>';
+  h += '<input type="range" class="twinscrub" id="twin-scrub" min="' +
+    esc(track.frames[0].t_ms) + '" max="' + esc(lastT) +
+    '" step="1" value="' + esc(Studio.twinT) +
+    '" aria-label="scrub replay time">';
+  h += '<p class="twinctl"><button id="twinplay" aria-label="play or pause">' +
+    'play</button>' +
+    '<button id="twinback" aria-label="restart">|◀</button>' +
+    '<button id="twinprevf" aria-label="step back">−1</button>' +
+    '<button id="twinnextf" aria-label="step forward">+1</button>' +
+    '<button id="twinpreve" aria-label="previous event">◀ event</button>' +
+    '<button id="twinnexte" aria-label="next event">event ▶</button>' +
+    '<button id="twininspect" aria-label="inspect current frame">' +
+    'inspect</button></p>';
+  h += '<div class="twinmarkers" id="twin-markers">' +
+    renderTwinMarkersHtml(track.markers) + '</div>';
+  h += '<div class="twin-ev" id="twin-ev"><p class="note">Pick a marker ' +
+    'or press inspect to sync the trace record, guard decision and ' +
+    'oracle checks.</p></div>';
+  h += '<h4>Before / after</h4>';
+  h += '<div class="row"><label for="twin-cmpfile">B passport</label>' +
+    '<input type="file" id="twin-cmpfile" accept=".json">' +
+    '<label for="twin-cmpscen">B scenario</label>' +
+    '<select id="twin-cmpscen" aria-label="compare scenario"></select>' +
+    '<button class="ghost" id="twincmp-clear">Clear B</button></div>';
+  h += '<div id="twin-cmpwrap" hidden><canvas class="twin" id="twincv-b" ' +
+    'width="640" height="240"></canvas><p class="note" id="twinstat-b"></p>' +
+    '</div>';
+  h += '<div class="row"><button class="ghost" id="twin-graph">' +
+    'Open scenario in Evidence Graph</button></div>';
   document.getElementById('twin-out').innerHTML = h;
-  switchTab('twin');
-  document.getElementById('twinplay').addEventListener('click', (ev) => {
+  document.getElementById('twin-scen').addEventListener('change', (e) => {
+    const next = Studio.scens.find((s) => s.name === e.target.value);
+    if (next) openTwin(next);
+  });
+  document.getElementById('twin-speed').addEventListener('change', (e) => {
+    Studio.twinSpeed = parseFloat(e.target.value) || 1;
     if (Studio.twinTimer) {
-      clearInterval(Studio.twinTimer); Studio.twinTimer = null; ev.target.textContent = 'play';
-    } else {
-      ev.target.textContent = 'pause';
-      Studio.twinTimer = setInterval(() => {
-        if (Studio.twinIdx < Studio.twin.events.length - 1) { Studio.twinIdx++; drawTwin(); }
-        else { clearInterval(Studio.twinTimer); Studio.twinTimer = null; ev.target.textContent = 'play'; }
-      }, 120);
+      stopTwin();
+      document.getElementById('twinplay').textContent = 'pause';
+      Studio.twinTimer = setInterval(twinTick,
+        Math.round(120 / Studio.twinSpeed));
     }
   });
-  document.getElementById('twinstep').addEventListener('click', () => {
-    if (Studio.twinIdx < Studio.twin.events.length - 1) { Studio.twinIdx++; drawTwin(); }
+  document.getElementById('twin-scrub').addEventListener('input', (e) => {
+    Studio.twinT = parseInt(e.target.value, 10) || 0;
+    paintTwin();
   });
+  document.getElementById('twinplay').addEventListener('click',
+    twinPlayToggle);
   document.getElementById('twinback').addEventListener('click', () => {
-    Studio.twinIdx = 0; drawTwin();
+    const A = Studio.twinA;
+    Studio.twinT = A.track.frames[0].t_ms; paintTwin();
   });
-  drawTwin();
+  document.getElementById('twinprevf').addEventListener('click', () => {
+    twinStep(-1);
+  });
+  document.getElementById('twinnextf').addEventListener('click', () => {
+    twinStep(1);
+  });
+  document.getElementById('twinpreve').addEventListener('click', () => {
+    twinJumpEvent(-1);
+  });
+  document.getElementById('twinnexte').addEventListener('click', () => {
+    twinJumpEvent(1);
+  });
+  document.getElementById('twininspect').addEventListener('click', () => {
+    const A = Studio.twinA;
+    showTwinEvent(twinFrameAt(A.track, Studio.twinT));
+  });
+  document.getElementById('twin-markers').addEventListener('click', (e) => {
+    const b = e.target.closest ? e.target.closest('button[data-tw]') : null;
+    if (!b) return;
+    const A = Studio.twinA;
+    const idx = parseInt(b.dataset.tw, 10) || 0;
+    Studio.twinT = A.track.frames[idx].t_ms;
+    paintTwin();
+    showTwinEvent(idx);
+  });
+  document.getElementById('twin-cmpfile').addEventListener('change',
+    async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      twinLoadCmpText(await f.text());
+    });
+  document.getElementById('twin-cmpscen').addEventListener('change', () => {
+    twinFoldCmp();
+  });
+  document.getElementById('twincmp-clear').addEventListener('click', () => {
+    Studio.twinB = null; Studio.twinBText = null; Studio.twinBDoc = null;
+    document.getElementById('twin-cmpwrap').hidden = true;
+    document.getElementById('twin-cmpscen').innerHTML = '';
+    paintTwin();
+  });
+  document.getElementById('twin-graph').addEventListener('click', () => {
+    if (!Studio.passportText) {
+      document.getElementById('twin-ev').innerHTML =
+        '<p class="fail">No verified passport in the Passport tab.</p>';
+      return;
+    }
+    Studio.graphPassportText = Studio.passportText;
+    Studio.graphRun = null;
+    Studio.graphWantScen = Studio.twinA.scen.name;
+    switchTab('evidence');
+    graphRender();
+  });
+  switchTab('twin');
+  paintTwin();
+}
+function twinTick() {
+  const A = Studio.twinA;
+  if (!A) { stopTwin(); return; }
+  const i = twinFrameAt(A.track, Studio.twinT);
+  if (i < A.track.frames.length - 1) {
+    Studio.twinT = A.track.frames[i + 1].t_ms;
+    paintTwin();
+  } else {
+    stopTwin();
+  }
+}
+function twinPlayToggle(ev) {
+  if (Studio.twinTimer) { stopTwin(); return; }
+  const A = Studio.twinA;
+  if (!A) return;
+  if (twinFrameAt(A.track, Studio.twinT) >= A.track.frames.length - 1) {
+    Studio.twinT = A.track.frames[0].t_ms;
+  }
+  ev.target.textContent = 'pause';
+  Studio.twinTimer = setInterval(twinTick, Math.round(120 / Studio.twinSpeed));
+}
+function twinStep(dir) {
+  const A = Studio.twinA;
+  if (!A) return;
+  const i = twinFrameAt(A.track, Studio.twinT);
+  const j = Math.min(A.track.frames.length - 1, Math.max(0, i + dir));
+  Studio.twinT = A.track.frames[j].t_ms;
+  paintTwin();
+}
+function twinJumpEvent(dir) {
+  const A = Studio.twinA;
+  if (!A || !A.track.markers.length) return;
+  const t = Studio.twinT;
+  let pick = null;
+  for (const m of A.track.markers) {
+    if (dir > 0 && m.t_ms > t) { pick = m; break; }
+    if (dir < 0 && m.t_ms < t) pick = m;
+  }
+  if (pick) {
+    Studio.twinT = pick.t_ms;
+    paintTwin();
+    showTwinEvent(pick.i);
+  }
+}
+function showTwinEvent(idx) {
+  const A = Studio.twinA;
+  if (!A) return;
+  document.getElementById('twin-ev').innerHTML =
+    renderTwinEventHtml(A.track.frames[idx], A.scen, A.run.note);
+}
+function twinLoadCmpText(text) {
+  let doc;
+  try {
+    doc = JSON.parse(text);
+  } catch (e) {
+    document.getElementById('twin-cmpscen').innerHTML = '';
+    Studio.twinB = null;
+    document.getElementById('twin-cmpwrap').hidden = true;
+    paintTwin();
+    return;
+  }
+  if (!doc.chain || verifyChainText(text).length) {
+    document.getElementById('twin-cmpscen').innerHTML = '';
+    Studio.twinB = null;
+    document.getElementById('twin-cmpwrap').hidden = true;
+    paintTwin();
+    return;
+  }
+  const scens = passportScenarios(doc);
+  Studio.twinBDoc = scens;
+  Studio.twinBText = text;
+  const want = Studio.twinA ? Studio.twinA.scen.name : null;
+  document.getElementById('twin-cmpscen').innerHTML = scens.map((s) =>
+    '<option value="' + esc(s.name) + '"' +
+    (s.name === want ? ' selected' : '') + '>' + esc(s.name) +
+    ' (' + esc(s.status) + ')</option>').join('');
+  twinFoldCmp();
+}
+function twinFoldCmp() {
+  const sel = document.getElementById('twin-cmpscen');
+  const scens = Studio.twinBDoc || [];
+  const scen = scens.find((s) => s.name === (sel && sel.value)) || scens[0];
+  if (!scen) {
+    Studio.twinB = null;
+    document.getElementById('twin-cmpwrap').hidden = true;
+    paintTwin();
+    return;
+  }
+  try {
+    const track = twinFold(scen.trace || {});
+    if (!track.frames.length) throw new Error('no ticks');
+    Studio.twinB = { track: track, scen: scen,
+                     geom: twinGeom(track.kind, track.frames),
+                     stationX: (scen.stats && twinIsNum(scen.stats.station_x_m))
+                       ? scen.stats.station_x_m : null };
+    document.getElementById('twin-cmpwrap').hidden = false;
+  } catch (e) {
+    Studio.twinB = null;
+    document.getElementById('twin-cmpwrap').hidden = true;
+  }
+  paintTwin();
+}
+function twinCompareTexts(textA, textB) {
+  let A, B;
+  try {
+    A = JSON.parse(textA); B = JSON.parse(textB);
+  } catch (e) {
+    return 'One side is not valid JSON.';
+  }
+  if (!A.chain || !B.chain) return 'Both sides must be GENESIS passports.';
+  const errA = verifyChainText(textA), errB = verifyChainText(textB);
+  if (errA.length || errB.length) {
+    return 'INVALID chain: A=' + (errA[0] || 'valid') + ' / B=' +
+      (errB[0] || 'valid');
+  }
+  const sa = passportScenarios(A), sb = passportScenarios(B);
+  const namesB = sb.map((s) => s.name);
+  const common = sa.map((s) => s.name).find((n) => namesB.indexOf(n) >= 0);
+  if (!common) return 'No common scenario to replay.';
+  usePassportText(textA);
+  const scen = Studio.scens.find((s) => s.name === common);
+  openTwin(scen);
+  twinLoadCmpText(textB);
+  const sel = document.getElementById('twin-cmpscen');
+  if (sel) sel.value = common;
+  twinFoldCmp();
+  return null;
 }
 
-function drawTwin() {
-  const cv = document.getElementById('twincv');
-  if (!cv || !Studio.twin) return;
+function paintTwin() {
+  const A = Studio.twinA;
+  if (!A) return;
+  const i = twinFrameAt(A.track, Studio.twinT);
+  const f = A.track.frames[i];
+  twinDrawSide(document.getElementById('twincv'), A, i);
+  twinSetText('twinstat', 'frame ' + (i + 1) + '/' + A.track.frames.length +
+    ' t=' + f.t_ms + 'ms ' + twinPyStr(f.decision) + ' ' +
+    twinPyStr(f.reason) + ' fault=' + twinPyStr(f.fault));
+  const sc = document.getElementById('twin-scrub');
+  if (sc) sc.value = String(Studio.twinT);
+  A.sideDefs.forEach((d, n) => twinSetText('twv-' + n, d[1](f)));
+  const B = Studio.twinB;
+  if (B && B.track) {
+    const j = twinFrameAt(B.track, Studio.twinT);
+    const g = B.track.frames[j];
+    twinDrawSide(document.getElementById('twincv-b'), B, j);
+    twinSetText('twinstat-b', 'B frame ' + (j + 1) + '/' +
+      B.track.frames.length + ' t=' + g.t_ms + 'ms ' +
+      twinPyStr(g.decision) + ' ' + twinPyStr(g.reason) +
+      ' fault=' + twinPyStr(g.fault));
+  }
+}
+function twinDrawSide(cv, side, idx) {
+  if (!cv) return;
   const ctx = cv.getContext('2d');
-  const T = Studio.twin, W = cv.width, H = cv.height;
+  const W = cv.width, H = cv.height;
+  const S = { frames: side.track.frames, geom: side.geom,
+              stationX: side.stationX, gapIdx: side.track.gap_at };
+  if (side.track.kind === 'cell') twinDrawCell(ctx, W, H, S, idx);
+  else if (side.track.kind === 'belt') twinDrawBelt(ctx, W, H, S, idx);
+  else twinDrawDiff(ctx, W, H, S, idx);
+}
+function twinDrawDiff(ctx, W, H, S, idx) {
+  const frames = S.frames, cur = frames[idx], m = cur.motion;
   ctx.fillStyle = '#010409'; ctx.fillRect(0, 0, W, H);
-  if (!T.events.length) return;
-  const upto = T.events.slice(0, Studio.twinIdx + 1);
-  const cur = T.events[Studio.twinIdx];
-  const deny = (e) => e.decision && e.decision !== 'ALLOW';
-  if (T.kind === 'belt') {
-    let plo = 0, lphi = 0.001;
-    for (const e of T.events) {
-      if (e.position < plo) plo = e.position;
-      if (e.position > lphi) lphi = e.position;
-    }
-    const X = (p) => 30 + (p - plo) / (lphi - plo) * (W - 60);
-    ctx.strokeStyle = '#30363d'; ctx.lineWidth = 10;
-    ctx.beginPath(); ctx.moveTo(20, H / 2); ctx.lineTo(W - 20, H / 2); ctx.stroke();
-    for (let i = 0; i < upto.length; i++) {
-      const e = upto[i];
-      ctx.fillStyle = e.jammed ? '#f85149' : (deny(e) ? '#d29922' : '#3fb950');
-      ctx.fillRect(X(e.position) - 1, H / 2 - 14, 2, 28);
-    }
-    if (T.truncated && T.headLen > 0 && T.headLen < T.events.length) {
-      ctx.fillStyle = '#8b949e'; ctx.font = '14px sans-serif';
-      ctx.fillText('‖', X(T.events[T.headLen].position), H / 2 - 20);
-    }
-    ctx.fillStyle = '#e6edf3';
-    ctx.beginPath(); ctx.arc(X(cur.position), H / 2, 7, 0, 7); ctx.fill();
-  } else {
-    let x0 = 1e9, x1 = -1e9;
-    for (const e of T.events) {
-      if (e.x < x0) x0 = e.x;
-      if (e.x > x1) x1 = e.x;
-    }
-    if (x1 - x0 < 0.01) x1 = x0 + 0.01;
-    const X = (x) => 30 + (x - x0) / (x1 - x0) * (W - 60);
-    const Y = (y) => H / 2 - y / 1.0 * (H / 2 - 20);
-    ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(20, Y(1.0)); ctx.lineTo(W - 20, Y(1.0)); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(20, Y(-1.0)); ctx.lineTo(W - 20, Y(-1.0)); ctx.stroke();
-    ctx.strokeStyle = '#8b949e';
-    ctx.beginPath();
-    upto.forEach((e, i) => { if (i) ctx.lineTo(X(e.x), Y(e.y)); else ctx.moveTo(X(e.x), Y(e.y)); });
-    ctx.stroke();
-    for (const e of upto) {
-      if (!deny(e)) continue;
-      ctx.fillStyle = '#f85149';
-      ctx.fillRect(X(e.x) - 2, Y(e.y) - 2, 4, 4);
-    }
-    if (T.truncated && T.headLen > 0 && T.headLen < T.events.length) {
-      const g = T.events[T.headLen];
-      ctx.fillStyle = '#8b949e'; ctx.font = '14px sans-serif';
-      ctx.fillText('‖ gap', X(g.x) + 4, Y(g.y) - 6);
-    }
-    ctx.fillStyle = '#e6edf3';
-    ctx.beginPath(); ctx.arc(X(cur.x), Y(cur.y), 5, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#e6edf3';
-    ctx.beginPath(); ctx.moveTo(X(cur.x), Y(cur.y));
-    ctx.lineTo(X(cur.x) + Math.cos(cur.theta) * 14, Y(cur.y) - Math.sin(cur.theta) * 14);
-    ctx.stroke();
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#8b949e';
+  ctx.fillText('AMR corridor — schematic, not to scale (stepwise hold)',
+    8, 14);
+  const X = (x) => 30 + (x - S.geom.x0) / (S.geom.x1 - S.geom.x0) * (W - 60);
+  const Y = (y) => H / 2 - y / 1.0 * (H / 2 - 20);
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(20, Y(1.0)); ctx.lineTo(W - 20, Y(1.0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(20, Y(-1.0)); ctx.lineTo(W - 20, Y(-1.0)); ctx.stroke();
+  ctx.strokeStyle = '#8b949e';
+  ctx.beginPath();
+  frames.slice(0, idx + 1).forEach((e, k) => {
+    if (k) ctx.lineTo(X(e.motion.x), Y(e.motion.y));
+    else ctx.moveTo(X(e.motion.x), Y(e.motion.y));
+  });
+  ctx.stroke();
+  for (let k = 0; k <= idx; k++) {
+    const e = frames[k];
+    if (!e.decision || e.decision === 'ALLOW') continue;
+    ctx.fillStyle = '#f85149';
+    ctx.fillRect(X(e.motion.x) - 2, Y(e.motion.y) - 2, 4, 4);
   }
-  const stat = document.getElementById('twinstat');
-  if (stat) {
-    stat.textContent = 'tick ' + (Studio.twinIdx + 1) + '/' + T.events.length +
-      ' t=' + cur.t + 'ms ' + (cur.decision || '') + ' ' + (cur.reason || '') +
-      ' fault=' + (cur.fault || 'none');
+  if (S.gapIdx !== null && S.gapIdx <= idx) {
+    const g = frames[S.gapIdx];
+    ctx.fillStyle = '#8b949e';
+    ctx.fillText('‖ gap', X(g.motion.x) + 4, Y(g.motion.y) - 6);
   }
+  ctx.fillStyle = '#e6edf3';
+  ctx.beginPath(); ctx.arc(X(m.x), Y(m.y), 5, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#e6edf3';
+  ctx.beginPath(); ctx.moveTo(X(m.x), Y(m.y));
+  ctx.lineTo(X(m.x) + Math.cos(m.theta) * 14,
+    Y(m.y) - Math.sin(m.theta) * 14);
+  ctx.stroke();
+  ctx.fillStyle = (cur.decision && cur.decision !== 'ALLOW') ? '#f85149'
+    : '#e6edf3';
+  ctx.fillText('t=' + cur.t_ms + 'ms guard=' + twinPyStr(cur.guard_state) +
+    ' ' + twinPyStr(cur.decision) + ' ' + twinPyStr(cur.reason) +
+    ' fault=' + twinPyStr(cur.fault), 8, H - 8);
+}
+function twinDrawBelt(ctx, W, H, S, idx) {
+  const frames = S.frames, cur = frames[idx], m = cur.motion;
+  ctx.fillStyle = '#010409'; ctx.fillRect(0, 0, W, H);
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#8b949e';
+  ctx.fillText('Conveyor belt — schematic, not to scale (stepwise hold)',
+    8, 14);
+  const X = (p) => 30 + (p - S.geom.p0) / (S.geom.p1 - S.geom.p0) * (W - 60);
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 10;
+  ctx.beginPath(); ctx.moveTo(20, H / 2); ctx.lineTo(W - 20, H / 2); ctx.stroke();
+  for (let k = 0; k <= idx; k++) {
+    const e = frames[k];
+    ctx.fillStyle = e.motion.jammed ? '#f85149'
+      : ((e.decision && e.decision !== 'ALLOW') ? '#d29922' : '#3fb950');
+    ctx.fillRect(X(e.motion.position) - 1, H / 2 - 14, 2, 28);
+  }
+  if (S.gapIdx !== null && S.gapIdx <= idx) {
+    ctx.fillStyle = '#8b949e';
+    ctx.fillText('‖', X(frames[S.gapIdx].motion.position), H / 2 - 20);
+  }
+  ctx.fillStyle = '#e6edf3';
+  ctx.beginPath(); ctx.arc(X(m.position), H / 2, 7, 0, 7); ctx.fill();
+  ctx.fillStyle = (cur.decision && cur.decision !== 'ALLOW') ? '#f85149'
+    : '#e6edf3';
+  ctx.fillText('t=' + cur.t_ms + 'ms guard=' + twinPyStr(cur.guard_state) +
+    ' ' + twinPyStr(cur.decision) + ' ' + twinPyStr(cur.reason) +
+    ' fault=' + twinPyStr(cur.fault) + (m.jammed ? ' JAMMED' : ''), 8, H - 8);
+}
+function twinDrawCell(ctx, W, H, S, idx) {
+  const frames = S.frames, f = frames[idx], m = f.motion;
+  ctx.fillStyle = '#010409'; ctx.fillRect(0, 0, W, H);
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#8b949e';
+  ctx.fillText('CELL — schematic, not to scale (stepwise hold)', 8, 14);
+  const deny = f.decision && f.decision !== 'ALLOW';
+  const yA = 60, x0 = 30, x1 = W - 30;
+  const AX = (x) => x0 + (x - S.geom.ax0) / (S.geom.ax1 - S.geom.ax0) *
+    (x1 - x0);
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x0, yA); ctx.lineTo(x1, yA); ctx.stroke();
+  ctx.fillStyle = '#8b949e'; ctx.fillText('AMR', 8, yA + 4);
+  if (twinIsNum(S.stationX)) {
+    const sx = AX(S.stationX);
+    ctx.strokeStyle = '#1f6feb'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(sx, yA - 16); ctx.lineTo(sx, yA + 16);
+    ctx.stroke();
+    ctx.fillStyle = '#1f6feb';
+    ctx.fillText('STATION', Math.min(sx - 24, W - 62), yA - 20);
+    if (m.cell_phase === 'TRANSFERRING') {
+      ctx.strokeStyle = '#d29922'; ctx.lineWidth = 1;
+      ctx.strokeRect(sx - 30, yA - 14, 60, 28);
+    }
+  }
+  for (let k = 0; k <= idx; k++) {
+    const e = frames[k];
+    if (!twinIsNum(e.motion.amr_x)) continue;
+    ctx.fillStyle = (e.decision && e.decision !== 'ALLOW') ? '#f85149'
+      : '#3fb950';
+    ctx.fillRect(AX(e.motion.amr_x) - 1, yA - 2, 2, 4);
+  }
+  if (S.gapIdx !== null && S.gapIdx <= idx &&
+      twinIsNum(frames[S.gapIdx].motion.amr_x)) {
+    ctx.fillStyle = '#8b949e';
+    ctx.fillText('‖ gap', AX(frames[S.gapIdx].motion.amr_x) + 4, yA - 8);
+  }
+  if (twinIsNum(m.amr_x)) {
+    ctx.fillStyle = '#e6edf3';
+    ctx.beginPath(); ctx.arc(AX(m.amr_x), yA, 7, 0, 7); ctx.fill();
+    ctx.strokeStyle = f.leg === 'belt' ? '#d29922' : '#1f6feb';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(AX(m.amr_x), yA, 10, 0, 7); ctx.stroke();
+  }
+  const yB = 140;
+  ctx.fillStyle = '#8b949e'; ctx.fillText('BELT', 8, yB + 4);
+  ctx.fillStyle = m.belt_jammed ? '#5a1f1f' : '#161b22';
+  ctx.fillRect(x0, yB - 9, x1 - x0, 18);
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
+  ctx.strokeRect(x0, yB - 9, x1 - x0, 18);
+  if (twinIsNum(m.belt_pos)) {
+    const BX = (p) => x0 + (p - S.geom.bp0) / (S.geom.bp1 - S.geom.bp0) *
+      (x1 - x0);
+    ctx.fillStyle = m.belt_jammed ? '#f85149' : '#3fb950';
+    ctx.fillRect(BX(m.belt_pos) - 2, yB - 12, 4, 24);
+    if (m.belt_jammed) {
+      ctx.fillStyle = '#f85149'; ctx.fillText('JAM', x1 - 30, yB - 12);
+    }
+  }
+  const led = (x, on, color, label) => {
+    ctx.fillStyle = on ? color : '#21262d';
+    ctx.fillRect(x, 178, 12, 12);
+    ctx.fillStyle = '#8b949e'; ctx.fillText(label, x + 16, 188);
+  };
+  led(30, !!m.presence, '#3fb950',
+    'presence' + ((m.presence && !m.presence_fresh) ? ' (STALE)' : ''));
+  led(220, !m.inhibited, '#3fb950',
+    m.inhibited ? 'INHIBITED' : 'interlock ok');
+  led(400, true, '#1f6feb', 'transfers: ' + twinPyStr(m.transfers));
+  ctx.fillStyle = deny ? '#f85149' : '#e6edf3';
+  ctx.fillText('t=' + f.t_ms + 'ms phase=' + twinPyStr(m.cell_phase) +
+    ' leg=' + twinPyStr(f.leg) + ' guard=' + twinPyStr(f.guard_state) +
+    ' ' + twinPyStr(f.decision) + ' ' + twinPyStr(f.reason) +
+    ' fault=' + twinPyStr(f.fault), 8, H - 8);
 }
 
 /* Studio Live glue (browser only; liveBoot gates on a real DOM). */
@@ -1893,6 +2566,10 @@ function graphPopScen() {
   seen.sort();
   el('graph-scen').innerHTML = '<option value="">— all —</option>' +
     seen.map((s) => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
+  if (Studio.graphWantScen && seen.indexOf(Studio.graphWantScen) >= 0) {
+    el('graph-scen').value = Studio.graphWantScen;
+  }
+  Studio.graphWantScen = null;
 }
 function paintGraph() {
   if (!Studio.graph) return;

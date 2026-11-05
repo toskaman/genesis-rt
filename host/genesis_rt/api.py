@@ -87,6 +87,10 @@ if BaseModel is not None:
         record: dict[str, Any]
         ir: dict[str, Any]
 
+    class TwinRequest(BaseModel):
+        passport: dict[str, Any] | str
+        scenario: str
+
 else:  # pragma: no cover - import-time fallback without the api extra
     RunRequest = None  # type: ignore[assignment, misc]
     CompareRequest = None  # type: ignore[assignment, misc]
@@ -107,6 +111,7 @@ from .explorer import (ExplorerInputError, ExplorerUnsupported, explore,
 from .impact import analyze_impact, release_status
 from .jobs import JobConflict, JobManager, JobNotFound
 from .orchestrator import MAX_RUN_ID_LEN, valid_run_id as _valid_run_id
+from .twin import TwinChainError, TwinInputError, TwinTooLarge, track_from_passport
 
 # Studio Live: committed example files openable as projects (allowlist;
 # the intentionally-broken cell fixture is excluded from listings).
@@ -792,6 +797,19 @@ def create_app() -> Any:
         except (ExplorerInputError, ExplorerUnsupported) as exc:
             raise HTTPException(400, f"bad request: {exc}") from exc
         return JSONResponse(result)
+
+    @app.post("/twin/frames")
+    def post_twin_frames(req: TwinRequest) -> JSONResponse:
+        try:
+            track = track_from_passport(_posted_passport(req.passport),
+                                        req.scenario)
+        except TwinChainError as exc:
+            raise HTTPException(409, f"passport unusable: {exc}") from exc
+        except TwinTooLarge as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        except (TwinInputError, ValueError) as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        return JSONResponse(track)
 
     @app.get("/projects/{pid}/impact")
     def project_impact(pid: str, rev_from: int = 1,

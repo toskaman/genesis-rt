@@ -110,6 +110,19 @@
   Served by the `explore`/`replay` CLI, `POST /explore` +
   `POST /explore/replay`; Studio Lab hosts the explorer + fix
   replay panel.
+- **Digital Twin 2.0** (`host/genesis_rt/twin.py`): folds one
+  scenario trace (full or slim head/tail) into a replay track —
+  typed frames (diff/belt/cell motion + guard decision + fault +
+  side events) plus timeline markers (fault edges, DENY runs,
+  guard/phase changes, supervisor/planner events, gap). The
+  `stepwise-hold` policy shows the last recorded tick and never
+  bridges gaps; `check_fidelity` guards the fold (order, count,
+  gap position, marker range) while the passport chain guards
+  integrity. Served by the `twin` CLI and `POST /twin/frames`;
+  Studio folds offline with an exact JS mirror (`twinFold`,
+  node-tested for frame+marker equality) and renders cell/diff/
+  belt schematics with scrub, speed, event navigation, A/B
+  synchronized compare and marker→evidence sync.
 - **IR numeric canonicalization** (`ir.py`, `ir_v2.py`): validators
   store float-semantic fields as float and collapse integral floats
   to int, so a JSON round-trip through a float-unaware producer
