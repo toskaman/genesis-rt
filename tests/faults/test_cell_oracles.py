@@ -25,6 +25,8 @@ def test_cell_scenarios_pass_with_oracles(repo_root):
         assert r["seed"] == faultlab.DEFAULT_SEEDS[r["scenario"]]
         assert all(c["passed"] for c in r["checks"])
         assert len(r["trace"]) > 0
+        assert r["physics"] == "cell"
+        assert "physics_note" not in r
 
 
 def test_cell_check_names_pinned(repo_root):

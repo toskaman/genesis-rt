@@ -221,3 +221,79 @@ def test_wrong_platform_refused(amr_ir, bound_evidence, full):
     v = gate.evaluate(p, full)
     assert v["level"] == "QNX_EXECUTED"
     assert any("platform" in r for r in v["level_reasons"])
+
+
+# --- 21. cross-target splice: matrix on X, bench on Y (round 2, A2) ---
+
+def test_cross_target_perf_splice_capped(amr_ir, bound_evidence, full):
+    """Red-team round 2, A2: a perf record from a different target
+    instance than the matrix run must not earn the top tier, even
+    when both records are individually well-formed and bound to the
+    same build set."""
+    perf = bound_evidence["perf"]
+    perf["target"]["uname"] = \
+        "QNX qnxqemu-OTHER 8.0.0 2025/01/01-00:00:00 x86_64"
+    p = _passport(amr_ir, bound_evidence, full, "xtarget",
+                  bound_evidence["target"], perf=perf)
+    v = gate.evaluate(p, full)
+    assert v["verdict"] == "PASS"  # host side is genuinely fine
+    assert v["level"] == "QNX_BEHAVIOR_VERIFIED"
+    assert any("target" in r for r in v["level_reasons"])
+
+
+# --- 22. unknown provenance versions refused (round 2, A1) ---
+
+def test_future_target_provenance_version_refused(amr_ir, bound_evidence,
+                                                 full):
+    """Red-team round 2, A1: a record stamped with an unknown future
+    provenance_version must not earn behavior-level trust."""
+    tgt = bound_evidence["target"]
+    tgt["provenance_version"] = 99
+    p = _passport(amr_ir, bound_evidence, full, "vfuture", tgt)
+    v = gate.evaluate(p, full)
+    assert v["level"] == "QNX_EXECUTED"
+    assert any("provenance_version" in r for r in v["level_reasons"])
+
+
+def test_future_perf_provenance_version_capped(amr_ir, bound_evidence,
+                                              full):
+    """Red-team round 2, A1: an unknown perf provenance_version caps
+    the passport at the behavior tier."""
+    perf = bound_evidence["perf"]
+    perf["provenance_version"] = 99
+    p = _passport(amr_ir, bound_evidence, full, "vpfuture",
+                  bound_evidence["target"], perf=perf)
+    v = gate.evaluate(p, full)
+    assert v["level"] == "QNX_BEHAVIOR_VERIFIED"
+    assert any("provenance_version" in r for r in v["level_reasons"])
+
+
+# --- 23. clock attacks, round 2 (A5) ---
+
+def test_incoherent_perf_window_capped(amr_ir, bound_evidence, full):
+    """Red-team round 2, A5: a perf record whose window ends before it
+    starts caps the passport at the behavior tier."""
+    perf = bound_evidence["perf"]
+    perf["started_utc"] = "2026-11-04T20:26:00+00:00"
+    perf["finished_utc"] = "2026-11-04T20:25:00+00:00"
+    p = _passport(amr_ir, bound_evidence, full, "pclock",
+                  bound_evidence["target"], perf=perf)
+    v = gate.evaluate(p, full)
+    assert v["level"] == "QNX_BEHAVIOR_VERIFIED"
+    assert any("window" in r for r in v["level_reasons"])
+
+
+@pytest.mark.parametrize("started,finished", [
+    ("2026-11-04T20:10:00", "2026-11-04T20:20:00+00:00"),  # naive start
+    ("2026-11-04T20:10:00+00:00", "2026-11-04T20:10:00+00:00"),  # zero run
+])
+def test_ambiguous_target_window_refused(amr_ir, bound_evidence, full,
+                                         started, finished):
+    """Red-team round 2, A5: timezone-less or zero-duration target
+    windows earn no behavior-level trust."""
+    tgt = bound_evidence["target"]
+    tgt["started_utc"], tgt["finished_utc"] = started, finished
+    p = _passport(amr_ir, bound_evidence, full, "tclock", tgt)
+    v = gate.evaluate(p, full)
+    assert v["level"] == "QNX_EXECUTED"
+    assert v["release_eligible"] is False

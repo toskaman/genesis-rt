@@ -302,4 +302,9 @@ def validate_perf_binding(*, build_body: dict[str, Any],
             and tstaged != pstaged):
         reasons.append("perf staged binaries differ from the verified "
                        "matrix run (bench ran against other binaries)")
+    ttarget, ptarget = target_body.get("target"), perf_body.get("target")
+    if (isinstance(ttarget, dict) and isinstance(ptarget, dict)
+            and ttarget != ptarget):
+        reasons.append("perf target identity differs from the verified "
+                       "matrix run (bench ran on another target)")
     return reasons

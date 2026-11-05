@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 
 from genesis_rt import faultlab, guard_policy as gp
-from genesis_rt.ir import IRValidationError
+from genesis_rt.codegen import ir_sha256
+from genesis_rt.ir import IRValidationError, load_ir_file
 from genesis_rt.explorer import (
     ExplorerInputError,
     ExplorerUnsupported,
@@ -210,3 +211,46 @@ def test_explorer_has_no_target_imports():
             mods.add(node.module.split(".")[0])
     assert not ({"paramiko", "ssh", "socket", "subprocess", "build_adapter",
                  "qemu"} & mods), mods
+
+
+_CE001 = (Path(__file__).resolve().parents[2] / "evals" / "counterexamples"
+          / "ce-001-over-limit-allow.json")
+
+
+def _load_ce001():
+    return json.loads(_CE001.read_text(encoding="utf-8"))
+
+
+def test_pinned_ce001_violates_and_deterministic(repo_root):
+    """Wave 10 Sprint E2: the pinned finding replays violated +
+    deterministic on the IR it was found against; IR drift fails
+    closed (re-derive, don't hand-edit)."""
+    rec = _load_ce001()
+    ir = load_ir_file(repo_root / "examples" / "amr-demo" / "machine-ir.json")
+    assert rec["ir_sha256"] == ir_sha256(ir), \
+        "ce-001 is stale: the example IR drifted, re-derive it"
+    out = replay(rec, ir)
+    assert out["violated"] is True
+    assert out["deterministic"] is True
+    assert out["same_ir"] is True
+
+
+def test_pinned_ce001_holds_on_fixed_ir(repo_root):
+    """The same minimal script holds once the limit is tightened
+    1.2 -> 0.9: the before/after regression story, pinned."""
+    rec = _load_ce001()
+    ir = load_ir_file(repo_root / "examples" / "amr-demo" / "machine-ir.json")
+    fixed = copy.deepcopy(ir)
+    fixed["control"]["max_linear_speed_mps"] = 0.9
+    out = replay(rec, fixed)
+    assert out["violated"] is False, out["check"]
+    assert out["same_ir"] is False
+
+
+def test_pinned_ce001_shrunk_is_minimal():
+    rec = _load_ce001()
+    raw = rec["script"]
+    small = rec["shrunk_script"]
+    raw_n = len(raw["faults"]) + len(raw["commands"])
+    small_n = len(small["faults"]) + len(small["commands"])
+    assert small_n <= raw_n == 1, (raw_n, small_n)

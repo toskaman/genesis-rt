@@ -25,7 +25,9 @@
    the `cell` block or crashing.
 10. **No arm kinematics.** `robotic_arm_virtual` passes schema validation but
     the host mirror runs it on the differential-drive corridor; no
-    arm-specific physics exists on host or target yet.
+    arm-specific physics exists on host or target yet. Since Wave 10
+    Sprint E, scenario records carry `physics` (+ `physics_note` when
+    aliased), so the aliasing is visible in the evidence itself.
 
 If any of these is a surprise, the submission has failed its honesty goal —
 please file an issue.

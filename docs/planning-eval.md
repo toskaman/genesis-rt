@@ -77,6 +77,24 @@ returned IR rather than in the request text.
    default. Now refused with guidance to state m/s (likewise seconds
    for the period); three eval cases pin the fix.
 
+## Wave 10 F7 probe (2026-11-05): no authorized real provider
+
+Checked on the dev box: no `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
+`AZURE_OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, or
+`GENESIS_AI_ENDPOINT` is set (presence only -- values never read);
+a local Ollama CLI exists but its server is down
+(`127.0.0.1:11434` refused). Starting it and pulling models would
+be unauthorized host changes for speculative product value, so it
+was not done.
+
+Decision: no LLM adapter is built. `offline` stays the only
+registered provider; the seam (`propose_raw` + `validate_ir` gate
++ refusal-before-provider) and acceptance criterion 4 above stay
+the integration contract: any future provider ships only with its
+measured 28-case score published next to `offline`'s 28/28, plus
+the S17 safety evaluation (refusals, hallucinations, latency,
+cost). Status: NOT STARTED, optional by design -- not a blocker.
+
 ## Limits
 
 - The bundled provider is a keyword planner, not an LLM: English

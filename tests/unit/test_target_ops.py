@@ -526,3 +526,27 @@ def test_validate_normalizes_ir_in_record(runner, monkeypatch, amr_ir_dict):
     assert final["state"] == "COMPLETED"
     got = final["params"]["ir"]["verification"]["scenarios"]
     assert got == want["verification"]["scenarios"]
+
+
+class _FakeUUID:
+    def __init__(self, hexv):
+        self.hex = hexv
+
+
+def test_start_retries_on_op_id_collision(runner, monkeypatch):
+    """Red-team round 2, A3: a colliding/reused op id must never make
+    start() overwrite an existing operation record."""
+    _stub_all(monkeypatch)
+    hexes = iter(["deadbeef1234" + "0" * 20,
+                  "deadbeef1234" + "0" * 20,
+                  "abcdef123456" + "0" * 20])
+    monkeypatch.setattr(tgt.uuid, "uuid4", lambda: _FakeUUID(next(hexes)))
+    first = runner.start("build-only",
+                         params={"ir": {"machine": {"id": "t"}}})
+    assert first["op_id"] == "op-deadbeef1234"
+    _poll_state(runner, first["op_id"])
+    second = runner.start("build-only",
+                          params={"ir": {"machine": {"id": "t"}}})
+    assert second["op_id"] == "op-abcdef123456"  # retried, not reused
+    assert runner.get(first["op_id"])["state"] == "COMPLETED"  # intact
+    _poll_state(runner, second["op_id"])

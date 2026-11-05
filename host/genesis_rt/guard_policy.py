@@ -37,6 +37,7 @@ Parity contract (mirrors guard_policy.c exactly):
 
 from __future__ import annotations
 
+import struct
 from dataclasses import dataclass
 from typing import Any
 
@@ -107,8 +108,13 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
         seq = int(cmd["seq"])
         now_ms = int(cmd["now_ms"])
         deadline_ms = int(cmd["deadline_ms"])
-        linear = float(cmd["linear_mps"])
-        angular = float(cmd["angular_radps"])
+        # Wire fidelity (Wave 10 E3): the guard decides on float32
+        # wire bytes (genesis_cmd_t), so the oracle quantizes speeds
+        # the same way. Pack overflow (huge double -> inf) falls into
+        # the MALFORMED handler below, matching the C isnan/isinf
+        # rejection of the narrowed value.
+        linear = struct.unpack("f", struct.pack("f", float(cmd["linear_mps"])))[0]
+        angular = struct.unpack("f", struct.pack("f", float(cmd["angular_radps"])))[0]
         req_state = int(cmd["req_state"])
         sensor_age_ms = int(cmd["sensor_age_ms"])
         sim_connected = bool(cmd["sim_connected"])

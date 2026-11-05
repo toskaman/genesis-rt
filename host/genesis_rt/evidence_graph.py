@@ -123,7 +123,10 @@ def build_graph(passport: dict[str, Any],
                  artifacts={"scenario": scen},
                  data={"id": rid, "scenario": scen,
                        "scenario_status": status or "not_run"})
-        add_edge(f"req:{rid}", "verified_by", f"scenario:{scen}")
+        # Red-team round 2, A4: verified_by only when the scenario
+        # actually passed — never to an unrun/failed scenario.
+        if status == "pass":
+            add_edge(f"req:{rid}", "verified_by", f"scenario:{scen}")
 
     # -- IR + limits
     mid = machine.get("id", "?") if isinstance(machine, dict) else "?"

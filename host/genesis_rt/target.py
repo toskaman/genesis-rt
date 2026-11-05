@@ -329,7 +329,14 @@ class TargetRunner:
         missing = [s for s in steps if s not in impls]
         if missing:
             raise TargetOpError(f"no implementation for steps: {missing}")
-        op_id = f"op-{uuid.uuid4().hex[:12]}"
+        op_id = None
+        for _ in range(8):  # red-team round 2, A3: never reuse an op id
+            candidate = f"op-{uuid.uuid4().hex[:12]}"
+            if not self._record_path(candidate).exists():
+                op_id = candidate
+                break
+        if op_id is None:
+            raise TargetOpError("could not allocate a fresh operation id")
         with self._lock:
             if self._closed:
                 raise TargetOpError("runner is closed")

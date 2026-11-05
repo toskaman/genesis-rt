@@ -89,12 +89,14 @@ def run_scenario(ir: dict[str, Any], scenario: str,
     if scenario == "belt_jam" and ir["machine"]["kind"] != "conveyor":
         seed = DEFAULT_SEEDS[scenario] if seed is None else seed
         return {"scenario": scenario, "status": "crash", "seed": seed,
+                "physics": "none",
                 "error": "belt_jam applies to conveyor machines only"}
     is_cell_kind = ir["machine"]["kind"] == "industrial_cell"
     is_cell_scenario = scenario in CELL_SCENARIO_IDS
     if is_cell_kind != is_cell_scenario:
         seed = DEFAULT_SEEDS[scenario] if seed is None else seed
         return {"scenario": scenario, "status": "crash", "seed": seed,
+                "physics": "none",
                 "error": "cell scenarios run on industrial_cell only, "
                          "and cell machines run cell scenarios only"}
     seed = DEFAULT_SEEDS[scenario] if seed is None else seed
@@ -103,10 +105,27 @@ def run_scenario(ir: dict[str, Any], scenario: str,
     limits = guard_limits(ir)
     period = int(limits["period_ms"])
     window = SCENARIO_WINDOWS[scenario]
-    if ir["machine"]["kind"] == "conveyor":
+    kind = ir["machine"]["kind"]
+    if kind == "conveyor":
         sim = BeltSim(BeltConfig(dt=period / 1000.0))
+        physics = "belt"
     else:
         sim = DiffDriveSim(SimConfig(dt=period / 1000.0))
+        physics = "diffdrive-corridor"
+    # industrial_cell never reaches here (diverted to _run_cell_scenario
+    # above); any other non-conveyor kind is aliased onto the corridor
+    # and the record must say so (Wave 10 Sprint E1).
+    physics_note = None
+    if kind == "robotic_arm_virtual":
+        physics_note = ("no arm-specific physics exists; ran on the "
+                        "differential-drive corridor "
+                        "(see docs/limitations-and-safety.md #10)")
+    elif kind not in ("differential_drive_robot", "conveyor"):
+        physics_note = (f"kind {kind!r} has no dedicated host physics; "
+                        "ran on the differential-drive corridor")
+    physics_extra: dict[str, Any] = {"physics": physics}
+    if physics_note is not None:
+        physics_extra["physics_note"] = physics_note
     sim.reset(seed)
     ctx = gp.GuardContext()
     seq = 0
@@ -197,7 +216,7 @@ def run_scenario(ir: dict[str, Any], scenario: str,
     except Exception as exc:  # harness crash => scenario crash, never a pass
         return {"scenario": scenario, "seed": seed, "status": "crash",
                 "error": f"{type(exc).__name__}: {exc}", "checks": [],
-                "stats": {}, "trace": trace[-20:]}
+                "stats": {}, "trace": trace[-20:], **physics_extra}
 
     stats = {"allows": allows, "denies": denies, "deny_reasons": deny_reasons,
              "final_state": ctx.state, **sim.final_stats(),
@@ -207,7 +226,8 @@ def run_scenario(ir: dict[str, Any], scenario: str,
     checks = [c.as_dict() for c in oracle(stats, trace, limits, window)]
     status = "pass" if all(c["passed"] for c in checks) else "fail"
     return {"scenario": scenario, "seed": seed, "status": status,
-            "checks": checks, "stats": stats, "trace": trace}
+            "checks": checks, "stats": stats, "trace": trace,
+            **physics_extra}
 
 
 CELL_BELT_V = 0.5  # transfer belt speed (m/s), under the 1.2 limit
@@ -323,7 +343,7 @@ def _run_cell_scenario(ir: dict[str, Any], scenario: str,
     except Exception as exc:  # harness crash => scenario crash, never a pass
         return {"scenario": scenario, "seed": seed, "status": "crash",
                 "error": f"{type(exc).__name__}: {exc}", "checks": [],
-                "stats": {}, "trace": trace[-20:]}
+                "stats": {}, "trace": trace[-20:], "physics": "cell"}
 
     stats = {"allows": allows, "denies": denies,
              "deny_reasons": deny_reasons,
@@ -339,7 +359,8 @@ def _run_cell_scenario(ir: dict[str, Any], scenario: str,
     checks = [c.as_dict() for c in oracle(stats, trace, limits, window)]
     status = "pass" if all(c["passed"] for c in checks) else "fail"
     return {"scenario": scenario, "seed": seed, "status": status,
-            "checks": checks, "stats": stats, "trace": trace}
+            "checks": checks, "stats": stats, "trace": trace,
+            "physics": "cell"}
 
 
 def _c(name: str, passed: bool, detail: str) -> Check:

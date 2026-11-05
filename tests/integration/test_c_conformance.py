@@ -54,6 +54,15 @@ VECTORS = [
     (E, 1, 1, 1, (1 << 32) - 1, (1 << 32) - 1, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),  # equal at edge
     (E, 1, 1, 1, (1 << 31) - 1, 0, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),  # max overdue
     (E, 1, 1, 1, 1 << 31, 0, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),  # ambiguity reads future
+    # Wave 10 E3: exact-limit boundaries (wire is float32, oracle float64)
+    (E, 1, 1, 1, 0, 50, 1.2, 0.0, 1, 0, 1, 0, 1, None, 0),  # lin at limit
+    (E, 1, 1, 1, 0, 50, 1.1999999, 0.0, 1, 0, 1, 0, 1, None, 0),  # just under
+    (E, 1, 1, 1, 0, 50, -1.2, 0.0, 1, 0, 1, 0, 1, None, 0),  # neg at limit
+    (E, 1, 1, 1, 0, 50, 0.5, 1.0, 1, 0, 1, 0, 1, None, 0),  # ang at limit
+    (E, 1, 1, 1, 0, 50, 0.5, -1.0, 1, 0, 1, 0, 1, None, 0),  # ang neg at limit
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 100, 1, 0, 1, None, 0),  # age at limit
+    (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 101, 1, 0, 1, None, 0),  # age just over
+    (E, 1, 1, 1, 1000, 1000, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),  # now == dl
 ]
 
 

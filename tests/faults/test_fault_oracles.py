@@ -1,7 +1,32 @@
 # Copyright 2026 GENESIS RT contributors
 # SPDX-License-Identifier: Apache-2.0
 """Fault-lab tests: every scenario passes its oracle; seeds recorded."""
+import copy
+
 from genesis_rt import faultlab
+
+
+def test_records_name_their_physics(amr_ir):
+    """Wave 10 Sprint E1: every scenario record names the host physics
+    that ran, so an aliased kind can never pass as native behavior."""
+    results = faultlab.run_all(amr_ir)
+    assert results
+    for r in results:
+        assert r["physics"] == "diffdrive-corridor"
+        assert "physics_note" not in r
+
+
+def test_arm_kind_records_physics_aliasing(amr_ir):
+    """robotic_arm_virtual has no arm kinematics; it runs on the
+    diffdrive corridor, and the record must say so."""
+    arm = copy.deepcopy(amr_ir)
+    arm["machine"]["kind"] = "robotic_arm_virtual"
+    arm["machine"]["id"] = "arm-alias-probe"
+    results = faultlab.run_all(arm)
+    assert results
+    for r in results:
+        assert r["physics"] == "diffdrive-corridor"
+        assert "no arm-specific physics" in r["physics_note"]
 
 
 def test_all_scenarios_pass_with_oracles(amr_ir):

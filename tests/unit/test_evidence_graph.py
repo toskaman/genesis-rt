@@ -79,6 +79,45 @@ def test_requirement_unverified_when_scenario_not_run(amr_ir, bound_evidence,
     assert by_id["req:REQ-AMR-01"]["data"]["scenario_status"] == "not_run"
 
 
+def test_unrun_requirement_has_no_verified_by_edge(amr_ir, bound_evidence,
+                                                   repo_root):
+    """Red-team round 2, A4: a requirement whose scenario never ran must
+    not carry a verified_by edge (no unsupported req->evidence link)."""
+    p = _passport(amr_ir, bound_evidence, ["nominal_navigation"], "subset2")
+    v2 = json.loads((repo_root / "examples" / "amr-demo" / "machine-ir-v2.json"
+                     ).read_text(encoding="utf-8"))
+    g = build_graph(p, v2)
+    by_id = _by_id(g)
+    triples = [(e["from"], e["predicate"], e["to"]) for e in g["edges"]]
+    assert not [t for t in triples
+                if t[0] == "req:REQ-AMR-01" and t[1] == "verified_by"]
+    for e in g["edges"]:
+        assert e["from"] in by_id and e["to"] in by_id, e
+
+
+def test_failed_requirement_has_no_verified_by_edge(amr_ir, bound_evidence,
+                                                    full, repo_root):
+    """Red-team round 2, A4: a requirement whose scenario failed must not
+    carry a verified_by edge either."""
+    p = _passport(amr_ir, bound_evidence, full, "fail4",
+                  mutate=_fail_speed_over_limit)
+    v2 = json.loads((repo_root / "examples" / "amr-demo" / "machine-ir-v2.json"
+                     ).read_text(encoding="utf-8"))
+    g = build_graph(p, v2)
+    by_id = _by_id(g)
+    assert by_id["req:REQ-AMR-01"]["status"] == "failed"
+    triples = [(e["from"], e["predicate"], e["to"]) for e in g["edges"]]
+    assert not [t for t in triples
+                if t[0] == "req:REQ-AMR-01" and t[1] == "verified_by"]
+
+
+def _fail_speed_over_limit(results):
+    for res in results:
+        if res["scenario"] == "speed_command_over_limit":
+            res["checks"][0]["passed"] = False
+            res["status"] = "fail"
+
+
 def _fail_dropped(results):
     for res in results:
         if res["scenario"] == "dropped_message":
