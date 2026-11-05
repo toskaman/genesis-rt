@@ -9,7 +9,12 @@
 - Docs jury : 518/487 -> chiffres mesures (527 passe avec SDK,
   524 + 3 skips honnetes sans SDK via simu probe), Devpost rafraichi
   (cellule, v2, sched, eval 28, codelab URL bonus).
-- Reste : 4 docs jury (scorecard, walkthrough, why-*), audit final §26.
+- Docs jury : 9/9 (walkthrough, why-qnx, why-genesis, scorecard ajoutes).
+- Re-preuve sans SSH : replay ancre v2 run-079ce9374c58 -> 16/16
+  transcripts + 2/2 build-set + PASS exit 0 ; tamper controle ->
+  MODIFIED exit 1. Demo C re-verifiee live (FAIL->PASS, 3 fixed).
+- Bloque : SSH cible (GENESIS_TARGET_PASSWORD perdu) -> cleanup
+  sondes 4A + re-run matrice 16/16 en attente du mot de passe.
 
 ## 2026-11-05 -- P2 Wave 4C : dossier commercial
 
