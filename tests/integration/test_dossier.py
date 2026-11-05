@@ -226,6 +226,7 @@ def test_assess_pass_op(tmp_path):
     assert a["verdict"] == "PASS"
     assert a["release_eligible"] is True
     assert a["gate_level"] == "QNX_EXECUTED"  # legacy tier fallback
+    assert a["gate_sealed"] is True
     assert a["matrix"] == {"passed": 2, "total": 2, "failed": []}
     assert a["perf_samples"] == 2
     assert a["missing_evidence"] == [] and a["chain_errors"] == []
@@ -249,6 +250,19 @@ def test_assess_failed_op_explains_why(tmp_path):
     assert verdict == "FAIL"
     assert "Why this verdict" in report
     assert "native check failed: c2" in report
+
+
+def test_assess_unsealed_op_not_sealed(tmp_path):
+    # AFTER-style op: failed before SEALING, so no passport.json at all.
+    ops = _write_op(tmp_path / "ops", state="FAILED", gate="FAIL")
+    (ops / OP / "passport.json").unlink()
+    files, rec, _red = dos_mod.collect_op_files(ops, OP)
+    a = dos_mod.assess_op(OP, rec, files)
+    assert a["verdict"] == "FAIL"
+    assert a["gate"] == "UNKNOWN"
+    assert a["gate_level"] == "not sealed"
+    assert a["gate_sealed"] is False
+    assert "passport.json" in a["missing_evidence"]
 
 
 def test_assess_tampered_op_not_verified(tmp_path):
@@ -299,6 +313,16 @@ def test_compare_same_op_no_changes(tmp_path):
     d = dos_mod.compare_ops(ops, None, OP, OP)["diff"]
     assert d["ir_changed"] is d["verdict_changed"] is False
     assert d["newly_failed"] == d["newly_passed"] == []
+
+
+def test_compare_toolchain_change_detected(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    _write_op(ops, op_id=OP2)
+    (ops / OP2 / "qnx-build-record.json").write_text(json.dumps(
+        {"environment": {"qcc_version": "qcc 12.3.0"}}), encoding="utf-8")
+    d = dos_mod.compare_ops(ops, None, OP, OP2)["diff"]
+    assert d["toolchain_changed"] is True
+    assert d["verdict_changed"] is False
 
 
 def test_endpoint_compare_roundtrip(client):

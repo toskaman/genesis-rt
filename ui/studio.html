@@ -1086,6 +1086,18 @@ function reduceTargetEvents(events) {
   }
   return { state: state, phase: phase, log: log, lastSeq: lastSeq };
 }
+function targetRel(rec, s) {
+  // Display-only: fold this op's absolute work dirs to op-relative
+  // names so screens and recordings don't leak local paths. Stored
+  // records stay byte-identical; only rendered text is shortened.
+  let out = String(s);
+  const arts = (rec && rec.artifacts) || {};
+  const pairs = [[arts.target_dir, 'target/'], [arts.perf_dir, 'perf/']];
+  for (const [abs, rel] of pairs) {
+    if (abs && out.includes(abs)) out = out.split(abs).join(rel);
+  }
+  return out;
+}
 function renderTargetHtml(opId, reduced, record) {
   const rec = record || {};
   const state = rec.state || reduced.state;
@@ -1114,7 +1126,7 @@ function renderTargetHtml(opId, reduced, record) {
     h += '<table><tr><th>step</th><th>state</th><th>detail</th></tr>';
     for (const s of steps) {
       h += '<tr><td><code>' + esc(s.name) + '</code></td><td>' + esc(s.state) +
-        '</td><td>' + esc(s.detail || '') + '</td></tr>';
+        '</td><td>' + esc(targetRel(rec, s.detail || '')) + '</td></tr>';
     }
     h += '</table>';
   }
@@ -1124,13 +1136,14 @@ function renderTargetHtml(opId, reduced, record) {
     h += '<table><tr><th>artifact</th><th>value</th></tr>';
     for (const k of keys) {
       h += '<tr><td><code>' + esc(k) + '</code></td><td><code>' +
-        esc(String(arts[k])) + '</code></td></tr>';
+        esc(targetRel(rec, String(arts[k]))) + '</code></td></tr>';
     }
     h += '</table>';
   }
   h += '<pre class="cmd" aria-live="polite">';
   for (const e of reduced.log.slice(-30)) {
-    h += '#' + esc(e.seq) + ' ' + esc(e.kind) + ' ' + esc(e.message) + '\n';
+    h += '#' + esc(e.seq) + ' ' + esc(e.kind) + ' ' +
+      esc(targetRel(rec, e.message)) + '\n';
   }
   return h + '</pre>';
 }
@@ -1167,6 +1180,10 @@ function renderCompareHtml(c) {
   const chg = (changed, txt) => (changed
     ? '<span class="fail">' + esc(txt) + ' (changed)</span>'
     : esc(txt));
+  const short = (s, n) => {
+    const t = String(s || '');
+    return t.length > n ? t.slice(0, n) + '…' : t;
+  };
   const dos = (o) => '<br><a href="/target/ops/' +
     encodeURIComponent(o.op_id || '') + '/dossier">dossier (.zip)</a>';
   let h = '<table><tr><th></th><th>Before<br><code>' +
@@ -1175,9 +1192,9 @@ function renderCompareHtml(c) {
   h += '<tr><td>Verdict</td><td class="' + vcls(b.verdict) + '">' +
     esc(b.verdict) + '</td><td class="' + vcls(a.verdict) + '">' +
     esc(a.verdict) + '</td></tr>';
-  h += '<tr><td>IR digest</td><td><code>' + esc(b.ir_digest, 24) +
-    '</code></td><td>' + chg(d.ir_changed, (a.ir_digest || '')
-      .slice(0, 24)) + '</td></tr>';
+  h += '<tr><td>IR digest</td><td><code>' + esc(short(b.ir_digest, 24)) +
+    '</code></td><td>' + chg(d.ir_changed, short(a.ir_digest, 24)) +
+    '</td></tr>';
   h += '<tr><td>Gate</td><td>' + esc(b.gate) + ' <code>' +
     esc(b.gate_level) + '</code></td><td>' +
     chg(d.gate_changed, (a.gate || '') + ' ' + (a.gate_level || '')) +
@@ -1193,8 +1210,8 @@ function renderCompareHtml(c) {
     '</code>').join(' · ') || 'none';
   h += '<tr><td>Newly failed</td><td colspan="2">' + nf + '</td></tr>';
   h += '<tr><td>Newly passed</td><td colspan="2">' + np + '</td></tr>';
-  h += '<tr><td>Toolchain</td><td>' + esc(b.toolchain, 80) + '</td><td>' +
-    chg(d.toolchain_changed, (a.toolchain || '').slice(0, 80)) +
+  h += '<tr><td>Toolchain</td><td>' + esc(short(b.toolchain, 80)) +
+    '</td><td>' + chg(d.toolchain_changed, short(a.toolchain, 80)) +
     '</td></tr></table>';
   return h;
 }

@@ -17,7 +17,7 @@
   LF-canonicalized and `evidence/** -text`: a CRLF pack verified
   locally but failed from a clean checkout (git text conversion);
   clean-room verified via git archive + real clone.
-- Suite 882/882 green, 0 skips (CI on push; SDK-less 877 + 5).
+- Suite 885/885 green, 0 skips (CI on push; SDK-less 880 + 5).
 - F3 real-browser E2E: `tests/e2e/test_judge_browser.py` drives Judge
   A→G in headless Chromium against live uvicorn (2 real host jobs,
   release banner, zero console/HTTP errors) + target-tab check; CI

@@ -214,7 +214,8 @@ def assess_op(op_id: str, rec: dict[str, Any],
         # Old passports predate level/release_eligible; fall back to
         # the legacy tier key and to the gate itself.
         "gate_level": str(gate_body.get("level")
-                          or gate_body.get("tier") or "?"),
+                          or gate_body.get("tier")
+                          or ("not sealed" if not gate_body else "?")),
         "release_eligible": bool(gate_body.get(
             "release_eligible", gate == "PASS")) and not chain_errors,
         "qnx_verified": qnx_verified,
@@ -224,7 +225,8 @@ def assess_op(op_id: str, rec: dict[str, Any],
                          or "?")),
         "toolchain": " ".join(str(
             (build.get("environment") or {}).get("qcc_version") or "")
-            .split())[:160],
+            .split()),
+        "gate_sealed": bool(gate_body),
         "matrix": {"passed": sum(1 for c in passed if c.get("passed")),
                    "total": len(passed), "failed": failed},
         "perf_samples": len(samples) if isinstance(samples, list) else 0,

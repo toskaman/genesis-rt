@@ -142,7 +142,7 @@ def test_tab_chrome_present():
         assert f'id="{cid}"' in html
     for fn in ("reduceTargetEvents", "renderTargetHtml",
                "renderTargetOpsHtml", "renderDecisionHtml",
-               "renderCompareHtml", "targetRun",
+               "renderCompareHtml", "targetRel", "targetRun",
                "openTargetOp", "openTargetStream", "refreshTargetHistory",
                "loadTargetDecision", "compareTargetOps",
                "fillCompareSelects"):
@@ -208,14 +208,17 @@ def test_decision_renders_verdict_why_and_escapes(tmp_path):
 @node
 def test_compare_renders_sides_diff_and_escapes(tmp_path):
     evil = "<script>alert(1)</script>"
+    long_before = "a" * 64
+    long_after = "b" * 64
+    long_tc = "qcc " + "x" * 120
     cmp = {
         "before": {"op_id": "op-aaaaaaaaaaaaaaaa", "verdict": "PASS",
-                   "ir_digest": "aaa", "gate": "PASS",
+                   "ir_digest": long_before, "gate": "PASS",
                    "gate_level": "QNX_EXECUTED",
-                   "release_eligible": True, "toolchain": "qcc 12.2.0"},
+                   "release_eligible": True, "toolchain": long_tc},
         "after": {"op_id": "op-bbbbbbbbbbbbbbbb", "verdict": "FAIL",
-                  "ir_digest": "bbb", "gate": "FAIL",
-                  "gate_level": "QNX_EXECUTED",
+                  "ir_digest": long_after, "gate": "UNKNOWN",
+                  "gate_level": "not sealed",
                   "release_eligible": False, "toolchain": evil},
         "diff": {"ir_changed": True, "verdict_changed": True,
                  "gate_changed": True, "release_changed": True,
@@ -231,3 +234,27 @@ def test_compare_renders_sides_diff_and_escapes(tmp_path):
     assert "/target/ops/op-bbbbbbbbbbbbbbbb/dossier" in html
     assert "2/2" in html and "1/2" in html
     assert "<script>" not in html and "&lt;script&gt;" in html
+    # Long values are truncated consistently on both sides.
+    assert long_before not in html and long_after not in html
+    assert "a" * 24 + "…" in html and "b" * 24 + "…" in html
+    assert "not sealed" in html
+
+
+@node
+def test_html_folds_absolute_op_dirs_to_relative(tmp_path):
+    abs_target = "C:\\Users\\demo\\ops\\op-abc123def456\\target"
+    abs_perf = "C:\\Users\\demo\\ops\\op-abc123def456\\perf"
+    record = {"op_id": "op-abc123def456", "state": "COMPLETED",
+              "steps": [{"name": "qemu_verify", "state": "done",
+                         "detail": f"target matrix PASS (see {abs_target})"}],
+              "artifacts": {"target_dir": abs_target,
+                            "perf_dir": abs_perf}}
+    events = [{"seq": 0, "kind": "op_started",
+               "message": f"work {abs_target}"},
+              {"seq": 1, "kind": "op_completed", "message": "done"}]
+    arg = json.dumps({"id": "op-abc123def456", "events": events,
+                      "record": record})
+    (html,) = _run_js([{"fn": "tophtml", "arg": arg}], tmp_path)
+    assert abs_target not in html and abs_perf not in html
+    assert "C:\\Users" not in html
+    assert "(see target/)" in html and "work target/" in html

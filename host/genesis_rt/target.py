@@ -733,9 +733,9 @@ def _step_qemu_verify(ctx: dict[str, Any]) -> tuple[bool, str]:
         password=None, ssh_port=int(params.get("ssh_port", 2222)),
         user=params.get("user", DEFAULT_TARGET_USER), out=str(out)))
     if rc != 0:
-        return False, f"verify rc={rc} (see {out})"
+        return False, f"verify rc={rc} (see {out.name}/)"
     ctx["artifacts"]["target_dir"] = str(out)
-    return True, f"target matrix PASS (see {out})"
+    return True, f"target matrix PASS (see {out.name}/)"
 
 
 def _step_qemu_perf(ctx: dict[str, Any]) -> tuple[bool, str]:
@@ -748,9 +748,9 @@ def _step_qemu_perf(ctx: dict[str, Any]) -> tuple[bool, str]:
         build_set=params.get("build_set"),
         samples=int(params.get("samples", 1000)), out=str(out)))
     if rc != 0:
-        return False, f"perf rc={rc} (see {out})"
+        return False, f"perf rc={rc} (see {out.name}/)"
     ctx["artifacts"]["perf_dir"] = str(out)
-    return True, f"perf done (see {out})"
+    return True, f"perf done (see {out.name}/)"
 
 
 def _step_qemu_stop(ctx: dict[str, Any]) -> tuple[bool, str]:
