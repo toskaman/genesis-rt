@@ -13,8 +13,11 @@
   the real store. Trigger: it reaped a live campaign op mid-verify.
 - F1 evidence pack `evidence/qnx8-x86_64-verified-b22cea1/` (34 files,
   op-0350e9bd4818: 13/13, 16/16, 1000 samples, PASS) + `verify.py`
-  (digests, chain, bindings, anchor) + 5 pack tests.
-- Suite 856/856 green, 0 skips (CI on push; SDK-less 851 + 5).
+  (digests, chain, bindings, anchor) + 6 pack tests. Pack bytes are
+  LF-canonicalized and `evidence/** -text`: a CRLF pack verified
+  locally but failed from a clean checkout (git text conversion);
+  clean-room verified via git archive + real clone.
+- Suite 857/857 green, 0 skips (CI on push; SDK-less 852 + 5).
 
 ## 2026-11-05 -- Wave 9 §17: competitive landscape & buyer dossier
 

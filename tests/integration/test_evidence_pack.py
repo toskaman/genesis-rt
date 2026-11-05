@@ -86,3 +86,18 @@ def test_cross_operation_substitution_rejected(tmp_path):
     assert proc.returncode == 2, proc.stdout
     assert "binding: passport.run_id" in proc.stdout
     assert "hash mismatch" not in proc.stdout
+
+
+def test_pack_bytes_are_checkout_stable():
+    """Anti-rot: pack files are LF-only and git stores them verbatim.
+
+    Regression: a CRLF pack verified locally but failed from a clean
+    checkout after git's text conversion rewrote the bytes (29/34
+    digests mismatched). The assembler canonicalizes to LF and
+    .gitattributes pins evidence/** -text; this test pins both.
+    """
+    cr_files = [p.relative_to(PACK).as_posix() for p in sorted(PACK.rglob("*"))
+                if p.is_file() and b"\r" in p.read_bytes()]
+    assert cr_files == [], f"CRLF bytes would break digests: {cr_files}"
+    attrs = (REPO / ".gitattributes").read_text(encoding="utf-8")
+    assert "evidence/** -text" in attrs

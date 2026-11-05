@@ -7,9 +7,11 @@ Usage (from the repo root):
   python scripts/build_evidence_pack.py --op op-<id> --out evidence/<name>
 
 Copies the op's passport, IR, build/target/perf records and transcripts
-VERBATIM (any rewrite would break the passport hash chain), excludes
-target binaries (digests preserved; binaries may statically link QNX libc),
-and writes manifest.json + verify.py + README.md + EXPECTED_RESULTS.md.
+VERBATIM except LF line-ending canonicalization (any content rewrite
+would break the passport hash chain; LF makes digests stable across
+platforms and git checkouts), excludes target binaries (digests
+preserved; binaries may statically link QNX libc), and writes
+manifest.json + verify.py + README.md + EXPECTED_RESULTS.md.
 
 Refuses non-COMPLETED ops and binding mismatches. Idempotent for a fixed
 --out (rebuild overwrites).
@@ -36,9 +38,18 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def _copy_verbatim(src: Path, dst: Path) -> None:
+def _copy_canonical(src: Path, dst: Path) -> None:
+    """Copy a text evidence file, canonicalizing line endings to LF.
+
+    The pack is digest-pinned: CRLF bytes would make digests depend on
+    the author's platform and on git's text conversion. LF on disk +
+    `evidence/** -text` in .gitattributes keeps committed bytes stable.
+    Content (hence the passport chain, computed over parsed JSON) is
+    unaffected; only \\r\\n/\\r -> \\n.
+    """
     dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dst)
+    data = src.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    dst.write_bytes(data)
 
 
 def main(argv=None) -> int:
@@ -73,21 +84,21 @@ def main(argv=None) -> int:
     for name in ("ir.json", "passport.json", "qemu-console.log",
                  "qnx-build-record.json", "stage-manifest.json",
                  "gen-manifest.json"):
-        _copy_verbatim(op_dir / name, out / name)
+        _copy_canonical(op_dir / name, out / name)
     for p in sorted((op_dir / "target").glob("*")):
-        _copy_verbatim(p, out / "transcripts" / p.name)
+        _copy_canonical(p, out / "transcripts" / p.name)
     for p in sorted((op_dir / "perf").glob("*")):
-        _copy_verbatim(p, out / "performance" / p.name)
+        _copy_canonical(p, out / "performance" / p.name)
     for p in sorted((op_dir / "gen").glob("*")):
         if p.suffix in (".mk", ".h", ".c"):
-            _copy_verbatim(p, out / "sources" / p.name)
-    _copy_verbatim(rec_p, out / "target-op.json")
+            _copy_canonical(p, out / "sources" / p.name)
+    _copy_canonical(rec_p, out / "target-op.json")
     ev_p = ops_dir / f"{args.op}.events.jsonl"
     if ev_p.is_file():
-        _copy_verbatim(ev_p, out / "op-events.jsonl")
+        _copy_canonical(ev_p, out / "op-events.jsonl")
     bs_src = Path((rec.get("params") or {}).get("build_set", ""))
     if bs_src.is_file():
-        _copy_verbatim(bs_src, out / "build-set.json")
+        _copy_canonical(bs_src, out / "build-set.json")
 
     passport = json.loads((out / "passport.json").read_text(encoding="utf-8"))
     target = json.loads((out / "transcripts" / "qnx-target-record.json")
@@ -107,10 +118,10 @@ def main(argv=None) -> int:
 
     binaries = ((passport.get("environment") or {}).get("qnx") or {}).get(
         "binaries", {})
-    (out / "binaries.json").write_text(
+    (out / "binaries.json").write_bytes(
         json.dumps({"note": "digests only; QNX binaries excluded (may "
                              "statically link QNX libc)",
-                    "binaries": binaries}, indent=1), encoding="utf-8")
+                    "binaries": binaries}, indent=1).encode("utf-8"))
 
     checks = target.get("checks", [])
     n_pass = sum(1 for c in checks if c.get("passed"))
@@ -139,12 +150,14 @@ Expected: exit 0 plus the observed claims below. Any modified, missing
 or unlisted file, broken passport link, or cross-operation substitution
 fails with exit 2. See EXPECTED_RESULTS.md for the reference values.
 
-## Transform from the raw op: none (verbatim)
+## Transform from the raw op: LF canonicalization only
 
-- Every evidence file is byte-identical to
-  `artifacts/runs/target-ops/{args.op}/` (git-ignored local evidence).
-  Absolute paths reflect the author's build machine; no credentials
-  are recorded anywhere in the op (verified before publishing).
+- Every evidence file is content-identical to
+  `artifacts/runs/target-ops/{args.op}/` (git-ignored local evidence),
+  with line endings canonicalized to LF so digests verify on every
+  platform. Absolute paths reflect the author's build machine; no
+  credentials are recorded anywhere in the op (verified before
+  publishing).
 - Target binaries excluded: only sha256/size/cksum digests ship (see
   binaries.json) — the linked binaries may contain QNX libc code.
 
@@ -158,7 +171,7 @@ fails with exit 2. See EXPECTED_RESULTS.md for the reference values.
 - The anchor is hash-linked (manifest + git history), not a
   hardware-backed attestation.
 """
-    (out / "README.md").write_text(readme, encoding="utf-8")
+    (out / "README.md").write_bytes(readme.encode("utf-8"))
     expected = f"""# Expected results ({args.op})
 
 Observed values at pack build time. `python verify.py` reprints the
@@ -178,9 +191,9 @@ observed claims; compare them with this file.
 - IR digest: {sealed}
 - passport anchor (sha256): {_sha256_file(out / "passport.json")}
 """
-    (out / "EXPECTED_RESULTS.md").write_text(expected, encoding="utf-8")
+    (out / "EXPECTED_RESULTS.md").write_bytes(expected.encode("utf-8"))
 
-    shutil.copy2(VERIFY_SRC, out / "verify.py")
+    _copy_canonical(VERIFY_SRC, out / "verify.py")
     files = {}
     for p in sorted(out.rglob("*")):
         if p.is_file() and p.name != "manifest.json":
@@ -196,8 +209,8 @@ observed claims; compare them with this file.
         "anchor_passport_sha256": _sha256_file(out / "passport.json"),
         "files": files,
     }
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=1),
-                                       encoding="utf-8")
+    (out / "manifest.json").write_bytes(json.dumps(manifest, indent=1)
+                                           .encode("utf-8"))
     print(f"pack: {out} ({len(files)} files, commit {commit})")
     return 0
 

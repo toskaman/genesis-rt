@@ -13,12 +13,14 @@ Expected: exit 0 plus the observed claims below. Any modified, missing
 or unlisted file, broken passport link, or cross-operation substitution
 fails with exit 2. See EXPECTED_RESULTS.md for the reference values.
 
-## Transform from the raw op: none (verbatim)
+## Transform from the raw op: LF canonicalization only
 
-- Every evidence file is byte-identical to
-  `artifacts/runs/target-ops/op-0350e9bd4818/` (git-ignored local evidence).
-  Absolute paths reflect the author's build machine; no credentials
-  are recorded anywhere in the op (verified before publishing).
+- Every evidence file is content-identical to
+  `artifacts/runs/target-ops/op-0350e9bd4818/` (git-ignored local evidence),
+  with line endings canonicalized to LF so digests verify on every
+  platform. Absolute paths reflect the author's build machine; no
+  credentials are recorded anywhere in the op (verified before
+  publishing).
 - Target binaries excluded: only sha256/size/cksum digests ship (see
   binaries.json) — the linked binaries may contain QNX libc code.
 

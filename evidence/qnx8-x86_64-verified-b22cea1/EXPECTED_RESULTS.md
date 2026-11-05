@@ -15,4 +15,4 @@ observed claims; compare them with this file.
 - target identity: QNX qnxqemu 8.0.0 2026/06/05-16:26:03EDT x86pc x86_64 | --- | name                                                                             | usr/lib/ssh/ssh
 - toolchain: cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc: 12.2.0,gcc_ntoaarch64le 12.2.0,gcc_ntoaarch64le_cxx 12.2.0,gcc_ntoaarch64le_gpp 12.2.0,gcc_ntox86_
 - IR digest: 356dc135f27f4586e1131fe1e43eac0b054dc7f2fb1f1ba7506fd4d5667ce34d
-- passport anchor (sha256): b2de009fe8ef98836f7135cd84e632af8c069d2235b8e0fb023bae98b73d1fed
+- passport anchor (sha256): 421efd3acc0927fd0ed603b28dfd6626457a6ea5aeca6972e974abb2fa4ac0b0
