@@ -878,6 +878,9 @@ function renderJudgeHtml(idx, st) {
     '(PASS host, qnx_verified false, 8/8 scenarios) — ' +
     'artifacts/samples/golden_demo_passport.example.json.');
   h += '<div class="banner" role="status">' + esc(status) + '</div>';
+  // st.extra is raw HTML but only ever assigned from the pure,
+  // escaping renderers below (never from fetch bodies directly).
+  if (st && st.extra) h += st.extra;
   h += '<div class="row">';
   h += '<button class="ghost" data-jnav="prev"' +
     (i === 0 ? ' disabled' : '') + '>Prev</button>';
@@ -3110,6 +3113,8 @@ async function judgeRunJob(scenarios, label) {
   if (scenarios) body.scenarios = scenarios;
   const job = await postJson('/jobs', body);
   Live.jobId = job.job_id;
+  Live.judge.jobId = job.job_id;
+  Live.judge.extra = '';
   Live.jobEvents = [];
   storeSet('studio.job', job.job_id);
   switchTab('pipeline');
@@ -3135,7 +3140,27 @@ async function judgeAction(action) {
       judgeNote(await judgeRunJob(null, 'Verification rerun'));
     } else if (action === 'judge-open-dossier') {
       switchTab('passport');
-      judgeNote('Passport tab opened: inspect verdicts, export the dossier.');
+      if (Live.judge.jobId) {
+        try {
+          const pp = JSON.parse(await apiText('/runs/' +
+            encodeURIComponent(Live.judge.jobId) + '/passport/raw'));
+          const gv = (pp.chain || []).filter(
+            (r) => r.kind === 'gate_verdict')[0];
+          Live.judge.extra = renderReleaseBannerHtml(gv ? gv.body : null) +
+            '<p class="note">source: <code>/runs/' +
+            esc(Live.judge.jobId) + '/passport/raw</code> (live)</p>';
+          judgeNote('Release state for job ' + Live.judge.jobId +
+            ' (live) — full dossier in the Passport tab.');
+        } catch (e) {
+          Live.judge.extra = '';
+          judgeNote('Release state unreadable: ' +
+            ((e && e.message) || e));
+        }
+      } else {
+        Live.judge.extra = '';
+        judgeNote('Passport tab opened: run stage F first, then return ' +
+          'here for the release state.');
+      }
     } else {
       judgeNote('Unknown judge action: ' + action);
     }

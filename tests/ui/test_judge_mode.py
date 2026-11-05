@@ -52,6 +52,7 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
       return renderJudgeHtml(j.idx, j.st);
     }
     if (c.fn === 'jclamp') return judgeClamp(JSON.parse(c.arg));
+    if (c.fn === 'jbanner') return renderReleaseBannerHtml(JSON.parse(c.arg));
     throw new Error('unknown fn ' + c.fn);
   });
   fs.writeFileSync(process.argv[3], JSON.stringify(out));
@@ -132,3 +133,29 @@ def test_render_offline_archived_and_clamped(tmp_path):
     assert "data-jnav=\"prev\" disabled" in first
     assert "G · The value · active" in last
     assert "data-jnav=\"next\" disabled" in last
+
+
+@node
+def test_stage_g_renders_release_state_inline(tmp_path):
+    targeted = {"verdict": "PASS", "level": "HOST_TESTED",
+                "qnx_verified": False, "release_eligible": False,
+                "coverage": {"required": ["a"], "declared": ["a", "b"],
+                             "omitted": ["b"]}}
+    full = {"verdict": "PASS", "level": "QNX_PERFORMANCE_MEASURED",
+            "qnx_verified": True, "release_eligible": True,
+            "coverage": {"required": ["a"], "declared": ["a"],
+                         "omitted": []}}
+    (sub, ok) = _run_js([{"fn": "jbanner", "arg": json.dumps(targeted)},
+                         {"fn": "jbanner", "arg": json.dumps(full)}],
+                        tmp_path)
+    assert "TARGETED run" in sub and "PENDING" in sub
+    assert "NOT release eligible" in sub
+    assert "release_eligible" in ok and "YES" in ok
+    (html,) = _run_js([{"fn": "jrender",
+                        "arg": json.dumps(
+                            {"idx": 6,
+                             "st": {"online": True, "note": "live",
+                                    "extra": ok}})}],
+                      tmp_path)
+    assert "G · The value · active" in html
+    assert "YES" in html and "[LIVE]" in html
