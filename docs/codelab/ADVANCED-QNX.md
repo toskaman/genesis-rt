@@ -125,14 +125,15 @@ p = json.load(open(pp))
 print('records:', len(p['chain']), '| kinds:', [r['kind'] for r in p['chain']][:4], '...')
 g = [r['body'] for r in p['chain'] if r['kind']=='gate_verdict'][0]
 print('level:', g['level'], '| release_eligible:', g['release_eligible'])
-assert g['level'] == 'QNX_COMPILED' and g['release_eligible'] is False
+assert g['level'] in ('QNX_COMPILED', 'HOST_TESTED'), g['level']
+assert g['release_eligible'] is False
 "
 ```
 
-`QNX_COMPILED` (built, never ran on target) with
-`release_eligible: False`: the release policy from
-`docs/limitations-and-safety.md` in one line — no target
-binding, no release.
+`QNX_COMPILED` (built, never ran on target — or `HOST_TESTED`
+without an SDK) with `release_eligible: False`: the release
+policy from `docs/limitations-and-safety.md` in one line — no
+target binding, no release.
 
 ## Lab 4 — Independent replay and tamper-evidence (host, no SDK)
 
