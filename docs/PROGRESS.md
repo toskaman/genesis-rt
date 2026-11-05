@@ -1,5 +1,28 @@
 # Progress log
 
+## 2026-11-05 -- P0 Wave A : provenance multi-build (v2) + baseline
+
+- Baseline mesure (checkout propre Linux, sans SDK) : 449 passed / 3
+  skipped (452), commit 103da7f ; `docs/baseline-2026-11-05.md` (metriques
+  distinctes : tests hote, 13 steps, binaires par build, 9 executables
+  stages, 3 builds natifs par campagne).
+- Trou §5 ferme cote hote : les guards secondaires (`genesis_guard_conv`,
+  `genesis_guard_v2`) etaient stages sans origine. `buildset.py` : entree
+  par executable derivee du passeport du build producteur (chaine
+  verifiee, machine/kind/schema, IR, qcc, build_id, sha256+cksum+taille,
+  tete de chaine). Gate : chaque executable stage = exactement un build ;
+  refus non-attribue / ambigu / octets differents / mauvaise origine /
+  secondaire requis absent / build_id reutilise / perf build set different.
+- Producteurs : `scripts/build_set.py create`, `qnx_target.py verify|perf
+  --build-set` ; `replay.py --source-passport --require-build-set-replay`
+  re-derive chaque entree.
+- Migration : `provenance_version` 2 ; v1 sans extra garde son tier ; v1
+  avec executables d'autres builds (toutes les campagnes publiees) plafonne
+  a `QNX_EXECUTED`, jamais upgrade -> un cycle cible frais avec
+  `--build-set` est necessaire (non fait : pas d'acces SDK/QEMU ici).
+- +30 tests (`tests/unit/test_buildset.py`), mutation : 6/6 mutants tues.
+  Suite hote 487 passed / 3 skipped (490) apres rebase sur Wave 3A.
+
 ## 2026-11-05 -- P1 Wave 3A : fault containment (guard_crash)
 
 - Matrice 14e step `guard_crash` avant `cell_policy` (cell_policy

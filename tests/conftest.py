@@ -69,9 +69,31 @@ def bound_evidence(amr_ir: dict, tmp_path: Path) -> dict:
               for n, b in build_bins.items()}
     staged["genesis_guard_conv"] = {"cksum": 4242, "size": 14360}
     staged["genesis_guard_v2"] = {"cksum": 4343, "size": 15136}
+    # Provenance v2: the two secondary guards are attributed to their own
+    # builds (conveyor IR v1, AMR IR v2), as scripts/qnx_target.py
+    # `verify --build-set` records them.
+    build_set = {"build_set_version": 1, "entries": {
+        "genesis_guard_conv": {
+            "staged_name": "genesis_guard_conv", "source_binary": "genesis_guard",
+            "machine_id": "conveyor-demo-01", "machine_kind": "conveyor",
+            "schema_version": 1, "ir_sha256": "c1" * 32,
+            "generator_version": "0.1.0", "toolchain": "12.2.0,gcc_ntox86_64",
+            "built_utc": "2026-11-04T19:50:00+00:00", "build_id": "b1" * 32,
+            "sha256": "e1" * 32, "cksum": 4242, "size": 14360,
+            "source_run_id": "run-conv00000001", "source_passport_head": "f1" * 32},
+        "genesis_guard_v2": {
+            "staged_name": "genesis_guard_v2", "source_binary": "genesis_guard",
+            "machine_id": "amr-demo-01", "machine_kind": "differential_drive_robot",
+            "schema_version": 2, "ir_sha256": "c2" * 32,
+            "generator_version": "0.1.0", "toolchain": "12.2.0,gcc_ntox86_64",
+            "built_utc": "2026-11-04T19:55:00+00:00", "build_id": "b2" * 32,
+            "sha256": "e2" * 32, "cksum": 4343, "size": 15136,
+            "source_run_id": "run-amrv2000001", "source_passport_head": "f2" * 32},
+    }}
     target = {
         "status": "ok", "verified_on_target": True, "user": "qnxuser",
-        "provenance_version": 1,
+        "provenance_version": provenance.PROVENANCE_VERSION,
+        "build_set": build_set,
         "matrix": list(provenance.EXPECTED_TARGET_CHECKS),
         "checks": [{"name": n, "passed": True, "detail": "ok"}
                    for n in provenance.EXPECTED_TARGET_CHECKS],
@@ -88,7 +110,8 @@ def bound_evidence(amr_ir: dict, tmp_path: Path) -> dict:
     samples = [200.0 + (i % 50) for i in range(1000)]
     perf = {
         "status": "ok", "verified_on_target": True,
-        "provenance_version": 1,
+        "provenance_version": provenance.PROVENANCE_VERSION,
+        "build_set": json.loads(json.dumps(build_set)),
         "started_utc": "2026-11-04T20:25:00+00:00",
         "finished_utc": "2026-11-04T20:26:00+00:00",
         "target": dict(target["target"]),
