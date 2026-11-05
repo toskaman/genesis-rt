@@ -12,6 +12,7 @@ verdict. Event rows carry (job_id, seq, kind, message, ts) for SSE replay.
 """
 from __future__ import annotations
 
+import logging
 import sqlite3
 import threading
 import time
@@ -32,6 +33,11 @@ MAX_EVENTS_PER_JOB = 1000
 MAX_EVENT_CHARS = 2000
 MAX_WORKERS = 2
 CANCEL_POLL_S = 5.0
+# §15: completion Events are per-job memory; evict terminal jobs' events
+# past this cap (wait() falls back to a DB read for evicted jobs).
+MAX_TRACKED_JOBS = 200
+
+log = logging.getLogger("genesis.jobs")
 
 
 class JobConflict(Exception):
@@ -104,6 +110,7 @@ class JobManager:
                 conn.execute("INSERT OR IGNORE INTO events VALUES (?,?,?,?,?)",
                              (job_id, nxt, "interrupted",
                               "previous process ended before completion", now_wall))
+                log.warning("job=%s recovered as interrupted", job_id)
             conn.commit()
         finally:
             conn.close()
@@ -138,11 +145,34 @@ class JobManager:
             finally:
                 conn.close()
             self._done[job_id] = threading.Event()
+            self._evict_done_locked()
             self._cond.notify_all()
+        log.info("job=%s submit queued", job_id)
         self._pool.submit(self._work, job_id, Path(ir_path),
                           list(scenarios) if scenarios else None,
                           Path(cleanup) if cleanup else None)
         return job_id
+
+    def _evict_done_locked(self) -> None:
+        """Drop completion Events of terminal jobs past the track cap."""
+        overflow = len(self._done) - MAX_TRACKED_JOBS
+        if overflow <= 0:
+            return
+        conn = _connect(self.db_path)
+        try:
+            rows = conn.execute(
+                "SELECT job_id FROM jobs WHERE state IN "
+                "('succeeded','failed','cancelled','interrupted')"
+                " ORDER BY updated ASC").fetchall()
+        finally:
+            conn.close()
+        # oldest terminal first; skip ids already evicted (pop miss)
+        popped = 0
+        for (old_id,) in rows:
+            if popped >= overflow:
+                break
+            if self._done.pop(old_id, None) is not None:
+                popped += 1
 
     # -- queries --------------------------------------------------------
     def get(self, job_id: str) -> dict[str, Any] | None:
@@ -162,7 +192,7 @@ class JobManager:
     def wait(self, job_id: str, timeout: float | None = None) -> dict[str, Any]:
         with self._lock:
             evt = self._done.get(job_id)
-        if evt is None:  # unknown, or manager restarted since submit
+        if evt is None:  # unknown, evicted (§15 cap), or restart
             rec = self.get(job_id)
             if rec is None:
                 raise JobNotFound(job_id)
@@ -242,6 +272,7 @@ class JobManager:
         try:
             if not self._claim(job_id):
                 return  # cancelled while queued
+            log.info("job=%s running", job_id)
             try:
                 summary = run_pipeline(
                     ir_path, self.artifacts, run_id=job_id, scenarios=scenarios,
@@ -252,11 +283,14 @@ class JobManager:
                                     run_dir=str(self.artifacts / job_id),
                                     error="cancelled by request")
                     self._emit(job_id, "cancelled", "cancelled by request")
+                log.info("job=%s terminal cancelled", job_id)
             except Exception as exc:  # worker crash path: failed, never success
                 with self._lock:
                     self._set_state(job_id, "failed",
                                     error=f"{type(exc).__name__}: {exc}")
                     self._emit(job_id, "failed", f"{type(exc).__name__}: {exc}")
+                log.warning("job=%s terminal failed err=%s: %s", job_id,
+                            type(exc).__name__, exc)
             else:
                 import json as _json
                 passport_text = Path(summary["passport"]).read_text(encoding="utf-8")
@@ -274,6 +308,8 @@ class JobManager:
                                     run_dir=str(summary["run_dir"]),
                                     summary=_json.dumps(summary))
                     self._emit(job_id, "done", f"verdict={summary['verdict']}")
+                log.info("job=%s terminal succeeded verdict=%s", job_id,
+                         summary["verdict"])
         finally:
             if cleanup is not None:
                 try:

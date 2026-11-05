@@ -27,7 +27,7 @@ On Windows PowerShell, prefix the two commands with
 python -m pytest tests/ -q
 ```
 
-Expect green (752 with SDK; SDK-free: 749 passed + 3 honest skips —
+Expect green (758 with SDK; SDK-free: 755 passed + 3 honest skips —
 3 QNX-build — without an SDK; +1 cksum-conformance where coreutils is absent). With an SDK the QNX build test compiles the
 6 native binaries per machine build for real (7 for the cell, 9 staged on target: bound set + `genesis_guard_conv` + `genesis_guard_v2`); without one it reports an honest skip —
 never a QNX pass.
@@ -49,3 +49,4 @@ never a QNX pass.
 - `target/qnx8/status` — `/dev/genesis/status` resource manager.
 - `target/qnx8/common/guard_policy.c` — shared policy, proven identical to
   the Python mirror by `tests/integration/test_c_conformance.py`.
+

@@ -66,7 +66,8 @@
   uint32 wrap); now RFC 1982 serial arithmetic in Python + C,
   ABI unchanged, 5 new conformance vectors, wrap/recovery/version
   unit tests green.
-- Suite 752/752 with SDK (SDK-free 749 + 3 honest QNX-build skips);
+- M4 §15 robustness: `_done` track cap (200, oldest-terminal evict, DB fallback), `job=` structured logs; 6 lifecycle tests.
+- Suite 758/758 with SDK (SDK-free 755 + 3 honest QNX-build skips);
   jury pins + architecture updated; consistency guard green.
 
 ## 2026-11-05 -- P1 Wave 5 : jury delivery (termine)
