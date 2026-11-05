@@ -175,8 +175,8 @@ def _cmd_check_env(args: argparse.Namespace) -> int:
 def _cmd_serve(args: argparse.Namespace) -> int:
     from .api import create_app
     import uvicorn  # type: ignore[import-not-found]
-    # Single worker: the API serializes pipelines with a per-process lock and
-    # per-run artifacts; multi-worker mode would need an external job queue.
+    # Single worker on loopback: job state (pool, done-events) is in-process;
+    # multi-worker mode would need an external job queue. Pool bounds pipelines.
     uvicorn.run(create_app(), host="127.0.0.1", port=args.port, workers=1)
     return 0
 

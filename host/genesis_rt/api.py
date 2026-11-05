@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import sqlite3
 import tempfile
-import threading
 from pathlib import Path
 from typing import Any
 
@@ -50,9 +49,8 @@ MAX_SCENARIOS = 32
 
 # Canonical run_id rule lives in orchestrator (single source of truth);
 # the API re-checks early for 400 mapping, run_pipeline enforces it.
+from .jobs import JobConflict, JobManager, JobNotFound
 from .orchestrator import MAX_RUN_ID_LEN, valid_run_id as _valid_run_id
-
-_lock = threading.Lock()
 
 
 def _db(path: Path) -> sqlite3.Connection:
@@ -68,30 +66,58 @@ def _db(path: Path) -> sqlite3.Connection:
     return conn
 
 
+def _loopback_origin(origin: str) -> bool:
+    """True when an Origin header points at this loopback machine."""
+    from urllib.parse import urlsplit
+
+    try:
+        host = (urlsplit(origin).hostname or "").lower()
+    except ValueError:
+        return False
+    return host in ("localhost", "127.0.0.1", "::1")
+
+
 def create_app() -> Any:
     try:
-        from fastapi import FastAPI, HTTPException  # type: ignore[import-not-found]
-        from fastapi.responses import JSONResponse  # type: ignore[import-not-found]
+        from fastapi import FastAPI, Header, HTTPException, Request  # type: ignore[import-not-found]
+        from fastapi.responses import (JSONResponse,  # type: ignore[import-not-found]
+                                       StreamingResponse)
     except ImportError as exc:
         raise RuntimeError("API extra missing: pip install -e '.[api]'") from exc
     if RunRequest is None:
         raise RuntimeError("API extra missing: pip install -e '.[api]'")
 
+    from contextlib import asynccontextmanager
+
     from .compare import compare_runs
     from .ir import IRValidationError, SCENARIO_IDS, validate_ir
     from .ir_v2 import validate_v2
-    from .orchestrator import (CancelledRun, PipelineError, active_runs,
-                               request_cancel, run_pipeline)
+    from .orchestrator import active_runs, request_cancel
 
-    app = FastAPI(title="GENESIS RT orchestrator", version="0.1.0")
     db_path = ARTIFACTS / "runs.db"
+    mgr = JobManager(db_path, ARTIFACTS)
 
-    @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    @asynccontextmanager
+    async def _lifespan(app: Any) -> Any:
+        yield
+        mgr.close()
 
-    @app.post("/runs")
-    def start_run(req: RunRequest) -> JSONResponse:
+    app = FastAPI(title="GENESIS RT orchestrator", version="0.2.0",
+                  lifespan=_lifespan)
+    app.state.jobs = mgr
+
+    @app.middleware("http")
+    async def _origin_guard(request: Request, call_next: Any) -> Any:
+        # Loopback is the trust boundary; a foreign Origin on a
+        # state-changing request is a drive-by from another site.
+        if request.method in ("POST", "DELETE"):
+            origin = request.headers.get("origin")
+            if origin and not _loopback_origin(origin):
+                return JSONResponse({"error": "cross-origin write rejected"},
+                                    status_code=403)
+        return await call_next(request)
+
+    def _check_common(req: RunRequest) -> None:
         if req.run_id is not None and not _valid_run_id(req.run_id):
             raise HTTPException(400, "invalid run_id")
         if req.scenarios is not None:
@@ -100,7 +126,13 @@ def create_app() -> Any:
             unknown = [s for s in req.scenarios if s not in SCENARIO_IDS]
             if unknown:
                 raise HTTPException(400, f"unknown scenarios: {sorted(unknown)}")
-        tmp_ir: Path | None = None
+
+    def _prepare_ir(req: RunRequest) -> tuple[Path, Path | None]:
+        """Validate the payload; return (ir_path, tmp_upload|None).
+
+        Tmp uploads are deleted by the job worker when the job settles;
+        callers delete them only when submit itself is refused.
+        """
         try:
             if req.ir is not None:
                 try:
@@ -125,46 +157,66 @@ def create_app() -> Any:
                         dir=ARTIFACTS, delete=False) as fh:
                     fh.write(raw)
                     tmp_ir = Path(fh.name)
-                ir_path = tmp_ir
-            elif req.example:
+                return tmp_ir, tmp_ir
+            if req.example:
                 candidate = (REPO_ROOT / "examples" / req.example / "machine-ir.json").resolve()
                 if REPO_ROOT / "examples" not in candidate.parents:
                     raise HTTPException(400, "invalid example name")
                 if not candidate.exists():
                     raise HTTPException(404, "unknown example")
-                ir_path = candidate
-            else:
-                raise HTTPException(400, "provide 'example' or 'ir'")
+                return candidate, None
+            raise HTTPException(400, "provide 'example' or 'ir'")
         except HTTPException:
             raise
         except (ValueError, OSError) as exc:
             raise HTTPException(400, f"bad request: {exc}") from exc
+
+    def _drop(path: Path | None) -> None:
+        if path is not None:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.post("/runs")
+    def start_run(req: RunRequest) -> JSONResponse:
+        """Sync facade: submit to the job pool and wait (shape unchanged)."""
+        _check_common(req)
+        ir_path, tmp_ir = _prepare_ir(req)
         try:
-            with _lock:  # bounded: one pipeline at a time on local hardware
-                summary = run_pipeline(ir_path, ARTIFACTS, run_id=req.run_id,
-                                       scenarios=req.scenarios)
-        except CancelledRun as exc:
-            return JSONResponse({"run_id": exc.run_id, "status": "cancelled",
-                                 "run_dir": exc.run_dir}, status_code=409)
-        except PipelineError as exc:
-            return JSONResponse({"error": f"run conflict: {exc}"}, status_code=409)
+            job_id = mgr.submit(ir_path, scenarios=req.scenarios,
+                                run_id=req.run_id, cleanup=tmp_ir)
         except ValueError as exc:
+            _drop(tmp_ir)
             raise HTTPException(400, f"bad request: {exc}") from exc
-        finally:
-            if tmp_ir is not None:
-                tmp_ir.unlink(missing_ok=True)
-        passport_text = Path(summary["passport"]).read_text(encoding="utf-8")
-        conn = _db(db_path)
+        except JobConflict as exc:
+            _drop(tmp_ir)
+            return JSONResponse({"error": f"run conflict: {exc}"}, status_code=409)
         try:
-            conn.execute(
-                "INSERT OR REPLACE INTO runs (run_id, verdict, passport,"
-                " run_dir) VALUES (?,?,?,?)",
-                (summary["run_id"], summary["verdict"], passport_text,
-                 str(summary["run_dir"])))
-            conn.commit()
-        finally:
-            conn.close()
-        return JSONResponse(summary)
+            rec = mgr.wait(job_id, timeout=900)
+        except TimeoutError:
+            return JSONResponse({"job_id": job_id, "status": "active"},
+                                status_code=503)
+        if rec["state"] == "cancelled":
+            return JSONResponse({"run_id": job_id, "status": "cancelled",
+                                 "run_dir": rec["run_dir"]}, status_code=409)
+        if rec["state"] == "failed":
+            err = rec["error"] or "pipeline failed"
+            head = err.split(":", 1)[0]
+            if head == "PipelineError":
+                return JSONResponse({"error": f"run conflict: {err}"},
+                                    status_code=409)
+            if head in ("ValueError", "IRValidationError"):
+                raise HTTPException(400, f"bad request: {err}")
+            return JSONResponse({"error": err}, status_code=500)
+        if rec["state"] != "succeeded" or not rec["summary"]:
+            return JSONResponse({"error": f"run {rec['state']}: {rec['error']}"},
+                                status_code=500)
+        return JSONResponse(json.loads(rec["summary"]))
 
     @app.delete("/runs/{run_id}/cancel")
     def cancel_run(run_id: str) -> JSONResponse:
@@ -257,5 +309,100 @@ def create_app() -> Any:
         except ValueError as exc:
             raise HTTPException(409, f"cannot compare: {exc}") from exc
         return JSONResponse(comp)
+
+    @app.post("/jobs", status_code=202)
+    def create_job(req: RunRequest) -> JSONResponse:
+        """Async submit: 202 immediately, poll /jobs/{id} or stream events."""
+        _check_common(req)
+        ir_path, tmp_ir = _prepare_ir(req)
+        try:
+            job_id = mgr.submit(ir_path, scenarios=req.scenarios,
+                                run_id=req.run_id, cleanup=tmp_ir)
+        except ValueError as exc:
+            _drop(tmp_ir)
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        except JobConflict as exc:
+            _drop(tmp_ir)
+            return JSONResponse({"error": f"run conflict: {exc}"}, status_code=409)
+        return JSONResponse({"job_id": job_id, "state": "queued"},
+                            status_code=202)
+
+    @app.get("/jobs/{job_id}")
+    def get_job(job_id: str) -> JSONResponse:
+        if not _valid_run_id(job_id):
+            raise HTTPException(400, "invalid job id")
+        rec = mgr.get(job_id)
+        if rec is None:
+            raise HTTPException(404, "unknown job")
+        return JSONResponse({k: rec[k] for k in
+                             ("job_id", "state", "verdict", "run_dir", "error",
+                              "created", "updated")})
+
+    @app.get("/jobs")
+    def list_jobs(limit: int = 50) -> JSONResponse:
+        return JSONResponse({"jobs": mgr.list_jobs(limit)})
+
+    @app.delete("/jobs/{job_id}")
+    def cancel_job(job_id: str) -> JSONResponse:
+        if not _valid_run_id(job_id):
+            raise HTTPException(400, "invalid job id")
+        try:
+            rec = mgr.cancel(job_id)
+        except JobNotFound:
+            raise HTTPException(404, "unknown job") from None
+        code = 200 if rec["state"] in ("succeeded", "failed", "cancelled",
+                                       "interrupted") else 202
+        return JSONResponse({"job_id": job_id, "state": rec["state"]},
+                            status_code=code)
+
+    @app.get("/jobs/{job_id}/events")
+    async def job_events(job_id: str, after: int = -1,
+                         last_event_id: str | None = Header(default=None)
+                         ) -> StreamingResponse:
+        """SSE: every event carries job_id + ordered seq; reconnect-safe.
+
+        NOTE: the resume header is a Header() param, not `request: Request`:
+        with `from __future__ import annotations` a locally-imported Request
+        is unresolvable in module globals and FastAPI 422s (same trap as the
+        RunRequest NOTE above).
+        """
+        import asyncio
+
+        if not _valid_run_id(job_id):
+            raise HTTPException(400, "invalid job id")
+        if mgr.get(job_id) is None:
+            raise HTTPException(404, "unknown job")
+        if last_event_id and last_event_id.strip().isdigit():
+            after = max(after, int(last_event_id.strip()))
+
+        async def _stream() -> Any:
+            last = max(-1, after)
+            idle_slices = 0
+            try:
+                while True:
+                    rows = mgr.events(job_id, after=last)
+                    for row in rows:
+                        last = row["seq"]
+                        yield (f"id: {row['seq']}\nevent: {row['kind']}\n"
+                               f"data: {json.dumps(row)}\n\n")
+                        if row["kind"] in ("done", "failed", "cancelled",
+                                           "interrupted"):
+                            return
+                    rec = mgr.get(job_id)
+                    if rec is None:  # job row vanished mid-stream
+                        return
+                    if not rows and rec["state"] in ("succeeded", "failed",
+                                                     "cancelled", "interrupted"):
+                        return  # caught up on a terminal job: resume got all
+                    await asyncio.sleep(0.05)
+                    idle_slices += 1
+                    if idle_slices >= 300:  # ~15 s heartbeat
+                        idle_slices = 0
+                        yield ": ping\n\n"
+            except (GeneratorExit, asyncio.CancelledError):
+                return
+
+        return StreamingResponse(_stream(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache"})
 
     return app

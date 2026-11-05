@@ -96,13 +96,25 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
                  run_id: str | None = None,
                  scenarios: list[str] | None = None,
                  target_record: str | Path | None = None,
-                 perf_record: str | Path | None = None) -> dict[str, Any]:
+                 perf_record: str | Path | None = None,
+                 listener: Any | None = None) -> dict[str, Any]:
+    """Run the full pipeline. ``listener(kind, message)`` (optional) gets
+    phase progress; listener errors never fail the pipeline."""
     t0 = time.monotonic()
     explicit_id = run_id is not None
     if explicit_id and not valid_run_id(run_id):
         raise PipelineError(f"invalid run_id: {run_id!r} "
                             "(ASCII alnum, '-', '_' only, 1..64 chars)")
     run_id = run_id or f"run-{uuid.uuid4().hex[:12]}"
+
+    def _notify(kind: str, message: str) -> None:
+        if listener is None:
+            return
+        try:
+            listener(kind, message)
+        except Exception:
+            pass
+
     adir = Path(artifacts_dir)
     run_dir = adir / run_id
     if explicit_id and (run_dir / "passport.json").exists():
@@ -136,6 +148,7 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
             _write_failure(run_dir, steps, _fail("validate", exc))
             raise
         steps["validate"] = {"status": "ok", "machine": ir["machine"]["id"]}
+        _notify("validated", f"machine={ir['machine']['id']}")
 
         _check_cancelled(run_id, run_dir, steps)
         gen_dir = run_dir / "generated"
@@ -151,6 +164,7 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
             steps["codegen"] = {"status": "error", "error": failure["error"]}
         else:
             steps["codegen"] = {"status": "ok", "manifest": manifest}
+        _notify("generated", f"status={steps['codegen']['status']}")
 
         _check_cancelled(run_id, run_dir, steps)
         steps["host_cc_check"] = build_adapter.check_host_cc(gen_dir, TARGET_SRC)
@@ -160,6 +174,7 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
         steps["qnx_build"] = {k: v for k, v in qnx_record.items() if k != "environment"}
         steps["qnx_build"]["environment_sdk_present"] = bool(
             qnx_record.get("environment", {}).get("sdk_present", False))
+        _notify("built", f"status={steps['qnx_build'].get('status')}")
 
         _check_cancelled(run_id, run_dir, steps)
         wanted = scenarios or list(ir["verification"]["scenarios"])
@@ -176,6 +191,8 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
                 "status": "ok" if not failed else "fail",
                 "scenarios": {r["scenario"]: r["status"] for r in results},
             }
+        _notify("verified", f"status={steps['verification']['status']} "
+                            f"scenarios={len(results)}")
 
         _check_cancelled(run_id, run_dir, steps)
         qnx_target = None
@@ -218,6 +235,8 @@ def run_pipeline(ir_path: str | Path, artifacts_dir: str | Path,
         evidence.attach_verdict(passport, verdict)
         ppath = evidence.save_passport(passport, run_dir / "passport.json")
         steps["gate"] = verdict
+        _notify("verdict", f"verdict={verdict['verdict']} "
+                           f"level={verdict['level']}")
 
         return {"run_id": run_id, "run_dir": str(run_dir),
                 "passport": str(ppath), "verdict": verdict["verdict"],

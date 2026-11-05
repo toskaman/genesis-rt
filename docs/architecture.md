@@ -55,6 +55,12 @@
 - **Simulator**: fixed-step 2D kinematics, seeded noise, corridor + obstacles.
   Clearly labelled simulation; its clocks are never mixed with QNX clocks.
 - **Evidence**: hash-chained passport (see `evidence-methodology.md`).
+- **Jobs API**: `POST /jobs` submits to a bounded pool (2 workers) and
+  returns 202; `GET /jobs/{id}` polls, `GET .../events` streams SSE
+  (job_id + ordered seq, reconnect-safe), `DELETE` cancels via the
+  orchestrator checkpoints. `POST /runs` stays a sync facade with an
+  unchanged response shape. Loopback-only, foreign-Origin writes 403.
+  Cancelled/failed/crashed/interrupted jobs never carry a verdict.
 
 ## QNX-native target (all in `target/qnx8/`)
 
