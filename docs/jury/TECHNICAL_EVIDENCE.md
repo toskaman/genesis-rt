@@ -3,7 +3,7 @@
 | Claim | Primary evidence | Secondary evidence |
 |---|---|---|
 | Native QNX IPC guard/server | `target/qnx8/guard/genesis_guard.c` (`name_attach`, `MsgReceive`, `MsgReply`) | `target/qnx8/controller/genesis_controller.c` (`name_open`, `MsgSend`) |
-| Fixed versioned protocol | `target/qnx8/include/genesis_ipc.h` | `schemas/machine-ir-v1.schema.json` |
+| Fixed versioned protocol | `target/qnx8/include/genesis_ipc.h` | `schemas/machine-ir-v1.schema.json` + `schemas/machine-ir-v2.schema.json` |
 | Fail-closed policy | `target/qnx8/common/guard_policy.c` | `host/genesis_rt/guard_policy.py` (mirror) |
 | C/Python identity | `tests/integration/test_c_conformance.py` | `target/qnx8/host_tests/guard_vector.c` |
 | Resource manager | `target/qnx8/status/genesis_status.c` (`/dev/genesis/status`) | `target/qnx8/README.md` |

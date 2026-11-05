@@ -13,7 +13,7 @@
          |            |              |
          +--> [VALIDATION / POLICY] <-+   (strict whitelist, fail-closed)
                         |
-               [Deterministic Codegen]    codegen.py + templates/
+               [Deterministic Codegen]    codegen.py / codegen_v2.py + templates/
                         |
                [QNX Build Adapter]        build_adapter.py (qcc/q++)
                         |
@@ -36,9 +36,14 @@
 ## Host (non-real-time)
 
 - **Orchestrator**: one pipeline (`validate → codegen → build → verify →
-  evidence → gate`), bounded, cancellable by timeout. Local-first.
+  evidence → gate`), bounded, cancellable by timeout. Local-first. CLI and
+  pipeline dispatch v1/v2 through strict per-version loaders (`_load_any_ir`);
+  v2 is never reinterpreted as v1.
 - **Machine IR**: versioned JSON Schema (`schemas/`); normalized units and
-  fixed enumerations; rejects unbounded/unrecognized features.
+  fixed enumerations; rejects unbounded/unrecognized features. Host Fault Lab
+  enforces the numeric guard contract (period, speed limits, freshness) for
+  v1 and v2 equally; state-machine transitions are verified on-target
+  (`v2_transitions` matrix step), not in the host mirror.
 - **Planner**: constrained intent → IR *proposals*; deterministic offline
   presets. External LLM providers may plug in later but their output takes
   the same validated path and never generates policy directly.
