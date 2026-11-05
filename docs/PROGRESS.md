@@ -1,5 +1,26 @@
 # Progress log
 
+## 2026-11-05 -- P1 Wave 3A : fault containment (guard_crash)
+
+- Matrice 14e step `guard_crash` avant `cell_policy` (cell_policy
+  reste dernier, invariant tests) ; sonde live : guard tue
+  mid-stream, applies gelees (BEFORE=82 AFTER=84), NONGUARD=0,
+  ALIVE=0, client `MsgSend failed`.
+- Parser `_matrix_check guard_crash` : BEFORE>=20, AFTER-BEFORE
+  0..3, NONGUARD=0, ALIVE=0, marqueur MsgSend failed (8 tests) ;
+  tests cell_policy portes a 14.
+- Preuve cible liee : `verify --ir cell-ir.json` 14/14 PASS,
+  perf 1000/1000 (p50 263.7 us, p95 439.2, p99 580.2, max 786.0),
+  `demo` -> `QNX_PERFORMANCE_MEASURED` (run-401697e34f10).
+- Replay ancre : `chain: valid` + `anchor: match` + `transcripts:
+  14/14 match` + `gate: PASS` exit 0 ; transcript guard_crash
+  falsifie -> `MODIFIED` exit 1. Ancre run-401697e34f10 :
+  `c7f890a6543dd12ebd99cb428ca39d21696af2d69c550b18a142af433fae487c`.
+- Suite hote 460/460.
+  Chiffres canoniques : 460 tests, matrice 14/14, 9 stages.
+  Risque : fenetre AFTER-BEFORE 0..3 calibree sur 2 sondes TCG ;
+  a revalider si flake.
+
 ## 2026-11-05 -- P1 Wave 2B : counterfactual + API (Demo C, history/export)
 
 - Passeport : record `ir` embarque `limits` (guard_limits, None pour

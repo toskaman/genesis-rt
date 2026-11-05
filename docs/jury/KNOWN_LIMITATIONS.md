@@ -3,8 +3,8 @@
 Short version of `docs/limitations-and-safety.md` — the full text governs.
 
 - Host fault results are **simulated**; the C policy is proven identical
-  by conformance vectors, and the on-target 13-step matrix (9/9 IPC checks,
-  live telemetry, supervision, guarded device chain) passes on QNX 8.0/QEMU. Passports always
+  by conformance vectors, and the on-target 14-step matrix (9/9 IPC checks,
+  live telemetry, supervision, guarded device chain, guard-crash containment) passes on QNX 8.0/QEMU. Passports always
   show `qnx_verified` explicitly.
 - No safety certification, no formal verification, no production timing
   guarantees; QEMU numbers are regression aids only.

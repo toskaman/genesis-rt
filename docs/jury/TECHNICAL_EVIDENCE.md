@@ -14,7 +14,8 @@
 | Fail-closed gate | `host/genesis_rt/gate.py` | `tests/unit/test_evidence_gate.py`, `tests/acceptance/` |
 | Verification levels (host PASS ≠ release) | `gate.py` (`NONE…QNX_PERFORMANCE_MEASURED`, `release_eligible`) | `tests/unit/test_evidence_gate.py` (tier/binding tests), CLI `demo` output |
 | Honest QNX absence | `host/genesis_rt/build_adapter.py` (`blocked` records) | `tests/qnx/test_qnx_build.py` (explicit skip) |
-| On-target proof (QNX 8.0 QEMU) | `scripts/qnx_target.py verify` (13-step SSH matrix) | `target/qnx8/faultinject/` (9/9 IPC checks), run transcripts |
+| On-target proof (QNX 8.0 QEMU) | `scripts/qnx_target.py verify` (14-step SSH matrix) | `target/qnx8/faultinject/` (9/9 IPC checks), run transcripts |
+| Guard-crash containment | guard killed mid-stream inside the matrix step | `guard_crash` step (apply-count freeze ≤3, NONGUARD=0, guard gone, client MsgSend fails) |
 | Cell interlock policy (native) | `target/qnx8/cell/genesis_cellcheck.c` (9 interlock vectors + 3 policy checks) | `cell_policy` matrix step (`CELL_POLICY: PASS 12/12`), IR-bound `limits_differ` slot-1 banner |
 | Guarded device path | guard→device forward + `target/qnx8/common/device_model.c` | `device_chain` step (APPLIES≥20, NONGUARD=0, virtual robot moved) |
 | Generated limits drive runtime | guard/controller/faultinject include `genesis_config_gen.h` | `limits_differ` step (probe 1.5 DENY vs ALLOW), `tests/integration/test_limit_wiring.py` |

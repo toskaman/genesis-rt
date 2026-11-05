@@ -8,7 +8,7 @@
 > Status: functional alpha for the [QNX Global Hackathon](https://qnx.devpost.com/)
 > (Developer Tooling & Host Tools), built 4 Nov 2026 onward. Host verification
 > is fully working; QNX on-target execution is verified (native `qcc`
-> build with 0 warnings, 13/13 on-target matrix, `qnx_verified: true`).
+> build with 0 warnings, 14/14 on-target matrix, `qnx_verified: true`).
 > No safety certification is claimed.
 
 ## 60-second pitch
@@ -84,7 +84,7 @@ records QNX steps as `blocked`, never as passed).
 ## Honest known limitations
 
 - Host fault results are **simulated**; QNX on-target runs are verified by
-  the authors (13/13 matrix) and reproducible with an SDK + QEMU setup
+  the authors (14/14 matrix) and reproducible with an SDK + QEMU setup
   ([docs/PROGRESS.md](docs/PROGRESS.md)).
 - QEMU timing is for regression comparison, not production guarantees.
 - Prototype only: no functional-safety qualification, simulation-only outputs.

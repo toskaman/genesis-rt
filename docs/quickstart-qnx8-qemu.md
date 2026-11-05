@@ -21,7 +21,7 @@
   image-default username; never committed, pass via `GENESIS_TARGET_PASSWORD`).
 - Verified 5 Nov 2026: `qcc` builds 6 binaries per machine (7 for
   the industrial cell: + `genesis_cellcheck`) with 0 warnings
-  (9 staged on target); on-target matrix 13/13 PASS
+  (9 staged on target); on-target matrix 14/14 PASS
   (`qnx_verified: true`, replay valid).
 
 ## 1. Get the SDK lawfully (your 10 minutes, cannot be automated)
@@ -92,7 +92,7 @@ at boot; password via `GENESIS_TARGET_PASSWORD`, never on the command line):
 ```sh
 python scripts/qnx_target.py put /tmp/genesis-qnx/genesis_* --dest /tmp/genesis
 python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json
-# expect: 13/13 PASS — target_info, faultinject (9/9), status_live,
+# expect: 14/14 PASS — target_info, faultinject (9/9), status_live,
 # limits_differ (probe 1.5: slot-1 DENY vs conveyor ALLOW + 9/9 vs conv;
 # slot-1 banner pinned to --ir when bound, else legacy AMR),
 # device_chain (guard→device→status, APPLIES≥20, NONGUARD=0),
@@ -101,6 +101,7 @@ python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json
 # target_perf (bench 200 shape), controller_flow,
 # supervisor_respawn, supervisor_giveup,
 # v2_transitions (v1/v2 guard contrast on probe state 2/3 + 9/9 on v2),
+# guard_crash (guard killed mid-stream: applies freeze ≤3, NONGUARD=0, client MsgSend fails),
 # cell_policy (native interlock selftest 12/12)
 python scripts/qnx_target.py perf --samples 1000 --out artifacts/qnx-perf
 # expect: PASS 1000/1000, p50 ~0.3 ms under TCG (see docs/perf-baseline.md);

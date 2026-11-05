@@ -497,6 +497,26 @@ TARGET_MATRIX = [
      " ./genesis_guard_v2 > guard-v2est.log 2>&1 & sleep 2;"
      " echo ---V2-ESTOP---; ./genesis_faultinject probe estop;"
      " slay genesis_guard_v2 2>/dev/null; slay genesis_guard 2>/dev/null; true"),
+    ("guard_crash",
+     # Fault containment: SIGKILL the guard mid-chain. The device must
+     # freeze (<=3 in-flight applies may still land), every apply must
+     # come from the dead guard pid (no bypass), the guard must be gone
+     # from pidin, and the orphaned controller must observe MsgSend
+     # failures instead of silently succeeding.
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+     " slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
+     " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1;"
+     " rm -f device-gc.log guard-gc.log ctrl-gc.log;"
+     " ./genesis_device > device-gc.log 2>&1 &"
+     " ./genesis_guard > guard-gc.log 2>&1 & GPID=$!; sleep 2;"
+     " ./genesis_controller 50 > ctrl-gc.log 2>&1 & sleep 4;"
+     " echo BEFORE=$(grep -c APPLY device-gc.log);"
+     " slay -9 genesis_guard; sleep 3;"
+     " echo AFTER=$(grep -c APPLY device-gc.log);"
+     " echo NONGUARD=$(grep APPLY device-gc.log | grep -vc \"from_pid=$GPID \");"
+     " echo ALIVE=$(pidin -F %n 2>/dev/null | grep -c \"^genesis_guard$\");"
+     " echo ---CTRL-GC-TAIL---; tail -5 ctrl-gc.log;"
+     " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; true"),
     ("cell_policy",
      "cd /tmp/genesis;"
      " test -x ./genesis_cellcheck || { echo MISSING_CELLCHECK; exit 3; };"
@@ -643,6 +663,20 @@ def _matrix_check(name: str, body: str, status: int,
               and "MISSING_V2_GUARD" not in body and "FI_V2_EXIT=0" in body
               and secs[4].count("PASS ") >= 9
               and all(w in s for w, s in zip(wants, secs)))
+    elif name == "guard_crash":
+        # Containment: a live chain (BEFORE>=20) is SIGKILLed; the
+        # device must freeze (<=3 in-flight applies), nothing may
+        # bypass the dead guard pid, pidin must show no guard left,
+        # and the orphaned controller must report MsgSend failures.
+        def _num(pat, cast=float, default=None):
+            m = re.search(pat, body)
+            return cast(m.group(1)) if m else default
+        before = _num(r"BEFORE=(\d+)", int, -1)
+        after = _num(r"AFTER=(\d+)", int, -1)
+        ok = (before >= 20 and 0 <= after - before <= 3
+              and _num(r"NONGUARD=(\d+)", int, -1) == 0
+              and _num(r"ALIVE=(\d+)", int, -1) == 0
+              and "MsgSend failed" in body)
     elif name == "cell_policy":
         # Cell interlock selftest, native: 9 truth-table vectors + 3
         # policy bound checks from the generated cell header.
