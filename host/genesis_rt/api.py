@@ -184,7 +184,7 @@ def create_app() -> Any:
     async def _origin_guard(request: Request, call_next: Any) -> Any:
         # Loopback is the trust boundary; a foreign Origin on a
         # state-changing request is a drive-by from another site.
-        if request.method in ("POST", "DELETE"):
+        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
             origin = request.headers.get("origin")
             if origin and not _loopback_origin(origin):
                 return JSONResponse({"error": "cross-origin write rejected"},

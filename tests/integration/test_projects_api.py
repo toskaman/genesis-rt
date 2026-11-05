@@ -176,3 +176,13 @@ def test_cross_origin_project_write_rejected(client):
     r = client.post("/projects", json={"from_example": "amr-demo"},
                     headers={"Origin": "https://evil.example"})
     assert r.status_code == 403
+
+
+def test_cross_origin_project_put_rejected(client):
+    pid = _mk(client, name="victim")["pid"]
+    ir = client.get(f"/projects/{pid}").json()["ir"]
+    r = client.put(f"/projects/{pid}", json={"ir": ir},
+                   headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403
+    ok = client.get(f"/projects/{pid}").json()
+    assert ok["head"] == 1  # nothing was written
