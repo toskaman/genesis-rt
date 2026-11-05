@@ -123,6 +123,10 @@
   node-tested for frame+marker equality) and renders cell/diff/
   belt schematics with scrub, speed, event navigation, A/B
   synchronized compare and marker→evidence sync.
+- **Time/deadline correctness** (§16): guard seq and deadline checks
+  both use RFC 1982 serial arithmetic over uint32 wire clocks
+  (Python mirror + C policy, conformance-vector proven); the
+  uint32 IPC ABI is unchanged.
 - **Productivity Benchmark** (`host/genesis_rt/bench_productivity.py`):
   six engineering tasks executed as real CLI subprocesses in two
   lanes — genesis vs checked-in synthetic references

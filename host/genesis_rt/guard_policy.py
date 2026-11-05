@@ -26,6 +26,13 @@ Parity contract (mirrors guard_policy.c exactly):
   uint32 seq, delta = (seq - last_seq) mod 2^32 is accepted iff
   1 <= delta < 2^31. Counter wraparound (2^32-1 -> 0) is accepted;
   duplicates, replays and huge forward jumps are denied STALE_SEQ.
+- Deadline comparison uses the same serial arithmetic (§16): with
+  uint32 clocks, overdue = 0 < (now_ms - deadline_ms) mod 2^32
+  < 2^31. Commands stay correct across the 2^32ms wraparound
+  (~49.7 days); now == deadline is not overdue. Pairs 2^31+ ms
+  apart are ambiguous by construction (RFC 1982) and read as
+  "deadline in the future" — unreachable for real near-term
+  deadlines (period + 20ms margin).
 """
 
 from __future__ import annotations
@@ -138,7 +145,8 @@ def decide(cmd: dict[str, Any], ctx: GuardContext, limits: dict[str, Any]) -> di
     delta = (seq - ctx.last_seq) % _SEQ_MOD
     if not 0 < delta < _SEQ_HALF:
         return deny(R_STALE_SEQ, latch=False)
-    if now_ms > deadline_ms:
+    overdue = (now_ms - deadline_ms) % _SEQ_MOD
+    if 0 < overdue < _SEQ_HALF:
         return deny(R_OVERDUE_DEADLINE, latch=False)
     if sensor_age_ms > freshness:
         return deny(R_STALE_SENSOR, latch=True)

@@ -8,7 +8,11 @@ Short version of `docs/limitations-and-safety.md` — the full text governs.
   show `qnx_verified` explicitly.
 - No safety certification, no formal verification, no production timing
   guarantees; QEMU numbers are regression aids only.
-- Millisecond clocks are `uint32` (wrap documented, not yet wrap-safe).
+- Millisecond clocks are `uint32` with RFC 1982 serial arithmetic for
+  seq and deadlines (§16, C/Python conformance-tested): correct across
+  the ~49.7-day wrap. Pairs 2^31+ ms apart are ambiguous by
+  construction and read as "deadline in the future" — unreachable
+  for near-term deadlines, but a 64-bit clock would remove the caveat.
 - UI is static pages (`dashboard.html`, `studio.html`): artifact
   inspection + trace replay, no live pipeline execution from the page.
 - API is local-first with no auth; not for exposed deployment.

@@ -48,6 +48,12 @@ VECTORS = [
     (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 1, None, 2),  # estop bad value
     (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 0, 3, None, 1),  # estop while locked
     (E, 1, 1, 1, 0, 50, 0.5, 0.0, 1, 0, 1, 1, 3, None, 1),  # estop blocks reset
+    # §16 deadline serial arithmetic (M = 2^32)
+    (E, 1, 1, 1, 10, (1 << 32) - 5, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),  # overdue across wrap
+    (E, 1, 1, 1, (1 << 32) - 10, 100, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),  # future across wrap
+    (E, 1, 1, 1, (1 << 32) - 1, (1 << 32) - 1, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),  # equal at edge
+    (E, 1, 1, 1, (1 << 31) - 1, 0, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),  # max overdue
+    (E, 1, 1, 1, 1 << 31, 0, 0.5, 0.0, 1, 0, 1, 0, 1, None, 0),  # ambiguity reads future
 ]
 
 

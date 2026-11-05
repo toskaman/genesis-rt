@@ -61,7 +61,12 @@
   faults 5/5 vs 2/5, genesis lane reproducible; `bench` CLI,
   `bench/productivity/METHODOLOGY.md` + recorded `REPORT.json`,
   commercial vision updated with measured numbers only.
-- Suite 736/736 with SDK (SDK-free 733 + 3 honest QNX-build skips);
+- M4 §16 time wrap fixed: deadline comparison was a plain
+  `now > deadline` (fail-open overdue + false overdue across the
+  uint32 wrap); now RFC 1982 serial arithmetic in Python + C,
+  ABI unchanged, 5 new conformance vectors, wrap/recovery/version
+  unit tests green.
+- Suite 752/752 with SDK (SDK-free 749 + 3 honest QNX-build skips);
   jury pins + architecture updated; consistency guard green.
 
 ## 2026-11-05 -- P1 Wave 5 : jury delivery (termine)

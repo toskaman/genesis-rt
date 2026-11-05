@@ -11,6 +11,12 @@
  * uint32 seq, delta = seq - last_seq (unsigned wraparound) is accepted
  * iff 1 <= delta < 2^31. Counter wraparound is accepted; duplicates,
  * replays and huge forward jumps are denied STALE_SEQ.
+ *
+ * Deadline comparison uses the same serial arithmetic (§16): overdue
+ * iff 0 < now_ms - deadline_ms (unsigned wraparound) < 2^31. now ==
+ * deadline is not overdue. Pairs 2^31+ ms apart are ambiguous by
+ * construction and read as "deadline in the future" — unreachable
+ * for real near-term deadlines (period + 20ms margin).
  */
 #include "guard_policy.h"
 #include <math.h>
@@ -145,8 +151,11 @@ genesis_verdict_t genesis_guard_decide(const genesis_cmd_t *cmd, uint32_t frame_
         if (delta == 0 || delta >= 0x80000000u)
             return deny(ctx, GENESIS_R_STALE_SEQ, 0);
     }
-    if (cmd->now_ms > cmd->deadline_ms)
-        return deny(ctx, GENESIS_R_OVERDUE_DEADLINE, 0);
+    {
+        uint32_t overdue = cmd->now_ms - cmd->deadline_ms; /* wraps mod 2^32 */
+        if (overdue != 0 && overdue < 0x80000000u)
+            return deny(ctx, GENESIS_R_OVERDUE_DEADLINE, 0);
+    }
     if (cmd->sensor_age_ms > limits->freshness_limit_ms)
         return deny(ctx, GENESIS_R_STALE_SENSOR, v2_latch_stale_sensor());
     if (!cmd->sim_connected)
