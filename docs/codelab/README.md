@@ -85,7 +85,7 @@ Expect two files plus their sha256 lines:
 
 ```text
 generated: .../lab-build (schema v1)
-  genesis_build_gen.mk  sha256:14b1ba4ec8a6e6b7...
+  genesis_build_gen.mk  sha256:bfaa3718c096885a...
   genesis_config_gen.h  sha256:cd74fc72635d736c...
 ```
 
@@ -181,7 +181,7 @@ sleep 2
 Expect a stream of allows (period = 50 ms, Ctrl-C to stop):
 
 ```text
-controller: machine=cell-demo-01 connected to 'genesis_guard', period=50ms cruise=0.480
+controller: machine=amr-demo-01 connected to 'genesis_guard', period=50ms cruise=0.480
 controller: seq=1 decision=ALLOW reason=0 state=1
 controller: seq=2 decision=ALLOW reason=0 state=1
 ```
