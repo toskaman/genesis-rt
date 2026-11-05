@@ -79,6 +79,9 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'jobs') return renderJobsHtml(JSON.parse(c.arg));
     if (c.fn === 'keyerr') return keyFromError(c.arg);
     if (c.fn === 'scen') return renderScenarioChecks(JSON.parse(c.arg));
+    if (c.fn === 'graph') { const j = JSON.parse(c.arg); return renderGraphHtml(j.graph, j.opts); }
+    if (c.fn === 'graphnode') { const j = JSON.parse(c.arg); return renderGraphNodeHtml(j.graph, j.id, j.opts || {}); }
+    if (c.fn === 'graphdiff') return renderGraphDiffHtml(JSON.parse(c.arg));
     throw new Error('unknown fn ' + c.fn);
   });
   fs.writeFileSync(process.argv[3], JSON.stringify(out));
@@ -454,3 +457,143 @@ def test_live_scenario_checks(tmp_path):
     assert got.count('checked') == 2 and "dropped&gt;x" in got
     (empty,) = _run_js([{"fn": "scen", "arg": "[]"}], tmp_path)
     assert "No scenarios" in empty
+
+
+def _graph_passport(amr_ir, tmp_path, tag, scenarios=None, mutate=None):
+    manifest = codegen.generate(amr_ir, tmp_path / f"gen-{tag}")
+    scenarios = scenarios if scenarios is not None else list(
+        amr_ir["verification"]["scenarios"])
+    results = faultlab.run_all(amr_ir, scenarios)
+    if mutate is not None:
+        mutate(results)
+    p = evidence.build_passport(f"run-{tag}", amr_ir, manifest, results,
+                                {"status": "missing"})
+    return evidence.attach_verdict(p, gate.evaluate(p, scenarios))
+
+
+def _v2_ir(repo_root):
+    return json.loads((repo_root / "examples" / "amr-demo" /
+                       "machine-ir-v2.json").read_text(encoding="utf-8"))
+
+
+@node
+def test_live_graph_requirements_verdict_and_gaps(amr_ir, tmp_path,
+                                                  repo_root):
+    from genesis_rt.evidence_graph import build_graph
+
+    p = _graph_passport(amr_ir, tmp_path, "js")
+    g = build_graph(p, _v2_ir(repo_root))
+    (got,) = _run_js([{"fn": "graph",
+                       "arg": json.dumps({"graph": g, "opts": {}})}],
+                     tmp_path)
+    assert "run-js" in got and "gate PASS" in got
+    assert "REQ-AMR-01" in got and "Over-limit" in got
+    assert "target unbound" in got and "qnx_verified" in got
+    assert "Evidence gaps" in got  # unbound target stays visible
+    assert "Attach an IR" not in got
+    bare = build_graph(p)
+    (got,) = _run_js([{"fn": "graph",
+                       "arg": json.dumps({"graph": bare, "opts": {}})}],
+                     tmp_path)
+    assert "Attach an IR above" in got
+    assert "REQ-AMR-01" not in got
+
+
+@node
+def test_live_graph_filters_by_scenario_status_and_search(
+        amr_ir, tmp_path, repo_root):
+    from genesis_rt.evidence_graph import build_graph
+
+    def fail(results):
+        for res in results:
+            if res["scenario"] == "dropped_message":
+                res["checks"][0]["passed"] = False
+                res["status"] = "fail"
+
+    g = build_graph(_graph_passport(amr_ir, tmp_path, "jsf", mutate=fail),
+                    _v2_ir(repo_root))
+    calls = [
+        {"fn": "graph", "arg": json.dumps(
+            {"graph": g, "opts": {"scenario": "speed_command_over_limit"}})},
+        {"fn": "graph", "arg": json.dumps(
+            {"graph": g, "opts": {"status": "failed"}})},
+        {"fn": "graph", "arg": json.dumps(
+            {"graph": g, "opts": {"q": "genesis_config"}})},
+    ]
+    scen, failed, found = _run_js(calls, tmp_path)
+    assert "scenario:speed_command_over_limit" in scen
+    assert "scenario:nominal_navigation" not in scen
+    assert "check:dropped_message:gap_detected" in failed
+    assert "check:nominal_navigation:no_denials" not in failed
+    assert "Failed checks" in failed
+    assert "file:genesis_config_gen.h" in found
+    assert "scenario:nominal_navigation" not in found
+
+
+@node
+def test_live_graph_escapes_hostile_labels(amr_ir, tmp_path):
+    from genesis_rt.evidence_graph import build_graph
+
+    g = build_graph(_graph_passport(amr_ir, tmp_path, "jsx"))
+    g["nodes"][3]["label"] = "<script>alert(1)</script>"
+    (got,) = _run_js([{"fn": "graph",
+                       "arg": json.dumps({"graph": g, "opts": {}})}],
+                     tmp_path)
+    assert "<script>alert" not in got
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in got
+    (detail,) = _run_js([{"fn": "graphnode", "arg": json.dumps(
+        {"graph": g, "id": g["nodes"][3]["id"]})}], tmp_path)
+    assert "<script>alert" not in detail
+
+
+@node
+def test_live_graph_node_detail_links_and_file_action(amr_ir, tmp_path,
+                                                      repo_root):
+    from genesis_rt.evidence_graph import build_graph
+
+    g = build_graph(_graph_passport(amr_ir, tmp_path, "jsn"),
+                    _v2_ir(repo_root))
+    (req,) = _run_js([{"fn": "graphnode", "arg": json.dumps(
+        {"graph": g, "id": "req:REQ-AMR-01"})}], tmp_path)
+    assert "Over-limit" in req and "verified_by" in req
+    assert "scenario:speed_command_over_limit" in req
+    (no_file,) = _run_js([{"fn": "graphnode", "arg": json.dumps(
+        {"graph": g, "id": "file:genesis_config_gen.h"})}], tmp_path)
+    assert "Open generated text" not in no_file
+    (with_file,) = _run_js([{"fn": "graphnode", "arg": json.dumps(
+        {"graph": g, "id": "file:genesis_config_gen.h",
+         "opts": {"runId": "run-jsn"}})}], tmp_path)
+    assert "Open generated text" in with_file
+    (missing,) = _run_js([{"fn": "graphnode", "arg": json.dumps(
+        {"graph": g, "id": "nope"})}], tmp_path)
+    assert "Unknown node" in missing
+
+
+@node
+def test_live_graph_diff_shows_limit_change(amr_ir, amr_ir_dict, tmp_path):
+    import copy
+
+    from genesis_rt.evidence_graph import build_graph, compare_graphs
+    from genesis_rt.ir import validate_ir
+
+    before = build_graph(_graph_passport(amr_ir, tmp_path, "jsd-a"))
+    changed = copy.deepcopy(amr_ir_dict)
+    changed["control"]["max_linear_speed_mps"] = 0.9
+    after_ir = validate_ir(changed)
+    scenarios = list(after_ir["verification"]["scenarios"])
+    results = faultlab.run_all(after_ir, scenarios)
+    manifest = codegen.generate(after_ir, tmp_path / "gen-jsd-b")
+    pb = evidence.build_passport("run-jsd-b", after_ir, manifest, results,
+                                 {"status": "missing"})
+    after = build_graph(
+        evidence.attach_verdict(pb, gate.evaluate(pb, scenarios)))
+    diff = compare_graphs(before, after)
+    (got,) = _run_js([{"fn": "graphdiff", "arg": json.dumps(diff)}],
+                     tmp_path)
+    assert "run-jsd-a" in got and "run-jsd-b" in got
+    assert "limit:max_linear_speed_mps" in got
+    assert "0.9" in got and "value" in got
+    same = compare_graphs(before, before)
+    (got,) = _run_js([{"fn": "graphdiff", "arg": json.dumps(same)}],
+                     tmp_path)
+    assert "No node changed" in got

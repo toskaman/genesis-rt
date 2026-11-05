@@ -53,6 +53,18 @@ if BaseModel is not None:
     class ProjectDuplicate(BaseModel):
         name: str
 
+    class GraphRequest(BaseModel):
+        # dict, or the raw passport JSON text. Browsers MUST send text:
+        # a JS parse/reserialize turns 1.0 into 1, which breaks the
+        # hash chain; server-side parsing of the raw text is exact.
+        passport: dict[str, Any] | str
+        ir: dict[str, Any] | None = None
+
+    class GraphCompareRequest(BaseModel):
+        passport_a: dict[str, Any] | str
+        passport_b: dict[str, Any] | str
+        ir: dict[str, Any] | None = None
+
 else:  # pragma: no cover - import-time fallback without the api extra
     RunRequest = None  # type: ignore[assignment, misc]
     CompareRequest = None  # type: ignore[assignment, misc]
@@ -62,9 +74,12 @@ ARTIFACTS = REPO_ROOT / "artifacts" / "runs"
 
 MAX_IR_BYTES = 256 * 1024
 MAX_SCENARIOS = 32
+MAX_PASSPORT_TEXT = 3 * 1024 * 1024
 
 # Canonical run_id rule lives in orchestrator (single source of truth);
 # the API re-checks early for 400 mapping, run_pipeline enforces it.
+from .evidence_graph import (GraphTooLarge, InvalidPassport, build_graph,
+                                 compare_graphs)
 from .jobs import JobConflict, JobManager, JobNotFound
 from .orchestrator import MAX_RUN_ID_LEN, valid_run_id as _valid_run_id
 
@@ -654,6 +669,44 @@ def create_app() -> Any:
     @app.get("/env")
     def read_env() -> JSONResponse:
         return JSONResponse({"api": "0.2.0", "environment": probe_env()})
+
+    def _graph_passport(value: dict[str, Any] | str) -> dict[str, Any]:
+        if isinstance(value, dict):
+            return value
+        if len(value) > MAX_PASSPORT_TEXT:
+            raise GraphTooLarge("passport text exceeds 3 MiB")
+        try:
+            doc = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"passport text is not valid JSON: {exc}") from exc
+        if not isinstance(doc, dict):
+            raise ValueError("passport text must decode to an object")
+        return doc
+
+    @app.post("/graphs")
+    def post_graph(req: GraphRequest) -> JSONResponse:
+        try:
+            doc = _graph_passport(req.passport)
+            return JSONResponse(build_graph(doc, req.ir))
+        except InvalidPassport as exc:
+            raise HTTPException(409, f"passport unusable: {exc}") from exc
+        except GraphTooLarge as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        except ValueError as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+
+    @app.post("/graphs/compare")
+    def post_graph_compare(req: GraphCompareRequest) -> JSONResponse:
+        try:
+            older = build_graph(_graph_passport(req.passport_a), req.ir)
+            newer = build_graph(_graph_passport(req.passport_b), req.ir)
+        except InvalidPassport as exc:
+            raise HTTPException(409, f"passport unusable: {exc}") from exc
+        except GraphTooLarge as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        except ValueError as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        return JSONResponse(compare_graphs(older, newer))
 
     _UI_FILES = {"studio.html": "text/html",
                  "dashboard.html": "text/html",

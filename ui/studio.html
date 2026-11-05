@@ -14,6 +14,7 @@
 body { background:var(--bg); color:var(--fg); font-family:system-ui,sans-serif; margin:2rem auto; max-width:64rem; padding:0 1rem; }
 h1 small { color:var(--mut); font-weight:normal; }
 .pass { color:var(--ok); font-weight:bold; } .fail { color:var(--bad); font-weight:bold; }
+.warn { color:#d29922; font-weight:bold; }
 table { border-collapse:collapse; width:100%; margin:1rem 0; }
 td, th { border:1px solid #30363d; padding:.4rem .6rem; text-align:left; font-size:.9rem; }
 code { font-size:.8rem; }
@@ -53,7 +54,7 @@ ol.phases li.pass { color:var(--ok); border-color:var(--ok); }
 <body>
 <h1>GENESIS RT <small>Studio Live — specify → compile → run → break → prove</small></h1>
 <div id="live-status" role="status"><p class="note">Probing backend…</p></div>
-<p class="note">Projects, Designer and Pipeline need the live backend
+<p class="note">Projects, Designer, Pipeline and Evidence need the live backend
 (<code>PYTHONPATH=host python -m genesis_rt.cli serve</code>, then open
 <code>http://127.0.0.1:8077/</code>). Source, Twin, Lab, Passport, Diff
 and Run keep working on local files with no backend.</p>
@@ -66,6 +67,7 @@ and Run keep working on local files with no backend.</p>
 <button role="tab" aria-selected="false" data-tab="lab">Lab</button>
 <button role="tab" aria-selected="false" data-tab="passport">Passport</button>
 <button role="tab" aria-selected="false" data-tab="diff">Diff</button>
+<button role="tab" aria-selected="false" data-tab="evidence">Evidence</button>
 <button role="tab" aria-selected="false" data-tab="run">Run</button>
 </div>
 
@@ -169,6 +171,51 @@ re-verified; the delta table appears only when both are valid.</p>
 <p>A (before): <input type="file" id="diffile-a" accept=".json"></p>
 <p>B (after): <input type="file" id="diffile-b" accept=".json"></p>
 <div id="diff-out"><p class="note">No comparison yet.</p></div>
+</section>
+
+<section class="tabpage" id="tab-evidence" role="tabpanel">
+<h2>Evidence graph</h2>
+<p class="note">Requirement → IR → generated file → binary → process →
+scenario → oracle → trace → verdict, built live by the backend from a
+hash-verified passport. Tampered passports are rejected, never rendered
+as verified. Pick an IR to resolve requirement nodes.</p>
+<div class="row">
+<label for="graphfile">passport file</label>
+<input type="file" id="graphfile" accept=".json">
+<label for="graph-run">or run</label>
+<select id="graph-run" aria-label="graph run"></select>
+<button class="ghost" id="graph-loadrun">Use run</button>
+<button class="ghost" id="graph-usepp">Use Passport tab</button>
+</div>
+<div class="row">
+<label for="graph-ir">requirements IR</label>
+<select id="graph-ir" aria-label="requirements IR"></select>
+<button class="act" id="graph-render">Render graph</button>
+</div>
+<div class="row">
+<label for="graph-scen">scenario</label>
+<select id="graph-scen" aria-label="filter scenario"></select>
+<label for="graph-status">status</label>
+<select id="graph-status" aria-label="filter status">
+<option value="all">all</option>
+<option value="verified">verified</option>
+<option value="failed">failed</option>
+<option value="gaps">gaps (missing/unverified)</option>
+</select>
+<label for="graph-q">search</label>
+<input type="text" id="graph-q" maxlength="80" placeholder="node id or label">
+</div>
+<div id="graph-out"><p class="note">No graph yet.</p></div>
+<div id="graph-detail"></div>
+<h3>Compare revisions</h3>
+<div class="row">
+<label for="graph-cmpa">A (before)</label>
+<select id="graph-cmpa" aria-label="compare run A"></select>
+<label for="graph-cmpb">B (after)</label>
+<select id="graph-cmpb" aria-label="compare run B"></select>
+<button class="ghost" id="graph-compare">Compare graphs</button>
+</div>
+<div id="graph-diffout"><p class="note">No graph comparison yet.</p></div>
 </section>
 
 <section class="tabpage" id="tab-run" role="tabpanel">
@@ -438,7 +485,8 @@ function renderStatusHtml(online, env) {
     return '<div class="banner">Backend <b>offline</b>: Source, Twin, Lab, ' +
       'Passport, Diff and Run work on local files. Start the live backend ' +
       '(<code>PYTHONPATH=host python -m genesis_rt.cli serve</code>) and open ' +
-      '<code>http://127.0.0.1:8077/</code> for Projects, Designer and Pipeline.</div>';
+      '<code>http://127.0.0.1:8077/</code> for Projects, Designer, Pipeline ' +
+      'and Evidence.</div>';
   }
   const e = (env && env.environment) || {};
   const sdk = e.sdk_present ? '<span class="pass">SDK</span>'
@@ -675,9 +723,203 @@ function keyFromError(message) {
   return rooted ? rooted[1] : null;
 }
 
+/* -- Evidence Graph (pure render; node-tested) ----------------
+ * Renders only what POST /graphs returned: every node keeps its
+ * stable id, type, label, source refs, status and artifacts. Tables
+ * are row-capped; every row carries data-node for the detail view. */
+function graphPill(status) {
+  const cls = status === 'verified' ? 'pass' :
+    (status === 'failed' ? 'fail' : 'warn');
+  return '<span class="' + cls + '">' + esc(status) + '</span>';
+}
+function graphNodeById(graph, id) {
+  for (const n of graph.nodes) if (n.id === id) return n;
+  return null;
+}
+function graphNodeRows(nodes, cap) {
+  let h = '', shown = 0, skipped = 0;
+  for (const n of nodes) {
+    if (shown >= cap) { skipped += 1; continue; }
+    shown += 1;
+    h += '<tr class="pick" data-node="' + esc(n.id) + '"><td>' +
+      graphPill(n.status) + '</td><td><code>' + esc(n.id) +
+      '</code></td><td>' + esc(n.label) + '</td></tr>';
+  }
+  if (skipped) {
+    h += '<tr><td colspan="3" class="note">… ' + esc(skipped) +
+      ' more (narrow the filters)</td></tr>';
+  }
+  return h;
+}
+function renderGraphHtml(graph, opts) {
+  opts = opts || {};
+  const scen = opts.scenario || '', want = opts.status || 'all',
+        q = (opts.q || '').toLowerCase();
+  const scenTypes = { scenario: 1, check: 1, observation: 1 };
+  const keep = (n) => {
+    if (scen && scenTypes[n.type]) {
+      const tag = n.type === 'scenario' ? 'scenario:' + scen :
+        (n.type === 'check' ? 'check:' + scen + ':' : 'trace:' + scen);
+      if (n.id !== tag && n.id.indexOf(tag) !== 0) return false;
+    }
+    if (want === 'verified' && n.status !== 'verified') return false;
+    if (want === 'failed' && n.status !== 'failed') return false;
+    if (want === 'gaps' && n.status !== 'missing' &&
+        n.status !== 'unverified') return false;
+    if (q && (n.id + ' ' + n.label).toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  };
+  const byType = (t) => graph.nodes.filter((n) => n.type === t && keep(n));
+  const verdict = graph.nodes.filter((n) => n.type === 'verdict')[0] || {};
+  const vd = verdict.data || {};
+  const ir = graph.nodes.filter((n) => n.type === 'ir')[0] || {};
+  const mid = (ir.data && ir.data.machine && ir.data.machine.id) || '?';
+  let h = '<div class="banner">run <code>' + esc(graph.run_id) + '</code> — machine ' +
+    '<code>' + esc(mid) + '</code>, ' + esc(graph.counts.nodes) + ' nodes, ' +
+    esc(graph.counts.edges) + ' edges, target ' +
+    (graph.bound ? 'bound' : 'unbound') +
+    (graph.ir_attached ? '' : ' (no IR: requirements unresolved)') + '</div>';
+  h += '<p>' + graphPill(verdict.status || '?') + ' ' + esc(verdict.label || '?') +
+    ' — qnx_verified=<code>' + esc(vd.qnx_verified) +
+    '</code> release_eligible=<code>' + esc(vd.release_eligible) + '</code></p>';
+  const reqs = byType('requirement');
+  h += '<h3>Requirements</h3>';
+  if (!reqs.length) {
+    h += '<p class="note">' + (graph.ir_attached ?
+      'No requirement nodes in this graph.' :
+      'Attach an IR above to resolve requirement nodes.') + '</p>';
+  } else {
+    h += '<table><tr><th>status</th><th>id</th><th>claim → scenario</th></tr>' +
+      graphNodeRows(reqs, 200) + '</table>';
+  }
+  const failed = graph.nodes.filter((n) => n.status === 'failed' && keep(n));
+  if (failed.length) {
+    h += '<h3>Failed checks</h3><table>' +
+      '<tr><th>status</th><th>id</th><th>label</th></tr>' +
+      graphNodeRows(failed, 200) + '</table>';
+  }
+  const groups = [['limit', 'Guard limits'], ['file', 'Generated files'],
+    ['build', 'Build'], ['binary', 'Binaries'], ['target', 'Target'],
+    ['process', 'Processes'], ['target_check', 'Target checks'],
+    ['scenario', 'Scenarios'], ['check', 'Oracle checks'],
+    ['observation', 'Traces']];
+  for (const [type, title] of groups) {
+    const rows = byType(type);
+    if (!rows.length) continue;
+    h += '<h3>' + esc(title) + '</h3><table>' +
+      '<tr><th>status</th><th>id</th><th>label</th></tr>' +
+      graphNodeRows(rows, 200) + '</table>';
+  }
+  const gaps = graph.nodes.filter((n) =>
+    (n.status === 'missing' || n.status === 'unverified') && keep(n));
+  if (gaps.length) {
+    h += '<h3>Evidence gaps</h3><p class="note">Links the passport cannot ' +
+      'support stay visible as missing/unverified — never invented.</p><table>' +
+      '<tr><th>status</th><th>id</th><th>label</th></tr>' +
+      graphNodeRows(gaps, 40) + '</table>';
+  }
+  return h;
+}
+function graphKvRows(obj) {
+  let h = '';
+  for (const k of Object.keys(obj || {}).sort().slice(0, 60)) {
+    h += '<tr><td><code>' + esc(k) + '</code></td><td><code>' +
+      esc(JSON.stringify(obj[k])) + '</code></td></tr>';
+  }
+  return h;
+}
+function renderGraphNodeHtml(graph, nodeId, opts) {
+  opts = opts || {};
+  const n = graphNodeById(graph, nodeId);
+  if (!n) return '<p class="fail">Unknown node.</p>';
+  const ins = [], outs = [];
+  for (const e of graph.edges) {
+    if (e.to === nodeId) ins.push(e);
+    if (e.from === nodeId) outs.push(e);
+  }
+  const link = (id) => '<button class="ghost" data-node="' + esc(id) +
+    '"><code>' + esc(id) + '</code></button>';
+  let h = '<h3><code>' + esc(n.id) + '</code> <span class="note">' +
+    esc(n.type) + '</span> ' + graphPill(n.status) + '</h3>';
+  h += '<p>' + esc(n.label) + '</p>';
+  if (n.type === 'file' && opts.runId && n.data && n.data.name) {
+    h += '<div class="row"><button class="ghost" data-gfile="' +
+      esc(n.data.name) + '">Open generated text</button></div>' +
+      '<pre class="cmd" id="graph-filetext"></pre>';
+  }
+  if (n.type === 'target_check') {
+    h += '<p class="note">Transcript digest ' +
+      '<code>' + esc((n.artifacts || {}).transcript_sha256 || '?') +
+      '</code> pins the on-target transcript; the full text lives with ' +
+      'the target record, not in this passport.</p>';
+  }
+  const src = (n.source || []).map((s) =>
+    '<code>seq ' + esc(s.seq) + ' ' + esc(s.kind) + '</code>').join(' · ');
+  h += '<p class="note">chain source: ' + (src || '—') + '</p>';
+  if (Object.keys(n.artifacts || {}).length) {
+    h += '<h3>Artifacts</h3><table>' + graphKvRows(n.artifacts) + '</table>';
+  }
+  if (Object.keys(n.data || {}).length) {
+    h += '<h3>Data</h3><table>' + graphKvRows(n.data) + '</table>';
+  }
+  const edgeList = (list, other) => list.slice(0, 120).map((e) =>
+    '<li><code>' + esc(e.predicate) + '</code> ' + link(e[other]) + '</li>'
+  ).join('');
+  if (ins.length) h += '<h3>Incoming</h3><ul>' + edgeList(ins, 'from') + '</ul>';
+  if (outs.length) {
+    h += '<h3>Outgoing</h3><ul>' + edgeList(outs, 'to') + '</ul>';
+  }
+  return h;
+}
+function renderGraphDiffHtml(diff) {
+  let h = '<div class="banner"><code>' + esc(diff.from_run) + '</code> → ' +
+    '<code>' + esc(diff.to_run) + '</code>: ' + esc(diff.added.length) +
+    ' added, ' + esc(diff.removed.length) + ' removed, ' +
+    esc(diff.changed.length) + ' changed</div>';
+  if (diff.added.length) {
+    h += '<h3>Added</h3><p>' + diff.added.map((id) =>
+      '<code>' + esc(id) + '</code>').join(' · ') + '</p>';
+  }
+  if (diff.removed.length) {
+    h += '<h3>Removed</h3><p>' + diff.removed.map((id) =>
+      '<code>' + esc(id) + '</code>').join(' · ') + '</p>';
+  }
+  if (!diff.changed.length) h += '<p class="note">No node changed.</p>';
+  for (const c of diff.changed.slice(0, 100)) {
+    h += '<h3><code>' + esc(c.id) + '</code> <span class="note">' +
+      esc(c.type) + ': ' + esc(c.before_status) + ' → ' + esc(c.after_status) +
+      '</span></h3>';
+    if (!c.fields.length) {
+      h += '<p class="note">Status moved; data identical.</p>';
+      continue;
+    }
+    h += '<table><tr><th>path</th><th>kind</th><th>before</th><th>after</th></tr>';
+    for (const f of c.fields) {
+      const cls = f.kind === 'added' ? 'pass' : (f.kind === 'removed' ? 'fail' : '');
+      h += '<tr><td><code>' + esc(f.path) + '</code></td><td class="' + esc(cls) +
+        '">' + esc(f.kind) + '</td><td><code>' + esc(JSON.stringify(f.before)) +
+        '</code></td><td><code>' + esc(JSON.stringify(f.after)) +
+        '</code></td></tr>';
+    }
+    h += '</table>' + (c.truncated ? '<p class="note">(fields truncated)</p>' : '');
+  }
+  const edgeLine = (t) => '<code>' + esc(t[0]) + ' —' + esc(t[1]) + '→ ' +
+    esc(t[2]) + '</code>';
+  if (diff.edges_added.length) {
+    h += '<h3>Edges added</h3><p>' +
+      diff.edges_added.map(edgeLine).join('<br>') + '</p>';
+  }
+  if (diff.edges_removed.length) {
+    h += '<h3>Edges removed</h3><p>' +
+      diff.edges_removed.map(edgeLine).join('<br>') + '</p>';
+  }
+  return h;
+}
+
 /* DOM glue. */
 const Studio = { irSha: null, passport: null, scens: [], twin: null, twinIdx: 0, twinTimer: null,
-                 diffA: null, diffB: null };
+                 diffA: null, diffB: null, graph: null, graphPassportText: null,
+                 graphRun: null, passportText: null };
 function switchTab(name) {
   document.querySelectorAll('.tabs button').forEach(
     (x) => x.setAttribute('aria-selected', x.dataset.tab === name ? 'true' : 'false'));
@@ -721,11 +963,12 @@ function usePassportText(text) {
   const r = renderPassportHtml(text);
   document.getElementById('pp-out').innerHTML = r.html;
   if (!r.ok || !r.chainOk) {
-    Studio.passport = null; Studio.scens = [];
+    Studio.passport = null; Studio.passportText = null; Studio.scens = [];
     document.getElementById('lab-out').innerHTML =
       '<p class="fail">Passport invalid: Lab and Twin stay empty (no unverified replay).</p>';
     return false;
   }
+  Studio.passportText = text;
   Studio.passport = JSON.parse(text);
   Studio.scens = passportScenarios(Studio.passport);
   document.getElementById('lab-out').innerHTML = renderLabHtml(Studio.scens);
@@ -938,6 +1181,7 @@ async function loadExamples() {
   el('newproj-example').innerHTML = html;
   el('des-example').innerHTML = html;
   el('pipe-example').innerHTML = html;
+  el('graph-ir').innerHTML = html;
 }
 async function loadProjects() {
   const data = await api('/projects');
@@ -1320,6 +1564,150 @@ async function refreshHistory() {
   } catch (e) { el('pipe-history').innerHTML = errHtml('history failed', e); }
 }
 
+/* -- Evidence tab ---------------- */
+function graphRunOptions(jobs) {
+  const opts = ['<option value="">— pick —</option>'];
+  for (const j of jobs.slice().reverse()) {
+    const label = j.job_id + ' (' + j.state +
+      (j.verdict ? ', ' + j.verdict : '') + ')';
+    opts.push('<option value="' + esc(j.job_id) + '">' + esc(label) + '</option>');
+  }
+  return opts.join('');
+}
+async function graphLoadRuns() {
+  const data = await api('/jobs');
+  const html = graphRunOptions(data.jobs || []);
+  el('graph-run').innerHTML = html;
+  el('graph-cmpa').innerHTML = html;
+  el('graph-cmpb').innerHTML = html;
+}
+function graphPopScen() {
+  const seen = [];
+  for (const n of Studio.graph.nodes) {
+    if (n.type === 'scenario' && seen.indexOf(n.data.name) < 0) {
+      seen.push(n.data.name);
+    }
+  }
+  seen.sort();
+  el('graph-scen').innerHTML = '<option value="">— all —</option>' +
+    seen.map((s) => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
+}
+function paintGraph() {
+  if (!Studio.graph) return;
+  el('graph-out').innerHTML = renderGraphHtml(Studio.graph, {
+    scenario: el('graph-scen').value, status: el('graph-status').value,
+    q: el('graph-q').value.trim(),
+  });
+}
+function openGraphNode(id) {
+  el('graph-detail').innerHTML =
+    renderGraphNodeHtml(Studio.graph, id, { runId: Studio.graphRun });
+}
+async function graphSelectedIr() {
+  const v = el('graph-ir').value;
+  if (!v) return null;
+  const bar = v.indexOf('|');
+  const got = await api('/examples/' + encodeURIComponent(v.slice(0, bar)) + '/' +
+                        encodeURIComponent(v.slice(bar + 1)));
+  return got.ir;
+}
+async function graphRender() {
+  const out = el('graph-out');
+  if (!Studio.graphPassportText) {
+    out.innerHTML = '<p class="fail">Load a passport first: a file, a run, ' +
+      'or the verified passport from the Passport tab.</p>';
+    return;
+  }
+  try {
+    JSON.parse(Studio.graphPassportText);
+  } catch (e) {
+    out.innerHTML = errHtml('passport text is not valid JSON', e);
+    return;
+  }
+  out.innerHTML = '<p class="note">Building graph…</p>';
+  el('graph-detail').innerHTML = '';
+  try {
+    // Raw text, never a re-serialized object: JS turns 1.0 into 1,
+    // which would break the server-side hash chain.
+    const body = { passport: Studio.graphPassportText };
+    const ir = await graphSelectedIr();
+    if (ir) body.ir = ir;
+    Studio.graph = await postJson('/graphs', body);
+    graphPopScen();
+    paintGraph();
+  } catch (e) { out.innerHTML = errHtml('graph failed', e); }
+}
+async function graphUseRun(jobId) {
+  if (!jobId) {
+    el('graph-out').innerHTML = '<p class="fail">Pick a run first.</p>';
+    return;
+  }
+  try {
+    Studio.graphPassportText =
+      await apiText('/runs/' + encodeURIComponent(jobId) + '/passport/raw');
+    Studio.graphRun = jobId;
+    await graphRender();
+  } catch (e) { el('graph-out').innerHTML = errHtml('run passport failed', e); }
+}
+async function graphCompare() {
+  const out = el('graph-diffout');
+  const a = el('graph-cmpa').value, b = el('graph-cmpb').value;
+  if (!a || !b) {
+    out.innerHTML = '<p class="fail">Pick two runs to compare.</p>';
+    return;
+  }
+  out.innerHTML = '<p class="note">Comparing…</p>';
+  try {
+    const pa = await apiText('/runs/' + encodeURIComponent(a) + '/passport/raw');
+    const pb = await apiText('/runs/' + encodeURIComponent(b) + '/passport/raw');
+    const body = { passport_a: pa, passport_b: pb };
+    const ir = await graphSelectedIr();
+    if (ir) body.ir = ir;
+    out.innerHTML = renderGraphDiffHtml(await postJson('/graphs/compare', body));
+  } catch (e) { out.innerHTML = errHtml('graph compare failed', e); }
+}
+function wireEvidence() {
+  el('graphfile').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    Studio.graphPassportText = await f.text();
+    Studio.graphRun = null;
+    await graphRender();
+  });
+  el('graph-loadrun').addEventListener('click', () => graphUseRun(el('graph-run').value));
+  el('graph-usepp').addEventListener('click', async () => {
+    if (!Studio.passportText) {
+      el('graph-out').innerHTML = '<p class="fail">The Passport tab holds no ' +
+        'verified passport yet — open one there first.</p>';
+      return;
+    }
+    Studio.graphPassportText = Studio.passportText;
+    Studio.graphRun = null;
+    await graphRender();
+  });
+  el('graph-render').addEventListener('click', graphRender);
+  el('graph-scen').addEventListener('change', paintGraph);
+  el('graph-status').addEventListener('change', paintGraph);
+  el('graph-q').addEventListener('input', paintGraph);
+  el('graph-out').addEventListener('click', (e) => {
+    const row = e.target.closest ? e.target.closest('[data-node]') : null;
+    if (row && Studio.graph) openGraphNode(row.dataset.node);
+  });
+  el('graph-detail').addEventListener('click', async (e) => {
+    const go = e.target.closest ? e.target.closest('button[data-node]') : null;
+    if (go && Studio.graph) { openGraphNode(go.dataset.node); return; }
+    const gf = e.target.closest ? e.target.closest('button[data-gfile]') : null;
+    if (gf && Studio.graphRun) {
+      const pre = el('graph-filetext');
+      try {
+        const got = await api('/jobs/' + encodeURIComponent(Studio.graphRun) +
+                              '/files/' + encodeURIComponent(gf.dataset.gfile));
+        pre.textContent = got.text;
+      } catch (err) { pre.textContent = 'failed: ' + err.message; }
+    }
+  });
+  el('graph-compare').addEventListener('click', graphCompare);
+}
+
 /* -- boot ---------------- */
 function wireLive() {
   el('projects-out').addEventListener('click', async (e) => {
@@ -1422,6 +1810,7 @@ function wireLive() {
     }
   });
   el('pipe-refresh').addEventListener('click', refreshHistory);
+  wireEvidence();
   if (typeof window !== 'undefined' && window.addEventListener) {
     window.addEventListener('beforeunload', () => Live.closeStream());
   }
@@ -1435,6 +1824,7 @@ async function refreshLive() {
     await loadExamples();
     await loadProjects();
     await refreshHistory();
+    await graphLoadRuns();
     const lastJob = storeGet('studio.job');
     if (lastJob) openJob(lastJob).catch((e) => {
       el('pipe-out').innerHTML = errHtml('restore job failed', e);
@@ -1443,12 +1833,13 @@ async function refreshLive() {
     Live.online = false;
     el('live-status').innerHTML = renderStatusHtml(false, null);
     el('projects-out').innerHTML =
-      '<p class="note">Backend offline: Projects, Designer and Pipeline need serve.</p>';
+      '<p class="note">Backend offline: Projects, Designer, Pipeline and Evidence need serve.</p>';
     el('pipe-history').innerHTML = '<p class="note">Backend offline.</p>';
+    el('graph-out').innerHTML = '<p class="note">Backend offline.</p>';
   }
   try {
     const tabs = ['projects', 'designer', 'source', 'pipeline', 'twin',
-                  'lab', 'passport', 'diff', 'run'];
+                  'lab', 'passport', 'diff', 'evidence', 'run'];
     const t = storeGet('studio.tab');
     if (t && tabs.indexOf(t) >= 0) switchTab(t);
   } catch (e) { /* never break boot on restore */ }

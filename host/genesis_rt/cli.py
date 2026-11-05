@@ -166,6 +166,18 @@ def _cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_graph(args: argparse.Namespace) -> int:
+    from .evidence_graph import build_graph, render_graph_text
+    passport = json.loads(Path(args.passport).read_text(encoding="utf-8"))
+    ir = json.loads(Path(args.ir).read_text(encoding="utf-8")) if args.ir else None
+    graph = build_graph(passport, ir)
+    if args.json:
+        print(json.dumps(graph, indent=2, sort_keys=True))
+    else:
+        print(render_graph_text(graph), end="")
+    return 0
+
+
 def _cmd_check_env(args: argparse.Namespace) -> int:
     from .build_adapter import probe
     print(json.dumps(probe(), indent=2))
@@ -212,6 +224,11 @@ def build_parser() -> argparse.ArgumentParser:
     cmp = sub.add_parser("compare", help="diff two pipeline run directories")
     cmp.add_argument("run_a"); cmp.add_argument("run_b")
     cmp.add_argument("--json", action="store_true"); cmp.set_defaults(func=_cmd_compare)
+    gr = sub.add_parser("graph", help="render the evidence graph of a passport")
+    gr.add_argument("passport")
+    gr.add_argument("--ir", default=None,
+                    help="Machine IR JSON (resolves requirement nodes)")
+    gr.add_argument("--json", action="store_true"); gr.set_defaults(func=_cmd_graph)
     c = sub.add_parser("check-env", help="probe for a QNX SDK toolchain")
     c.set_defaults(func=_cmd_check_env)
     sv = sub.add_parser("serve", help="start the local web API (needs api extra)")

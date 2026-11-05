@@ -62,7 +62,8 @@
   unchanged response shape. Loopback-only, foreign-Origin writes 403.
   Cancelled/failed/crashed/interrupted jobs never carry a verdict.
 - **Studio Live** (`ui/studio.html` + `/projects`, `/validate`,
-  `/examples`, `/env`, `/jobs/.../files`, `/runs/.../passport/raw`):
+  `/examples`, `/env`, `/jobs/.../files`, `/runs/.../passport/raw`,
+  `/graphs`, `/graphs/compare`):
   projects are server-side IR revisions under git-ignored
   `artifacts/studio/projects` (validated, atomic writes, capped
   history); the Designer edits JSON against authoritative backend
@@ -70,6 +71,18 @@
   the same job events the API exposes and opens byte-exact passports
   so the browser re-verifies the literal hash chain. Static
   file-inspection tabs work with no backend.
+- **Evidence Graph** (`host/genesis_rt/evidence_graph.py`): folds one
+  hash-verified passport (+ optional IR for `verification.requirements`)
+  into typed `{nodes, edges}` — requirement → IR → limit/file →
+  build → binary → target/process/check → scenario → oracle →
+  trace → verdict. No invented edges: missing links render as
+  `missing`/`unverified`; tampered or version-unknown passports raise
+  `InvalidPassport` (HTTP 409), oversize input `GraphTooLarge`
+  (HTTP 400). `compare_graphs` diffs two graphs by node id with
+  bounded field diffs. `graph` CLI subcommand renders text/JSON.
+  Browsers POST the raw passport text (never a re-serialized object:
+  JS turns `1.0` into `1`, which breaks the chain) — the API accepts
+  the passport as a dict or as raw JSON text.
 
 ## QNX-native target (all in `target/qnx8/`)
 

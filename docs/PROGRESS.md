@@ -1,5 +1,26 @@
 # Progress log
 
+## 2026-11-05 -- Wave 7 M1+M2+M3§8 : Studio Live + Evidence Graph
+
+- M1 reliability (§5+§7 @bdeac07/119d442): version-aware CLI, docs pins
+  with consistency guard, async jobs + SSE + Origin guard; 576 green.
+- M2 Studio Live (@900f229 backend + @037923f frontend): server-side
+  projects w/ history/diff/export, JSON designer + v2 state graph,
+  SSE pipeline with run/cancel/history, byte-exact raw passports;
+  9 tabs browser-verified 12/12; 619 green, CI green.
+- M3 §8 Evidence Graph: `evidence_graph.py` folds a hash-verified
+  passport (+ optional v2 IR requirements) into typed nodes/edges
+  (req→IR→file→binary→process→scenario→oracle→trace→verdict);
+  tamper→InvalidPassport/409, caps→GraphTooLarge/400; `graph` CLI;
+  `POST /graphs` + `/graphs/compare` accept dict or raw text
+  (browsers must send raw text: JS `1.0`→`1` breaks the chain —
+  found live, regression-tested); Studio Evidence tab (10th):
+  run/file/Passport sources, IR picker, scenario/status/search
+  filters, node detail w/ edges + generated-file viewer, revision
+  compare; browser-verified 15/15 incl. 0.9-limit diff.
+- Suite 642/642 with SDK (SDK-free 639 + 3 honest QNX-build skips);
+  jury pins + architecture updated; consistency guard green.
+
 ## 2026-11-05 -- P1 Wave 5 : jury delivery (termine)
 
 - Clone frais GitHub : `run_verified_demo.py` PASS + suite 525/525
