@@ -208,6 +208,17 @@ def validate_ir(data: dict[str, Any]) -> dict[str, Any]:
     norm["actuators"] = sorted(norm["actuators"], key=lambda a: a["id"])
     norm["sensors"] = sorted(norm["sensors"], key=lambda s: s["id"])
     norm["safety_contracts"] = sorted(norm["safety_contracts"], key=lambda c: c["name"])
+    # Numeric canonicalization: the int-or-float limit fields are stored as
+    # float, so a JSON round-trip through a float-unaware producer (JS turns
+    # 1.0 into 1) cannot change the digest. Strict-int fields (period_ms,
+    # freshness_limit_ms, transfer_ticks) reject floats by construction, so
+    # they are already canonical.
+    norm["control"]["max_linear_speed_mps"] = float(
+        norm["control"]["max_linear_speed_mps"])
+    norm["control"]["max_angular_speed_radps"] = float(
+        norm["control"]["max_angular_speed_radps"])
+    if is_cell:
+        norm["cell"]["station_x_m"] = float(norm["cell"]["station_x_m"])
     return norm
 
 

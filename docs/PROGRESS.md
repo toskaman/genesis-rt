@@ -18,7 +18,21 @@
   run/file/Passport sources, IR picker, scenario/status/search
   filters, node detail w/ edges + generated-file viewer, revision
   compare; browser-verified 15/15 incl. 0.9-limit diff.
-- Suite 642/642 with SDK (SDK-free 639 + 3 honest QNX-build skips);
+- M3 §11 Requirements-to-Release: `impact.py` (change-impact over
+  two validated revisions: precise requirement→scenario mapping,
+  conservative global set for limits/control/machine/contracts,
+  fail-closed unclassified moves, generated files reported-only);
+  targeted retest can never imply release eligibility;
+  `POST /impact`, `/impact/release`, `GET /projects/{pid}/impact`,
+  `impact` CLI; Studio project Impact + retest runner + targeted/full
+  banners + Evidence release-check section; browser 14/14 incl.
+  stale/current digests.
+- IR numeric canonicalization (found live via the release check):
+  validators store float-semantic fields as float and collapse
+  integral floats to int, so a JS `1.0`→`1` round-trip cannot move
+  `ir_sha256`; genuinely fractional values never truncated;
+  example digests pinned unchanged (history-lock tests).
+- Suite 681/681 with SDK (SDK-free 678 + 3 honest QNX-build skips);
   jury pins + architecture updated; consistency guard green.
 
 ## 2026-11-05 -- P1 Wave 5 : jury delivery (termine)

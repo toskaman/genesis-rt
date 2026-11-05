@@ -216,6 +216,23 @@ as verified. Pick an IR to resolve requirement nodes.</p>
 <button class="ghost" id="graph-compare">Compare graphs</button>
 </div>
 <div id="graph-diffout"><p class="note">No graph comparison yet.</p></div>
+<h3>Release check</h3>
+<p class="note">Did a new run actually retest what changed between two
+revisions? Passports travel as raw text (never re-serialized).</p>
+<div class="row">
+<label for="graph-rela">IR before</label>
+<select id="graph-rela" aria-label="release IR before"></select>
+<label for="graph-relb">IR after</label>
+<select id="graph-relb" aria-label="release IR after"></select>
+</div>
+<div class="row">
+<label for="graph-relrun">new run</label>
+<select id="graph-relrun" aria-label="release run"></select>
+<label for="graph-relbase">base run (optional)</label>
+<select id="graph-relbase" aria-label="release base run"></select>
+<button class="ghost" id="graph-release">Release check</button>
+</div>
+<div id="graph-releaseout"><p class="note">No release check yet.</p></div>
 </section>
 
 <section class="tabpage" id="tab-run" role="tabpanel">
@@ -916,10 +933,155 @@ function renderGraphDiffHtml(diff) {
   return h;
 }
 
+/* -- Change impact + release (pure render; node-tested) ---- */
+function impactBucketHtml(title, bucket, item) {
+  if (!bucket.added.length && !bucket.removed.length && !bucket.changed.length) {
+    return '';
+  }
+  let h = '<h3>' + esc(title) + '</h3><ul>';
+  for (const k of bucket.changed) h += '<li>changed: ' + item(k) + '</li>';
+  for (const k of bucket.added) h += '<li>added: ' + item(k) + '</li>';
+  for (const k of bucket.removed) h += '<li>removed: ' + item(k) + '</li>';
+  return h + '</ul>';
+}
+function renderImpactHtml(rep) {
+  const code = (s) => '<code>' + esc(s) + '</code>';
+  let h = '<div class="banner">impact ' +
+    code((rep.before.machine || {}).id || '?') + ' ' +
+    code(String(rep.before.ir_sha256).slice(0, 12)) + ' → ' +
+    code(String(rep.after.ir_sha256).slice(0, 12)) +
+    ' (schema v' + esc(rep.before.schema_version) + ' → v' +
+    esc(rep.after.schema_version) + ')</div>';
+  if (!rep.same_machine) {
+    h += '<p class="warn">Different machines: full retest, no fine-grained ' +
+      'mapping attempted.</p>';
+  }
+  h += impactBucketHtml('Requirements', rep.requirements, code);
+  if (rep.limits.changed.length) {
+    h += '<h3>Guard limits</h3><ul>' + rep.limits.changed.map((l) =>
+      '<li>' + code(l.key) + ': ' + code(JSON.stringify(l.before)) + ' → ' +
+      code(JSON.stringify(l.after)) + '</li>').join('') + '</ul>';
+  }
+  if (rep.limits.note) h += '<p class="warn">' + esc(rep.limits.note) + '</p>';
+  if (rep.machine_changed) {
+    h += '<p class="warn">Machine block changed (conservative: full retest).</p>';
+  }
+  for (const k of rep.extras_changed || []) {
+    h += '<p class="warn">' + code(k) + ' changed (conservative: full retest).</p>';
+  }
+  const plain = (title, key) =>
+    impactBucketHtml(title, rep[key], (s) => code(s));
+  h += plain('States', 'states') + plain('Transitions', 'transitions') +
+    plain('Safety contracts', 'contracts') + plain('Sensors', 'sensors') +
+    plain('Actuators', 'actuators');
+  if (rep.scenarios.added.length || rep.scenarios.removed.length) {
+    h += '<h3>Scenarios</h3><ul>';
+    for (const s of rep.scenarios.added) h += '<li>added: ' + code(s) + '</li>';
+    for (const s of rep.scenarios.removed) h += '<li>removed: ' + code(s) + '</li>';
+    h += '</ul>';
+  }
+  const files = rep.files;
+  if (files.changed.length || files.added.length || files.removed.length) {
+    h += '<h3>Generated files</h3><ul>';
+    for (const f of files.changed) {
+      h += '<li>' + code(f.name) + ' ' + code(f.before_sha256.slice(0, 12)) +
+        ' → ' + code(f.after_sha256.slice(0, 12)) + '</li>';
+    }
+    for (const n of files.added) h += '<li>added: ' + code(n) + '</li>';
+    for (const n of files.removed) h += '<li>removed: ' + code(n) + '</li>';
+    h += '</ul>';
+  }
+  if (rep.codegen_error) {
+    h += '<p class="fail">' + esc(rep.codegen_error) + '</p>';
+  }
+  if (rep.impacted.length) {
+    h += '<h3>Impacted scenarios</h3><table>' +
+      '<tr><th>scenario</th><th>why</th></tr>' +
+      rep.impacted.map((i) => '<tr><td>' + code(i.scenario) + '</td><td>' +
+        esc(i.reasons.join('; ')) + '</td></tr>').join('') + '</table>';
+  }
+  if (rep.retest.length) {
+    h += '<div class="banner">retest (' + esc(rep.retest.length) + '): ' +
+      rep.retest.map(code).join(' · ') + '</div>' +
+      '<div class="row"><button class="act" id="pimpact-run">Run retest scenarios</button></div>';
+  } else {
+    h += '<div class="banner">No material change: no retest needed.</div>';
+  }
+  h += '<p class="note">Conservative heuristic set, not a formal proof. ' +
+    'Targeted retest is rapid feedback only; release needs the full gate ' +
+    'over every declared scenario.</p>';
+  return h;
+}
+function renderReleaseHtml(st) {
+  const code = (s) => '<code>' + esc(s) + '</code>';
+  let h = '<div class="banner">release check: run ' +
+    code(st.run_id || '?') + '</div>';
+  if (!st.chain_ok) {
+    h += '<p class="fail">Passport chain broken — this evidence cannot ' +
+      'release anything.</p><ul>' +
+      (st.chain_errors || []).map((e) => '<li>' + esc(e) + '</li>').join('') +
+      '</ul>';
+    return h;
+  }
+  const cur = st.evidence_current;
+  h += '<p>evidence current: ' + (cur ? '<span class="pass">yes</span>' :
+    '<span class="fail">no (stale digest)</span>') + ' — run ' +
+    code(String(st.passport_sha256).slice(0, 12)) + ' vs after ' +
+    code(String(st.after_sha256).slice(0, 12)) + '</p>';
+  h += '<p>retested on new revision: ' +
+    (st.retested.length ? st.retested.map(code).join(' · ') :
+      '<span class="warn">none</span>') + '</p>';
+  h += '<p>retest pending: ' +
+    (st.retest_pending.length ? st.retest_pending.map(code).join(' · ') :
+      '<span class="pass">none</span>') + '</p>';
+  h += '<p>verdict ' + code(st.verdict) + ' · level ' + code(st.level) +
+    ' · qnx_verified ' + code(st.qnx_verified) + ' · release_eligible ' +
+    (st.release_eligible ? '<span class="pass">YES</span>' :
+      '<span class="fail">NO</span>') + '</p>';
+  if ((st.omitted || []).length) {
+    h += '<p class="warn">omitted from required: ' +
+      st.omitted.map(code).join(' · ') + '</p>';
+  }
+  h += '<p>source changed: ' + code(st.source_changed) + ' · binary: ' +
+    (st.binary_changed.known ?
+      (st.binary_changed.changed ? '<span class="warn">changed</span> ' +
+        (st.binary_changed.binaries || []).map(code).join(' · ') :
+        '<span class="pass">unchanged</span>') :
+      '<span class="note">unknown (' +
+        esc(st.binary_changed.reason || '?') + ')</span>') + '</p>';
+  h += '<p class="note">host_or_qnx=' + code(st.host_or_qnx) +
+    ' · qnx_build=' + code(st.qnx_build_status) + '</p>';
+  return h;
+}
+function renderReleaseBannerHtml(gateRec) {
+  if (!gateRec) {
+    return '<p class="warn">No gate record in this passport: release state ' +
+      'unknown (old or hand-made passport?).</p>';
+  }
+  const cov = gateRec.coverage || {};
+  const omitted = cov.omitted || [];
+  const req = (cov.required || []).length, dec = (cov.declared || []).length;
+  if (omitted.length) {
+    return '<div class="banner">TARGETED run: ' + esc(req) + ' of ' +
+      esc(dec) + ' declared scenarios required — full verification ' +
+      '<b>PENDING</b> — <span class="fail">NOT release eligible</span> ' +
+      '(reduced coverage)</div><p class="warn">omitted: ' +
+      omitted.map((s) => '<code>' + esc(s) + '</code>').join(' · ') +
+      '</p><p class="note">level ' + esc(gateRec.level) + ' · verdict ' +
+      esc(gateRec.verdict) + '</p>';
+  }
+  return '<div class="banner">Full coverage (' + esc(dec) + '/' + esc(dec) +
+    '). release_eligible: ' + (gateRec.release_eligible ?
+      '<span class="pass">YES</span>' : '<span class="fail">NO</span>') +
+    ' — level ' + esc(gateRec.level) + ', qnx_verified ' +
+    '<code>' + esc(gateRec.qnx_verified) + '</code></div>';
+}
+
 /* DOM glue. */
 const Studio = { irSha: null, passport: null, scens: [], twin: null, twinIdx: 0, twinTimer: null,
                  diffA: null, diffB: null, graph: null, graphPassportText: null,
-                 graphRun: null, passportText: null };
+                 graphRun: null, passportText: null, impact: null,
+                 impactPid: null, impactTo: null };
 function switchTab(name) {
   document.querySelectorAll('.tabs button').forEach(
     (x) => x.setAttribute('aria-selected', x.dataset.tab === name ? 'true' : 'false'));
@@ -1182,6 +1344,8 @@ async function loadExamples() {
   el('des-example').innerHTML = html;
   el('pipe-example').innerHTML = html;
   el('graph-ir').innerHTML = html;
+  el('graph-rela').innerHTML = html;
+  el('graph-relb').innerHTML = html;
 }
 async function loadProjects() {
   const data = await api('/projects');
@@ -1217,7 +1381,9 @@ async function renderProjectDetail(pid, proj) {
     '<label>… r</label>' +
     '<input type="number" id="pdiff-to" min="1" value="' + esc(proj.head) +
     '" aria-label="diff to revision">' +
-    '<button class="ghost" id="pdiff-btn">Compare</button></div><div id="pdiff-out"></div>';
+    '<button class="ghost" id="pdiff-btn">Compare</button>' +
+    '<button class="ghost" id="pimpact-btn">Impact</button></div>' +
+    '<div id="pdiff-out"></div><div id="pimpact-out"></div>';
   h += '<div class="row"><label for="pdup-name">duplicate as</label>' +
     '<input type="text" id="pdup-name" maxlength="64">' +
     '<button class="ghost" id="pdup-btn">Duplicate</button>' +
@@ -1231,6 +1397,21 @@ async function renderProjectDetail(pid, proj) {
         '/diff?rev_from=' + encodeURIComponent(a) + '&rev_to=' + encodeURIComponent(b));
       el('pdiff-out').innerHTML = renderIrDiffHtml(diff);
     } catch (e) { el('pdiff-out').innerHTML = errHtml('diff failed', e); }
+  });
+  el('pimpact-btn').addEventListener('click', async () => {
+    const a = el('pdiff-from').value, b = el('pdiff-to').value;
+    const out = el('pimpact-out');
+    out.innerHTML = '<p class="note">Analyzing impact…</p>';
+    try {
+      const rep = await api('/projects/' + encodeURIComponent(pid) +
+        '/impact?rev_from=' + encodeURIComponent(a) + '&rev_to=' + encodeURIComponent(b));
+      Studio.impact = rep;
+      Studio.impactPid = pid;
+      Studio.impactTo = b;
+      out.innerHTML = renderImpactHtml(rep);
+      const run = el('pimpact-run');
+      if (run) run.addEventListener('click', runImpactRetest);
+    } catch (e) { out.innerHTML = errHtml('impact failed', e); }
   });
   el('pdup-btn').addEventListener('click', async () => {
     const name = el('pdup-name').value.trim();
@@ -1436,6 +1617,24 @@ async function pipeRun() {
     el('pipe-run').disabled = false;
   }
 }
+async function runImpactRetest() {
+  const rep = Studio.impact;
+  if (!rep || !rep.retest.length) return;
+  const out = el('pimpact-out');
+  try {
+    const rev = await api('/projects/' + encodeURIComponent(Studio.impactPid) +
+      '/revisions/' + encodeURIComponent(Studio.impactTo));
+    const job = await postJson('/jobs', { ir: rev.ir, scenarios: rep.retest });
+    Live.jobId = job.job_id;
+    Live.jobEvents = [];
+    storeSet('studio.job', job.job_id);
+    switchTab('pipeline');
+    openStream(job.job_id);
+    refreshHistory();
+  } catch (e) {
+    out.innerHTML += errHtml('retest run failed', e);
+  }
+}
 function renderPipeOut() {
   const reduced = reduceJobEvents(Live.jobEvents);
   const err = reduced.state === 'failed' ? Live.jobError : null;
@@ -1487,7 +1686,18 @@ async function finishJob(jobId) {
     renderPipeOut();
     const acts = el('pipe-actions');
     if (rec.state === 'succeeded') {
-      let h = '<div class="row"><button class="ghost" id="job-files">Generated files</button>' +
+      // Release banner first: targeted vs full coverage comes straight
+      // from the passport's own gate record (never inferred).
+      let banner = '';
+      try {
+        const pp = JSON.parse(await apiText('/runs/' +
+          encodeURIComponent(jobId) + '/passport/raw'));
+        const gv = (pp.chain || []).filter(
+          (r) => r.kind === 'gate_verdict')[0];
+        banner = renderReleaseBannerHtml(gv ? gv.body : null);
+      } catch (e) { banner = errHtml('release banner failed', e); }
+      let h = banner +
+        '<div class="row"><button class="ghost" id="job-files">Generated files</button>' +
         '<button class="ghost" id="job-passport">Open passport</button>' +
         '<button class="ghost" id="job-diffa">Send to Diff A</button>' +
         '<button class="ghost" id="job-diffb">Send to Diff B</button></div>' +
@@ -1580,6 +1790,8 @@ async function graphLoadRuns() {
   el('graph-run').innerHTML = html;
   el('graph-cmpa').innerHTML = html;
   el('graph-cmpb').innerHTML = html;
+  el('graph-relrun').innerHTML = html;
+  el('graph-relbase').innerHTML = html;
 }
 function graphPopScen() {
   const seen = [];
@@ -1649,6 +1861,42 @@ async function graphUseRun(jobId) {
     await graphRender();
   } catch (e) { el('graph-out').innerHTML = errHtml('run passport failed', e); }
 }
+async function graphReleaseExample(sel) {
+  const v = el(sel).value;
+  if (!v) return null;
+  const bar = v.indexOf('|');
+  const got = await api('/examples/' + encodeURIComponent(v.slice(0, bar)) + '/' +
+                        encodeURIComponent(v.slice(bar + 1)));
+  return got.ir;
+}
+async function graphRelease() {
+  const out = el('graph-releaseout');
+  const run = el('graph-relrun').value;
+  if (!run) {
+    out.innerHTML = '<p class="fail">Pick the new run first.</p>';
+    return;
+  }
+  out.innerHTML = '<p class="note">Checking release…</p>';
+  try {
+    const before = await graphReleaseExample('graph-rela');
+    const after = await graphReleaseExample('graph-relb');
+    if (!before || !after) {
+      out.innerHTML = '<p class="fail">Pick both IR revisions first.</p>';
+      return;
+    }
+    const body = {
+      ir_before: before,
+      ir_after: after,
+      passport: await apiText('/runs/' + encodeURIComponent(run) + '/passport/raw'),
+    };
+    const base = el('graph-relbase').value;
+    if (base) {
+      body.passport_before = await apiText('/runs/' +
+        encodeURIComponent(base) + '/passport/raw');
+    }
+    out.innerHTML = renderReleaseHtml(await postJson('/impact/release', body));
+  } catch (e) { out.innerHTML = errHtml('release check failed', e); }
+}
 async function graphCompare() {
   const out = el('graph-diffout');
   const a = el('graph-cmpa').value, b = el('graph-cmpb').value;
@@ -1706,6 +1954,7 @@ function wireEvidence() {
     }
   });
   el('graph-compare').addEventListener('click', graphCompare);
+  el('graph-release').addEventListener('click', graphRelease);
 }
 
 /* -- boot ---------------- */

@@ -178,6 +178,30 @@ def _cmd_graph(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_impact(args: argparse.Namespace) -> int:
+    from .impact import (analyze_impact, release_status, render_impact_text,
+                         render_release_text)
+    before = json.loads(Path(args.ir_before).read_text(encoding="utf-8"))
+    after = json.loads(Path(args.ir_after).read_text(encoding="utf-8"))
+    if args.passport_after:
+        passport = json.loads(Path(args.passport_after).read_text(
+            encoding="utf-8"))
+        base = json.loads(Path(args.passport_before).read_text(
+            encoding="utf-8")) if args.passport_before else None
+        status = release_status(before, after, passport, base)
+        if args.json:
+            print(json.dumps(status, indent=2, sort_keys=True))
+        else:
+            print(render_release_text(status), end="")
+    else:
+        report = analyze_impact(before, after)
+        if args.json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print(render_impact_text(report), end="")
+    return 0
+
+
 def _cmd_check_env(args: argparse.Namespace) -> int:
     from .build_adapter import probe
     print(json.dumps(probe(), indent=2))
@@ -229,6 +253,14 @@ def build_parser() -> argparse.ArgumentParser:
     gr.add_argument("--ir", default=None,
                     help="Machine IR JSON (resolves requirement nodes)")
     gr.add_argument("--json", action="store_true"); gr.set_defaults(func=_cmd_graph)
+    im = sub.add_parser("impact", help="change-impact between two IR revisions")
+    im.add_argument("ir_before"); im.add_argument("ir_after")
+    im.add_argument("--json", action="store_true")
+    im.add_argument("--passport-after", default=None,
+                    help="new-run passport.json: full release comparison")
+    im.add_argument("--passport-before", default=None,
+                    help="before-run passport.json: binary-change verdict")
+    im.set_defaults(func=_cmd_impact)
     c = sub.add_parser("check-env", help="probe for a QNX SDK toolchain")
     c.set_defaults(func=_cmd_check_env)
     sv = sub.add_parser("serve", help="start the local web API (needs api extra)")

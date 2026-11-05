@@ -65,6 +65,16 @@ if BaseModel is not None:
         passport_b: dict[str, Any] | str
         ir: dict[str, Any] | None = None
 
+    class ImpactRequest(BaseModel):
+        ir_before: dict[str, Any]
+        ir_after: dict[str, Any]
+
+    class ImpactReleaseRequest(BaseModel):
+        ir_before: dict[str, Any]
+        ir_after: dict[str, Any]
+        passport: dict[str, Any] | str
+        passport_before: dict[str, Any] | str | None = None
+
 else:  # pragma: no cover - import-time fallback without the api extra
     RunRequest = None  # type: ignore[assignment, misc]
     CompareRequest = None  # type: ignore[assignment, misc]
@@ -80,6 +90,7 @@ MAX_PASSPORT_TEXT = 3 * 1024 * 1024
 # the API re-checks early for 400 mapping, run_pipeline enforces it.
 from .evidence_graph import (GraphTooLarge, InvalidPassport, build_graph,
                                  compare_graphs)
+from .impact import analyze_impact, release_status
 from .jobs import JobConflict, JobManager, JobNotFound
 from .orchestrator import MAX_RUN_ID_LEN, valid_run_id as _valid_run_id
 
@@ -670,7 +681,7 @@ def create_app() -> Any:
     def read_env() -> JSONResponse:
         return JSONResponse({"api": "0.2.0", "environment": probe_env()})
 
-    def _graph_passport(value: dict[str, Any] | str) -> dict[str, Any]:
+    def _posted_passport(value: dict[str, Any] | str) -> dict[str, Any]:
         if isinstance(value, dict):
             return value
         if len(value) > MAX_PASSPORT_TEXT:
@@ -686,7 +697,7 @@ def create_app() -> Any:
     @app.post("/graphs")
     def post_graph(req: GraphRequest) -> JSONResponse:
         try:
-            doc = _graph_passport(req.passport)
+            doc = _posted_passport(req.passport)
             return JSONResponse(build_graph(doc, req.ir))
         except InvalidPassport as exc:
             raise HTTPException(409, f"passport unusable: {exc}") from exc
@@ -698,8 +709,8 @@ def create_app() -> Any:
     @app.post("/graphs/compare")
     def post_graph_compare(req: GraphCompareRequest) -> JSONResponse:
         try:
-            older = build_graph(_graph_passport(req.passport_a), req.ir)
-            newer = build_graph(_graph_passport(req.passport_b), req.ir)
+            older = build_graph(_posted_passport(req.passport_a), req.ir)
+            newer = build_graph(_posted_passport(req.passport_b), req.ir)
         except InvalidPassport as exc:
             raise HTTPException(409, f"passport unusable: {exc}") from exc
         except GraphTooLarge as exc:
@@ -707,6 +718,55 @@ def create_app() -> Any:
         except ValueError as exc:
             raise HTTPException(400, f"bad request: {exc}") from exc
         return JSONResponse(compare_graphs(older, newer))
+
+    def _capped_ir(doc: Any) -> dict[str, Any]:
+        raw = json.dumps(doc).encode("utf-8")
+        if len(raw) > MAX_IR_BYTES:
+            raise HTTPException(400, "IR payload too large")
+        if not isinstance(doc, dict):
+            raise HTTPException(400, "IR must be an object")
+        return doc
+
+    @app.post("/impact")
+    def post_impact(req: ImpactRequest) -> JSONResponse:
+        try:
+            report = analyze_impact(_capped_ir(req.ir_before),
+                                    _capped_ir(req.ir_after))
+        except IRValidationError as exc:
+            raise HTTPException(400, f"invalid IR: {exc}") from exc
+        return JSONResponse(report)
+
+    @app.post("/impact/release")
+    def post_impact_release(req: ImpactReleaseRequest) -> JSONResponse:
+        try:
+            doc = _posted_passport(req.passport)
+            base = _posted_passport(req.passport_before) \
+                if req.passport_before is not None else None
+            status = release_status(_capped_ir(req.ir_before),
+                                    _capped_ir(req.ir_after), doc, base)
+        except IRValidationError as exc:
+            raise HTTPException(400, f"invalid IR: {exc}") from exc
+        except GraphTooLarge as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        except ValueError as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        return JSONResponse(status)
+
+    @app.get("/projects/{pid}/impact")
+    def project_impact(pid: str, rev_from: int = 1,
+                       rev_to: int = 0) -> JSONResponse:
+        try:
+            head = store.get(_project_or_404(pid))["head"]
+            ra = store.revision(pid, rev_from)
+            rb = store.revision(pid, rev_to or head)
+            report = analyze_impact(ra["ir"], rb["ir"])
+        except ProjectNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except IRValidationError as exc:
+            raise HTTPException(400, f"invalid IR: {exc}") from exc
+        report["from"] = rev_from
+        report["to"] = rev_to or head
+        return JSONResponse(report)
 
     _UI_FILES = {"studio.html": "text/html",
                  "dashboard.html": "text/html",

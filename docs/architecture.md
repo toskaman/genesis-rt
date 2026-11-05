@@ -83,6 +83,25 @@
   Browsers POST the raw passport text (never a re-serialized object:
   JS turns `1.0` into `1`, which breaks the chain) — the API accepts
   the passport as a dict or as raw JSON text.
+- **Requirements-to-Release** (`host/genesis_rt/impact.py`): compares
+  two validated IR revisions (precise requirement→scenario mapping;
+  conservative global retest for limits/control/machine/contracts;
+  fail-closed on unclassified digest moves; generated files
+  reported, never scope triggers) and checks one run passport
+  against the after-revision (`release_status`: chain finding vs
+  rejection, current/stale evidence, retested/pending sets, binary
+  change via an optional base passport). Targeted retest is rapid
+  feedback only — the full gate still decides release eligibility.
+  Served by the `impact` CLI, `POST /impact`, `POST /impact/release`
+  and `GET /projects/{pid}/impact`; Studio renders project impact,
+  retest banners and the Evidence release check.
+- **IR numeric canonicalization** (`ir.py`, `ir_v2.py`): validators
+  store float-semantic fields as float and collapse integral floats
+  to int, so a JSON round-trip through a float-unaware producer
+  (JS `1.0`→`1`) cannot move `ir_sha256`. Fractional values are
+  never truncated; v1 strict-int fields reject floats as before.
+  Existing example digests are pinned unchanged by history-lock
+  tests (`tests/unit/test_ir_canonical_numbers.py`).
 
 ## QNX-native target (all in `target/qnx8/`)
 

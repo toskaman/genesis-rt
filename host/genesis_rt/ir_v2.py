@@ -146,6 +146,23 @@ def _need_num(doc: dict[str, Any], key: str, path: str) -> float:
     return val
 
 
+def _canon_float(doc: dict[str, Any], key: str) -> None:
+    """Write back the float canonical form of an int-or-float field."""
+    doc[key] = float(doc[key])
+
+
+def _canon_int_like(doc: dict[str, Any], key: str) -> None:
+    """Write back the int canonical form when the value is integral.
+
+    Integral floats (``20.0``) collapse to int so a float-unaware JSON
+    producer (JS turns ``1.0`` into ``1``) cannot change the digest.
+    Genuinely fractional values keep their float spelling: nothing is
+    ever truncated.
+    """
+    val = float(doc[key])
+    doc[key] = int(val) if val.is_integer() else val
+
+
 def _reject_unknown(doc: dict[str, Any], allowed: tuple[str, ...], path: str) -> None:
     for key in doc:
         if key not in allowed:
@@ -162,6 +179,7 @@ def validate_v2(doc: Any) -> dict[str, Any]:
     _reject_unknown(doc, REQUIRED_TOP, "$")
     if doc["schema_version"] != SCHEMA_VERSION:
         raise _fail("schema_version", f"must be {SCHEMA_VERSION}")
+    doc["schema_version"] = SCHEMA_VERSION  # accept 2.0, store canonical 2
 
     _validate_machine(doc["machine"])
     actuators = _validate_components(
@@ -251,15 +269,19 @@ def _validate_components(
             hi = _need_num(bounds, "max", f"{path}.bounds")
             if not lo < hi:
                 raise _fail(path, "'bounds.min' must be < 'bounds.max'")
+            _canon_float(bounds, "min")
+            _canon_float(bounds, "max")
             if "rate_limit" in item:
                 rl = _need_num(item, "rate_limit", path)
                 if rl <= 0:
                     raise _fail(path, "'rate_limit' must be > 0")
+                _canon_float(item, "rate_limit")
             _need_id(item, "fault_response", path)
         else:
             fresh = _need_num(item, "freshness_limit_ms", path)
             if fresh <= 0:
                 raise _fail(path, "'freshness_limit_ms' must be > 0")
+            _canon_int_like(item, "freshness_limit_ms")
             if "range" in item:
                 rng = item["range"]
                 if not isinstance(rng, dict):
@@ -269,6 +291,8 @@ def _validate_components(
                 hi = _need_num(rng, "max", f"{path}.range")
                 if not lo < hi:
                     raise _fail(path, "'range.min' must be < 'range.max'")
+                _canon_float(rng, "min")
+                _canon_float(rng, "max")
         seen[cid] = item
     return seen
 
@@ -291,14 +315,17 @@ def _validate_control(control: Any) -> None:
     period = _need_num(control, "period_ms", "control")
     if period <= 0:
         raise _fail("control", "'period_ms' must be > 0")
+    _canon_int_like(control, "period_ms")
     if "deadline_ms" in control:
         dl = _need_num(control, "deadline_ms", "control")
         if dl <= 0:
             raise _fail("control", "'deadline_ms' must be > 0")
+        _canon_int_like(control, "deadline_ms")
     for key in ("max_linear_speed_mps", "max_angular_speed_radps"):
         val = _need_num(control, key, "control")
         if val <= 0:
             raise _fail("control", f"'{key}' must be > 0")
+        _canon_float(control, key)
     sched = control.get("scheduling")
     if not isinstance(sched, dict):
         raise _fail("control", "'scheduling' must be an object")
@@ -407,6 +434,7 @@ def _validate_commands(items: Any, actuators: dict[str, Any]) -> dict[str, dict[
         dl = _need_num(item, "deadline_ms", path)
         if dl <= 0:
             raise _fail(path, "'deadline_ms' must be > 0")
+        _canon_int_like(item, "deadline_ms")
         fields = item.get("fields")
         if not isinstance(fields, list) or not fields:
             raise _fail(path, "'fields' must be a non-empty list")
@@ -423,6 +451,8 @@ def _validate_commands(items: Any, actuators: dict[str, Any]) -> dict[str, dict[
             hi = _need_num(field, "max", fpath)
             if not lo < hi:
                 raise _fail(fpath, "'min' must be < 'max'")
+            _canon_float(field, "min")
+            _canon_float(field, "max")
             cap = actuators[act]
             if unit != cap["unit"]:
                 raise _fail(fpath, f"unit '{unit}' mismatches actuator "
@@ -460,6 +490,7 @@ def _validate_telemetry(
         rate = _need_num(item, "rate_hz", path)
         if not 0 < rate <= 1000:
             raise _fail(path, "'rate_hz' must be in (0, 1000]")
+        _canon_int_like(item, "rate_hz")
         seen.add(tid)
 
 
@@ -537,9 +568,11 @@ def _validate_simulation(sim: Any) -> None:
     dt = _need_num(sim, "dt_ms", "simulation")
     if not 1 <= dt <= 100:
         raise _fail("simulation", "'dt_ms' must be in 1..100")
+    _canon_int_like(sim, "dt_ms")
     dur = _need_num(sim, "duration_ms", "simulation")
     if not 0 < dur <= 600000:
         raise _fail("simulation", "'duration_ms' must be in (0, 600000]")
+    _canon_int_like(sim, "duration_ms")
     seed = sim.get("seed")
     if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
         raise _fail("simulation", "'seed' must be a non-negative int")

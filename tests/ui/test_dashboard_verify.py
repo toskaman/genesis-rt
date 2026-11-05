@@ -82,6 +82,9 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'graph') { const j = JSON.parse(c.arg); return renderGraphHtml(j.graph, j.opts); }
     if (c.fn === 'graphnode') { const j = JSON.parse(c.arg); return renderGraphNodeHtml(j.graph, j.id, j.opts || {}); }
     if (c.fn === 'graphdiff') return renderGraphDiffHtml(JSON.parse(c.arg));
+    if (c.fn === 'impact') return renderImpactHtml(JSON.parse(c.arg));
+    if (c.fn === 'release') return renderReleaseHtml(JSON.parse(c.arg));
+    if (c.fn === 'banner') return renderReleaseBannerHtml(JSON.parse(c.arg));
     throw new Error('unknown fn ' + c.fn);
   });
   fs.writeFileSync(process.argv[3], JSON.stringify(out));
@@ -597,3 +600,70 @@ def test_live_graph_diff_shows_limit_change(amr_ir, amr_ir_dict, tmp_path):
     (got,) = _run_js([{"fn": "graphdiff", "arg": json.dumps(same)}],
                      tmp_path)
     assert "No node changed" in got
+
+
+@node
+def test_live_impact_renders_change_and_retest(amr_ir_dict, tmp_path):
+    import copy
+
+    from genesis_rt.impact import analyze_impact
+
+    after = copy.deepcopy(amr_ir_dict)
+    after["control"]["max_linear_speed_mps"] = 0.9
+    rep = analyze_impact(amr_ir_dict, after)
+    (got,) = _run_js([{"fn": "impact", "arg": json.dumps(rep)}], tmp_path)
+    assert "max_linear_speed_mps" in got and "0.9" in got
+    assert "genesis_config_gen.h" in got
+    assert "retest (8)" in got and "Run retest scenarios" in got
+    assert "not a formal proof" in got
+    same = analyze_impact(amr_ir_dict, copy.deepcopy(amr_ir_dict))
+    (got,) = _run_js([{"fn": "impact", "arg": json.dumps(same)}], tmp_path)
+    assert "No material change" in got
+    assert "Run retest scenarios" not in got
+
+
+@node
+def test_live_release_renders_current_stale_and_broken(
+        amr_ir, amr_ir_dict, tmp_path):
+    import copy
+
+    from genesis_rt.impact import release_status
+    from genesis_rt.ir import validate_ir
+
+    after_dict = copy.deepcopy(amr_ir_dict)
+    after_dict["control"]["max_linear_speed_mps"] = 0.9
+    current = _graph_passport(validate_ir(after_dict), tmp_path, "jsr-cur")
+    stale = _graph_passport(amr_ir, tmp_path, "jsr-stale")
+    ok = release_status(amr_ir_dict, after_dict, current)
+    old = release_status(amr_ir_dict, after_dict, stale)
+    broken = release_status(amr_ir_dict, after_dict, {"chain": []})
+    got_ok, got_old, got_bad = _run_js(
+        [{"fn": "release", "arg": json.dumps(ok)},
+         {"fn": "release", "arg": json.dumps(old)},
+         {"fn": "release", "arg": json.dumps(broken)}], tmp_path)
+    assert "evidence current:" in got_ok and ">yes<" in got_ok
+    assert "release_eligible" in got_ok and ">NO<" in got_ok
+    assert "retest pending:" in got_ok and ">none<" in got_ok
+    assert "stale digest" in got_old
+    assert "chain broken" in got_bad
+
+
+@node
+def test_live_release_banner_targeted_and_full(amr_ir, tmp_path):
+    p_sub = _graph_passport(amr_ir, tmp_path, "jsb-sub",
+                            scenarios=["nominal_navigation",
+                                       "dropped_message"])
+    p_full = _graph_passport(amr_ir, tmp_path, "jsb-full")
+    gate_sub = [r["body"] for r in p_sub["chain"]
+                if r["kind"] == "gate_verdict"][0]
+    gate_full = [r["body"] for r in p_full["chain"]
+                 if r["kind"] == "gate_verdict"][0]
+    sub, full, none = _run_js(
+        [{"fn": "banner", "arg": json.dumps(gate_sub)},
+         {"fn": "banner", "arg": json.dumps(gate_full)},
+         {"fn": "banner", "arg": "null"}], tmp_path)
+    assert "TARGETED run" in sub and "PENDING" in sub
+    assert "NOT release eligible" in sub
+    assert "stale_proximity_150ms" in sub  # one omitted scenario
+    assert "Full coverage" in full and ">NO<" in full
+    assert "No gate record" in none
