@@ -1,5 +1,24 @@
 # Progress log
 
+## 2026-11-05 -- Wave 8 Task 3b + Task 4: sealed passports + formal campaign
+
+- Runner SEAL/REPLAY real (@4dcbe3f): seal mirrors run_pipeline
+  (host sims + build_passport + gate; gate FAIL fails the op),
+  replay recomputes chain + gate from the sealed file; artifacts
+  persisted in the op record. 27/27 target tests, 821 suite green.
+- Runner hardening (@c3c6e4b): hermetic staging (leftovers dropped
+  before put), extra_src param, IR normalize-once at validate
+  (posted order vs validated order digest differently — the gate
+  caught it), build_set passed to perf. 826/826 green.
+- Formal campaign op-dc74546f8fa2 (Task 4 record:
+  docs/audits/TASK4_FORMAL_CAMPAIGN.md): 13/13 COMPLETED, fresh
+  qcc 12.2.0 build, hermetic staging of 9 binaries (6 primary +
+  3 attributed secondaries), 16/16 matrix PASS on QNX 8.0.0 TCG,
+  1000-sample perf bound, verdict PASS, replay PASS,
+  level QNX_PERFORMANCE_MEASURED, release_eligible True,
+  tamper control refused. Honest gap: no explicit 2^32
+  wrap-boundary vector on target (host-tested); matrix v2 recommended.
+
 ## 2026-11-05 -- Wave 8 Phase A: API/Target Runner + fresh native proof
 
 - §6 Origin guard now covers PUT/PATCH (was POST/DELETE only; PUT
