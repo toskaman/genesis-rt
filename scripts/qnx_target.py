@@ -497,6 +497,55 @@ TARGET_MATRIX = [
      " ./genesis_guard_v2 > guard-v2est.log 2>&1 & sleep 2;"
      " echo ---V2-ESTOP---; ./genesis_faultinject probe estop;"
      " slay genesis_guard_v2 2>/dev/null; slay genesis_guard 2>/dev/null; true"),
+    ("controller_crash",
+     # Fault containment: SIGKILL the controller mid-chain. The device
+     # must freeze (<=3 in-flight applies may still land), the guard
+     # log must freeze too (no phantom traffic once the source is
+     # gone), every apply must come from the guard pid (no bypass),
+     # the controller must be gone from pidin, and the guard must
+     # survive. NOTE: pidin -F %n shows `./genesis_*` with padding,
+     # so exact ^...$ matches never fire; plain substring counts are
+     # used (conv/v2 guards are slain at step start, so no
+     # cross-match is possible).
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+     " slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
+     " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1;"
+     " rm -f device-ccx.log guard-ccx.log ctrl-ccx.log;"
+     " ./genesis_device > device-ccx.log 2>&1 &"
+     " ./genesis_guard > guard-ccx.log 2>&1 & GPID=$!; sleep 2;"
+     " ./genesis_controller 50 > ctrl-ccx.log 2>&1 & sleep 4;"
+     " echo BEFORE=$(grep -c APPLY device-ccx.log);"
+     " echo GBEFORE=$(grep -c decision guard-ccx.log);"
+     " slay -9 genesis_controller; sleep 3;"
+     " echo AFTER=$(grep -c APPLY device-ccx.log);"
+     " echo GAFTER=$(grep -c decision guard-ccx.log);"
+     " echo NONGUARD=$(grep APPLY device-ccx.log | grep -vc \"from_pid=$GPID \");"
+     " echo CALIVE=$(pidin -F %n 2>/dev/null | grep -c genesis_controller);"
+     " echo GALIVE=$(pidin -F %n 2>/dev/null | grep -c genesis_guard);"
+     " slay genesis_guard 2>/dev/null; slay genesis_device 2>/dev/null; true"),
+    ("device_crash",
+     # Fault containment: SIGKILL the device mid-chain. The device
+     # log must freeze (<=3 in-flight applies), the guard must KEEP
+     # deciding (source + policy path alive despite the dead sink),
+     # every apply must come from the guard pid, the device must be
+     # gone from pidin, and controller + guard must survive.
+     "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+     " slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
+     " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1;"
+     " rm -f device-dcx.log guard-dcx.log ctrl-dcx.log;"
+     " ./genesis_device > device-dcx.log 2>&1 &"
+     " ./genesis_guard > guard-dcx.log 2>&1 & GPID=$!; sleep 2;"
+     " ./genesis_controller 50 > ctrl-dcx.log 2>&1 & sleep 4;"
+     " echo BEFORE=$(grep -c APPLY device-dcx.log);"
+     " echo GBEFORE=$(grep -c decision guard-dcx.log);"
+     " slay -9 genesis_device; sleep 3;"
+     " echo AFTER=$(grep -c APPLY device-dcx.log);"
+     " echo GAFTER=$(grep -c decision guard-dcx.log);"
+     " echo NONGUARD=$(grep APPLY device-dcx.log | grep -vc \"from_pid=$GPID \");"
+     " echo DALIVE=$(pidin -F %n 2>/dev/null | grep -c genesis_device);"
+     " echo CALIVE=$(pidin -F %n 2>/dev/null | grep -c genesis_controller);"
+     " echo GALIVE=$(pidin -F %n 2>/dev/null | grep -c genesis_guard);"
+     " slay genesis_controller 2>/dev/null; slay genesis_guard 2>/dev/null; true"),
     ("guard_crash",
      # Fault containment: SIGKILL the guard mid-chain. The device must
      # freeze (<=3 in-flight applies may still land), every apply must
@@ -514,7 +563,7 @@ TARGET_MATRIX = [
      " slay -9 genesis_guard; sleep 3;"
      " echo AFTER=$(grep -c APPLY device-gc.log);"
      " echo NONGUARD=$(grep APPLY device-gc.log | grep -vc \"from_pid=$GPID \");"
-     " echo ALIVE=$(pidin -F %n 2>/dev/null | grep -c \"^genesis_guard$\");"
+     " echo ALIVE=$(pidin -F %n 2>/dev/null | grep -c genesis_guard);"
      " echo ---CTRL-GC-TAIL---; tail -5 ctrl-gc.log;"
      " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; true"),
     ("cell_policy",
@@ -663,6 +712,43 @@ def _matrix_check(name: str, body: str, status: int,
               and "MISSING_V2_GUARD" not in body and "FI_V2_EXIT=0" in body
               and secs[4].count("PASS ") >= 9
               and all(w in s for w, s in zip(wants, secs)))
+    elif name == "controller_crash":
+        # Containment: a live chain (BEFORE>=20) loses its
+        # controller; the device must freeze (<=3 in-flight
+        # applies), the guard log must freeze too (no phantom
+        # traffic), nothing may bypass the guard pid, pidin must
+        # show no controller left, and the guard must survive.
+        def _num(pat, cast=float, default=None):
+            m = re.search(pat, body)
+            return cast(m.group(1)) if m else default
+        before = _num(r"BEFORE=(\d+)", int, -1)
+        after = _num(r"AFTER=(\d+)", int, -1)
+        gbefore = _num(r"GBEFORE=(\d+)", int, -1)
+        gafter = _num(r"GAFTER=(\d+)", int, -1)
+        ok = (before >= 20 and 0 <= after - before <= 3
+              and gbefore >= 20 and 0 <= gafter - gbefore <= 3
+              and _num(r"NONGUARD=(\d+)", int, -1) == 0
+              and _num(r"CALIVE=(\d+)", int, -1) == 0
+              and _num(r"GALIVE=(\d+)", int, -1) == 1)
+    elif name == "device_crash":
+        # Containment: a live chain (BEFORE>=20) loses its device;
+        # the device log must freeze (<=3 in-flight applies) while
+        # the guard KEEPS deciding (source + policy path alive),
+        # nothing may bypass the guard pid, pidin must show no
+        # device left, and controller + guard must survive.
+        def _num(pat, cast=float, default=None):
+            m = re.search(pat, body)
+            return cast(m.group(1)) if m else default
+        before = _num(r"BEFORE=(\d+)", int, -1)
+        after = _num(r"AFTER=(\d+)", int, -1)
+        gbefore = _num(r"GBEFORE=(\d+)", int, -1)
+        gafter = _num(r"GAFTER=(\d+)", int, -1)
+        ok = (before >= 20 and 0 <= after - before <= 3
+              and gafter - gbefore >= 20
+              and _num(r"NONGUARD=(\d+)", int, -1) == 0
+              and _num(r"DALIVE=(\d+)", int, -1) == 0
+              and _num(r"CALIVE=(\d+)", int, -1) == 1
+              and _num(r"GALIVE=(\d+)", int, -1) == 1)
     elif name == "guard_crash":
         # Containment: a live chain (BEFORE>=20) is SIGKILLed; the
         # device must freeze (<=3 in-flight applies), nothing may

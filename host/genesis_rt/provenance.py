@@ -48,6 +48,8 @@ EXPECTED_TARGET_CHECKS = (
     "supervisor_respawn",
     "supervisor_giveup",
     "v2_transitions",
+    "controller_crash",
+    "device_crash",
     "guard_crash",
     "cell_policy",
 )

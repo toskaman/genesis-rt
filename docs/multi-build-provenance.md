@@ -1,11 +1,12 @@
 # Multi-build provenance (provenance v2)
 
-Status: implemented and unit-tested on the host (5 Nov 2026). **Not yet
-exercised on the QNX target** with a real build set (see "Migration").
+Status: implemented, unit-tested, and exercised on the QNX target
+(5 Nov 2026, run-079ce9374c58: `build-set: 2/2 entries replayed`,
+`QNX_PERFORMANCE_MEASURED`).
 
 ## The gap it closes
 
-The on-target matrix (`scripts/qnx_target.py`, 14 steps since Wave 3A) runs three kinds of
+The on-target matrix (`scripts/qnx_target.py`, 16 steps since Wave 3B) runs three kinds of
 executables:
 
 | Staged name | Produced by | Used by steps |
@@ -94,4 +95,4 @@ python scripts/replay.py <campaign passport> --anchor <head> \
   but re-evaluating the gate no longer grants `QNX_BEHAVIOR_VERIFIED` /
   `QNX_PERFORMANCE_MEASURED`. They are not upgraded; a fresh target cycle with
   `--build-set` is required to regain those tiers.
-- The matrix itself is not changed by provenance v2 (14 steps after Wave 3A `guard_crash`, which uses only primary-build executables).
+- The matrix itself is not changed by provenance v2 (16 steps after Wave 3B; the crash-containment steps use only primary-build executables).

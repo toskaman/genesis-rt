@@ -64,6 +64,14 @@ def test_rejects_silent_controller(qt):
 
 def test_step_present_before_cell_policy(qt):
     names = [name for name, _ in qt.TARGET_MATRIX]
-    assert len(names) == 14
+    assert len(names) == 16
     assert names.index("guard_crash") == names.index("cell_policy") - 1
     assert "slay -9 genesis_guard" in dict(qt.TARGET_MATRIX)["guard_crash"]
+
+
+def test_alive_uses_substring_pidin_match(qt):
+    # pidin -F %n prints `./genesis_guard` + padding: an anchored
+    # ^...$ grep never fires (always-ALIVE=0, vacuous proof).
+    cmd = dict(qt.TARGET_MATRIX)["guard_crash"]
+    assert "grep -c genesis_guard" in cmd
+    assert "^genesis_guard$" not in cmd

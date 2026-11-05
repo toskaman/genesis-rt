@@ -38,7 +38,7 @@ def _good_body():
 def test_cell_policy_matrix_step_exists(qt):
     names = [name for name, _ in qt.TARGET_MATRIX]
     assert names[-1] == "cell_policy"
-    assert len(names) == 14
+    assert len(names) == 16
     assert names.index("guard_crash") == len(names) - 2
 
 

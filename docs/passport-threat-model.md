@@ -102,7 +102,7 @@ SSH with invented uname/cksum.
   secondary missing. `scripts/replay.py --source-passport` re-derives each
   entry from its source passport. Cost: a campaign needs the passports of
   every build it stages. See `docs/multi-build-provenance.md`.
-- **matrix pin**: exactly the 14 known checks, in order. A renamed,
+- **matrix pin**: exactly the 16 known checks, in order. A renamed,
   dropped, or extra check fails closed.
 - **perf binding**: same staged rendezvous + window + platform, plus
   nearest-rank percentiles (no interpolation — reported values are always

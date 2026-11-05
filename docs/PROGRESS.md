@@ -1,5 +1,34 @@
 # Progress log
 
+## 2026-11-05 -- P1 Wave 3B : containment controller/device + fix pidin
+
+- Bug Wave 3A : pidin `-F %n` affiche `./genesis_guard` + padding,
+  donc `grep -c "^genesis_guard$"` ne matchait jamais -> assertion
+  ALIVE=0 vacuous. Fix : comptages substring (conv/v2 slain en
+  debut de step, pas de collision) + test de regression qui
+  interdit les patterns ancres. Valide dans les 2 sens live.
+- 2 steps avant guard_crash (cell_policy reste dernier) :
+  `controller_crash` (device 81->82, guard 82->82 gele,
+  NONGUARD=0, CALIVE=0, GALIVE=1) et `device_crash` (device
+  81->82 gele, guard 82->145 decide toujours, DALIVE=0,
+  CALIVE=1, GALIVE=1). Parsers : freeze 0..3, NONGUARD=0,
+  morts==0, survivants==1, device_crash exige GAFTER-GBEFORE>=20.
+- 18 tests (17 containment + 1 pin pidin) ; 33/33 cibles.
+- Fusion PR #2 (provenance v2 multi-build, session parallele) :
+  rebase + cycle cible frais avec `--build-set` (v1 plafonne a
+  QNX_EXECUTED). 3 builds demo (conv run-d6c955a3478d, amr-v2
+  run-7700919fdcd1, cellule run-6e946cd6334b), 9 stages frais,
+  `verify --ir --build-set` 16/16 PASS, perf 1000/1000
+  (p50 254.7 us, p95 399.9, p99 493.7, max 825.1), `demo` ->
+  `QNX_PERFORMANCE_MEASURED` (run-079ce9374c58).
+- Replay ancre v2 : `chain: valid` + `anchor: match` +
+  `transcripts: 16/16 match` + `build-set: 2/2 entries replayed`
+  + `gate: PASS` exit 0 ; transcript controller_crash falsifie
+  -> `MODIFIED` exit 1. Ancre run-079ce9374c58 :
+  `1262137d6537159be410e1ce64c9a347e7f026f20442e8a1681d007488a78623`.
+- Suite hote 508/508.
+  Chiffres canoniques : 508 tests, matrice 16/16, 9 stages.
+
 ## 2026-11-05 -- P0 Wave A : provenance multi-build (v2) + baseline
 
 - Baseline mesure (checkout propre Linux, sans SDK) : 449 passed / 3
