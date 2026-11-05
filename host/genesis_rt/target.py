@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import copy
 import io
 import json
 import logging
@@ -344,7 +345,9 @@ class TargetRunner:
             self._cancel[op_id] = cancel_evt
         thread.start()
         log.info("op=%s start workflow=%s", op_id, workflow)
-        return self.get(op_id)  # type: ignore[return-value]
+        # Return the as-accepted record, not a re-read: the worker may
+        # already have advanced the on-disk state (PENDING->... race).
+        return copy.deepcopy(rec)
 
     def cancel(self, op_id: str) -> dict[str, Any]:
         rec = self.get(op_id)
