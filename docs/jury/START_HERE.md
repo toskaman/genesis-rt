@@ -27,9 +27,9 @@ On Windows PowerShell, prefix the two commands with
 python -m pytest tests/ -q
 ```
 
-Expect green (831 with SDK, 0 skips — 5 Nov 2026, this box;
-SDK-free runs the same suite with honest skips: QNX-build tests
-plus cksum-conformance where coreutils is absent). With an SDK the
+Expect green (836 with SDK, 0 skips — 5 Nov 2026, this box;
+SDK-free: 832 passed + 4 honest skips — 4 QNX-build — without an
+SDK; +1 cksum-conformance where coreutils is absent). With an SDK the
 QNX build test compiles the 6 native binaries per machine build for
 real (7 for the cell, 9 staged on target: bound set +
 `genesis_guard_conv` + `genesis_guard_v2`); without one it reports

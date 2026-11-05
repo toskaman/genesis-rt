@@ -13,7 +13,7 @@ No QNX SDK needed except where marked.
 | Full demo + passport | `PYTHONPATH=host python scripts/run_verified_demo.py` | `verdict: PASS` |
 | Passport replays | `PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json` | `chain: valid`, `gate: PASS` |
 | Gate blocks sabotage | `python -m pytest tests/integration/test_pipeline.py tests/acceptance/ -q` | green |
-| Whole suite | `python -m pytest tests/ -q` | green, 831 tests w/ SDK, 0 skips (5 Nov 2026); SDK-free: same suite with honest skips (QNX-build; +1 cksum-conformance where coreutils is absent) |
+| Whole suite | `python -m pytest tests/ -q` | green, 836 tests w/ SDK, 0 skips (5 Nov 2026; else 832 + 4 honest skips: 4 QNX-build; +1 cksum-conformance where coreutils is absent) |
 | QNX SDK probe | `PYTHONPATH=host python scripts/qnx_env_check.py` | JSON, `sdk_present` honest |
 | **QNX native build (needs SDK)** | `source ~/qnx800/qnxsdp-env.sh` then generate + `make -f genesis_build_gen.mk qnx` | 6 `genesis_*` binaries per machine build (7 for cell: + `genesis_cellcheck`), 0 warnings (9 staged on target: bound set + `genesis_guard_conv` + `genesis_guard_v2`) |
 | **QNX run (needs SDK+QEMU)** | `python scripts/qnx_target.py put <bins>` then `verify` | 16/16 matrix PASS, `qnx_verified: true` |

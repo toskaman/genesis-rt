@@ -1,5 +1,23 @@
 # Progress log
 
+## 2026-11-05 -- Wave 9 Phase 2: Judge Mode + Decision link + bench repro
+
+- Judge Mode (@f1954a5): guided 7-stage tab (A machine → G value),
+  every action drives the real product (tab navigation or live
+  POST /jobs fault/verify runs); backend-offline shows the
+  archived sample labeled ARCHIVED. Node harness 4/4.
+- Proof-to-Decision link (@323f544): stage G renders the live
+  release banner (TARGETED/PENDING vs eligible) from the judge
+  job passport; UI 47/47.
+- Benchmark re-run: totals reproduce exactly (8 vs 30+10 cmds,
+  5/5 vs 2/5 faults, repro True); committed REPORT.json refreshed;
+  pilot kit `docs/business/pilot-study.md` (protocol + templates,
+  no invented participants).
+- Docs guard caught stale counts (CI red on 3 pushes): fixed to
+  836/836 with-SDK and 832 + 4 honest SDK-less skips (measured:
+  CI ubuntu bfa549e 822+4 at 826 + 10 SDK-independent new tests).
+- Suite 836/836 green, 0 skips (CI on push).
+
 ## 2026-11-05 -- Wave 8 §8 remainder + §17 retention + judge docs
 
 - DNS-rebinding audit closed (`docs/local-security-model.md`): 5
