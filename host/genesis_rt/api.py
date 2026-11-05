@@ -178,8 +178,10 @@ def create_app() -> Any:
     db_path = ARTIFACTS / "runs.db"
     mgr = JobManager(db_path, ARTIFACTS)
     store = ProjectStore(ARTIFACTS.parent / "studio" / "projects")
+    # Same lock file as the qnx_target.py CLI default (artifacts/.target.lock):
+    # API ops and CLI campaigns coordinate instead of interfering.
     trunner = TargetRunner(ARTIFACTS / "target-ops",
-                           ARTIFACTS / ".target.lock")
+                           ARTIFACTS.parent / ".target.lock")
 
     @asynccontextmanager
     async def _lifespan(app: Any) -> Any:

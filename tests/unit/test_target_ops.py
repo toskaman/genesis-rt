@@ -161,3 +161,31 @@ def test_list_ops_newest_first(runner, monkeypatch):
     rows = runner.list_ops()
     assert [r["op_id"] for r in rows] == [b["op_id"], a["op_id"]]
     assert rows[0]["state"] == "COMPLETED"
+
+
+def test_two_runners_share_file_lock(tmp_path, monkeypatch):
+    _stub_all(monkeypatch)
+    lock = tmp_path / "target.lock"
+    r1 = tgt.TargetRunner(tmp_path / "ops1", lock)
+    r2 = tgt.TargetRunner(tmp_path / "ops2", lock)
+    started = threading.Event()
+    release = threading.Event()
+
+    def _slow(ctx):
+        started.set()
+        release.wait(timeout=30)
+        return (True, "slow ok")
+
+    monkeypatch.setitem(tgt.STEP_IMPLS, "validate", _slow)
+    try:
+        rec = r1.start("build-only", params={"ir": {}})
+        assert started.wait(timeout=10)
+        try:
+            with pytest.raises(tgt.TargetBusy):
+                r2.start("build-only", params={"ir": {}})
+        finally:
+            release.set()
+        assert _poll_state(r1, rec["op_id"])["state"] == "COMPLETED"
+    finally:
+        r1.close()
+        r2.close()

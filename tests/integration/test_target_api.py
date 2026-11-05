@@ -140,3 +140,15 @@ def test_target_blocked_never_pass(client, monkeypatch):
     assert rec["state"] == "BLOCKED"
     assert "SDK" in rec["reason"]
     assert "PASS" not in json.dumps(rec)
+
+
+def test_build_only_op_real_build(client, amr_ir):
+    from genesis_rt.build_adapter import probe
+    if not probe()["sdk_present"]:
+        pytest.skip("QNX SDK not installed (honest skip, not a pass)")
+    r = client.post("/target/ops", json={"workflow": "build-only",
+                                         "params": {"ir": amr_ir}})
+    assert r.status_code == 202, r.text
+    rec = _poll_op(client, r.json()["op_id"], timeout=300)
+    assert rec["state"] == "COMPLETED", rec
+    assert rec["artifacts"].get("binaries"), rec["artifacts"]

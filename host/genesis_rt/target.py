@@ -462,8 +462,9 @@ def _step_env(ctx: dict[str, Any]) -> tuple[bool, str]:
 def _step_generate(ctx: dict[str, Any]) -> tuple[bool, str]:
     from .codegen import generate
     out = Path(ctx["work_dir"]) / "gen"
+    genesis_src = Path(__file__).resolve().parent.parent.parent / "target" / "qnx8"
     try:
-        manifest = generate(ctx["params"]["ir"], out)
+        manifest = generate(ctx["params"]["ir"], out, genesis_src=str(genesis_src))
     except Exception as exc:
         return False, f"codegen failed: {exc}"
     files = manifest.get("files", [])
