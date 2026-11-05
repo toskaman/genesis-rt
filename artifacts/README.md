@@ -5,5 +5,6 @@
 - `runs/<run-id>/generated/` — per-run codegen output (git-ignored).
 - `samples/` — explicitly committed example passports. These are
   **host-simulated** records, never QNX execution evidence, and are
-  labelled as such inside the file (`environment.qnx.sdk_present=false`,
-  `qnx_verified=false`).
+  labelled as such inside the file
+  (`environment.qnx.environment.sdk_present=false`,
+  `environment.qnx.verified_on_target=false`, `qnx_verified=false`).

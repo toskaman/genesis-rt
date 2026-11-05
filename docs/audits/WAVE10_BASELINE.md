@@ -1,7 +1,7 @@
 # Wave 10 baseline (2026-11-05, HEAD 37acc81, CI success)
 
-Fresh re-verification: **844/844 host tests green, 0 skips**
-(595 unit + 249 rest), SDK-less CI 839 + 5 skips. Tree clean.
+Fresh re-verification: **846/846 host tests green, 0 skips**
+(597 unit + 249 rest), SDK-less CI 841 + 5 skips. Tree clean.
 No open PRs inspected (direct-to-main flow this session).
 Prior waves complete: Target Runner + seal/replay, formal
 campaign op-dc74 (MEASURED), §8 audit, retention, Judge Mode,

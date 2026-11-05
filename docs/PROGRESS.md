@@ -28,7 +28,7 @@
   SDK-gates Lab 5, pins lab/block coverage. Fixed along the
   way: Store-stub `python` under QNX sh, backslash env paths
   in python one-liners, set-e vs intentional-failure line.
-- Suite 844/844 green, 0 skips (CI on push; SDK-less 839 + 5).
+- Suite 846/846 green, 0 skips (CI on push; SDK-less 841 + 5).
 
 ## 2026-11-05 -- Wave 9 §25: red-team round 1 (replay swap fixed)
 

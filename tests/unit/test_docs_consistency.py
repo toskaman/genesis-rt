@@ -66,6 +66,26 @@ def test_planning_eval_count_matches_dataset():
     assert claimed == (str(len(cases)),) * 3 == ("28", "28", "28"), (claimed, len(cases))
 
 
+def test_limitations_match_judge_mode_implementation():
+    """F4 anti-rot: limitations must not claim Judge Mode is missing while
+    Studio ships a guided Judge tab (or vice versa)."""
+    studio = _read("ui/studio.html")
+    lim = _read("docs/jury/KNOWN_LIMITATIONS.md")
+    score = _read("docs/jury/JUDGE_SCORECARD.md")
+    assert "function judgeStages()" in studio
+    assert "No guided Judge Mode yet" not in score
+    assert "no guided Judge Mode yet" not in lim
+
+
+def test_limitations_match_twin_ab_implementation():
+    """F4 anti-rot: limitations must not claim A/B twin replay is missing
+    while Studio paints two passport tracks on one cursor (or vice versa)."""
+    studio = _read("ui/studio.html")
+    lim = _read("docs/jury/KNOWN_LIMITATIONS.md")
+    assert "twincv-b" in studio and "twinCompareTexts" in studio
+    assert "no synchronized A/B twin replay" not in lim
+
+
 def test_adversarial_count_matches_collected():
     claimed = _one(r"(\d+)-test adversarial", _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard adversarial")
     proc = subprocess.run(

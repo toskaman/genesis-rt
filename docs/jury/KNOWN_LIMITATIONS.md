@@ -15,9 +15,11 @@ Short version of `docs/limitations-and-safety.md` — the full text governs.
   for near-term deadlines, but a 64-bit clock would remove the caveat.
 - Studio Live (`studio.html` + local API) runs host pipelines and
   native target ops from the page (SSE progress, cancel, evidence
-  inspection, Target tab with phase checklist). There is no guided
-  Judge Mode yet, no synchronized A/B twin replay, and no
-  multi-user/team workflow — single local operator.
+  inspection, Target tab with phase checklist, guided 7-stage Judge
+  Mode tab with real run/inspect actions, synchronized A/B twin
+  replay of two passports on one time cursor). There is no
+  multi-user/team workflow — single local operator. Judge Mode
+  browser E2E is pending (current Judge tests are node/DOM-level).
 - API is local-first with no auth; not for exposed deployment.
 - No QNX HAM integration: the QSTI image ships no `ham` binary, so
   supervision is our own tested RESPAWN/GIVE_UP process (matrix
