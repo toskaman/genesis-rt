@@ -101,6 +101,7 @@ AUDITED_GET_ROUTES = [
     "/runs/{run_id}/passport/raw",
     "/studio.html",
     "/target/ops",
+    "/target/ops/compare",
     "/target/ops/{op_id}",
     "/target/ops/{op_id}/decision",
     "/target/ops/{op_id}/dossier",

@@ -258,6 +258,34 @@ def _why_lines(verdict: str, state: str, gate: str, qnx_verified: bool,
     return lines or ["unexplained non-pass (report this as a bug)"]
 
 
+def compare_ops(ops_dir: Path, artifacts_root: Path | None,
+                before_id: str, after_id: str) -> dict[str, Any]:
+    """Side-by-side assessment of two terminal ops plus a diff summary.
+
+    Raises DossierError (404/409/413) like the dossier builder when
+    either side is missing, non-terminal or over caps.
+    """
+    sides = {}
+    for key, oid in (("before", before_id), ("after", after_id)):
+        files, rec, _red = collect_op_files(ops_dir, oid, artifacts_root)
+        sides[key] = assess_op(oid, rec, files)
+    b, a = sides["before"], sides["after"]
+    bf = set(b["matrix"]["failed"])
+    af = set(a["matrix"]["failed"])
+    sides["diff"] = {
+        "ir_changed": b["ir_digest"] != a["ir_digest"],
+        "verdict_changed": b["verdict"] != a["verdict"],
+        "gate_changed": b["gate"] != a["gate"],
+        "release_changed": (b["release_eligible"] != a["release_eligible"]),
+        "toolchain_changed": b["toolchain"] != a["toolchain"],
+        "newly_failed": sorted(af - bf),
+        "newly_passed": sorted(bf - af),
+        "matrix_before": f'{b["matrix"]["passed"]}/{b["matrix"]["total"]}',
+        "matrix_after": f'{a["matrix"]["passed"]}/{a["matrix"]["total"]}',
+    }
+    return sides
+
+
 def render_report(op_id: str, rec: dict[str, Any], files: dict[str, bytes],
                   redacted: list[str]) -> tuple[str, str]:
     """Return (report.html, verdict) with verdict in PASS/FAIL/NOT VERIFIED."""

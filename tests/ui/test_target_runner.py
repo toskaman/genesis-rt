@@ -51,6 +51,9 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'topdecision') {
       return renderDecisionHtml(JSON.parse(c.arg));
     }
+    if (c.fn === 'topcompare') {
+      return renderCompareHtml(JSON.parse(c.arg));
+    }
     throw new Error('unknown fn ' + c.fn);
   });
   fs.writeFileSync(process.argv[3], JSON.stringify(out));
@@ -134,12 +137,15 @@ def test_tab_chrome_present():
     assert 'data-tab="target"' in html
     assert 'id="tab-target"' in html
     for cid in ("top-workflow", "top-image", "top-run", "top-cancel",
-                "top-out", "top-refresh", "top-history"):
+                "top-out", "top-refresh", "top-history", "top-cmp-before",
+                "top-cmp-after", "top-cmp-run", "top-compare"):
         assert f'id="{cid}"' in html
     for fn in ("reduceTargetEvents", "renderTargetHtml",
-               "renderTargetOpsHtml", "renderDecisionHtml", "targetRun",
+               "renderTargetOpsHtml", "renderDecisionHtml",
+               "renderCompareHtml", "targetRun",
                "openTargetOp", "openTargetStream", "refreshTargetHistory",
-               "loadTargetDecision"):
+               "loadTargetDecision", "compareTargetOps",
+               "fillCompareSelects"):
         assert f"function {fn}(" in html or f"async function {fn}(" in html
 
 
@@ -197,3 +203,29 @@ def test_decision_renders_verdict_why_and_escapes(tmp_path):
     assert "Release decision" in html
     assert "FAIL" in html and "limits_differ" in html
     assert "<img" not in html and "&lt;img" in html
+
+
+@node
+def test_compare_renders_sides_diff_and_escapes(tmp_path):
+    evil = "<script>alert(1)</script>"
+    cmp = {
+        "before": {"op_id": "op-aaaaaaaaaaaaaaaa", "verdict": "PASS",
+                   "ir_digest": "aaa", "gate": "PASS",
+                   "gate_level": "QNX_EXECUTED",
+                   "release_eligible": True, "toolchain": "qcc 12.2.0"},
+        "after": {"op_id": "op-bbbbbbbbbbbbbbbb", "verdict": "FAIL",
+                  "ir_digest": "bbb", "gate": "FAIL",
+                  "gate_level": "QNX_EXECUTED",
+                  "release_eligible": False, "toolchain": evil},
+        "diff": {"ir_changed": True, "verdict_changed": True,
+                 "gate_changed": True, "release_changed": True,
+                 "toolchain_changed": True,
+                 "newly_failed": ["limits_differ"], "newly_passed": [],
+                 "matrix_before": "2/2", "matrix_after": "1/2"},
+    }
+    (html,) = _run_js([{"fn": "topcompare", "arg": json.dumps(cmp)}],
+                      tmp_path)
+    assert "op-aaaaaaaaaaaaaaaa" in html and "op-bbbbbbbbbbbbbbbb" in html
+    assert "limits_differ" in html and "(changed)" in html
+    assert "2/2" in html and "1/2" in html
+    assert "<script>" not in html and "&lt;script&gt;" in html

@@ -80,4 +80,7 @@ python -u /tmp/qlab/campaign_after.py
 ```
 
 Compare `target-limits_differ.log`, `genesis_config_gen.h`, and the
-guard sha256 in `qnx-build-record.json` across the two op dirs.
+guard sha256 in `qnx-build-record.json` across the two op dirs — or
+open the Target Runner tab in Studio, pick the two ops in
+Before / after comparison, and read the side-by-side verdict, IR,
+gate, and matrix deltas (`GET /target/ops/compare?before=…&after=…`).

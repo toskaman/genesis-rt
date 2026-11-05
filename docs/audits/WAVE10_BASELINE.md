@@ -1,7 +1,7 @@
 # Wave 10 baseline (2026-11-05, HEAD 37acc81, CI success)
 
-Fresh re-verification: **877/877 host tests green, 0 skips**
-(602 unit + 275 rest, incl. 2 real-browser E2E), SDK-less CI 872 + 5
+Fresh re-verification: **882/882 host tests green, 0 skips**
+(602 unit + 280 rest, incl. 2 real-browser E2E), SDK-less CI 877 + 5
 skips (CI installs Chromium, so E2E runs there too). Tree clean.
 No open PRs inspected (direct-to-main flow this session).
 Prior waves complete: Target Runner + seal/replay, formal

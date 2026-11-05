@@ -181,6 +181,13 @@ verify → measure. IR comes from the source picked in the Pipeline tab.</p>
 <h3>History</h3>
 <div class="row"><button class="ghost" id="top-refresh">Refresh history</button></div>
 <div id="top-history"><p class="note">Not loaded.</p></div>
+<h3>Before / after comparison</h3>
+<div class="row"><label for="top-cmp-before">before</label>
+<select id="top-cmp-before"></select>
+<label for="top-cmp-after">after</label>
+<select id="top-cmp-after"></select>
+<button class="ghost" id="top-cmp-run">Compare</button></div>
+<div id="top-compare"><p class="note">Pick two finished ops to compare.</p></div>
 </section>
 
 <section class="tabpage" id="tab-twin" role="tabpanel">
@@ -1149,6 +1156,44 @@ function renderDecisionHtml(d) {
     '</code>').join(' · ') || 'none';
   h += '<p class="note">missing evidence: ' + miss +
     ' · failed checks: ' + fail + '</p>';
+  return h;
+}
+function renderCompareHtml(c) {
+  const b = c.before || {};
+  const a = c.after || {};
+  const d = c.diff || {};
+  const vcls = (v) => (v === 'PASS' ? 'pass'
+    : (v === 'FAIL' ? 'fail' : 'unknown'));
+  const chg = (changed, txt) => (changed
+    ? '<span class="fail">' + esc(txt) + ' (changed)</span>'
+    : esc(txt));
+  let h = '<table><tr><th></th><th>Before<br><code>' +
+    esc(b.op_id) + '</code></th><th>After<br><code>' +
+    esc(a.op_id) + '</code></th></tr>';
+  h += '<tr><td>Verdict</td><td class="' + vcls(b.verdict) + '">' +
+    esc(b.verdict) + '</td><td class="' + vcls(a.verdict) + '">' +
+    esc(a.verdict) + '</td></tr>';
+  h += '<tr><td>IR digest</td><td><code>' + esc(b.ir_digest, 24) +
+    '</code></td><td>' + chg(d.ir_changed, (a.ir_digest || '')
+      .slice(0, 24)) + '</td></tr>';
+  h += '<tr><td>Gate</td><td>' + esc(b.gate) + ' <code>' +
+    esc(b.gate_level) + '</code></td><td>' +
+    chg(d.gate_changed, (a.gate || '') + ' ' + (a.gate_level || '')) +
+    '</td></tr>';
+  h += '<tr><td>Release eligible</td><td>' + esc(b.release_eligible) +
+    '</td><td>' + chg(d.release_changed, String(a.release_eligible)) +
+    '</td></tr>';
+  h += '<tr><td>Matrix</td><td>' + esc(d.matrix_before) + '</td><td>' +
+    esc(d.matrix_after) + '</td></tr>';
+  const nf = (d.newly_failed || []).map((x) => '<code>' + esc(x) +
+    '</code>').join(' · ') || 'none';
+  const np = (d.newly_passed || []).map((x) => '<code>' + esc(x) +
+    '</code>').join(' · ') || 'none';
+  h += '<tr><td>Newly failed</td><td colspan="2">' + nf + '</td></tr>';
+  h += '<tr><td>Newly passed</td><td colspan="2">' + np + '</td></tr>';
+  h += '<tr><td>Toolchain</td><td>' + esc(b.toolchain, 80) + '</td><td>' +
+    chg(d.toolchain_changed, (a.toolchain || '').slice(0, 80)) +
+    '</td></tr></table>';
   return h;
 }
 function renderTargetOpsHtml(ops) {
@@ -2793,8 +2838,40 @@ async function refreshTargetHistory() {
     el('top-history').querySelectorAll('button[data-op]').forEach((b) => {
       b.addEventListener('click', () => openTargetOp(b.dataset.op));
     });
+    fillCompareSelects(body.ops || []);
   } catch (e) {
     el('top-history').innerHTML = errHtml('history failed', e);
+  }
+}
+function fillCompareSelects(ops) {
+  const done = ops.filter((o) => o.state === 'COMPLETED' ||
+    o.state === 'FAILED');
+  for (const id of ['top-cmp-before', 'top-cmp-after']) {
+    const sel = el(id);
+    if (!sel) continue;
+    const keep = sel.value;
+    sel.innerHTML = done.map((o) => '<option value="' + esc(o.op_id) +
+      '">' + esc(o.op_id) + ' · ' + esc(o.state) + '</option>').join('');
+    if (done.some((o) => o.op_id === keep)) sel.value = keep;
+  }
+  const a = el('top-cmp-after');
+  if (a && done.length > 1 && !a.value) a.selectedIndex = done.length - 1;
+}
+async function compareTargetOps() {
+  const box = el('top-compare');
+  const before = el('top-cmp-before').value;
+  const after = el('top-cmp-after').value;
+  if (!before || !after) {
+    box.innerHTML = '<p class="note">Pick two finished ops to compare.</p>';
+    return;
+  }
+  box.innerHTML = '<p class="note">Comparing…</p>';
+  try {
+    const c = await api('/target/ops/compare?before=' +
+      encodeURIComponent(before) + '&after=' + encodeURIComponent(after));
+    box.innerHTML = renderCompareHtml(c);
+  } catch (e) {
+    box.innerHTML = errHtml('comparison failed', e);
   }
 }
 async function finishJob(jobId) {
@@ -3337,6 +3414,7 @@ function wireLive() {
     }
   });
   el('top-refresh').addEventListener('click', refreshTargetHistory);
+  el('top-cmp-run').addEventListener('click', compareTargetOps);
   el('pipe-cancel').addEventListener('click', async () => {
     if (!Live.jobId) return;
     try {

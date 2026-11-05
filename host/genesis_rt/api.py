@@ -586,6 +586,17 @@ def create_app() -> Any:
     def list_target_ops(limit: int = 20) -> JSONResponse:
         return JSONResponse({"ops": trunner.list_ops(limit)})
 
+    @app.get("/target/ops/compare")
+    def compare_target_ops(before: str = "", after: str = "") -> JSONResponse:
+        from .dossier import DossierError, compare_ops
+        if not valid_op_id(before) or not valid_op_id(after):
+            raise HTTPException(400, "invalid op id")
+        try:
+            return JSONResponse(compare_ops(trunner.ops_dir, ARTIFACTS,
+                                            before, after))
+        except DossierError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+
     @app.get("/target/ops/{op_id}")
     def get_target_op(op_id: str) -> JSONResponse:
         if not valid_op_id(op_id):

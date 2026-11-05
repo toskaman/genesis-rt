@@ -49,15 +49,20 @@ def _passport(op_id, gate="PASS"):
     return attach_verdict(pp, {"verdict": gate, "tier": "QNX_EXECUTED"})
 
 
+OP2 = "op-ddddeeeeffff"
+ALT_IR = "def456"
+
+
 def _write_op(ops_dir: Path, op_id: str = OP, state: str = "COMPLETED",
               gate: str = "PASS", machine: str = "TestCell",
               params: dict | None = None,
-              tamper_passport: bool = False) -> Path:
+              tamper_passport: bool = False,
+              ir_digest: str = "abc123") -> Path:
     ops_dir.mkdir(parents=True, exist_ok=True)
     rec = {"op_id": op_id, "workflow": "full", "state": state,
            "params": params or {},
            "artifacts": {"qnx_verified": gate == "PASS" and state
-                         == "COMPLETED", "ir_sha256": "abc123",
+                         == "COMPLETED", "ir_sha256": ir_digest,
                          "replay": "MATCH"}}
     (ops_dir / f"{op_id}.json").write_text(json.dumps(rec), encoding="utf-8")
     (ops_dir / f"{op_id}.events.jsonl").write_text(
@@ -75,7 +80,7 @@ def _write_op(ops_dir: Path, op_id: str = OP, state: str = "COMPLETED",
         {"checks": [{"name": "c1", "passed": True, "detail": "ok"},
                     {"name": "c2", "passed": gate == "PASS",
                      "detail": "ok" if gate == "PASS" else "boom"}],
-         "ir": {"ir_sha256": "abc123"}}), encoding="utf-8")
+         "ir": {"ir_sha256": ir_digest}}), encoding="utf-8")
     (work / "target" / "target-c1.log").write_text("target ran c1\n",
                                                   encoding="utf-8")
     (work / "perf" / "qnx-perf-record.json").write_text(json.dumps(
@@ -182,6 +187,8 @@ def test_dossier_size_cap_413(tmp_path):
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(api_mod, "ARTIFACTS", tmp_path / "artifacts")
     _write_op(tmp_path / "artifacts" / "target-ops")
+    _write_op(tmp_path / "artifacts" / "target-ops", op_id=OP2,
+              state="FAILED", gate="FAIL", ir_digest=ALT_IR)
     ops = _write_op(tmp_path / "artifacts" / "target-ops",
                     op_id="op-111111111111", state="EXECUTING")
     # Live owner + fresh heartbeat: crash recovery must spare this op so
@@ -268,3 +275,45 @@ def test_endpoint_decision_errors(client):
     assert client.get("/target/ops/not-an-id/decision").status_code == 400
     assert client.get("/target/ops/op-000000000000/decision").status_code \
         == 404
+
+
+def test_compare_ops_diff(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    _write_op(ops, op_id=OP2, state="FAILED", gate="FAIL", ir_digest=ALT_IR)
+    c = dos_mod.compare_ops(ops, None, OP, OP2)
+    assert c["before"]["verdict"] == "PASS"
+    assert c["after"]["verdict"] == "FAIL"
+    d = c["diff"]
+    assert d["ir_changed"] is True
+    assert d["verdict_changed"] is True
+    assert d["gate_changed"] is True
+    assert d["release_changed"] is True
+    assert d["toolchain_changed"] is False
+    assert d["newly_failed"] == ["c2"]
+    assert d["newly_passed"] == []
+    assert (d["matrix_before"], d["matrix_after"]) == ("2/2", "1/2")
+
+
+def test_compare_same_op_no_changes(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    d = dos_mod.compare_ops(ops, None, OP, OP)["diff"]
+    assert d["ir_changed"] is d["verdict_changed"] is False
+    assert d["newly_failed"] == d["newly_passed"] == []
+
+
+def test_endpoint_compare_roundtrip(client):
+    r = client.get(f"/target/ops/compare?before={OP}&after={OP2}")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["before"]["op_id"] == OP
+    assert body["after"]["op_id"] == OP2
+    assert body["diff"]["newly_failed"] == ["c2"]
+
+
+def test_endpoint_compare_errors(client):
+    assert client.get("/target/ops/compare?before=x&after=y").status_code \
+        == 400
+    assert client.get(f"/target/ops/compare?before={OP}"
+                      "&after=op-000000000000").status_code == 404
+    assert client.get(f"/target/ops/compare?before={OP}"
+                      "&after=op-111111111111").status_code == 409
