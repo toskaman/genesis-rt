@@ -85,6 +85,8 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'impact') return renderImpactHtml(JSON.parse(c.arg));
     if (c.fn === 'release') return renderReleaseHtml(JSON.parse(c.arg));
     if (c.fn === 'banner') return renderReleaseBannerHtml(JSON.parse(c.arg));
+    if (c.fn === 'explore') return renderExploreHtml(JSON.parse(c.arg));
+    if (c.fn === 'cxreplay') return renderCxReplayHtml(JSON.parse(c.arg));
     throw new Error('unknown fn ' + c.fn);
   });
   fs.writeFileSync(process.argv[3], JSON.stringify(out));
@@ -667,3 +669,55 @@ def test_live_release_banner_targeted_and_full(amr_ir, tmp_path):
     assert "stale_proximity_150ms" in sub  # one omitted scenario
     assert "Full coverage" in full and ">NO<" in full
     assert "No gate record" in none
+
+
+@node
+def test_live_explore_renders_findings_and_empty(amr_ir_dict, tmp_path):
+    import copy
+
+    from genesis_rt.explorer import explore
+
+    strict = explore(copy.deepcopy(amr_ir_dict),
+                     invariant="no_over_limit_allow",
+                     params={"max_allow_linear": 0.9},
+                     strategies=["boundary"],
+                     budgets={"max_scripts": 200, "max_findings": 1},
+                     seed=7)
+    loose = explore(copy.deepcopy(amr_ir_dict),
+                    invariant="no_over_limit_allow",
+                    strategies=["boundary"],
+                    budgets={"max_scripts": 10, "max_findings": 1},
+                    seed=7)
+    got_hit, got_none = _run_js(
+        [{"fn": "explore", "arg": json.dumps(strict)},
+         {"fn": "explore", "arg": json.dumps(loose)}], tmp_path)
+    assert "finding #0" in got_hit and "host-discovered" in got_hit
+    assert "no_over_limit_allow" in got_hit
+    assert "minimal:" in got_hit and "ALLOW linear=" in got_hit
+    assert "findings: none" in got_none
+
+
+@node
+def test_live_cxreplay_renders_violated_and_fixed(amr_ir_dict, tmp_path):
+    import copy
+
+    from genesis_rt.explorer import explore, replay
+
+    strict = explore(copy.deepcopy(amr_ir_dict),
+                     invariant="no_over_limit_allow",
+                     params={"max_allow_linear": 0.9},
+                     strategies=["boundary"],
+                     budgets={"max_scripts": 200, "max_findings": 1},
+                     seed=7)
+    rec = strict["findings"][0]
+    same = replay(rec, copy.deepcopy(amr_ir_dict))
+    fixed_ir = copy.deepcopy(amr_ir_dict)
+    fixed_ir["control"]["max_linear_speed_mps"] = 0.9
+    fixed = replay(rec, fixed_ir)
+    got_same, got_fixed = _run_js(
+        [{"fn": "cxreplay", "arg": json.dumps(same)},
+         {"fn": "cxreplay", "arg": json.dumps(fixed)}], tmp_path)
+    assert "violated" in got_same and ">YES<" in got_same
+    assert "deterministic" in got_same
+    assert "violated" in got_fixed and ">NO<" in got_fixed
+    assert "fix check" in got_fixed

@@ -111,7 +111,7 @@ contract→target→replay loop in one Apache-2.0 package.
 
 ## 7. Adoption obstacles (honest)
 
-- **Prototype maturity:** a ~681-test host suite (5 Nov 2026: 681 passed with SDK; SDK-free 678 passed + 3 honest skips) and a 16-step matrix are strong
+- **Prototype maturity:** a ~708-test host suite (5 Nov 2026: 708 passed with SDK; SDK-free 705 passed + 3 honest skips) and a 16-step matrix are strong
   for a hackathon, thin for production. Needs hardening sprints,
   fuzzing depth (§13), and long-session robustness (§15).
 - **QNX licensing:** see §9 — customers need their own commercial QNX

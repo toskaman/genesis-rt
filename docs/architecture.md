@@ -95,6 +95,21 @@
   Served by the `impact` CLI, `POST /impact`, `POST /impact/release`
   and `GET /projects/{pid}/impact`; Studio renders project impact,
   retest banners and the Evidence release check.
+- **Counterexample Explorer** (`host/genesis_rt/explorer.py`): seeded
+  bounded search over a scripted command driver reusing the host
+  guard policy + simulator (6 invariants, 4 strategies:
+  boundary/pairs/windows/mutate, greedy shrink, hard caps on
+  scripts/ticks). Each finding carries machine identity, IR digest,
+  input script, seed, invariant, observed result, minimal
+  reproducer, trace and failing oracle. `replay_finding` reruns
+  the same script against the same or a fixed IR; discovery tiers
+  stay separate (host-discovered / c-conformance-reproduced /
+  c-divergent / native — native requires a target run).
+  `explorer_conformance.py` replays scripts against the C
+  `guard_vector` harness; `explorer.py` itself is subprocess-free.
+  Served by the `explore`/`replay` CLI, `POST /explore` +
+  `POST /explore/replay`; Studio Lab hosts the explorer + fix
+  replay panel.
 - **IR numeric canonicalization** (`ir.py`, `ir_v2.py`): validators
   store float-semantic fields as float and collapse integral floats
   to int, so a JSON round-trip through a float-unaware producer

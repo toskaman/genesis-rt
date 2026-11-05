@@ -155,6 +155,46 @@ then pick a scenario in the Lab tab to replay its trace here.</p></div>
 <h2>Failure lab</h2>
 <div id="lab-out"><p class="note">Load a passport in the Passport tab to
 list its scenarios, seeds and oracle checks.</p></div>
+<h3>Counterexample explorer</h3>
+<p class="note">Bounded search for invariant violations on virtual
+hardware only. Findings are host-discovered until replayed through
+the C guard or the QNX target; tiers are never merged.</p>
+<div class="row">
+<label for="cx-ir">IR</label>
+<select id="cx-ir" aria-label="explorer IR"></select>
+<label for="cx-invariant">invariant</label>
+<select id="cx-invariant" aria-label="explorer invariant">
+<option value="no_over_limit_allow">no_over_limit_allow</option>
+<option value="no_motion_without_allow">no_motion_without_allow</option>
+<option value="deny_reasons_known">deny_reasons_known</option>
+<option value="estop_latches_stop">estop_latches_stop</option>
+<option value="safe_stop_needs_reset">safe_stop_needs_reset</option>
+<option value="no_allow_past_deadline">no_allow_past_deadline</option>
+</select>
+</div>
+<div class="row">
+<label for="cx-maxlin">max_allow_linear (blank = IR limit)</label>
+<input id="cx-maxlin" inputmode="decimal" size="6" aria-label="strict linear bound">
+<label for="cx-strategy">strategy</label>
+<select id="cx-strategy" aria-label="explorer strategy">
+<option value="boundary">boundary</option>
+<option value="pairs">pairs</option>
+<option value="windows">windows</option>
+<option value="mutate">mutate</option>
+</select>
+<label for="cx-maxscripts">max scripts</label>
+<input id="cx-maxscripts" inputmode="numeric" size="5" value="200" aria-label="max scripts">
+<label for="cx-seed">seed</label>
+<input id="cx-seed" inputmode="numeric" size="5" value="7" aria-label="seed">
+<button class="ghost" id="cx-run">Search</button>
+</div>
+<div id="cx-out"><p class="note">No search yet.</p></div>
+<div class="row">
+<label for="cx-fix">replay IR (fix check)</label>
+<select id="cx-fix" aria-label="replay IR"></select>
+<button class="ghost" id="cx-replay">Replay finding #0</button>
+</div>
+<div id="cx-replayout"><p class="note">No replay yet.</p></div>
 </section>
 
 <section class="tabpage" id="tab-passport" role="tabpanel">
@@ -1076,6 +1116,54 @@ function renderReleaseBannerHtml(gateRec) {
     ' — level ' + esc(gateRec.level) + ', qnx_verified ' +
     '<code>' + esc(gateRec.qnx_verified) + '</code></div>';
 }
+function renderExploreHtml(rep) {
+  const code = (s) => '<code>' + esc(s) + '</code>';
+  let h = '<div class="banner">explore: ' + esc(rep.invariant) +
+    ' · strategies ' + esc((rep.strategies || []).join(',')) +
+    ' · seed ' + esc(rep.seed) + ' · scripts ' + esc(rep.scripts_run) +
+    ' · budget_exhausted ' + code(rep.budget_exhausted) + '</div>';
+  const findings = rep.findings || [];
+  if (!findings.length) {
+    return h + '<p class="note">findings: none — no violation within ' +
+      'budget. Narrow the invariant or widen the search.</p>';
+  }
+  findings.forEach((rec, i) => {
+    const obs = rec.observed || {};
+    const small = rec.shrunk_script || {};
+    h += '<div class="finding"><p><b>finding #' + esc(i) + '</b> ' +
+      '<span class="fail">' + esc(rec.tier) + '</span> ' +
+      esc(rec.strategy) + ' · machine ' +
+      '<code>' + esc((rec.machine || {}).id) + '</code> · ir ' +
+      '<code>' + esc((rec.ir_sha256 || '').slice(0, 12)) + '</code></p>' +
+      '<p>observed: <code>' + esc(obs.detail) + '</code></p>' +
+      '<p class="note">minimal: ticks ' + esc(small.ticks) +
+      ' · faults ' + esc((small.faults || []).length) +
+      ' · commands ' + esc((small.commands || []).length) +
+      ' · seed ' + esc(small.seed) +
+      ' · trace events ' + esc(rec.trace_events) + '</p></div>';
+  });
+  return h;
+}
+function renderCxReplayHtml(res) {
+  const code = (s) => '<code>' + esc(s) + '</code>';
+  const check = res.check || {};
+  let h = '<div class="banner">replay: violated ' +
+    (res.violated ? '<span class="fail">YES</span>'
+                  : '<span class="pass">NO</span>') +
+    ' · same_ir ' + code(res.same_ir) +
+    ' · deterministic ' + code(res.deterministic) + '</div>';
+  h += '<p>check: <code>' + esc(check.name) + '</code> ' +
+    (check.passed ? '<span class="pass">PASS</span>'
+                  : '<span class="fail">FAIL</span>') +
+    ' — ' + esc(check.detail) + '</p>';
+  h += '<p class="note">ir ' +
+    '<code>' + esc((res.ir_sha256 || '').slice(0, 12)) + '</code>' +
+    ' vs record <code>' + esc((res.record_sha256 || '').slice(0, 12)) +
+    '</code>' + (res.same_ir ? '' :
+      ' — fix check: original record kept as regression evidence') +
+    '</p>';
+  return h;
+}
 
 /* DOM glue. */
 const Studio = { irSha: null, passport: null, scens: [], twin: null, twinIdx: 0, twinTimer: null,
@@ -1346,6 +1434,8 @@ async function loadExamples() {
   el('graph-ir').innerHTML = html;
   el('graph-rela').innerHTML = html;
   el('graph-relb').innerHTML = html;
+  el('cx-ir').innerHTML = html;
+  el('cx-fix').innerHTML = html;
 }
 async function loadProjects() {
   const data = await api('/projects');
@@ -1956,6 +2046,56 @@ function wireEvidence() {
   el('graph-compare').addEventListener('click', graphCompare);
   el('graph-release').addEventListener('click', graphRelease);
 }
+async function cxExample(selectId) {
+  const v = el(selectId).value;
+  if (!v) return null;
+  const bar = v.indexOf('|');
+  const got = await api('/examples/' + encodeURIComponent(v.slice(0, bar)) +
+                        '/' + encodeURIComponent(v.slice(bar + 1)));
+  return got.ir;
+}
+async function cxRun() {
+  const out = el('cx-out');
+  const ir = await cxExample('cx-ir');
+  if (!ir) {
+    out.innerHTML = '<p class="fail">Pick an IR first.</p>';
+    return;
+  }
+  const body = { ir: ir, invariant: el('cx-invariant').value,
+                 strategies: [el('cx-strategy').value],
+                 budgets: { max_scripts: parseInt(el('cx-maxscripts').value, 10) || 200,
+                            max_findings: 5 },
+                 seed: parseInt(el('cx-seed').value, 10) || 0 };
+  const maxlin = el('cx-maxlin').value.trim();
+  if (maxlin !== '') body.params = { max_allow_linear: parseFloat(maxlin) };
+  out.innerHTML = '<p class="note">Searching…</p>';
+  try {
+    Studio.cxReport = await postJson('/explore', body);
+    out.innerHTML = renderExploreHtml(Studio.cxReport);
+  } catch (e) { out.innerHTML = errHtml('explore failed', e); }
+}
+async function cxReplay() {
+  const out = el('cx-replayout');
+  const rep = Studio.cxReport;
+  if (!rep || !(rep.findings || []).length) {
+    out.innerHTML = '<p class="fail">Search first — no finding to replay.</p>';
+    return;
+  }
+  const ir = await cxExample('cx-fix');
+  if (!ir) {
+    out.innerHTML = '<p class="fail">Pick a replay IR first.</p>';
+    return;
+  }
+  out.innerHTML = '<p class="note">Replaying…</p>';
+  try {
+    out.innerHTML = renderCxReplayHtml(
+      await postJson('/explore/replay', { record: rep.findings[0], ir: ir }));
+  } catch (e) { out.innerHTML = errHtml('replay failed', e); }
+}
+function wireExplorer() {
+  el('cx-run').addEventListener('click', cxRun);
+  el('cx-replay').addEventListener('click', cxReplay);
+}
 
 /* -- boot ---------------- */
 function wireLive() {
@@ -2060,6 +2200,7 @@ function wireLive() {
   });
   el('pipe-refresh').addEventListener('click', refreshHistory);
   wireEvidence();
+  wireExplorer();
   if (typeof window !== 'undefined' && window.addEventListener) {
     window.addEventListener('beforeunload', () => Live.closeStream());
   }

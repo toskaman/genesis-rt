@@ -8,6 +8,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -202,6 +203,56 @@ def _cmd_impact(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_explore(args: argparse.Namespace) -> int:
+    from .explorer import explore, render_explore_text
+    ir = json.loads(Path(args.ir).read_text(encoding="utf-8"))
+    params: dict[str, Any] = {}
+    for item in args.param or []:
+        if "=" not in item:
+            raise ValueError(f"--param needs k=v, got {item!r}")
+        key, raw = item.split("=", 1)
+        try:
+            params[key] = float(raw)
+        except ValueError:
+            raise ValueError(f"--param {key} needs a number, got {raw!r}")
+    budgets: dict[str, Any] = {}
+    if args.max_scripts is not None:
+        budgets["max_scripts"] = args.max_scripts
+    if args.max_findings is not None:
+        budgets["max_findings"] = args.max_findings
+    if args.max_seconds is not None:
+        budgets["max_seconds"] = args.max_seconds
+    report = explore(ir, invariant=args.invariant, params=params,
+                     strategies=args.strategy or None,
+                     budgets=budgets or None, seed=args.seed)
+    text = json.dumps(report, indent=2, sort_keys=True) if args.json \
+        else render_explore_text(report)
+    if args.out:
+        Path(args.out).write_text(text if text.endswith("\n") else text + "\n",
+                                  encoding="utf-8")
+    else:
+        print(text if text.endswith("\n") else text + "\n", end="")
+    return 0
+
+
+def _cmd_replay(args: argparse.Namespace) -> int:
+    from .explorer import replay, render_replay_text
+    record = json.loads(Path(args.record).read_text(encoding="utf-8"))
+    ir = json.loads(Path(args.ir).read_text(encoding="utf-8"))
+    result = replay(record, ir)
+    if args.conformance:
+        from .explorer_conformance import replay_conformance
+        from .ir import guard_limits
+        from .projects import validate_any
+        _version, norm = validate_any(ir)
+        result["conformance"] = replay_conformance(
+            result["record"], guard_limits(norm), args.repo_root)
+    text = json.dumps(result, indent=2, sort_keys=True) if args.json \
+        else render_replay_text(result)
+    print(text if text.endswith("\n") else text + "\n", end="")
+    return 0
+
+
 def _cmd_check_env(args: argparse.Namespace) -> int:
     from .build_adapter import probe
     print(json.dumps(probe(), indent=2))
@@ -261,6 +312,29 @@ def build_parser() -> argparse.ArgumentParser:
     im.add_argument("--passport-before", default=None,
                     help="before-run passport.json: binary-change verdict")
     im.set_defaults(func=_cmd_impact)
+    ex = sub.add_parser("explore", help="search for invariant counterexamples")
+    ex.add_argument("ir")
+    ex.add_argument("--invariant", default="no_over_limit_allow")
+    ex.add_argument("--param", action="append", default=None,
+                    help="invariant param k=v (repeatable)")
+    ex.add_argument("--strategy", action="append", default=None,
+                    help="boundary|pairs|windows|mutate (repeatable)")
+    ex.add_argument("--max-scripts", type=int, default=None)
+    ex.add_argument("--max-findings", type=int, default=None)
+    ex.add_argument("--max-seconds", type=int, default=None)
+    ex.add_argument("--seed", type=int, default=0)
+    ex.add_argument("--out", default=None)
+    ex.add_argument("--json", action="store_true")
+    ex.set_defaults(func=_cmd_explore)
+    rp = sub.add_parser("replay", help="re-run an explorer finding")
+    rp.add_argument("record", help="finding record JSON (from explore --json)")
+    rp.add_argument("ir", help="IR to replay on (original or fixed)")
+    rp.add_argument("--json", action="store_true")
+    rp.add_argument("--conformance", action="store_true",
+                    help="also replay vectors through the C guard")
+    rp.add_argument("--repo-root", default=".",
+                    help="checkout root (locates target/qnx8)")
+    rp.set_defaults(func=_cmd_replay)
     c = sub.add_parser("check-env", help="probe for a QNX SDK toolchain")
     c.set_defaults(func=_cmd_check_env)
     sv = sub.add_parser("serve", help="start the local web API (needs api extra)")

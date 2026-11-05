@@ -75,6 +75,18 @@ if BaseModel is not None:
         passport: dict[str, Any] | str
         passport_before: dict[str, Any] | str | None = None
 
+    class ExploreRequest(BaseModel):
+        ir: dict[str, Any]
+        invariant: str = "no_over_limit_allow"
+        params: dict[str, Any] | None = None
+        strategies: list[str] | None = None
+        budgets: dict[str, Any] | None = None
+        seed: int = 0
+
+    class ExploreReplayRequest(BaseModel):
+        record: dict[str, Any]
+        ir: dict[str, Any]
+
 else:  # pragma: no cover - import-time fallback without the api extra
     RunRequest = None  # type: ignore[assignment, misc]
     CompareRequest = None  # type: ignore[assignment, misc]
@@ -90,6 +102,8 @@ MAX_PASSPORT_TEXT = 3 * 1024 * 1024
 # the API re-checks early for 400 mapping, run_pipeline enforces it.
 from .evidence_graph import (GraphTooLarge, InvalidPassport, build_graph,
                                  compare_graphs)
+from .explorer import (ExplorerInputError, ExplorerUnsupported, explore,
+                       replay)
 from .impact import analyze_impact, release_status
 from .jobs import JobConflict, JobManager, JobNotFound
 from .orchestrator import MAX_RUN_ID_LEN, valid_run_id as _valid_run_id
@@ -751,6 +765,33 @@ def create_app() -> Any:
         except ValueError as exc:
             raise HTTPException(400, f"bad request: {exc}") from exc
         return JSONResponse(status)
+
+    @app.post("/explore")
+    def post_explore(req: ExploreRequest) -> JSONResponse:
+        try:
+            report = explore(_capped_ir(req.ir),
+                             invariant=req.invariant,
+                             params=req.params,
+                             strategies=req.strategies,
+                             budgets=req.budgets, seed=req.seed)
+        except IRValidationError as exc:
+            raise HTTPException(400, f"invalid IR: {exc}") from exc
+        except (ExplorerInputError, ExplorerUnsupported) as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        return JSONResponse(report)
+
+    @app.post("/explore/replay")
+    def post_explore_replay(req: ExploreReplayRequest) -> JSONResponse:
+        try:
+            raw = json.dumps(req.record).encode("utf-8")
+            if len(raw) > MAX_PASSPORT_TEXT:
+                raise HTTPException(400, "record payload too large")
+            result = replay(req.record, _capped_ir(req.ir))
+        except IRValidationError as exc:
+            raise HTTPException(400, f"invalid IR: {exc}") from exc
+        except (ExplorerInputError, ExplorerUnsupported) as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        return JSONResponse(result)
 
     @app.get("/projects/{pid}/impact")
     def project_impact(pid: str, rev_from: int = 1,

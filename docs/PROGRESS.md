@@ -32,7 +32,17 @@
   integral floats to int, so a JS `1.0`→`1` round-trip cannot move
   `ir_sha256`; genuinely fractional values never truncated;
   example digests pinned unchanged (history-lock tests).
-- Suite 681/681 with SDK (SDK-free 678 + 3 honest QNX-build skips);
+- M3 §9 Counterexample Explorer: `explorer.py` (seeded bounded
+  search over a scripted driver reusing guard_policy+simulator:
+  6 invariants, 4 strategies — boundary/pairs/windows/mutate —,
+  greedy shrink, deterministic replay on same/fixed IR);
+  `explorer_conformance.py` replays the script against the C
+  `guard_vector` harness; tiers kept separate
+  (host-discovered / c-conformance-reproduced / c-divergent /
+  native). `explore` + `replay` CLI, `POST /explore` +
+  `POST /explore/replay`, Studio Lab explorer section with
+  fix-replay; browser 11/11 incl. host-discovered finding.
+- Suite 708/708 with SDK (SDK-free 705 + 3 honest QNX-build skips);
   jury pins + architecture updated; consistency guard green.
 
 ## 2026-11-05 -- P1 Wave 5 : jury delivery (termine)
