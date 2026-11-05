@@ -27,7 +27,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "host"))
 
-from genesis_rt import codegen, provenance  # noqa: E402
+from genesis_rt import buildset, codegen, provenance  # noqa: E402
 from genesis_rt.ir import load_ir_file  # noqa: E402
 from genesis_rt.build_adapter import probe_qemu  # noqa: E402
 
@@ -740,6 +740,19 @@ def _ir_binding(ir_path: str | None) -> dict | None:
                 data["control"]["max_linear_speed_mps"])}
 
 
+def _load_build_set(path: str | None) -> tuple[dict | None, str | None]:
+    """Build set attributing the secondary staged executables (§6 v2).
+    Absent/invalid => recorded as a provenance error (the gate then caps
+    the tier); never silently treated as attributed."""
+    if not path:
+        return None, ("no --build-set given: secondary staged executables "
+                      "are unattributed (gate will cap the tier)")
+    try:
+        return buildset.load_build_set(path), None
+    except (OSError, ValueError) as exc:
+        return None, f"build set unusable: {exc}"
+
+
 def _target_identity_block(uname: str | None) -> dict:
     return {"platform": provenance.TARGET_PLATFORM, "uname": uname or ""}
 
@@ -758,6 +771,9 @@ def cmd_perf(args: argparse.Namespace) -> int:
                " echo BENCH_EXIT=$?; slay genesis_guard")
     started = _utcnow()
     prov_errors: list[str] = []
+    build_set, bs_err = _load_build_set(getattr(args, "build_set", None))
+    if bs_err:
+        prov_errors.append(bs_err)
     try:
         try:
             _status, body = _exec_wait(client, command, 300)
@@ -790,6 +806,7 @@ def cmd_perf(args: argparse.Namespace) -> int:
         "finished_utc": finished,
         "target": _target_identity_block(uname),
         "staged": staged,
+        "build_set": build_set,
         "method": {"probe": "genesis_faultinject bench (sequential nominal "
                             "MsgSend round trips, fresh seq each)",
                    "clock": "CLOCK_MONOTONIC on target (nanoseconds)",
@@ -829,6 +846,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     except (OSError, ValueError, KeyError) as exc:
         print(f"verify: REFUSED — cannot bind --ir: {exc}")
         return 2
+    build_set, bs_err = _load_build_set(getattr(args, "build_set", None))
     password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
     try:
         client = _ssh_client(args.ssh_port, args.user, password)
@@ -869,6 +887,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
     finally:
         client.close()
     finished = _utcnow()
+    if bs_err:
+        prov_errors.append(bs_err)
     transcripts = {}
     for name, _command in TARGET_MATRIX:
         log = out_dir / f"target-{name}.log"
@@ -892,6 +912,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
               "target": _target_identity_block(uname),
               "ir": ir_binding,
               "staged": staged,
+              "build_set": build_set,
               "transcripts": transcripts,
               "note": "executed on QNX 8.0 QEMU target over SSH; transcripts beside record"}
     (out_dir / "qnx-target-record.json").write_text(
@@ -971,6 +992,10 @@ def main() -> int:
     v.add_argument("--password", default=None,
                    help="prefer GENESIS_TARGET_PASSWORD env var")
     v.add_argument("--out", default="artifacts/runs/qnx-target")
+    v.add_argument("--build-set", default=None,
+                   help="build set JSON attributing secondary staged "
+                        "executables (scripts/build_set.py); required for "
+                        "provenance v2 behavior tiers")
     v.add_argument("--ir", default=None,
                    help="machine IR JSON this run is bound to "
                         "(machine id + digest embedded; required for "
@@ -982,6 +1007,8 @@ def main() -> int:
     f.add_argument("--password", default=None,
                    help="prefer GENESIS_TARGET_PASSWORD env var")
     f.add_argument("--samples", type=int, default=1000)
+    f.add_argument("--build-set", default=None,
+                   help="same build set as the verify run")
     f.add_argument("--out", default="artifacts/runs/qnx-perf")
     f.set_defaults(func=cmd_perf)
     b.add_argument("--timeout", type=int, default=180)

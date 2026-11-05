@@ -25,7 +25,12 @@ import datetime
 import math
 from typing import Any
 
-PROVENANCE_VERSION = 1
+# v2 (multi-build): target/perf records carry a `build_set` attributing
+# every staged executable that the primary build did not produce.
+# v1 records stay readable; they keep their tier only when nothing extra
+# was staged (see check_legacy_extras) -- never upgraded.
+PROVENANCE_VERSION = 2
+SUPPORTED_PROVENANCE_VERSIONS = (1, 2)
 
 # Exact on-target matrix, in run order. Single source of truth:
 # scripts/qnx_target.py refuses to verify when its TARGET_MATRIX drifts
@@ -146,9 +151,8 @@ def check_target_identity(target: Any) -> list[str]:
 
 def check_staged_binaries(staged: Any, build_binaries: Any) -> list[str]:
     """Every binary THIS pipeline built must be staged with identical
-    cksum+size. Extra staged binaries (conv/v2 guards from other builds)
-    are allowed but recorded; their own build binding is out of scope
-    (threat model: single-build pipeline)."""
+    cksum+size. Extra staged binaries are attributed separately
+    (provenance v2 build set, or refused for v1 by check_legacy_extras)."""
     if not isinstance(staged, dict) or not staged:
         return ["staged binaries missing (no target-observed cksums)"]
     if not isinstance(build_binaries, dict) or not build_binaries:
@@ -169,11 +173,40 @@ def check_staged_binaries(staged: Any, build_binaries: Any) -> list[str]:
     return reasons
 
 
+def check_legacy_extras(staged: Any, build_binaries: Any) -> list[str]:
+    """Provenance v1 had no build set: any executable staged beside the
+    primary build is unattributed, so the record cannot earn a behavior
+    tier. Records with nothing extra keep working unchanged."""
+    if not isinstance(staged, dict) or not isinstance(build_binaries, dict):
+        return []
+    extra = sorted(n for n in staged if n not in build_binaries)
+    if not extra:
+        return []
+    return [f"provenance v1 record stages {len(extra)} executable(s) from other "
+            f"builds without attribution: {extra} (re-run verify with "
+            f"--build-set to bind them; legacy evidence is never upgraded)"]
+
+
+def _attribution(body: dict[str, Any], *, ir_body: dict[str, Any],
+                 build_body: dict[str, Any]) -> list[str]:
+    from . import buildset  # local: buildset imports evidence/codegen
+    staged = body.get("staged")
+    if body.get("provenance_version") == 1:
+        return check_legacy_extras(staged, build_body.get("binaries"))
+    ir_sha = ir_body.get("ir_sha256")
+    primary_id = (buildset.build_id(build_body, ir_sha)
+                  if isinstance(ir_sha, str) and build_body.get("binaries") else None)
+    return buildset.check_build_set(
+        staged=staged, primary_binaries=build_body.get("binaries"),
+        primary_ir_sha256=ir_sha, primary_build_id=primary_id,
+        build_set=body.get("build_set"), matrix=body.get("matrix"))
+
+
 def validate_target_binding(*, ir_body: dict[str, Any],
                             build_body: dict[str, Any],
                             target_body: dict[str, Any]) -> list[str]:
     """Reasons the target record is NOT bound to this run ([] = bound)."""
-    if target_body.get("provenance_version") != PROVENANCE_VERSION:
+    if target_body.get("provenance_version") not in SUPPORTED_PROVENANCE_VERSIONS:
         return [f"target record provenance_version "
                 f"{target_body.get('provenance_version')!r} "
                 f"(want {PROVENANCE_VERSION}; re-run verify to bind)"]
@@ -205,6 +238,7 @@ def validate_target_binding(*, ir_body: dict[str, Any],
                            "a different IR (stale evidence)")
     reasons.extend(check_staged_binaries(target_body.get("staged"),
                                          build_body.get("binaries")))
+    reasons.extend(_attribution(target_body, ir_body=ir_body, build_body=build_body))
     transcripts = target_body.get("transcripts")
     if not isinstance(transcripts, dict):
         reasons.append("transcript digests missing (re-run verify)")
@@ -219,9 +253,10 @@ def validate_target_binding(*, ir_body: dict[str, Any],
 
 def validate_perf_binding(*, build_body: dict[str, Any],
                           target_body: dict[str, Any],
-                          perf_body: dict[str, Any]) -> list[str]:
+                          perf_body: dict[str, Any],
+                          ir_body: dict[str, Any] | None = None) -> list[str]:
     """Reasons the perf record is NOT bound ([] = bound)."""
-    if perf_body.get("provenance_version") != PROVENANCE_VERSION:
+    if perf_body.get("provenance_version") not in SUPPORTED_PROVENANCE_VERSIONS:
         return [f"perf record provenance_version "
                 f"{perf_body.get('provenance_version')!r} "
                 f"(want {PROVENANCE_VERSION}; re-run perf to bind)"]
@@ -253,6 +288,12 @@ def validate_perf_binding(*, build_body: dict[str, Any],
                     f"do not recompute from raw samples")
     reasons.extend(check_staged_binaries(perf_body.get("staged"),
                                          build_body.get("binaries")))
+    if perf_body.get("provenance_version") == 1:
+        reasons.extend(check_legacy_extras(perf_body.get("staged"),
+                                           build_body.get("binaries")))
+    elif perf_body.get("build_set") != target_body.get("build_set"):
+        reasons.append("perf build set differs from the verified matrix run "
+                       "(executables attributed to other builds)")
     tstaged, pstaged = target_body.get("staged"), perf_body.get("staged")
     if (isinstance(tstaged, dict) and isinstance(pstaged, dict)
             and tstaged != pstaged):

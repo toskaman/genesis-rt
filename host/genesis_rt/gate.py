@@ -96,7 +96,8 @@ def _level(base_ok: bool, by_kind: dict[str, Any]) -> tuple[str, list[str]]:
     unbound_perf = provenance.validate_perf_binding(
         build_body=build if isinstance(build, dict) else {},
         target_body=target if isinstance(target, dict) else {},
-        perf_body=perf if isinstance(perf, dict) else {})
+        perf_body=perf if isinstance(perf, dict) else {},
+        ir_body=ir_body if isinstance(ir_body, dict) else {})
     if unbound_perf:
         return "QNX_BEHAVIOR_VERIFIED", [
             "perf evidence not bound "

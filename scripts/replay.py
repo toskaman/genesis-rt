@@ -20,6 +20,12 @@ from the published anchor, so the forgery is detected.
 
 --transcripts-dir recomputes the sha256 of target-<step>.log files and
 compares them to the digests embedded in the qnx_target record.
+
+--source-passport (repeatable) re-derives each build-set entry of the
+qnx_target record (provenance v2) from the passport of the build that
+produced the secondary executable: chain re-verified, chain head and
+every bound field compared. Entries without a supplied source passport
+are reported as "not replayed" (exit 1 when --require-build-set-replay).
 """
 from __future__ import annotations
 
@@ -31,7 +37,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "host"))
 
-from genesis_rt import gate  # noqa: E402
+from genesis_rt import buildset, gate  # noqa: E402
 from genesis_rt.evidence import load_passport, verify_chain  # noqa: E402
 
 
@@ -66,6 +72,43 @@ def _check_transcripts(passport: dict, transcripts_dir: str) -> list[str]:
     return errors
 
 
+def _check_build_set(passport: dict, sources: list[str],
+                     require_all: bool) -> list[str]:
+    rec = next((r for r in passport.get("chain", [])
+                if r.get("kind") == "qnx_target"), None)
+    bs = (rec or {}).get("body", {}).get("build_set")
+    if not isinstance(bs, dict) or not isinstance(bs.get("entries"), dict):
+        return ["qnx_target record carries no build set (provenance v1 or unbound)"]
+    by_run: dict[str, dict] = {}
+    for path in sources:
+        src = load_passport(path)
+        by_run[str(src.get("run_id"))] = src
+    errors: list[str] = []
+    replayed = 0
+    for name, entry in sorted(bs["entries"].items()):
+        src = by_run.get(str(entry.get("source_run_id")))
+        if src is None:
+            msg = f"build-set {name}: source passport {entry.get('source_run_id')} not supplied (not replayed)"
+            if require_all:
+                errors.append(msg)
+            else:
+                print(f"  {msg}")
+            continue
+        try:
+            again = buildset.entry_from_passport(
+                src, source_binary=entry.get("source_binary", ""), staged_name=name)
+        except ValueError as exc:
+            errors.append(f"build-set {name}: source passport refused: {exc}")
+            continue
+        diff = sorted(k for k in again if again.get(k) != entry.get(k))
+        if diff:
+            errors.append(f"build-set {name}: entry differs from its source passport on {diff}")
+        else:
+            replayed += 1
+    print(f"build-set: {replayed}/{len(bs['entries'])} entries replayed from source passports")
+    return errors
+
+
 def _print_provenance(passport: dict) -> None:
     by_kind = {r["kind"]: r.get("body", {}) for r in passport.get("chain", [])}
     irb, build, tgt = (by_kind.get("ir", {}), by_kind.get("qnx_build", {}),
@@ -95,6 +138,10 @@ def main() -> int:
                     help="expected chain-head sha256 (out-of-band trust anchor)")
     ap.add_argument("--transcripts-dir", default=None,
                     help="dir with target-<step>.log files to re-digest")
+    ap.add_argument("--source-passport", action="append", default=[],
+                    help="passport of a build named in the build set (repeatable)")
+    ap.add_argument("--require-build-set-replay", action="store_true",
+                    help="fail unless every build-set entry is replayed")
     args = ap.parse_args()
     passport = load_passport(args.passport)
     errors = verify_chain(passport)
@@ -112,6 +159,12 @@ def main() -> int:
         for e in transcript_errors:
             print(f"  {e}")
         errors += transcript_errors
+    if args.source_passport or args.require_build_set_replay:
+        bs_errors = _check_build_set(passport, args.source_passport,
+                                     args.require_build_set_replay)
+        for e in bs_errors:
+            print(f"  {e}")
+        errors += bs_errors
     _print_provenance(passport)
     if args.required is None:
         ir_rec = next((r for r in passport["chain"] if r["kind"] == "ir"), None)
