@@ -6,7 +6,7 @@
    `simulation_only: true`; physical outputs are out of scope by design.
 3. **Host results are not QNX results.** Fault campaigns run against a host
    mirror of the guard; the C policy is proven identical by conformance
-   vectors, and the on-target 11-step matrix passes on QNX 8.0/QEMU — but a
+   vectors, and the on-target 16-step matrix passes on QNX 8.0/QEMU — but a
    host-only passport still never implies target verification.
    Passports always carry `qnx_verified` explicitly.
 4. **QEMU timing is relative.** Emulator measurements support regression

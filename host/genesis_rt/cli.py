@@ -79,25 +79,55 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_any_ir(path: str) -> tuple[int, dict]:
+    """Load a v1 or v2 IR with the matching strict loader (never reinterpret)."""
+    from .ir import IRValidationError, load_ir_file
+    from .ir_v2 import load_ir_v2_file
+    version = _peek_schema_version(path)
+    if version == 1:
+        return 1, load_ir_file(path)
+    if version == 2:
+        return 2, load_ir_v2_file(path)
+    raise IRValidationError(
+        f"{path}: unsupported schema_version={version!r} (supported: 1, 2)")
+
+
+def _nominal_scenario(ir: dict) -> str:
+    kind = ir["machine"]["kind"]
+    declared = list(ir["verification"]["scenarios"])
+    preferred = "cell_nominal_transfer" if kind == "industrial_cell" else "nominal_navigation"
+    if preferred in declared:
+        return preferred
+    raise ValueError(f"machine kind {kind!r} declares no nominal scenario "
+                     f"({preferred!r} not in verification.scenarios)")
+
+
 def _cmd_simulate(args: argparse.Namespace) -> int:
     from .faultlab import run_scenario
-    from .ir import load_ir_file
-    ir = load_ir_file(args.ir)
-    res = run_scenario(ir, "nominal_navigation")
-    print(f"nominal_navigation: {res['status']} "
-          f"allows={res['stats']['allows']} denies={res['stats']['denies']} "
-          f"final_x={res['stats']['final_x']}")
-    return 0
+    version, ir = _load_any_ir(args.ir)
+    scenario = args.scenario or _nominal_scenario(ir)
+    if scenario not in ir["verification"]["scenarios"]:
+        raise ValueError(
+            f"scenario {scenario!r} is not declared by {ir['machine']['id']} "
+            f"({ir['machine']['kind']}); declared: "
+            f"{', '.join(ir['verification']['scenarios'])}")
+    res = run_scenario(ir, scenario)
+    stats = res["stats"]
+    extra = " ".join(f"{k}={stats[k]}" for k in ("allows", "denies", "final_x")
+                     if k in stats)
+    print(f"schema v{version} {ir['machine']['id']} {scenario}: {res['status']} {extra}".rstrip())
+    return 0 if res["status"] == "pass" else 1
 
 
 def _cmd_faults(args: argparse.Namespace) -> int:
     from .faultlab import run_all
-    from .ir import load_ir_file
-    ir = load_ir_file(args.ir)
+    version, ir = _load_any_ir(args.ir)
     results = run_all(ir)
+    print(f"schema v{version} {ir['machine']['id']} ({ir['machine']['kind']})")
     for r in results:
+        st = r["stats"]
         print(f"{r['scenario']}: {r['status']} "
-              f"(allows={r['stats']['allows']} denies={r['stats']['denies']})")
+              f"(allows={st.get('allows', '-')} denies={st.get('denies', '-')})")
     bad = [r for r in results if r["status"] != "pass"]
     print(f"{len(results) - len(bad)}/{len(results)} scenarios passed")
     return 1 if bad else 0
@@ -165,8 +195,11 @@ def build_parser() -> argparse.ArgumentParser:
                    help="override the makefile GENESIS_SRC (default: relative path "
                         "from --out to this checkout's target/qnx8)")
     g.set_defaults(func=_cmd_generate)
-    s = sub.add_parser("simulate", help="run the nominal simulation")
-    s.add_argument("ir"); s.set_defaults(func=_cmd_simulate)
+    s = sub.add_parser("simulate", help="run the nominal (or a named) scenario")
+    s.add_argument("ir")
+    s.add_argument("--scenario", default=None,
+                   help="declared scenario id (default: the kind's nominal scenario)")
+    s.set_defaults(func=_cmd_simulate)
     f = sub.add_parser("faults", help="run the fault-injection campaign")
     f.add_argument("ir"); f.set_defaults(func=_cmd_faults)
     d = sub.add_parser("demo", help="run the full verified demo pipeline")

@@ -23,7 +23,7 @@ that rot the day after they are written.
 QNX software *plus* its fault campaign *plus* an inspectable evidence
 passport. Verified today: contract → validated IR → generated C →
 `qcc` build (0 warnings) → on-target 16-step matrix → replayable
-passport (525 host tests green, on-target evidence labeled
+passport (full host suite green — run `pytest -o addopts=""` for the current count; on-target evidence labeled
 `QNX_PERFORMANCE_MEASURED`, never faked).
 
 ## 2. What a team gets on day one (measured, not promised)
@@ -111,7 +111,7 @@ contract→target→replay loop in one Apache-2.0 package.
 
 ## 7. Adoption obstacles (honest)
 
-- **Prototype maturity:** ~525 tests and a 16-step matrix are strong
+- **Prototype maturity:** a ~530-test host suite (5 Nov 2026: 530 passed, 4 skipped, SDK-free) and a 16-step matrix are strong
   for a hackathon, thin for production. Needs hardening sprints,
   fuzzing depth (§13), and long-session robustness (§15).
 - **QNX licensing:** see §9 — customers need their own commercial QNX
