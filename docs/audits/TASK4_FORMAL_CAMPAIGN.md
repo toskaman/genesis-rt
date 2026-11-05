@@ -57,5 +57,29 @@ POST /target/ops {"workflow": "full", "params": {
 
 Result: COMPLETED 13/13 in ~197 s, `reason: all steps done`.
 
-- normalize
-...[truncated 2744 chars]
+- normalize → generate → build → stage → execute → verify →
+  measure → seal → replay (full 13-step workflow; per-step
+  detail lost — see repair note below)
+
+## Repair note (2026-11-05, Wave 10 Sprint D)
+
+This record was committed truncated: commit `bfa549e` ends
+mid-list with a pasted model-output truncation marker
+(2744 chars dropped). The per-step breakdown after
+`- normalize` never reached git and is unrecoverable —
+it is NOT reconstructed here.
+
+Salvaged result summary (from `docs/PROGRESS.md`, same campaign):
+
+- Formal op `op-dc74546f8fa2`: 13/13 COMPLETED.
+- Fresh qcc 12.2.0 build, hermetic staging of 9 binaries
+  (6 primary + 3 attributed secondaries).
+- 16/16 verification matrix PASS on QNX 8.0.0 (TCG).
+- 1000-sample perf bound, verdict PASS, replay PASS.
+- Level `QNX_PERFORMANCE_MEASURED`, `release_eligible: true`.
+- Negative tamper control refused.
+- Honest gap: no explicit 2^32 wrap vector on target.
+
+Status: HISTORICAL. Wave 8 evidence is superseded by the fresh
+Wave 10 campaign (see `docs/audits/WAVE10_BASELINE.md`); this
+file is kept for provenance, not cited as current proof.

@@ -23,3 +23,14 @@ def test_serve_binds_loopback_single_worker(monkeypatch, tmp_path):
     rc = cli_mod._cmd_serve(argparse.Namespace(port=8077))
     assert rc == 0
     assert captured == {"host": "127.0.0.1", "port": 8077, "workers": 1}
+
+
+def test_serve_without_api_extra_is_actionable(monkeypatch, capsys):
+    """Wave 10 Sprint D4 (§20): a missing fastapi/uvicorn fails with
+    an actionable message and exit 2, not a raw traceback."""
+    monkeypatch.setitem(sys.modules, "fastapi", None)
+    monkeypatch.setitem(sys.modules, "uvicorn", None)
+    monkeypatch.delitem(sys.modules, "genesis_rt.api", raising=False)
+    rc = cli_mod._cmd_serve(argparse.Namespace(port=8077))
+    assert rc == 2
+    assert "pip install -e '.[api]'" in capsys.readouterr().err

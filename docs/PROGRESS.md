@@ -1,5 +1,23 @@
 # Progress log
 
+## 2026-11-05 -- Wave 10 Sprint D: bench v2, F9 reaudit, doc repairs
+
+- F5 benchmark methodology v2: `validate` reference upgraded from
+  the naive hand-rolled checker to a COMPETENT stock-`jsonschema`
+  engine (`scripts/bench_ref/validate_schema.py` + hand-maintained
+  `amr.schema.json`); old v1 numbers (ref 2/5) preserved below.
+  Fresh full run: 8 genesis cmds vs 30 ref cmds + 10 manual steps,
+  faults 5/5 vs 3/5, reproducible True (`bench/productivity/`).
+- Reports now carry a scope line (machine time vs untimed manual
+  steps, no labor savings); `REPORT.json` gains `scope` + version 2.
+- F9 reaudit of `COMPETITIVE_LANDSCAPE.md`: graded matrix
+  (vendor-doc/assessment/hypothesis), unmeasured rows removed to a
+  labeled hypotheses section, restored missing analysis §§4-9.
+- Repaired two docs committed truncated (Wave 8 `TASK4_...`,
+  Wave 9 landscape): honest repair notes, no reconstruction.
+- Guard tests: no-truncation-marker sweep + F9 grading vocabulary
+  (`test_docs_consistency.py` 10/10) + competent-ref test.
+
 ## 2026-11-05 -- Wave 10 Sprint A: baseline, boot fix, F4, recovery fix
 
 - Baseline 851/851 green, 0 skips (`docs/audits/WAVE10_BASELINE.md`).

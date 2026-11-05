@@ -42,5 +42,5 @@ on screen is staged.
 ```sh
 python evidence/qnx8-x86_64-verified-b22cea1/verify.py
 PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
-python -m pytest tests/ -q   # 885 with SDK, 880 + 5 skips without
+python -m pytest tests/ -q   # 890 with SDK, 885 + 5 skips without
 ```

@@ -1,17 +1,18 @@
 {
-  "bench_version": 1,
-  "date_utc": "2026-11-05T17:51:46+00:00",
+  "bench_version": 2,
+  "date_utc": "2026-11-05T21:07:02+00:00",
   "env": {
     "cpus": 16,
     "platform": "Windows-10-10.0.19045-SP0",
     "python": "3.14.4"
   },
+  "scope": "wall_s is machine time on the recording host; manual steps are counted, never timed; no labor savings estimated",
   "tasks": [
     {
       "fault": {
         "case": "unknown top-level key 'turbo'",
         "genesis_detected": true,
-        "ref_detected": false
+        "ref_detected": true
       },
       "genesis": {
         "artifacts": [],
@@ -26,7 +27,7 @@
             ],
             "exit": 0,
             "out": "valid: schema v1 amr-demo-01 (differential_drive_robot) scenarios=8\n",
-            "wall_s": 0.075
+            "wall_s": 0.095
           }
         ],
         "exit": 0,
@@ -34,7 +35,7 @@
         "summary": {
           "exit": 0
         },
-        "wall_s": 0.075
+        "wall_s": 0.095
       },
       "id": "validate",
       "ref": {
@@ -43,24 +44,24 @@
           {
             "argv": [
               "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
-              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\scripts\\bench_ref\\check_limits.py",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\scripts\\bench_ref\\validate_schema.py",
               "bench\\productivity\\last-run\\validate\\lane\\amr.json"
             ],
             "exit": 0,
-            "out": "naive check passed (3 keys present and positive)\n",
-            "wall_s": 0.044
+            "out": "schema validation passed (stock jsonschema engine)\n",
+            "wall_s": 0.186
           }
         ],
         "exit": 0,
         "manual_steps": [
-          "encode each new IR rule by hand in check_limits.py",
-          "review unknown keys by eye (the checker ignores them)"
+          "hand-author and version-track amr.schema.json per IR revision",
+          "triage stock-validator errors back to IR semantics by eye"
         ],
         "n_cmds": 1,
         "summary": {
           "exit": 0
         },
-        "wall_s": 0.044
+        "wall_s": 0.186
       },
       "reproduce_note": "genesis semantic summaries identical",
       "reproducible": true,
@@ -98,7 +99,7 @@
             ],
             "exit": 0,
             "out": "generated: bench\\productivity\\last-run\\generate\\lane\\gen (schema v1)\n  genesis_build_gen.mk  sha256:0d9c635e65b37e2b...\n  genesis_config_gen.h  sha256:cd74fc72635d736c...\n",
-            "wall_s": 0.084
+            "wall_s": 0.103
           }
         ],
         "exit": 0,
@@ -110,7 +111,7 @@
             "gen\\genesis_config_gen.h": "cd74fc72635d736c16bd189a0fa5713e840ebb8fa7b90d39055b76d77111f1f4"
           }
         },
-        "wall_s": 0.084
+        "wall_s": 0.103
       },
       "id": "generate",
       "ref": {
@@ -132,7 +133,7 @@
             ],
             "exit": 0,
             "out": "stunt header written to bench\\productivity\\last-run\\generate\\lane\\refgen\\guard_stunt.h\n",
-            "wall_s": 0.07
+            "wall_s": 0.087
           },
           {
             "argv": [
@@ -142,7 +143,7 @@
             ],
             "exit": 0,
             "out": "bench\\productivity\\last-run\\generate\\lane\\refgen\\guard_stunt.h:2:9: warning: '#pragma once' in main file [-Wpragma-once-outside-header]\n    2 | #pragma once\n      |         ^~~~\n",
-            "wall_s": 0.024
+            "wall_s": 0.025
           }
         ],
         "exit": 0,
@@ -154,7 +155,7 @@
           "cc_available": true,
           "exit": 0
         },
-        "wall_s": 0.094
+        "wall_s": 0.112
       },
       "reproduce_note": "genesis semantic summaries identical",
       "reproducible": true,
@@ -179,7 +180,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 (differential_drive_robot)\ncorrupted_message: pass (allows=295 denies=5)\ndelayed_command: pass (allows=290 denies=10)\ndropped_message: pass (allows=290 denies=0)\nnominal_navigation: pass (allows=300 denies=0)\nplanner_process_crash: pass (allows=250 denies=0)\nsimulator_disconnect: pass (allows=280 denies=20)\nspeed_command_over_limit: pass (allows=297 denies=3)\nstale_proximity_150ms: pass (allows=295 denies=5)\n8/8 scenarios passed\n",
-            "wall_s": 0.109
+            "wall_s": 0.17
           }
         ],
         "exit": 0,
@@ -189,7 +190,7 @@
           "passed": 8,
           "total": 8
         },
-        "wall_s": 0.109
+        "wall_s": 0.17
       },
       "id": "campaign",
       "ref": {
@@ -207,7 +208,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 nominal_navigation: pass allows=300 denies=0 final_x=1.5\n",
-            "wall_s": 0.093
+            "wall_s": 0.112
           },
           {
             "argv": [
@@ -221,7 +222,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 speed_command_over_limit: pass allows=297 denies=3 final_x=1.485\n",
-            "wall_s": 0.091
+            "wall_s": 0.113
           },
           {
             "argv": [
@@ -235,7 +236,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 stale_proximity_150ms: pass allows=295 denies=5 final_x=1.475\n",
-            "wall_s": 0.098
+            "wall_s": 0.11
           },
           {
             "argv": [
@@ -249,7 +250,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 planner_process_crash: pass allows=250 denies=0 final_x=1.25\n",
-            "wall_s": 0.096
+            "wall_s": 0.103
           },
           {
             "argv": [
@@ -263,7 +264,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 delayed_command: pass allows=290 denies=10 final_x=1.45\n",
-            "wall_s": 0.092
+            "wall_s": 0.111
           },
           {
             "argv": [
@@ -277,7 +278,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 dropped_message: pass allows=290 denies=0 final_x=1.45\n",
-            "wall_s": 0.088
+            "wall_s": 0.113
           },
           {
             "argv": [
@@ -291,7 +292,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 corrupted_message: pass allows=295 denies=5 final_x=1.475\n",
-            "wall_s": 0.088
+            "wall_s": 0.119
           },
           {
             "argv": [
@@ -305,7 +306,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 simulator_disconnect: pass allows=280 denies=20 final_x=1.4\n",
-            "wall_s": 0.085
+            "wall_s": 0.14
           }
         ],
         "exit": 0,
@@ -327,7 +328,7 @@
             0
           ]
         },
-        "wall_s": 0.731
+        "wall_s": 0.921
       },
       "reproduce_note": "genesis semantic summaries identical",
       "reproducible": true,
@@ -344,8 +345,8 @@
         "artifacts": [
           {
             "bytes": 119131,
-            "path": "artifacts\\runs\\run-b972d3f84bc6\\passport.json",
-            "sha256": "30a34854a06aca9a262102639c7cc7c103f9165fcfb6ea97475f1355831b240e"
+            "path": "artifacts\\runs\\run-92f0a838289b\\passport.json",
+            "sha256": "7671666c5a88102d4c7279028fd593bafc98a9409e65c6a3a1c402118b1c98b9"
           }
         ],
         "cmds": [
@@ -359,18 +360,18 @@
               "bench\\productivity\\last-run\\evidence\\lane\\amr.json"
             ],
             "exit": 0,
-            "out": "run: run-b972d3f84bc6  verdict: PASS  level: QNX_COMPILED  release_eligible: False  qnx_verified: False  elapsed: 1.15s\npassport: C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-b972d3f84bc6\\passport.json\n  level: qnx_target.status='missing' with 0 checks (need 'ok' + >=1 check for QNX_EXECUTED)\n  corrupted_message: pass\n  delayed_command: pass\n  dropped_message: pass\n  nominal_navigation: pass\n  planner_process_crash: pass\n  simulator_disconnect: pass\n  speed_command_over_limit: pass\n  stale_proximity_150ms: pass\n",
-            "wall_s": 1.255
+            "out": "run: run-92f0a838289b  verdict: PASS  level: QNX_COMPILED  release_eligible: False  qnx_verified: False  elapsed: 1.34s\npassport: C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-92f0a838289b\\passport.json\n  level: qnx_target.status='missing' with 0 checks (need 'ok' + >=1 check for QNX_EXECUTED)\n  corrupted_message: pass\n  delayed_command: pass\n  dropped_message: pass\n  nominal_navigation: pass\n  planner_process_crash: pass\n  simulator_disconnect: pass\n  speed_command_over_limit: pass\n  stale_proximity_150ms: pass\n",
+            "wall_s": 1.472
           },
           {
             "argv": [
               "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
               "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\scripts\\replay.py",
-              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-b972d3f84bc6\\passport.json"
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-92f0a838289b\\passport.json"
             ],
             "exit": 0,
             "out": "chain: valid\nprovenance: ir=356dc135f27f... machine=amr-demo-01\n  build: 6 binaries digested (qcc 12.2.0,gcc_ntox86_64)\n  target: 0 staged binaries observed, platform=None, window=None..None\ngate: PASS (qnx_verified=False)\n",
-            "wall_s": 0.092
+            "wall_s": 0.119
           }
         ],
         "exit": 0,
@@ -380,7 +381,7 @@
           "verdict": null,
           "verdict_bound": true
         },
-        "wall_s": 1.347
+        "wall_s": 1.591
       },
       "id": "evidence",
       "ref": {
@@ -407,7 +408,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 (differential_drive_robot)\ncorrupted_message: pass (allows=295 denies=5)\ndelayed_command: pass (allows=290 denies=10)\ndropped_message: pass (allows=290 denies=0)\nnominal_navigation: pass (allows=300 denies=0)\nplanner_process_crash: pass (allows=250 denies=0)\nsimulator_disconnect: pass (allows=280 denies=20)\nspeed_command_over_limit: pass (allows=297 denies=3)\nstale_proximity_150ms: pass (allows=295 denies=5)\n8/8 scenarios passed\n",
-            "wall_s": 0.098
+            "wall_s": 0.129
           },
           {
             "argv": [
@@ -419,7 +420,7 @@
             ],
             "exit": 0,
             "out": "CHECKS.md MISSING: no hand-written verdict summary\npackage: 1 files, manifest written, verdict NOT bound (no gate)\n",
-            "wall_s": 0.073
+            "wall_s": 0.111
           }
         ],
         "exit": 0,
@@ -432,11 +433,11 @@
           "checks_present": false,
           "verdict_bound": false
         },
-        "wall_s": 0.171
+        "wall_s": 0.24
       },
       "reproduce_note": "genesis semantic summaries identical",
       "reproducible": true,
-      "run_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-b972d3f84bc6",
+      "run_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-92f0a838289b",
       "title": "Produce a reviewable evidence package"
     },
     {
@@ -454,13 +455,13 @@
               "-m",
               "genesis_rt.cli",
               "compare",
-              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-db740dae5bbd",
-              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-6246267c52cd",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-51a1c4005152",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-ed3d6cefe214",
               "--json"
             ],
             "exit": 0,
-            "out": "ine GENESIS_MAX_LINEAR_MPS 0.05\\n #define GENESIS_MAX_ANGULAR_RADPS 1.0\\n #define GENESIS_FRESHNESS_LIMIT_MS 100\\n #define GENESIS_PROTOCOL_MAGIC 0x47454E31u\\n\"\n    },\n    \"only_a\": [],\n    \"only_b\": []\n  },\n  \"ir\": {\n    \"ir_sha256_equal\": false,\n    \"kind_a\": \"differential_drive_robot\",\n    \"kind_b\": \"differential_drive_robot\",\n    \"machine_a\": \"amr-demo-01\",\n    \"machine_b\": \"amr-demo-01\",\n    \"scenarios_only_a\": [],\n    \"scenarios_only_b\": []\n  },\n  \"measurements\": {\n    \"changed\": {},\n    \"only_a\": [],\n    \"only_b\": []\n  },\n  \"run_a\": \"run-db740dae5bbd\",\n  \"run_b\": \"run-6246267c52cd\",\n  \"scenarios\": {\n    \"broken\": [\n      \"corrupted_message\",\n      \"nominal_navigation\",\n      \"simulator_disconnect\",\n      \"stale_proximity_150ms\"\n    ],\n    \"fixed\": [],\n    \"status_a\": {\n      \"corrupted_message\": \"pass\",\n      \"delayed_command\": \"pass\",\n      \"dropped_message\": \"pass\",\n      \"nominal_navigation\": \"pass\",\n      \"planner_process_crash\": \"pass\",\n      \"simulator_disconnect\": \"pass\",\n      \"speed_command_over_limit\": \"pass\",\n      \"stale_proximity_150ms\": \"pass\"\n    },\n    \"status_b\": {\n      \"corrupted_message\": \"fail\",\n      \"delayed_command\": \"pass\",\n      \"dropped_message\": \"pass\",\n      \"nominal_navigation\": \"fail\",\n      \"planner_process_crash\": \"pass\",\n      \"simulator_disconnect\": \"fail\",\n      \"speed_command_over_limit\": \"pass\",\n      \"stale_proximity_150ms\": \"fail\"\n    },\n    \"status_changes\": {\n      \"corrupted_message\": [\n        \"pass\",\n        \"fail\"\n      ],\n      \"nominal_navigation\": [\n        \"pass\",\n        \"fail\"\n      ],\n      \"simulator_disconnect\": [\n        \"pass\",\n        \"fail\"\n      ],\n      \"stale_proximity_150ms\": [\n        \"pass\",\n        \"fail\"\n      ]\n    }\n  },\n  \"verdict\": {\n    \"a\": {\n      \"level\": \"QNX_COMPILED\",\n      \"release_eligible\": false,\n      \"verdict\": \"PASS\"\n    },\n    \"b\": {\n      \"level\": \"NONE\",\n      \"release_eligible\": false,\n      \"verdict\": \"FAIL\"\n    },\n    \"changed\": true,\n    \"release_changed\": false\n  }\n}\n",
-            "wall_s": 0.143
+            "out": "ine GENESIS_MAX_LINEAR_MPS 0.05\\n #define GENESIS_MAX_ANGULAR_RADPS 1.0\\n #define GENESIS_FRESHNESS_LIMIT_MS 100\\n #define GENESIS_PROTOCOL_MAGIC 0x47454E31u\\n\"\n    },\n    \"only_a\": [],\n    \"only_b\": []\n  },\n  \"ir\": {\n    \"ir_sha256_equal\": false,\n    \"kind_a\": \"differential_drive_robot\",\n    \"kind_b\": \"differential_drive_robot\",\n    \"machine_a\": \"amr-demo-01\",\n    \"machine_b\": \"amr-demo-01\",\n    \"scenarios_only_a\": [],\n    \"scenarios_only_b\": []\n  },\n  \"measurements\": {\n    \"changed\": {},\n    \"only_a\": [],\n    \"only_b\": []\n  },\n  \"run_a\": \"run-51a1c4005152\",\n  \"run_b\": \"run-ed3d6cefe214\",\n  \"scenarios\": {\n    \"broken\": [\n      \"corrupted_message\",\n      \"nominal_navigation\",\n      \"simulator_disconnect\",\n      \"stale_proximity_150ms\"\n    ],\n    \"fixed\": [],\n    \"status_a\": {\n      \"corrupted_message\": \"pass\",\n      \"delayed_command\": \"pass\",\n      \"dropped_message\": \"pass\",\n      \"nominal_navigation\": \"pass\",\n      \"planner_process_crash\": \"pass\",\n      \"simulator_disconnect\": \"pass\",\n      \"speed_command_over_limit\": \"pass\",\n      \"stale_proximity_150ms\": \"pass\"\n    },\n    \"status_b\": {\n      \"corrupted_message\": \"fail\",\n      \"delayed_command\": \"pass\",\n      \"dropped_message\": \"pass\",\n      \"nominal_navigation\": \"fail\",\n      \"planner_process_crash\": \"pass\",\n      \"simulator_disconnect\": \"fail\",\n      \"speed_command_over_limit\": \"pass\",\n      \"stale_proximity_150ms\": \"fail\"\n    },\n    \"status_changes\": {\n      \"corrupted_message\": [\n        \"pass\",\n        \"fail\"\n      ],\n      \"nominal_navigation\": [\n        \"pass\",\n        \"fail\"\n      ],\n      \"simulator_disconnect\": [\n        \"pass\",\n        \"fail\"\n      ],\n      \"stale_proximity_150ms\": [\n        \"pass\",\n        \"fail\"\n      ]\n    }\n  },\n  \"verdict\": {\n    \"a\": {\n      \"level\": \"QNX_COMPILED\",\n      \"release_eligible\": false,\n      \"verdict\": \"PASS\"\n    },\n    \"b\": {\n      \"level\": \"NONE\",\n      \"release_eligible\": false,\n      \"verdict\": \"FAIL\"\n    },\n    \"changed\": true,\n    \"release_changed\": false\n  }\n}\n",
+            "wall_s": 0.109
           }
         ],
         "exit": 0,
@@ -469,7 +470,7 @@
           "exit": 0,
           "names_limit_value": true
         },
-        "wall_s": 0.143
+        "wall_s": 0.109
       },
       "id": "compare",
       "ref": {
@@ -481,12 +482,12 @@
               "diff",
               "--no-index",
               "--stat",
-              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-db740dae5bbd",
-              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-6246267c52cd"
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-51a1c4005152",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-ed3d6cefe214"
             ],
             "exit": 1,
-            "out": " .../generated/genesis_build_gen.mk\"                |    2 +-\n .../generated/genesis_config_gen.h\"                |    4 +-\n .../generated/genesis_controller\"                  |  Bin 13992 -> 13992 bytes\n .../generated/genesis_faultinject\"                 |  Bin 13920 -> 13920 bytes\n .../generated/genesis_guard\"                       |  Bin 14360 -> 14360 bytes\n .../generated/guard_vector_check.exe\"              |  Bin 58040 -> 58040 bytes\n .../passport.json\"                                 | 2291 ++++++++++----------\n 7 files changed, 1157 insertions(+), 1140 deletions(-)\nwarning: in the working copy of 'C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-db740dae5bbd/passport.json', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-6246267c52cd/passport.json', CRLF will be replaced by LF the next time Git touches it\n",
-            "wall_s": 0.056
+            "out": " .../generated/genesis_build_gen.mk\"                |    2 +-\n .../generated/genesis_config_gen.h\"                |    4 +-\n .../generated/genesis_controller\"                  |  Bin 13992 -> 13992 bytes\n .../generated/genesis_faultinject\"                 |  Bin 13920 -> 13920 bytes\n .../generated/genesis_guard\"                       |  Bin 14360 -> 14360 bytes\n .../generated/guard_vector_check.exe\"              |  Bin 58040 -> 58040 bytes\n .../passport.json\"                                 | 2291 ++++++++++----------\n 7 files changed, 1157 insertions(+), 1140 deletions(-)\nwarning: in the working copy of 'C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-51a1c4005152/passport.json', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-ed3d6cefe214/passport.json', CRLF will be replaced by LF the next time Git touches it\n",
+            "wall_s": 0.057
           }
         ],
         "exit": 1,
@@ -499,7 +500,7 @@
           "exit": 1,
           "names_limit_value": false
         },
-        "wall_s": 0.056
+        "wall_s": 0.057
       },
       "reproduce_note": "genesis semantic summaries identical",
       "reproducible": true,
@@ -520,7 +521,7 @@
             ],
             "exit": 1,
             "out": "schema v1 amr-demo-01 (differential_drive_robot)\ncorrupted_message: fail (allows=0 denies=300)\ndelayed_command: pass (allows=0 denies=300)\ndropped_message: pass (allows=0 denies=290)\nnominal_navigation: fail (allows=0 denies=300)\nplanner_process_crash: pass (allows=0 denies=250)\nsimulator_disconnect: fail (allows=0 denies=300)\nspeed_command_over_limit: pass (allows=0 denies=300)\nstale_proximity_150ms: fail (allows=0 denies=300)\n4/8 scenarios passed\n",
-            "wall_s": 0.101
+            "wall_s": 0.127
           },
           {
             "argv": [
@@ -532,7 +533,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 (differential_drive_robot)\ncorrupted_message: pass (allows=295 denies=5)\ndelayed_command: pass (allows=290 denies=10)\ndropped_message: pass (allows=290 denies=0)\nnominal_navigation: pass (allows=300 denies=0)\nplanner_process_crash: pass (allows=250 denies=0)\nsimulator_disconnect: pass (allows=280 denies=20)\nspeed_command_over_limit: pass (allows=297 denies=3)\nstale_proximity_150ms: pass (allows=295 denies=5)\n8/8 scenarios passed\n",
-            "wall_s": 0.11
+            "wall_s": 0.115
           }
         ],
         "exit": 0,
@@ -549,7 +550,7 @@
             "total": 8
           }
         },
-        "wall_s": 0.211
+        "wall_s": 0.242
       },
       "id": "regression",
       "ref": {
@@ -581,7 +582,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 speed_command_over_limit: pass allows=0 denies=300 final_x=0.0\n",
-            "wall_s": 0.093
+            "wall_s": 0.096
           },
           {
             "argv": [
@@ -595,7 +596,7 @@
             ],
             "exit": 1,
             "out": "schema v1 amr-demo-01 stale_proximity_150ms: fail allows=0 denies=300 final_x=0.0\n",
-            "wall_s": 0.089
+            "wall_s": 0.111
           },
           {
             "argv": [
@@ -609,7 +610,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 planner_process_crash: pass allows=0 denies=250 final_x=0.0\n",
-            "wall_s": 0.09
+            "wall_s": 0.111
           },
           {
             "argv": [
@@ -623,7 +624,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 delayed_command: pass allows=0 denies=300 final_x=0.0\n",
-            "wall_s": 0.088
+            "wall_s": 0.094
           },
           {
             "argv": [
@@ -637,7 +638,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 dropped_message: pass allows=0 denies=290 final_x=0.0\n",
-            "wall_s": 0.091
+            "wall_s": 0.101
           },
           {
             "argv": [
@@ -651,7 +652,7 @@
             ],
             "exit": 1,
             "out": "schema v1 amr-demo-01 corrupted_message: fail allows=0 denies=300 final_x=0.0\n",
-            "wall_s": 0.106
+            "wall_s": 0.095
           },
           {
             "argv": [
@@ -665,7 +666,7 @@
             ],
             "exit": 1,
             "out": "schema v1 amr-demo-01 simulator_disconnect: fail allows=0 denies=300 final_x=0.0\n",
-            "wall_s": 0.142
+            "wall_s": 0.096
           },
           {
             "argv": [
@@ -679,7 +680,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 nominal_navigation: pass allows=300 denies=0 final_x=1.5\n",
-            "wall_s": 0.125
+            "wall_s": 0.1
           },
           {
             "argv": [
@@ -693,7 +694,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 speed_command_over_limit: pass allows=297 denies=3 final_x=1.485\n",
-            "wall_s": 0.107
+            "wall_s": 0.096
           },
           {
             "argv": [
@@ -707,7 +708,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 stale_proximity_150ms: pass allows=295 denies=5 final_x=1.475\n",
-            "wall_s": 0.103
+            "wall_s": 0.092
           },
           {
             "argv": [
@@ -721,7 +722,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 planner_process_crash: pass allows=250 denies=0 final_x=1.25\n",
-            "wall_s": 0.127
+            "wall_s": 0.095
           },
           {
             "argv": [
@@ -735,7 +736,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 delayed_command: pass allows=290 denies=10 final_x=1.45\n",
-            "wall_s": 0.131
+            "wall_s": 0.108
           },
           {
             "argv": [
@@ -749,7 +750,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 dropped_message: pass allows=290 denies=0 final_x=1.45\n",
-            "wall_s": 0.118
+            "wall_s": 0.091
           },
           {
             "argv": [
@@ -763,7 +764,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 corrupted_message: pass allows=295 denies=5 final_x=1.475\n",
-            "wall_s": 0.12
+            "wall_s": 0.096
           },
           {
             "argv": [
@@ -777,7 +778,7 @@
             ],
             "exit": 0,
             "out": "schema v1 amr-demo-01 simulator_disconnect: pass allows=280 denies=20 final_x=1.4\n",
-            "wall_s": 0.131
+            "wall_s": 0.09
           }
         ],
         "exit": 0,
@@ -805,7 +806,7 @@
             0
           ]
         },
-        "wall_s": 1.756
+        "wall_s": 1.567
       },
       "reproduce_note": "genesis semantic summaries identical",
       "reproducible": true,
@@ -814,7 +815,7 @@
   ],
   "totals": {
     "faults_genesis_detected": 5,
-    "faults_ref_detected": 2,
+    "faults_ref_detected": 3,
     "faults_total": 5,
     "genesis_cmds": 8,
     "ref_cmds": 30,

@@ -86,19 +86,28 @@ replay_result:   <PASS/FAIL + command used>
 6. Would you run your next controller change through the
    genesis lane? (yes / no / with changes: …)
 
-## 6. Privacy guidance
+## 6. Privacy guidance + anonymization protocol
 
-- No source code leaves the team: all runs are local.
-- Share only the filled templates (§3–§5), the `REPORT.json`
-  files, and passport JSON files (they contain no credentials).
-- Redact operator names to initials before sharing.
-- QNX SDP binaries, images, and license files are never shared.
+Before sharing anything outside your team, apply all four steps:
+
+1. Replace operator/reviewer names with initials (§3–§5 fields).
+2. Strip hostnames, usernames, and absolute paths from pasted
+   shell history (keep command names + flags).
+3. Confirm no target passwords, SSH keys, SDP license files, or
+   target images are inside the bundle (`grep -ri` for
+   `password`, `secret`, `BEGIN.*PRIVATE` over the shared files).
+4. Share only: filled templates (§§3–5, 10), `REPORT.json`
+   files, and passport JSON files (they contain no credentials).
+
+Standing rules: all runs are local, no source code leaves the
+team, and QNX SDP binaries/images/license files are never shared.
 
 ## 7. Technical limitations (read before starting)
 
-- QNX-native steps need an SDP 8.0 + QEMU target (§10 record:
-  `docs/audits/TASK4_FORMAL_CAMPAIGN.md`); without them the
-  genesis lane is host-only and `qnx_verified` stays false.
+- QNX-native steps need an SDP 8.0 + QEMU target (current
+  record: `evidence/qnx8-x86_64-verified-b22cea1/` +
+  `docs/audits/WAVE10_BASELINE.md`); without them the genesis
+  lane is host-only and `qnx_verified` stays false.
 - The bundled reference lane in `bench/productivity/` is
   synthetic; human teams use their own real practice instead.
 - Machine scenarios are virtual; no physical actuation exists.
@@ -111,3 +120,38 @@ replay_result:   <PASS/FAIL + command used>
 - Task IRs: `examples/{amr-demo,conveyor-demo,cell-demo}/`.
 - Injected faults per task: `bench/productivity/REPORT.json`
   (`fault` fields) — reuse verbatim for comparability.
+
+## 9. Technical invitation (copy/paste to a candidate team)
+
+> Subject: pilot invitation — GENESIS RT evidence-driven QNX
+> workflow (two half-days)
+>
+> We are looking for 2–3 embedded teams to trial GENESIS RT
+> (Apache-2.0, local-only, no data leaves your machines) on six
+> representative verification chores (§2): once with your current
+> practice and once with GENESIS RT (randomized order, ~90–120
+> min per lane). You keep the filled measurement templates, the
+> evidence passports/dossiers, and the benchmark REPORT.json.
+> We ask for the anonymized templates + survey (§§3–6, 10) and
+> a 30-min debrief. No source code, SDK material, or names are
+> shared (anonymization protocol, §6). No payment, no obligation
+> to adopt anything; all tooling stays open-source. Interested?
+> Reply with your QNX/SDP setup (or "host-only") and two
+> candidate half-days.
+
+Status: draft — zero invitations sent so far.
+
+## 10. Reviewer checklist (for the `evidence` task, both lanes)
+
+The reviewer receives ONLY the evidence package — no side
+channel with the operator — and records PASS/FAIL per line
+plus minutes spent:
+
+1. [ ] I can state the campaign verdict (PASS/FAIL) from the package alone.
+2. [ ] I can name every scenario covered and spot any missing one.
+3. [ ] I can re-run the verification independently (paste the command).
+4. [ ] I can tell which IR revision + binary the verdict binds to.
+5. [ ] I can detect a 1-byte tamper (apply it, re-verify, show refusal).
+6. [ ] Minutes spent: ___; blocking questions for the operator: ___.
+
+Reference lane: replace 3–5 with "what I had to reconstruct by hand".

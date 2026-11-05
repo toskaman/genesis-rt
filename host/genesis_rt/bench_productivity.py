@@ -6,18 +6,21 @@ Runs six concrete engineering tasks through two lanes:
 
 - genesis: the real GENESIS RT CLI (validate/generate/faults/demo/
   compare + scripts/replay.py), invoked as subprocesses;
-- ref: checked-in SYNTHETIC reference workflows
-  (scripts/bench_ref/*) plus manual steps a developer would do by
-  hand. Reference steps are counted, never faked: manual work is
+- ref: checked-in reference workflows (scripts/bench_ref/*)
+  modeling diligent manual practice — including a COMPETENT
+  stock-`jsonschema` validation lane with a hand-maintained
+  schema — plus manual steps a developer would do by hand.
+  Reference steps are counted, never faked: manual work is
   reported as manual work, and anything the reference cannot
   produce (a bound verdict, an oracle campaign) is reported
   missing — never stubbed.
 
-Measures what is measurable: command counts, wall time (labeled
-with the machine; never a hardware claim), manual steps, produced
-artifacts, injected-fault detection, and lane reproducibility
-(genesis lane re-run → identical semantic summaries). No human
-labor savings are estimated anywhere.
+Measures what is measurable: command counts, machine wall time
+(labeled with the machine; never a hardware claim), manual
+steps (counted, never timed), produced artifacts,
+injected-fault detection, and lane reproducibility (genesis
+lane re-run → identical semantic summaries). No human labor
+savings are estimated anywhere.
 """
 from __future__ import annotations
 
@@ -32,7 +35,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-BENCH_VERSION = 1
+BENCH_VERSION = 2
+SCOPE_NOTE = ("wall_s is machine time on the recording host; "
+              "manual steps are counted, never timed; "
+              "no labor savings estimated")
 CMD_TIMEOUT_S = 180
 TASK_IDS = ("validate", "generate", "campaign", "evidence", "compare",
             "regression")
@@ -133,14 +139,14 @@ def task_validate(workdir: Path) -> dict[str, Any]:
     fx = _fixtures(workdir)
     genesis = _run_lane([_cli("validate", fx["amr"])], list)
     genesis["summary"] = {"exit": genesis["exit"]}
-    ref = _run_lane([_ref("check_limits.py", fx["amr"])], list)
+    ref = _run_lane([_ref("validate_schema.py", fx["amr"])], list)
     ref["summary"] = {"exit": ref["exit"]}
     ref["manual_steps"] = [
-        "encode each new IR rule by hand in check_limits.py",
-        "review unknown keys by eye (the checker ignores them)",
+        "hand-author and version-track amr.schema.json per IR revision",
+        "triage stock-validator errors back to IR semantics by eye",
     ]
     g_bad = run_cmd(_cli("validate", fx["broken"]), cwd=REPO_ROOT)
-    r_bad = run_cmd(_ref("check_limits.py", fx["broken"]), cwd=REPO_ROOT)
+    r_bad = run_cmd(_ref("validate_schema.py", fx["broken"]), cwd=REPO_ROOT)
     return {
         "id": "validate", "title": "Validate a machine contract",
         "genesis": genesis, "ref": ref,
@@ -397,6 +403,7 @@ def run_all(out_dir: Path, tasks: list[str] | None = None,
                for task_id in wanted]
     report = {
         "bench_version": BENCH_VERSION,
+        "scope": SCOPE_NOTE,
         "date_utc": _utc_now(),
         "env": {"platform": platform.platform(),
                 "python": platform.python_version(),
@@ -451,5 +458,6 @@ def render_text(report: dict[str, Any]) -> str:
               f"{t['ref_cmds']} cmds + {t['ref_manual_steps']} manual steps",
               f"faults: genesis {t['faults_genesis_detected']}/"
               f"{t['faults_total']} vs ref {t['faults_ref_detected']}/"
-              f"{t['faults_total']}; reproducible={t['reproducible']}"]
+              f"{t['faults_total']}; reproducible={t['reproducible']}",
+              f"scope: {report.get('scope', SCOPE_NOTE)}"]
     return "\n".join(lines) + "\n"

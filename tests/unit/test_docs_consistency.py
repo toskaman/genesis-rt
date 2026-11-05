@@ -86,6 +86,44 @@ def test_limitations_match_twin_ab_implementation():
     assert "no synchronized A/B twin replay" not in lim
 
 
+def test_no_model_truncation_markers_in_shipped_docs():
+    """Wave 10 Sprint D1: two docs were once committed carrying a pasted
+    model-output truncation marker, silently dropping their tail
+    sections. Fail if that marker shape ever recurs in shipped docs."""
+    pat = re.compile(rb"\.\.\.\[truncated \d+ chars\]")
+    hits = []
+    targets = [ROOT / "README.md", ROOT / "ui" / "studio.html"]
+    targets += sorted((ROOT / "docs").rglob("*.md"))
+    for f in targets:
+        if pat.search(f.read_bytes()):
+            hits.append(str(f.relative_to(ROOT)))
+    assert not hits, f"truncation marker in shipped docs: {hits}"
+
+
+def test_competitive_landscape_grading_vocabulary():
+    """F9 anti-rot: the competitive matrix must carry evidence grades
+    (vendor-doc / assessment / hypothesis) and keep unmeasured
+    comparisons out of matrix form."""
+    text = _read("docs/business/COMPETITIVE_LANDSCAPE.md")
+    for token in ("vendor-doc", "assessment", "hypothesis"):
+        assert token in text, token
+    assert "| Learning curve |" not in text
+    assert "| Integration burden |" not in text
+    assert "| Cost model |" not in text
+
+
+def test_pilot_kit_covers_wave10_checklist():
+    """Sprint D4 (§14): the pilot kit must ship the invitation, the
+    reviewer checklist, and the anonymization protocol — not just
+    the measurement templates."""
+    text = _read("docs/business/pilot-study.md")
+    for token in ("## 9. Technical invitation",
+                  "zero invitations sent so far",
+                  "## 10. Reviewer checklist",
+                  "## 6. Privacy guidance + anonymization protocol"):
+        assert token in text, token
+
+
 def test_adversarial_count_matches_collected():
     claimed = _one(r"(\d+)-test adversarial", _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard adversarial")
     proc = subprocess.run(

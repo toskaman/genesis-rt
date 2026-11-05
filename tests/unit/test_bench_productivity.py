@@ -22,7 +22,8 @@ def test_registry_complete():
 
 def test_quick_run_schema(tmp_path):
     report = run_all(tmp_path / "run", QUICK, reproduce=True)
-    assert report["bench_version"] == 1
+    assert report["bench_version"] == 2
+    assert "never timed" in report["scope"]
     assert report["env"]["python"]
     assert [t["id"] for t in report["tasks"]] == QUICK
     for task in report["tasks"]:
@@ -51,7 +52,7 @@ def test_quick_counts_deterministic_and_honest(tmp_path):
     assert validate["genesis"]["n_cmds"] == 1
     assert validate["fault"] == {
         "case": "unknown top-level key 'turbo'",
-        "genesis_detected": True, "ref_detected": False}
+        "genesis_detected": True, "ref_detected": True}
     generate = first["tasks"][1]
     assert generate["genesis"]["n_cmds"] == 1
     assert generate["genesis"]["summary"]["files"], "no artifacts recorded"
@@ -74,20 +75,46 @@ def _ref(name, *args):
                           capture_output=True, text=True)
 
 
-def test_ref_checker_honest_limits(amr_ir_path, tmp_path):
-    good = _ref("check_limits.py", str(amr_ir_path))
+def test_ref_validator_is_competent(amr_ir_path, tmp_path):
+    """F5: the validate reference uses a stock engine and must DETECT
+    the unknown-key fault — no strawman baseline."""
+    from genesis_rt.bench_productivity import REPO_ROOT
+    assert (REPO_ROOT / "scripts" / "bench_ref"
+            / "amr.schema.json").is_file()
+    good = _ref("validate_schema.py", str(amr_ir_path))
     assert good.returncode == 0, good.stderr
     bad_number = json.loads(amr_ir_path.read_text(encoding="utf-8"))
     bad_number["control"]["max_linear_speed_mps"] = "fast"
     p1 = tmp_path / "badnum.json"
     p1.write_text(json.dumps(bad_number), encoding="utf-8")
-    assert _ref("check_limits.py", str(p1)).returncode == 1
+    assert _ref("validate_schema.py", str(p1)).returncode == 1
     unknown = json.loads(amr_ir_path.read_text(encoding="utf-8"))
     unknown["turbo"] = True
     p2 = tmp_path / "unknown.json"
     p2.write_text(json.dumps(unknown), encoding="utf-8")
-    assert _ref("check_limits.py", str(p2)).returncode == 0, \
-        "naive checker must MISS unknown keys (documented drift)"
+    assert _ref("validate_schema.py", str(p2)).returncode == 1, \
+        "competent reference must DETECT unknown keys"
+
+
+def test_render_states_machine_human_separation():
+    """F5: the text report must separate machine time from (untimed)
+    human steps and never estimate labor savings."""
+    from genesis_rt.bench_productivity import render_text
+    lane = {"n_cmds": 1, "wall_s": 0.1, "exit": 0, "artifacts": [],
+            "summary": {}}
+    report = {"date_utc": "t", "env": {"platform": "p"}, "scope": "s",
+              "tasks": [{"id": "x", "title": "t", "genesis": lane,
+                         "ref": {**lane, "manual_steps": ["eyeball it"]},
+                         "fault": None, "reproducible": True}],
+              "totals": {"genesis_cmds": 1, "ref_cmds": 1,
+                         "ref_manual_steps": 1,
+                         "faults_genesis_detected": 0,
+                         "faults_ref_detected": 0, "faults_total": 0,
+                         "reproducible": True}}
+    text = render_text(report)
+    assert "scope: s" in text
+    assert "manual: eyeball it" in text
+    assert "developer-hour" not in text
 
 
 def test_ref_render_and_collect(amr_ir_path, tmp_path):

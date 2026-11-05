@@ -64,6 +64,9 @@ pipeline runner (validate → generate → run → passport → diff), plus the
 trace/passport/diff inspectors. `ui/dashboard.html` stays a dependency-free
 passport inspector that also works straight from disk.
 
+Full install reference (prerequisites, Windows + Linux, environment
+variables, troubleshooting, uninstall): [docs/INSTALL.md](docs/INSTALL.md).
+
 With a QNX SDP 8.0 SDK installed: [docs/quickstart-qnx8-qemu.md](docs/quickstart-qnx8-qemu.md)
 (`scripts/qnx_env_check.py` probes your setup; without an SDK the pipeline
 records QNX steps as `blocked`, never as passed).
