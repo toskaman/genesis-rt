@@ -1,5 +1,21 @@
 # Progress log
 
+## 2026-11-05 -- P1 Wave 3C : scheduling sched + perf refresh
+
+- `qnx_target.py sched` : 4 configs (baseline 10r/10r, fifo_guard,
+  fifo_both, rr_both) via `on -p`, policy guard verifiee par
+  pidin (setup assert, zero seuil timing). 10 tests.
+- Campagne cellule n=200/config PASS : baseline p50 509.2 p99
+  1787.0 (1 stall 60.9 ms), fifo_both p50 311.4 p99 618.5,
+  rr_both p50 269.3 p99 573.5. Lecture : sender side domine
+  sous TCG ; contraste scheduling uniquement, pas de gate tier.
+- Perf-baseline : colonne Run 3 (cellule v2 n=1000 : p50 254.7,
+  p95 399.9, p99 493.7) + section scheduling. Latence IPC
+  declaree machine-independante par construction (1 code path),
+  donc campagne par cible, pas par machine.
+- Suite hote 518/518.
+  Chiffres canoniques : 518 tests, matrice 16/16, 9 stages.
+
 ## 2026-11-05 -- P1 Wave 3B : containment controller/device + fix pidin
 
 - Bug Wave 3A : pidin `-F %n` affiche `./genesis_guard` + padding,

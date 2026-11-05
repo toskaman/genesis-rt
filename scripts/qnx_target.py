@@ -877,6 +877,138 @@ def _target_identity_block(uname: str | None) -> dict:
     return {"platform": provenance.TARGET_PLATFORM, "uname": uname or ""}
 
 
+SCHED_CONFIGS = (
+    # (name, guard_spec, bench_spec) for `on -p`. None = default
+    # inheritance (observed 10r on the QSTI image as qnxuser).
+    ("baseline", None, None),
+    ("fifo_guard", "20f", None),
+    ("fifo_both", "20f", "20f"),
+    ("rr_both", "20r", "20r"),
+)
+
+
+def _sched_command(guard_spec: str | None, bench_spec: str | None,
+                   samples: int) -> str:
+    """One scheduling-config campaign step (informational, no thresholds)."""
+    guard_launch = ("./genesis_guard" if guard_spec is None
+                    else f"on -p {guard_spec} ./genesis_guard")
+    bench_launch = ("./genesis_faultinject" if bench_spec is None
+                    else f"on -p {bench_spec} ./genesis_faultinject")
+    return ("cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+            " slay genesis_guard_conv 2>/dev/null;"
+            " slay genesis_guard_v2 2>/dev/null; sleep 1;"
+            f" {guard_launch} > guard-sched.log 2>&1 & sleep 2;"
+            " echo ---SCHED-PIDIN---;"
+            " pidin 2>/dev/null | grep genesis_guard | head -3;"
+            f" {bench_launch} bench {samples};"
+            " echo BENCH_EXIT=$?; slay genesis_guard")
+
+
+def _parse_sched_observed(body: str) -> str | None:
+    """Applied guard policy from the pidin line (`20f`, `10r`, ...).
+
+    Anchored on `./genesis_guard` + whitespace so secondary guards
+    (`./genesis_guard_conv`, ...) never match."""
+    m = re.search(r"\./genesis_guard\s+(\d+[rfo])\b", body)
+    return m.group(1) if m else None
+
+
+def cmd_sched(args: argparse.Namespace) -> int:
+    import os
+    password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
+    try:
+        client = _ssh_client(args.ssh_port, args.user, password)
+    except Exception as exc:
+        print(f"ssh: connect/auth failed: {type(exc).__name__}: {exc}")
+        return 2
+    started = _utcnow()
+    prov_errors: list[str] = []
+    try:
+        try:
+            _st, ncpu_body = _exec_wait(client, "nproc", 30)
+        except TimeoutError:
+            ncpu_body = ""
+        ncpu_m = re.search(r"(\d+)", ncpu_body)
+        ncpu = int(ncpu_m.group(1)) if ncpu_m else None
+        if ncpu is None:
+            prov_errors.append("nproc unreadable")
+        uname, uname_err = _fetch_uname(client)
+        if uname_err:
+            prov_errors.append(uname_err)
+        staged, staged_err = _fetch_staged(client)
+        if staged_err:
+            prov_errors.append(staged_err)
+        configs: dict = {}
+        all_ok = True
+        for name, guard_spec, bench_spec in SCHED_CONFIGS:
+            command = _sched_command(guard_spec, bench_spec, args.samples)
+            try:
+                _status, body = _exec_wait(client, command, 300)
+            except TimeoutError:
+                configs[name] = {"status": "timeout"}
+                all_ok = False
+                continue
+            samples, done = _parse_bench(body)
+            observed = _parse_sched_observed(body)
+            bench_ok = (done == args.samples
+                        and len(samples) == args.samples
+                        and all(s == s and s != float("inf") for s in samples))
+            # Setup assertion only: the requested policy must be the
+            # observed one (no timing thresholds — TCG is noisy).
+            setup_ok = (observed is not None
+                        and (guard_spec is None or observed == guard_spec))
+            ok = bench_ok and setup_ok
+            all_ok = all_ok and ok
+            entry: dict = {
+                "status": "ok" if ok else "fail",
+                "guard_spec": guard_spec, "bench_spec": bench_spec,
+                "observed_guard": observed,
+                "command": command, "transcript_tail": body[-800:],
+                "raw_samples_us": samples if bench_ok else [],
+            }
+            if bench_ok:
+                entry["distribution_us"] = _perf_distribution(samples)
+            configs[name] = entry
+            dist = entry.get("distribution_us", {})
+            print(f"sched {name}: {'ok' if ok else 'FAIL'} "
+                  f"(guard {guard_spec or 'default'}->{observed}, "
+                  f"bench {bench_spec or 'default'}, "
+                  f"n={len(samples)}/{args.samples}"
+                  + (f", p50={dist['p50']:.1f} p99={dist['p99']:.1f} us"
+                     if dist else "") + ")")
+    finally:
+        client.close()
+    finished = _utcnow()
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    record = {
+        "status": "ok" if all_ok else "fail",
+        "verified_on_target": bool(all_ok and not prov_errors),
+        "provenance_version": provenance.PROVENANCE_VERSION,
+        "provenance_error": ("; ".join(prov_errors)
+                             if prov_errors else None),
+        "started_utc": started, "finished_utc": finished,
+        "target": _target_identity_block(uname),
+        "ncpu": ncpu, "staged": staged,
+        "method": {"probe": "genesis_faultinject bench (sequential nominal "
+                            "MsgSend round trips, fresh seq each)",
+                   "clock": "CLOCK_MONOTONIC on target (nanoseconds)",
+                   "percentile": "nearest-rank on sorted samples",
+                   "launch": "`on -p <prio>[r|f|o]` per config; guard "
+                             "policy verified post-launch via pidin",
+                   "target": "QNX 8.0 QEMU x86_64 (TCG); scheduling "
+                             "contrast only, not a hardware timing guarantee"},
+        "note": ("sender-observed IPC round trip incl. guard decision; "
+                 "informational campaign, no gate tier attached; "
+                 "host and target numbers must never be mixed"),
+        "configs": configs,
+    }
+    (out_dir / "qnx-sched-record.json").write_text(
+        json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"sched campaign: {'PASS' if all_ok else 'FAIL'} -> {out_dir}")
+    return 0 if all_ok else 1
+
+
 def cmd_perf(args: argparse.Namespace) -> int:
     import os
     password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
@@ -1131,6 +1263,15 @@ def main() -> int:
                    help="same build set as the verify run")
     f.add_argument("--out", default="artifacts/runs/qnx-perf")
     f.set_defaults(func=cmd_perf)
+    s = sub.add_parser("sched", help="compare IPC latency across QNX "
+                                     "scheduling configs over SSH")
+    s.add_argument("--ssh-port", type=int, default=2222)
+    s.add_argument("--user", default="qnxuser")
+    s.add_argument("--password", default=None,
+                   help="prefer GENESIS_TARGET_PASSWORD env var")
+    s.add_argument("--samples", type=int, default=200)
+    s.add_argument("--out", default="artifacts/runs/qnx-sched")
+    s.set_defaults(func=cmd_sched)
     b.add_argument("--timeout", type=int, default=180)
     b.add_argument("--qmp-port", type=int, default=0)
     b.add_argument("--shot-at", type=int, default=0,

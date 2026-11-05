@@ -18,6 +18,7 @@
 | Controller-crash containment | controller SIGKILLed mid-stream inside the matrix step | `controller_crash` step (device + guard logs freeze ≤3, NONGUARD=0, controller gone, guard survives) |
 | Device-crash containment | device SIGKILLed mid-stream inside the matrix step | `device_crash` step (device log freezes ≤3, guard keeps deciding, NONGUARD=0, device gone, controller + guard survive) |
 | Guard-crash containment | guard killed mid-stream inside the matrix step | `guard_crash` step (apply-count freeze ≤3, NONGUARD=0, guard gone, client MsgSend fails) |
+| Scheduling contrast (QNX 8.0 QEMU) | `scripts/qnx_target.py sched` (4 configs via `on -p`, policy verified via pidin) | `docs/perf-baseline.md` (RT prio both ends: p50 −45%, p99 −65% vs baseline; informational, no gate tier) |
 | Cell interlock policy (native) | `target/qnx8/cell/genesis_cellcheck.c` (9 interlock vectors + 3 policy checks) | `cell_policy` matrix step (`CELL_POLICY: PASS 12/12`), IR-bound `limits_differ` slot-1 banner |
 | Guarded device path | guard→device forward + `target/qnx8/common/device_model.c` | `device_chain` step (APPLIES≥20, NONGUARD=0, virtual robot moved) |
 | Generated limits drive runtime | guard/controller/faultinject include `genesis_config_gen.h` | `limits_differ` step (probe 1.5 DENY vs ALLOW), `tests/integration/test_limit_wiring.py` |
