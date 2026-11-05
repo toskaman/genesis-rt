@@ -10,6 +10,7 @@ venv/
 htmlcov/
 # Run outputs (samples are committed explicitly under artifacts/samples/)
 artifacts/runs/
+artifacts/*.json
 artifacts/*.tmp
 artifacts/target-build/
 artifacts/target-*/
