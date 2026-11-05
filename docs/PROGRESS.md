@@ -1,5 +1,22 @@
 # Progress log
 
+## 2026-11-05 -- Wave 9 §20: advanced QNX codelab + anti-rot harness
+
+- `docs/codelab/ADVANCED-QNX.md`: 6 labs (guard microscope incl.
+  wrap-boundary vectors, deterministic codegen + provenance,
+  passport anatomy, replay + tamper, native qcc build, on-target
+  IPC/supervision/telemetry/latency). Every host/SDK command
+  executed here; every target command executed live on QNX 8.0.0
+  QEMU (real transcripts: 9/9 faultinject, BEFORE/AFTER status,
+  200-sample bench, RESPAWN×4, GIVE_UP, SIGKILL containment
+  GBEFORE=GAFTER, distinct PIDs in RECEIVE).
+- Harness `tests/integration/test_codelab_advanced.py` (3/3):
+  runs all `sh-harness` blocks in order (self-asserting),
+  SDK-gates Lab 5, pins lab/block coverage. Fixed along the
+  way: Store-stub `python` under QNX sh, backslash env paths
+  in python one-liners, set-e vs intentional-failure line.
+- Suite 841/841 green, 0 skips (CI on push; SDK-less 836 + 5).
+
 ## 2026-11-05 -- Wave 9 §25: red-team round 1 (replay swap fixed)
 
 - Attack A1 (evidence swap at replay) SUCCEEDED pre-fix: `_step_replay`

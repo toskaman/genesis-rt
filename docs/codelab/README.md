@@ -7,6 +7,12 @@
 >
 > Final URL for the Devpost bonus box:
 > `https://github.com/toskaman/genesis-rt/blob/main/docs/codelab/README.md`
+>
+> Done here? Continue with the advanced companion:
+> [`ADVANCED-QNX.md`](ADVANCED-QNX.md) (guard internals,
+> provenance, replay, native build, on-target IPC deep-dive —
+> every command executed, host blocks enforced by
+> `tests/integration/test_codelab_advanced.py`).
 
 ## Goal
 

@@ -56,7 +56,9 @@ provenance (every staged binary attributed to its producer build), a
 on-target, and a 28-case AI-planning eval set (valid, ambiguous,
 dangerous, wrong-units, injection, out-of-domain) scoring 28/28 with
 the bundled offline provider. A verified 45-minute codelab takes a new
-engineer from contract to running native IPC (see the codelab URL below).
+engineer from contract to running native IPC (see the codelab URL below),
+plus an advanced QNX codelab (guards, supervision, provenance, replay —
+every command executed, host blocks CI-enforced).
 
 Honest scope: host fault results are simulated; on-target QNX 8.0/QEMU
 execution is verified (16/16 matrix, 9/9 IPC checks, `qcc` 0 warnings),
@@ -85,7 +87,7 @@ git clone https://github.com/toskaman/genesis-rt.git && cd genesis-rt
 pip install pytest pyyaml
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
-python -m pytest tests/ -q   # 838 pass, 0 skip with the QNX SDK (5 Nov 2026, this box); SDK-less CI: 834 passed + 4 honest QNX-build skips
+python -m pytest tests/ -q   # 841 pass, 0 skip with the QNX SDK (5 Nov 2026, this box); SDK-less CI: 836 passed + 5 honest skips (4 QNX-build + 1 SDK-only codelab)
 ```
 
 Open `ui/dashboard.html` and load the passport to inspect every verdict.
