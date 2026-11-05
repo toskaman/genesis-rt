@@ -158,6 +158,15 @@ def _is_int(v: Any, lo: int, hi: int) -> bool:
     return isinstance(v, int) and not isinstance(v, bool) and lo <= v <= hi
 
 
+def _unlocked(fn: Callable[..., int]) -> Callable[..., int]:
+    """cmd_* without the campaign-lock decorator.
+
+    The op already holds the campaign lock for its whole lifetime;
+    re-acquiring per step would deadlock against ourselves.
+    """
+    return getattr(fn, "__wrapped__", fn)
+
+
 def _with_tail(detail: str, buf: io.StringIO, limit: int = 400) -> str:
     tail = buf.getvalue()[-limit:].strip()
     if tail:
@@ -626,7 +635,7 @@ def _step_qemu_put(ctx: dict[str, Any]) -> tuple[bool, str]:
     if not src:
         return False, "nothing to stage (no binaries built, no src given)"
     manifest_out = str(Path(ctx["work_dir"]) / "stage-manifest.json")
-    rc = qt.cmd_put(argparse.Namespace(
+    rc = _unlocked(qt.cmd_put)(argparse.Namespace(
         src=list(src), dest=GUEST_STAGING_DIR,
         ssh_port=int(params.get("ssh_port", 2222)),
         user=params.get("user", DEFAULT_TARGET_USER), password=None,
@@ -645,7 +654,7 @@ def _step_qemu_verify(ctx: dict[str, Any]) -> tuple[bool, str]:
     ir_path.write_text(json.dumps(params.get("ir", {})), encoding="utf-8")
     manifest = work / "stage-manifest.json"
     out = work / "target"
-    rc = qt.cmd_verify(argparse.Namespace(
+    rc = _unlocked(qt.cmd_verify)(argparse.Namespace(
         ir=str(ir_path), build_set=params.get("build_set"),
         require_manifest=str(manifest) if manifest.is_file() else None,
         password=None, ssh_port=int(params.get("ssh_port", 2222)),
@@ -660,7 +669,7 @@ def _step_qemu_perf(ctx: dict[str, Any]) -> tuple[bool, str]:
     qt = _qt()
     params = ctx["params"]
     out = Path(ctx["work_dir"]) / "perf"
-    rc = qt.cmd_perf(argparse.Namespace(
+    rc = _unlocked(qt.cmd_perf)(argparse.Namespace(
         password=None, ssh_port=int(params.get("ssh_port", 2222)),
         user=params.get("user", DEFAULT_TARGET_USER),
         samples=int(params.get("samples", 1000)), out=str(out)))

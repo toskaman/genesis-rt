@@ -274,6 +274,18 @@ def test_wait_ssh_banner_true_and_silent_false():
         t2.join(timeout=10)
 
 
+def test_unlocked_strips_wraps_decorator():
+    import functools
+
+    @functools.wraps(lambda args: 0)
+    def _decorated(args):
+        return -1  # pragma: no cover
+
+    assert tgt._unlocked(_decorated)(None) == 0
+    plain = lambda args: 7
+    assert tgt._unlocked(plain) is plain
+
+
 def test_step_stdout_captured_on_failure(runner, monkeypatch):
     def _loud_fail(ctx):
         print("X-DIAG-789 unique-failure-marker")
