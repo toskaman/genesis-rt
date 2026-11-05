@@ -110,6 +110,7 @@ from .explorer import (ExplorerInputError, ExplorerUnsupported, explore,
                        replay)
 from .impact import analyze_impact, release_status
 from .jobs import JobConflict, JobManager, JobNotFound, JobOverloaded
+from .target import TargetBusy, TargetOpError, TargetRunner, valid_op_id
 from .orchestrator import MAX_RUN_ID_LEN, valid_run_id as _valid_run_id
 from .twin import TwinChainError, TwinInputError, TwinTooLarge, track_from_passport
 
@@ -146,6 +147,13 @@ def _loopback_origin(origin: str) -> bool:
     return host in ("localhost", "127.0.0.1", "::1")
 
 
+if BaseModel is not None:
+
+    class TargetOpRequest(BaseModel):
+        workflow: str = "full"
+        params: dict[str, Any] = {}
+
+
 def create_app() -> Any:
     try:
         from fastapi import FastAPI, Header, HTTPException, Request  # type: ignore[import-not-found]
@@ -170,15 +178,19 @@ def create_app() -> Any:
     db_path = ARTIFACTS / "runs.db"
     mgr = JobManager(db_path, ARTIFACTS)
     store = ProjectStore(ARTIFACTS.parent / "studio" / "projects")
+    trunner = TargetRunner(ARTIFACTS / "target-ops",
+                           ARTIFACTS / ".target.lock")
 
     @asynccontextmanager
     async def _lifespan(app: Any) -> Any:
         yield
         mgr.close()
+        trunner.close()
 
     app = FastAPI(title="GENESIS RT orchestrator", version="0.2.0",
                   lifespan=_lifespan)
     app.state.jobs = mgr
+    app.state.target = trunner
 
     @app.middleware("http")
     async def _origin_guard(request: Request, call_next: Any) -> Any:
@@ -554,6 +566,80 @@ def create_app() -> Any:
         except (OSError, ValueError) as exc:
             raise HTTPException(409, f"file unreadable: {exc}") from exc
         return JSONResponse({"job_id": job_id, "name": name, "text": text})
+
+    # -- Wave 8 §5: native QNX target ops --
+    @app.post("/target/ops", status_code=202)
+    def create_target_op(req: TargetOpRequest) -> JSONResponse:
+        """Start a target op: 202 immediately, poll /target/ops/{id}."""
+        try:
+            rec = trunner.start(req.workflow, params=req.params)
+        except TargetBusy as exc:
+            raise HTTPException(409, f"target busy: {exc}") from exc
+        except TargetOpError as exc:
+            raise HTTPException(400, f"bad target op: {exc}") from exc
+        return JSONResponse({"op_id": rec["op_id"], "state": rec["state"]},
+                            status_code=202)
+
+    @app.get("/target/ops")
+    def list_target_ops(limit: int = 20) -> JSONResponse:
+        return JSONResponse({"ops": trunner.list_ops(limit)})
+
+    @app.get("/target/ops/{op_id}")
+    def get_target_op(op_id: str) -> JSONResponse:
+        if not valid_op_id(op_id):
+            raise HTTPException(400, "invalid op id")
+        rec = trunner.get(op_id)
+        if rec is None:
+            raise HTTPException(404, "unknown op")
+        return JSONResponse(rec)
+
+    @app.delete("/target/ops/{op_id}")
+    def cancel_target_op(op_id: str) -> JSONResponse:
+        if not valid_op_id(op_id):
+            raise HTTPException(400, "invalid op id")
+        try:
+            rec = trunner.cancel(op_id)
+        except TargetOpError:
+            raise HTTPException(404, "unknown op") from None
+        return JSONResponse({"op_id": op_id, "state": rec["state"]})
+
+    @app.get("/target/ops/{op_id}/events")
+    async def target_op_events(op_id: str, after: int = -1,
+                               ) -> StreamingResponse:
+        import asyncio
+
+        if not valid_op_id(op_id):
+            raise HTTPException(400, "invalid op id")
+        if trunner.get(op_id) is None:
+            raise HTTPException(404, "unknown op")
+
+        async def _stream() -> Any:
+            last = max(-1, after)
+            idle_slices = 0
+            try:
+                while True:
+                    rows = trunner.events(op_id, after=last)
+                    for row in rows:
+                        last = row["seq"]
+                        yield (f"id: {row['seq']}\nevent: {row['kind']}\n"
+                               f"data: {json.dumps(row)}\n\n")
+                    rec = trunner.get(op_id)
+                    if rec is None:
+                        return
+                    if not rows and rec["state"] in ("COMPLETED", "FAILED",
+                                                     "CANCELLED", "BLOCKED",
+                                                     "INTERRUPTED"):
+                        return
+                    await asyncio.sleep(0.05)
+                    idle_slices += 1
+                    if idle_slices >= 300:  # ~15 s heartbeat
+                        idle_slices = 0
+                        yield ": ping\n\n"
+            except (GeneratorExit, asyncio.CancelledError):
+                return
+
+        return StreamingResponse(_stream(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache"})
 
     # -- Studio Live: examples, validation, projects, env, static --
     def _example_doc(example: str, file: str) -> dict[str, Any]:
