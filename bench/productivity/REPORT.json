@@ -1,0 +1,824 @@
+{
+  "bench_version": 1,
+  "date_utc": "2026-11-05T06:28:08+00:00",
+  "env": {
+    "cpus": 16,
+    "platform": "Windows-10-10.0.19045-SP0",
+    "python": "3.14.4"
+  },
+  "tasks": [
+    {
+      "fault": {
+        "case": "unknown top-level key 'turbo'",
+        "genesis_detected": true,
+        "ref_detected": false
+      },
+      "genesis": {
+        "artifacts": [],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "validate",
+              "C:\\tmp\\benchfull\\validate\\lane\\amr.json"
+            ],
+            "exit": 0,
+            "out": "valid: schema v1 amr-demo-01 (differential_drive_robot) scenarios=8\n",
+            "wall_s": 0.071
+          }
+        ],
+        "exit": 0,
+        "n_cmds": 1,
+        "summary": {
+          "exit": 0
+        },
+        "wall_s": 0.071
+      },
+      "id": "validate",
+      "ref": {
+        "artifacts": [],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\scripts\\bench_ref\\check_limits.py",
+              "C:\\tmp\\benchfull\\validate\\lane\\amr.json"
+            ],
+            "exit": 0,
+            "out": "naive check passed (3 keys present and positive)\n",
+            "wall_s": 0.042
+          }
+        ],
+        "exit": 0,
+        "manual_steps": [
+          "encode each new IR rule by hand in check_limits.py",
+          "review unknown keys by eye (the checker ignores them)"
+        ],
+        "n_cmds": 1,
+        "summary": {
+          "exit": 0
+        },
+        "wall_s": 0.042
+      },
+      "reproduce_note": "genesis semantic summaries identical",
+      "reproducible": true,
+      "title": "Validate a machine contract"
+    },
+    {
+      "fault": {
+        "case": "generate from a contract with key 'turbo'",
+        "genesis_detected": true,
+        "ref_detected": false
+      },
+      "genesis": {
+        "artifacts": [
+          {
+            "bytes": 1848,
+            "path": "gen\\genesis_build_gen.mk",
+            "sha256": "9c5aff075ce95db1eb8228a887ac66d3e05f430f8895163af2e7228c520dee8a"
+          },
+          {
+            "bytes": 690,
+            "path": "gen\\genesis_config_gen.h",
+            "sha256": "cd74fc72635d736c16bd189a0fa5713e840ebb8fa7b90d39055b76d77111f1f4"
+          }
+        ],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "generate",
+              "C:\\tmp\\benchfull\\generate\\lane\\amr.json",
+              "--out",
+              "C:\\tmp\\benchfull\\generate\\lane\\gen"
+            ],
+            "exit": 0,
+            "out": "generated: C:\\tmp\\benchfull\\generate\\lane\\gen (schema v1)\n  genesis_build_gen.mk  sha256:9c5aff075ce95db1...\n  genesis_config_gen.h  sha256:cd74fc72635d736c...\n",
+            "wall_s": 0.073
+          }
+        ],
+        "exit": 0,
+        "n_cmds": 1,
+        "summary": {
+          "exit": 0,
+          "files": {
+            "gen\\genesis_build_gen.mk": "9c5aff075ce95db1eb8228a887ac66d3e05f430f8895163af2e7228c520dee8a",
+            "gen\\genesis_config_gen.h": "cd74fc72635d736c16bd189a0fa5713e840ebb8fa7b90d39055b76d77111f1f4"
+          }
+        },
+        "wall_s": 0.073
+      },
+      "id": "generate",
+      "ref": {
+        "artifacts": [
+          {
+            "bytes": 154,
+            "path": "refgen\\guard_stunt.h",
+            "sha256": "274373d368deaafea15f27b4f23e59d6caf085eb1f7b748055b869b5580b40d5"
+          }
+        ],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\scripts\\bench_ref\\render_guard.py",
+              "C:\\tmp\\benchfull\\generate\\lane\\amr.json",
+              "--out",
+              "C:\\tmp\\benchfull\\generate\\lane\\refgen"
+            ],
+            "exit": 0,
+            "out": "stunt header written to C:\\tmp\\benchfull\\generate\\lane\\refgen\\guard_stunt.h\n",
+            "wall_s": 0.062
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\scoop\\apps\\mingw-winlibs\\current\\bin\\gcc.EXE",
+              "-fsyntax-only",
+              "C:\\tmp\\benchfull\\generate\\lane\\refgen\\guard_stunt.h"
+            ],
+            "exit": 0,
+            "out": "C:\\tmp\\benchfull\\generate\\lane\\refgen\\guard_stunt.h:2:9: warning: '#pragma once' in main file [-Wpragma-once-outside-header]\n    2 | #pragma once\n      |         ^~~~\n",
+            "wall_s": 0.021
+          }
+        ],
+        "exit": 0,
+        "manual_steps": [
+          "adapt the stunt template by hand per machine kind/field"
+        ],
+        "n_cmds": 2,
+        "summary": {
+          "cc_available": true,
+          "exit": 0
+        },
+        "wall_s": 0.083
+      },
+      "reproduce_note": "genesis semantic summaries identical",
+      "reproducible": true,
+      "title": "Generate the QNX controller sources"
+    },
+    {
+      "fault": {
+        "case": "limit 0.05 below the nominal 0.5 m/s",
+        "genesis_detected": true,
+        "ref_detected": true
+      },
+      "genesis": {
+        "artifacts": [],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "faults",
+              "C:\\tmp\\benchfull\\campaign\\lane\\amr.json"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 (differential_drive_robot)\ncorrupted_message: pass (allows=295 denies=5)\ndelayed_command: pass (allows=290 denies=10)\ndropped_message: pass (allows=290 denies=0)\nnominal_navigation: pass (allows=300 denies=0)\nplanner_process_crash: pass (allows=250 denies=0)\nsimulator_disconnect: pass (allows=280 denies=20)\nspeed_command_over_limit: pass (allows=297 denies=3)\nstale_proximity_150ms: pass (allows=295 denies=5)\n8/8 scenarios passed\n",
+            "wall_s": 0.087
+          }
+        ],
+        "exit": 0,
+        "n_cmds": 1,
+        "summary": {
+          "exit": 0,
+          "passed": 8,
+          "total": 8
+        },
+        "wall_s": 0.087
+      },
+      "id": "campaign",
+      "ref": {
+        "artifacts": [],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\campaign\\lane\\amr.json",
+              "--scenario",
+              "nominal_navigation"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 nominal_navigation: pass allows=300 denies=0 final_x=1.5\n",
+            "wall_s": 0.075
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\campaign\\lane\\amr.json",
+              "--scenario",
+              "speed_command_over_limit"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 speed_command_over_limit: pass allows=297 denies=3 final_x=1.485\n",
+            "wall_s": 0.076
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\campaign\\lane\\amr.json",
+              "--scenario",
+              "stale_proximity_150ms"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 stale_proximity_150ms: pass allows=295 denies=5 final_x=1.475\n",
+            "wall_s": 0.075
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\campaign\\lane\\amr.json",
+              "--scenario",
+              "planner_process_crash"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 planner_process_crash: pass allows=250 denies=0 final_x=1.25\n",
+            "wall_s": 0.076
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\campaign\\lane\\amr.json",
+              "--scenario",
+              "delayed_command"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 delayed_command: pass allows=290 denies=10 final_x=1.45\n",
+            "wall_s": 0.075
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\campaign\\lane\\amr.json",
+              "--scenario",
+              "dropped_message"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 dropped_message: pass allows=290 denies=0 final_x=1.45\n",
+            "wall_s": 0.077
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\campaign\\lane\\amr.json",
+              "--scenario",
+              "corrupted_message"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 corrupted_message: pass allows=295 denies=5 final_x=1.475\n",
+            "wall_s": 0.081
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\campaign\\lane\\amr.json",
+              "--scenario",
+              "simulator_disconnect"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 simulator_disconnect: pass allows=280 denies=20 final_x=1.4\n",
+            "wall_s": 0.075
+          }
+        ],
+        "exit": 0,
+        "manual_steps": [
+          "eyeball 8 scenario outputs for regressions",
+          "AND 8 exit codes by hand (no oracle verdict)"
+        ],
+        "n_cmds": 8,
+        "summary": {
+          "all_ok": true,
+          "exit": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "wall_s": 0.61
+      },
+      "reproduce_note": "genesis semantic summaries identical",
+      "reproducible": true,
+      "title": "Run the fault-injection campaign"
+    },
+    {
+      "fault": {
+        "case": "1 flipped byte in the stored package",
+        "genesis_detected": true,
+        "note": "both detect tamper; only genesis binds a verdict",
+        "ref_detected": true
+      },
+      "genesis": {
+        "artifacts": [
+          {
+            "bytes": 119127,
+            "path": "artifacts\\runs\\run-9f60c841e704\\passport.json",
+            "sha256": "855cf0da581c8d8f4687bda751dc6b7637c0bde514d5c50c494004ec1213e4e6"
+          }
+        ],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "demo",
+              "--ir",
+              "C:\\tmp\\benchfull\\evidence\\lane\\amr.json"
+            ],
+            "exit": 0,
+            "out": "run: run-9f60c841e704  verdict: PASS  level: QNX_COMPILED  release_eligible: False  qnx_verified: False  elapsed: 0.99s\npassport: C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-9f60c841e704\\passport.json\n  level: qnx_target.status='missing' with 0 checks (need 'ok' + >=1 check for QNX_EXECUTED)\n  corrupted_message: pass\n  delayed_command: pass\n  dropped_message: pass\n  nominal_navigation: pass\n  planner_process_crash: pass\n  simulator_disconnect: pass\n  speed_command_over_limit: pass\n  stale_proximity_150ms: pass\n",
+            "wall_s": 1.085
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\scripts\\replay.py",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-9f60c841e704\\passport.json"
+            ],
+            "exit": 0,
+            "out": "chain: valid\nprovenance: ir=356dc135f27f... machine=amr-demo-01\n  build: 6 binaries digested (qcc 12.2.0,gcc_ntox86_64)\n  target: 0 staged binaries observed, platform=None, window=None..None\ngate: PASS (qnx_verified=False)\n",
+            "wall_s": 0.086
+          }
+        ],
+        "exit": 0,
+        "n_cmds": 2,
+        "summary": {
+          "chain": "valid",
+          "verdict": null,
+          "verdict_bound": true
+        },
+        "wall_s": 1.171
+      },
+      "id": "evidence",
+      "ref": {
+        "artifacts": [
+          {
+            "bytes": 465,
+            "path": "pkg\\campaign.log",
+            "sha256": "3168d21a30f0152b6f769ff97d8cfb4b92b25733b2fed8fbc0569beab05d673c"
+          },
+          {
+            "bytes": 80,
+            "path": "pkg\\MANIFEST.sha256",
+            "sha256": "4b690bce78321c825a9cc7460eafbcc025c9fc82800592daf6a720d8e2e2173a"
+          }
+        ],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "faults",
+              "C:\\tmp\\benchfull\\evidence\\lane\\amr.json"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 (differential_drive_robot)\ncorrupted_message: pass (allows=295 denies=5)\ndelayed_command: pass (allows=290 denies=10)\ndropped_message: pass (allows=290 denies=0)\nnominal_navigation: pass (allows=300 denies=0)\nplanner_process_crash: pass (allows=250 denies=0)\nsimulator_disconnect: pass (allows=280 denies=20)\nspeed_command_over_limit: pass (allows=297 denies=3)\nstale_proximity_150ms: pass (allows=295 denies=5)\n8/8 scenarios passed\n",
+            "wall_s": 0.091
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\scripts\\bench_ref\\collect_package.py",
+              "C:\\tmp\\benchfull\\evidence\\lane\\campaign.log",
+              "--out",
+              "C:\\tmp\\benchfull\\evidence\\lane\\pkg"
+            ],
+            "exit": 0,
+            "out": "CHECKS.md MISSING: no hand-written verdict summary\npackage: 1 files, manifest written, verdict NOT bound (no gate)\n",
+            "wall_s": 0.068
+          }
+        ],
+        "exit": 0,
+        "manual_steps": [
+          "write CHECKS.md verdict summary by hand (absent: not faked)",
+          "confirm package contents by re-reading logs"
+        ],
+        "n_cmds": 2,
+        "summary": {
+          "checks_present": false,
+          "verdict_bound": false
+        },
+        "wall_s": 0.159
+      },
+      "reproduce_note": "genesis semantic summaries identical",
+      "reproducible": true,
+      "run_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-9f60c841e704",
+      "title": "Produce a reviewable evidence package"
+    },
+    {
+      "fault": {
+        "case": "changed limit value visible without digging",
+        "genesis_detected": true,
+        "ref_detected": false
+      },
+      "genesis": {
+        "artifacts": [],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "compare",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-e222d01e7f60",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-c57a257268e6",
+              "--json"
+            ],
+            "exit": 0,
+            "out": "ine GENESIS_MAX_LINEAR_MPS 0.05\\n #define GENESIS_MAX_ANGULAR_RADPS 1.0\\n #define GENESIS_FRESHNESS_LIMIT_MS 100\\n #define GENESIS_PROTOCOL_MAGIC 0x47454E31u\\n\"\n    },\n    \"only_a\": [],\n    \"only_b\": []\n  },\n  \"ir\": {\n    \"ir_sha256_equal\": false,\n    \"kind_a\": \"differential_drive_robot\",\n    \"kind_b\": \"differential_drive_robot\",\n    \"machine_a\": \"amr-demo-01\",\n    \"machine_b\": \"amr-demo-01\",\n    \"scenarios_only_a\": [],\n    \"scenarios_only_b\": []\n  },\n  \"measurements\": {\n    \"changed\": {},\n    \"only_a\": [],\n    \"only_b\": []\n  },\n  \"run_a\": \"run-e222d01e7f60\",\n  \"run_b\": \"run-c57a257268e6\",\n  \"scenarios\": {\n    \"broken\": [\n      \"corrupted_message\",\n      \"nominal_navigation\",\n      \"simulator_disconnect\",\n      \"stale_proximity_150ms\"\n    ],\n    \"fixed\": [],\n    \"status_a\": {\n      \"corrupted_message\": \"pass\",\n      \"delayed_command\": \"pass\",\n      \"dropped_message\": \"pass\",\n      \"nominal_navigation\": \"pass\",\n      \"planner_process_crash\": \"pass\",\n      \"simulator_disconnect\": \"pass\",\n      \"speed_command_over_limit\": \"pass\",\n      \"stale_proximity_150ms\": \"pass\"\n    },\n    \"status_b\": {\n      \"corrupted_message\": \"fail\",\n      \"delayed_command\": \"pass\",\n      \"dropped_message\": \"pass\",\n      \"nominal_navigation\": \"fail\",\n      \"planner_process_crash\": \"pass\",\n      \"simulator_disconnect\": \"fail\",\n      \"speed_command_over_limit\": \"pass\",\n      \"stale_proximity_150ms\": \"fail\"\n    },\n    \"status_changes\": {\n      \"corrupted_message\": [\n        \"pass\",\n        \"fail\"\n      ],\n      \"nominal_navigation\": [\n        \"pass\",\n        \"fail\"\n      ],\n      \"simulator_disconnect\": [\n        \"pass\",\n        \"fail\"\n      ],\n      \"stale_proximity_150ms\": [\n        \"pass\",\n        \"fail\"\n      ]\n    }\n  },\n  \"verdict\": {\n    \"a\": {\n      \"level\": \"QNX_COMPILED\",\n      \"release_eligible\": false,\n      \"verdict\": \"PASS\"\n    },\n    \"b\": {\n      \"level\": \"NONE\",\n      \"release_eligible\": false,\n      \"verdict\": \"FAIL\"\n    },\n    \"changed\": true,\n    \"release_changed\": false\n  }\n}\n",
+            "wall_s": 0.083
+          }
+        ],
+        "exit": 0,
+        "n_cmds": 1,
+        "summary": {
+          "exit": 0,
+          "names_limit_value": true
+        },
+        "wall_s": 0.083
+      },
+      "id": "compare",
+      "ref": {
+        "artifacts": [],
+        "cmds": [
+          {
+            "argv": [
+              "git",
+              "diff",
+              "--no-index",
+              "--stat",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-e222d01e7f60",
+              "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-c57a257268e6"
+            ],
+            "exit": 1,
+            "out": " .../generated/genesis_build_gen.mk\"                |    2 +-\n .../generated/genesis_config_gen.h\"                |    4 +-\n .../generated/genesis_controller\"                  |  Bin 13992 -> 13992 bytes\n .../generated/genesis_faultinject\"                 |  Bin 13920 -> 13920 bytes\n .../generated/genesis_guard\"                       |  Bin 14360 -> 14360 bytes\n .../generated/guard_vector_check.exe\"              |  Bin 58040 -> 58040 bytes\n .../passport.json\"                                 | 2291 ++++++++++----------\n 7 files changed, 1157 insertions(+), 1140 deletions(-)\nwarning: in the working copy of 'C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-e222d01e7f60/passport.json', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\run-c57a257268e6/passport.json', CRLF will be replaced by LF the next time Git touches it\n",
+            "wall_s": 0.041
+          }
+        ],
+        "exit": 1,
+        "manual_steps": [
+          "interpret which diffs matter for release (no verdicts)",
+          "dig out the changed value with a full diff + reading"
+        ],
+        "n_cmds": 1,
+        "summary": {
+          "exit": 1,
+          "names_limit_value": false
+        },
+        "wall_s": 0.041
+      },
+      "reproduce_note": "genesis semantic summaries identical",
+      "reproducible": true,
+      "title": "Compare two releases (0.05 limit)"
+    },
+    {
+      "fault": null,
+      "genesis": {
+        "artifacts": [],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "faults",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr_tight.json"
+            ],
+            "exit": 1,
+            "out": "schema v1 amr-demo-01 (differential_drive_robot)\ncorrupted_message: fail (allows=0 denies=300)\ndelayed_command: pass (allows=0 denies=300)\ndropped_message: pass (allows=0 denies=290)\nnominal_navigation: fail (allows=0 denies=300)\nplanner_process_crash: pass (allows=0 denies=250)\nsimulator_disconnect: fail (allows=0 denies=300)\nspeed_command_over_limit: pass (allows=0 denies=300)\nstale_proximity_150ms: fail (allows=0 denies=300)\n4/8 scenarios passed\n",
+            "wall_s": 0.09
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "faults",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr.json"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 (differential_drive_robot)\ncorrupted_message: pass (allows=295 denies=5)\ndelayed_command: pass (allows=290 denies=10)\ndropped_message: pass (allows=290 denies=0)\nnominal_navigation: pass (allows=300 denies=0)\nplanner_process_crash: pass (allows=250 denies=0)\nsimulator_disconnect: pass (allows=280 denies=20)\nspeed_command_over_limit: pass (allows=297 denies=3)\nstale_proximity_150ms: pass (allows=295 denies=5)\n8/8 scenarios passed\n",
+            "wall_s": 0.093
+          }
+        ],
+        "exit": 0,
+        "n_cmds": 2,
+        "summary": {
+          "after": {
+            "exit": 0,
+            "passed": 8,
+            "total": 8
+          },
+          "before": {
+            "exit": 1,
+            "passed": 4,
+            "total": 8
+          }
+        },
+        "wall_s": 0.183
+      },
+      "id": "regression",
+      "ref": {
+        "artifacts": [],
+        "cmds": [
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr_tight.json",
+              "--scenario",
+              "nominal_navigation"
+            ],
+            "exit": 1,
+            "out": "schema v1 amr-demo-01 nominal_navigation: fail allows=0 denies=300 final_x=0.0\n",
+            "wall_s": 0.087
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr_tight.json",
+              "--scenario",
+              "speed_command_over_limit"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 speed_command_over_limit: pass allows=0 denies=300 final_x=0.0\n",
+            "wall_s": 0.081
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr_tight.json",
+              "--scenario",
+              "stale_proximity_150ms"
+            ],
+            "exit": 1,
+            "out": "schema v1 amr-demo-01 stale_proximity_150ms: fail allows=0 denies=300 final_x=0.0\n",
+            "wall_s": 0.082
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr_tight.json",
+              "--scenario",
+              "planner_process_crash"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 planner_process_crash: pass allows=0 denies=250 final_x=0.0\n",
+            "wall_s": 0.08
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr_tight.json",
+              "--scenario",
+              "delayed_command"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 delayed_command: pass allows=0 denies=300 final_x=0.0\n",
+            "wall_s": 0.079
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr_tight.json",
+              "--scenario",
+              "dropped_message"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 dropped_message: pass allows=0 denies=290 final_x=0.0\n",
+            "wall_s": 0.081
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr_tight.json",
+              "--scenario",
+              "corrupted_message"
+            ],
+            "exit": 1,
+            "out": "schema v1 amr-demo-01 corrupted_message: fail allows=0 denies=300 final_x=0.0\n",
+            "wall_s": 0.075
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr_tight.json",
+              "--scenario",
+              "simulator_disconnect"
+            ],
+            "exit": 1,
+            "out": "schema v1 amr-demo-01 simulator_disconnect: fail allows=0 denies=300 final_x=0.0\n",
+            "wall_s": 0.077
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr.json",
+              "--scenario",
+              "nominal_navigation"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 nominal_navigation: pass allows=300 denies=0 final_x=1.5\n",
+            "wall_s": 0.076
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr.json",
+              "--scenario",
+              "speed_command_over_limit"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 speed_command_over_limit: pass allows=297 denies=3 final_x=1.485\n",
+            "wall_s": 0.08
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr.json",
+              "--scenario",
+              "stale_proximity_150ms"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 stale_proximity_150ms: pass allows=295 denies=5 final_x=1.475\n",
+            "wall_s": 0.075
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr.json",
+              "--scenario",
+              "planner_process_crash"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 planner_process_crash: pass allows=250 denies=0 final_x=1.25\n",
+            "wall_s": 0.079
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr.json",
+              "--scenario",
+              "delayed_command"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 delayed_command: pass allows=290 denies=10 final_x=1.45\n",
+            "wall_s": 0.077
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr.json",
+              "--scenario",
+              "dropped_message"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 dropped_message: pass allows=290 denies=0 final_x=1.45\n",
+            "wall_s": 0.087
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr.json",
+              "--scenario",
+              "corrupted_message"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 corrupted_message: pass allows=295 denies=5 final_x=1.475\n",
+            "wall_s": 0.077
+          },
+          {
+            "argv": [
+              "C:\\Users\\TheBox\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+              "-m",
+              "genesis_rt.cli",
+              "simulate",
+              "C:\\tmp\\benchfull\\regression\\lane\\amr.json",
+              "--scenario",
+              "simulator_disconnect"
+            ],
+            "exit": 0,
+            "out": "schema v1 amr-demo-01 simulator_disconnect: pass allows=280 denies=20 final_x=1.4\n",
+            "wall_s": 0.075
+          }
+        ],
+        "exit": 0,
+        "manual_steps": [
+          "diff 16 outputs by eye to confirm the fix"
+        ],
+        "n_cmds": 16,
+        "summary": {
+          "exits": [
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "wall_s": 1.268
+      },
+      "reproduce_note": "genesis semantic summaries identical",
+      "reproducible": true,
+      "title": "Reproduce a failure, confirm the fix"
+    }
+  ],
+  "totals": {
+    "faults_genesis_detected": 5,
+    "faults_ref_detected": 2,
+    "faults_total": 5,
+    "genesis_cmds": 8,
+    "ref_cmds": 30,
+    "ref_manual_steps": 10,
+    "reproducible": true
+  }
+}

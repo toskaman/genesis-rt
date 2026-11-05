@@ -267,6 +267,18 @@ def _cmd_twin(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_bench(args: argparse.Namespace) -> int:
+    from .bench_productivity import TASK_IDS, render_text, run_all
+    tasks = args.tasks.split(",") if args.tasks else list(TASK_IDS)
+    out = Path(args.out) if args.out else (
+        REPO_ROOT / "bench" / "productivity" / "last-run")
+    report = run_all(out, tasks, reproduce=not args.no_reproduce)
+    print(render_text(report), end="")
+    print(f"report: {out / 'REPORT.json'}")
+    bad = [t for t in report["tasks"] if t.get("reproducible") is False]
+    return 1 if bad else 0
+
+
 def _cmd_check_env(args: argparse.Namespace) -> int:
     from .build_adapter import probe
     print(json.dumps(probe(), indent=2))
@@ -349,6 +361,13 @@ def build_parser() -> argparse.ArgumentParser:
     rp.add_argument("--repo-root", default=".",
                     help="checkout root (locates target/qnx8)")
     rp.set_defaults(func=_cmd_replay)
+    bn = sub.add_parser("bench", help="run the productivity benchmark")
+    bn.add_argument("--tasks", default=None,
+                    help="comma-separated task ids (default: all)")
+    bn.add_argument("--out", default=None, help="report directory")
+    bn.add_argument("--no-reproduce", action="store_true",
+                    help="skip the genesis re-run reproducibility check")
+    bn.set_defaults(func=_cmd_bench)
     tw = sub.add_parser("twin", help="fold a passport scenario into a replay track")
     tw.add_argument("passport", help="evidence passport JSON file")
     tw.add_argument("--scenario", required=True, help="scenario name to fold")

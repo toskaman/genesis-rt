@@ -54,7 +54,14 @@
   single interval, canvas+textContent paints, loop stops on
   pause/tab-switch. JS/Python fold parity node-tested; browser
   30/30 incl. screenshots.
-- Suite 729/729 with SDK (SDK-free 726 + 3 honest QNX-build skips);
+- M4 §12 Productivity Benchmark: `bench_productivity.py` runs
+  six engineering tasks through the real CLI vs checked-in
+  synthetic reference workflows (`scripts/bench_ref/`, labeled):
+  8 genesis cmds vs 30 ref cmds + 10 counted manual steps,
+  faults 5/5 vs 2/5, genesis lane reproducible; `bench` CLI,
+  `bench/productivity/METHODOLOGY.md` + recorded `REPORT.json`,
+  commercial vision updated with measured numbers only.
+- Suite 736/736 with SDK (SDK-free 733 + 3 honest QNX-build skips);
   jury pins + architecture updated; consistency guard green.
 
 ## 2026-11-05 -- P1 Wave 5 : jury delivery (termine)

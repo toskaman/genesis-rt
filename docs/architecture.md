@@ -123,6 +123,14 @@
   node-tested for frame+marker equality) and renders cell/diff/
   belt schematics with scrub, speed, event navigation, A/B
   synchronized compare and marker→evidence sync.
+- **Productivity Benchmark** (`host/genesis_rt/bench_productivity.py`):
+  six engineering tasks executed as real CLI subprocesses in two
+  lanes — genesis vs checked-in synthetic references
+  (`scripts/bench_ref/`, labeled as such). Counts commands, wall
+  time, manual steps (counted, never faked), artifacts, injected-
+  fault detection and genesis-lane reproducibility. Served by the
+  `bench` CLI; methodology + recorded raw report under
+  `bench/productivity/`.
 - **IR numeric canonicalization** (`ir.py`, `ir_v2.py`): validators
   store float-semantic fields as float and collapse integral floats
   to int, so a JSON round-trip through a float-unaware producer
