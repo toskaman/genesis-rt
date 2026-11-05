@@ -1,0 +1,19 @@
+$ cd /tmp/genesis; slay genesis_guard 2>/dev/null; slay genesis_guard_conv 2>/dev/null; slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sudo -n slay genesis_status 2>/dev/null; sleep 1; rm -f device.log guard-dc.log ctrl-dc.log; ./genesis_device > device.log 2>&1 & ./genesis_guard > guard-dc.log 2>&1 & GUARDPID=$!; sleep 2; sudo -n ./genesis_status /tmp/genesis-status-node > status-dc.log 2>&1 & sleep 1; ./genesis_controller 50 > ctrl-dc.log 2>&1 & sleep 4; echo ---CHAIN-STATUS---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?; echo ---STATUS-DC-LOG---; cat status-dc.log; echo ---GUARD-DC-HEAD---; head -6 guard-dc.log; slay genesis_controller; sleep 1; echo APPLIES=$(grep -c APPLY device.log); echo APPLY-SAMPLE=$(head -2 device.log | tr '
+' '|'); echo NONGUARD=$(grep APPLY device.log | grep -vc "from_pid=$GUARDPID "); echo GUARDPID=$GUARDPID; slay genesis_guard; slay genesis_device; sudo -n slay genesis_status
+---CHAIN-STATUS---
+state=1 allows=81 denies=0 last_reason=OK last_seq=81 dropped=0 fwd_ok=81 fwd_fail=0 dev_x=1.920 dev_theta=0.000 dev_v=0.480 dev_applied=81 dev_seq=81
+STATUS_EXIT=0
+---STATUS-DC-LOG---
+---GUARD-DC-HEAD---
+guard: attached as 'genesis_guard' chid=1
+guard: machine=amr-demo-01 limits linear=1.200 angular=1.000 freshness=100ms
+guard: seq=1 decision=ALLOW reason=OK state=1
+guard: seq=2 decision=ALLOW reason=OK state=1
+guard: seq=3 decision=ALLOW reason=OK state=1
+guard: seq=4 decision=ALLOW reason=OK state=1
+APPLIES=83
+APPLY-SAMPLE=device: attached as 'genesis_device' (pose mode); awaiting guard-forwarded commands.|device: APPLY seq=1 v=0.480 w=0.000 from_pid=1445915 applied=1 x=0.000 theta=0.000|
+NONGUARD=0
+GUARDPID=1445915
+
+[exit=1]

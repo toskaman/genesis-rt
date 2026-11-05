@@ -1212,7 +1212,31 @@ function renderCompareHtml(c) {
   h += '<tr><td>Newly passed</td><td colspan="2">' + np + '</td></tr>';
   h += '<tr><td>Toolchain</td><td>' + esc(short(b.toolchain, 80)) +
     '</td><td>' + chg(d.toolchain_changed, short(a.toolchain, 80)) +
-    '</td></tr></table>';
+    '</td></tr>';
+  /* Wave 11 §7 change proof: contract/code/binary/behavior rows. */
+  const cp = (o) => (o.change_proof || {});
+  const lim = (o) => {
+    const v = cp(o).limit;
+    return (v === null || v === undefined) ? 'unknown' : String(v);
+  };
+  const p15 = (o) => {
+    const p = cp(o).probe15;
+    return p ? (p.decision + ' ' + p.reason) : 'unknown (no probe line)';
+  };
+  h += '<tr><td>Contract limit (m/s)</td><td>' + esc(lim(b)) +
+    '</td><td>' + chg(d.limit_changed, lim(a)) + '</td></tr>';
+  h += '<tr><td>Generated #define</td><td><code>' +
+    esc(cp(b).config || 'unknown') + '</code></td><td>' +
+    chg(d.config_changed, cp(a).config || 'unknown') + '</td></tr>';
+  h += '<tr><td>Guard sha256</td><td><code>' +
+    esc(short(cp(b).guard_sha, 24)) + '</code></td><td>' +
+    chg(d.guard_sha_changed, short(cp(a).guard_sha, 24)) + '</td></tr>';
+  h += '<tr><td>Native 1.5 m/s probe</td><td>' + esc(p15(b)) +
+    '</td><td>' + chg(d.probe15_flipped, p15(a)) + '</td></tr>';
+  h += '</table><p><a href="/target/ops/compare/dossier?before=' +
+    encodeURIComponent(b.op_id || '') + '&after=' +
+    encodeURIComponent(a.op_id || '') +
+    '">comparison dossier (.zip)</a></p>';
   return h;
 }
 function renderTargetOpsHtml(ops) {

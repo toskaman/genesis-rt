@@ -597,6 +597,23 @@ def create_app() -> Any:
         except DossierError as exc:
             raise HTTPException(exc.status, str(exc)) from None
 
+    @app.get("/target/ops/compare/dossier")
+    def compare_target_dossier(before: str = "", after: str = "") -> Any:
+        from fastapi.responses import Response  # type: ignore[import-not-found]
+
+        from .dossier import DossierError, build_compare_zip
+        if not valid_op_id(before) or not valid_op_id(after):
+            raise HTTPException(400, "invalid op id")
+        try:
+            blob = build_compare_zip(trunner.ops_dir, ARTIFACTS,
+                                     before, after)
+        except DossierError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+        return Response(
+            content=blob, media_type="application/zip",
+            headers={"Content-Disposition":
+                     f"attachment; filename=compare-{before}-vs-{after}.zip"})
+
     @app.get("/target/ops/{op_id}")
     def get_target_op(op_id: str) -> JSONResponse:
         if not valid_op_id(op_id):

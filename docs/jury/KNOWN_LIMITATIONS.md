@@ -19,7 +19,8 @@ Short version of `docs/limitations-and-safety.md` — the full text governs.
   Mode tab with real run/inspect actions, synchronized A/B twin
   replay of two passports on one time cursor). There is no
   multi-user/team workflow — single local operator. Judge Mode
-  browser E2E is pending (current Judge tests are node/DOM-level).
+  real-browser E2E runs in CI (headless Chromium + live backend, 2
+  real jobs); the CI path covers host only, no QEMU.
 - API is local-first with no auth; not for exposed deployment.
 - No QNX HAM integration: the QSTI image ships no `ham` binary, so
   supervision is our own tested RESPAWN/GIVE_UP process (matrix

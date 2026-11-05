@@ -102,6 +102,7 @@ AUDITED_GET_ROUTES = [
     "/studio.html",
     "/target/ops",
     "/target/ops/compare",
+    "/target/ops/compare/dossier",
     "/target/ops/{op_id}",
     "/target/ops/{op_id}/decision",
     "/target/ops/{op_id}/dossier",

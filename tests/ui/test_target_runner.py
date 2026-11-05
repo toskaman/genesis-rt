@@ -241,6 +241,44 @@ def test_compare_renders_sides_diff_and_escapes(tmp_path):
 
 
 @node
+def test_compare_renders_change_proof_and_dossier_link(tmp_path):
+    cmp = {
+        "before": {"op_id": "op-aaaaaaaaaaaaaaaa", "verdict": "PASS",
+                   "ir_digest": "aa", "gate": "PASS",
+                   "gate_level": "QNX_EXECUTED",
+                   "release_eligible": True, "toolchain": "qcc",
+                   "change_proof": {"limit": 1.2,
+                                    "probe15": {"decision": "DENY",
+                                                "reason": "SPEED_OVER_LIMIT"},
+                                    "guard_sha": "aa" * 32,
+                                    "config": "1.2"}},
+        "after": {"op_id": "op-bbbbbbbbbbbbbbbb", "verdict": "PASS",
+                  "ir_digest": "bb", "gate": "PASS",
+                  "gate_level": "QNX_EXECUTED",
+                  "release_eligible": True, "toolchain": "qcc",
+                  "change_proof": {"limit": 1.6,
+                                   "probe15": {"decision": "ALLOW",
+                                               "reason": "OK"},
+                                   "guard_sha": "bb" * 32,
+                                   "config": "1.6"}},
+        "diff": {"ir_changed": True, "verdict_changed": False,
+                 "gate_changed": False, "release_changed": False,
+                 "toolchain_changed": False, "newly_failed": [],
+                 "newly_passed": [], "matrix_before": "16/16",
+                 "matrix_after": "16/16", "limit_changed": True,
+                 "probe15_flipped": True, "guard_sha_changed": True,
+                 "config_changed": True},
+    }
+    (html,) = _run_js([{"fn": "topcompare", "arg": json.dumps(cmp)}],
+                      tmp_path)
+    assert "Contract limit" in html and "1.2" in html and "1.6" in html
+    assert "DENY SPEED_OVER_LIMIT" in html and "ALLOW OK" in html
+    assert "Guard sha256" in html and "(changed)" in html
+    assert ("/target/ops/compare/dossier?before=op-aaaaaaaaaaaaaaaa"
+            "&after=op-bbbbbbbbbbbbbbbb") in html
+
+
+@node
 def test_html_folds_absolute_op_dirs_to_relative(tmp_path):
     abs_target = "C:\\Users\\demo\\ops\\op-abc123def456\\target"
     abs_perf = "C:\\Users\\demo\\ops\\op-abc123def456\\perf"

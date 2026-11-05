@@ -30,7 +30,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "host"))
 
-from genesis_rt import buildset, codegen, provenance  # noqa: E402
+from genesis_rt import buildset, codegen, native_oracle, provenance  # noqa: E402
 from genesis_rt.ir import load_ir_file  # noqa: E402
 from genesis_rt.build_adapter import probe_qemu  # noqa: E402
 
@@ -859,6 +859,115 @@ TARGET_MATRIX = [
 ]
 
 
+# Conveyor slot contract (examples/conveyor-demo/machine-ir.json). The
+# banner pin below independently verifies the staged binary matches
+# this assumption — a rebuilt conv guard fails loudly, not silently.
+CONV_MACHINE_ID = "conveyor-demo-01"
+CONV_LIMIT_MPS = 2.0
+
+_PROBE_LINE_RE = re.compile(
+    r"PROBE linear=([0-9.]+) estop=(\d) decision=(ALLOW|DENY) "
+    r"reason=([A-Z_]+) state=(\d+)")
+
+
+def _limits_differ_legacy(body: str) -> bool:
+    """Unattested fixed-probe assertions (pre-Wave-11 behavior)."""
+    parts = body.split("---PROBE-CONV---")
+    slot1_pin = "machine=amr-demo-01 limits linear=1.200"
+    conv_pin = "machine=conveyor-demo-01 limits linear=2.000"
+    return (len(parts) == 2
+            and "decision=DENY reason=SPEED_OVER_LIMIT" in parts[0]
+            and "decision=ALLOW reason=OK" in parts[1]
+            and "ALL 9 CHECKS PASS" in parts[1]
+            and "FI_CONV_EXIT=0" in parts[1]
+            and slot1_pin in body
+            and conv_pin in body
+            and "MISSING_CONV_GUARD" not in body)
+
+
+def _limits_differ_bound(body: str, bound: dict) -> bool:
+    """Contract-aware verdicts: every probe line must match the oracle
+    prediction for its slot contract. Anything unpredicted, missing,
+    reordered or mismatched fails closed."""
+    try:
+        mid = str(bound["machine_id"])
+        kind = str(bound["machine_kind"])
+        lim = float(bound["linear_limit_mps"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    if "ORACLE_NO_PLAN_FOR_LIMIT" in body:
+        return False
+    plan = (native_oracle.plan_probes(lim)
+            if kind in native_oracle.SUPPORTED_MACHINE_KINDS else None)
+    if plan is None or mid == CONV_MACHINE_ID:
+        return False
+    parts = body.split("---PROBE-CONV---")
+    if len(parts) != 2:
+        return False
+    want_echo = ["%.3f" % v for v in plan]
+    slots = (((kind, lim), parts[0]),
+             (("conveyor", CONV_LIMIT_MPS), parts[1]))
+    for (skind, slim), section in slots:
+        lines = _PROBE_LINE_RE.findall(section)
+        if [echo for echo, _, _, _, _ in lines] != want_echo:
+            return False
+        for echo, estop, dec, reason, state in lines:
+            want = native_oracle.expect_linear_probe(
+                machine_kind=skind, limit_mps=slim,
+                probe_mps=float(echo), estop=(estop == "1"))
+            if want.decision is None:
+                return False
+            if (dec, reason, int(state)) != (want.decision, want.reason,
+                                             want.state_out):
+                return False
+    slot1_pin = f"machine={mid} limits linear={lim:.3f}"
+    conv_pin = f"machine={CONV_MACHINE_ID} limits linear={CONV_LIMIT_MPS:.3f}"
+    return (slot1_pin in body
+            and conv_pin in body
+            and "ALL 9 CHECKS PASS" in parts[1]
+            and "FI_CONV_EXIT=0" in parts[1]
+            and "MISSING_CONV_GUARD" not in body)
+
+
+def _limits_differ_command(bound: dict | None) -> str:
+    """Bound runs probe below/at/above the IR limit on both slots (the
+    guard restarts per probe: seq is single-use). Unattested runs keep
+    the legacy fixed command."""
+    legacy = next(c for n, c in TARGET_MATRIX if n == "limits_differ")
+    if bound is None:
+        return legacy
+    try:
+        lim = float(bound["linear_limit_mps"])
+    except (KeyError, TypeError, ValueError):
+        return "echo ORACLE_NO_PLAN_FOR_LIMIT; exit 3"
+    plan = native_oracle.plan_probes(lim)
+    if plan is None:
+        return "echo ORACLE_NO_PLAN_FOR_LIMIT; exit 3"
+
+    def _slot(binary: str, log: str) -> str:
+        runs = ""
+        for value in plan:
+            runs += (f" ./{binary} > {log} 2>&1 & sleep 2;"
+                     f" ./genesis_faultinject probe {value:.3f};"
+                     f" slay {binary}; sleep 1;")
+        return runs
+
+    return (
+        "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
+        " slay genesis_guard_conv 2>/dev/null; sleep 1;"
+        " test -x ./genesis_guard_conv"
+        " || { echo MISSING_CONV_GUARD; exit 3; };"
+        " echo ---PROBE-AMR---;" + _slot("genesis_guard", "guard-amr.log") +
+        " echo ---PROBE-CONV---;"
+        + _slot("genesis_guard_conv", "guard-conv.log") +
+        " ./genesis_guard_conv > guard-conv.log 2>&1 & sleep 2;"
+        " echo ---FI-VS-CONV---; ./genesis_faultinject;"
+        " echo FI_CONV_EXIT=$?;"
+        " slay genesis_guard; slay genesis_guard_conv 2>/dev/null;"
+        " echo ---GUARD-HEADERS---;"
+        " grep -h machine guard-amr.log guard-conv.log")
+
+
 def _matrix_check(name: str, body: str, status: int,
                   bound: dict | None = None) -> dict:
     """Parse one matrix step into a pass/fail check (strict assertions).
@@ -883,38 +992,11 @@ def _matrix_check(name: str, body: str, status: int,
               and "state=1 " in body.split("---STATUS-AFTER---")[0]
               and body.rsplit("state=", 1)[1].startswith("3 "))
     elif name == "limits_differ":
-        # Same probe (1.5 mps) must DENY on the slot-1 guard and ALLOW on
-        # the conveyor guard (limit 2.0): generated limits drive runtime
-        # behavior. Guard banners pin which binary answered; the slot-1
-        # banner must match the --ir-bound machine (legacy AMR when
-        # unattested). Geometry is enforced: a bound limit >= the probe
-        # would make the DENY expectation meaningless, so it fails
-        # closed instead of weakening the assertion.
-        parts = body.split("---PROBE-CONV---")
-        conv_pin = "machine=conveyor-demo-01 limits linear=2.000"
-        if bound is None:
-            slot1_pin: str | None = "machine=amr-demo-01 limits linear=1.200"
-            geometry_ok = True
-        else:
-            try:
-                mid = str(bound["machine_id"])
-                lim = float(bound["linear_limit_mps"])
-            except (KeyError, TypeError, ValueError):
-                mid, lim = "", float("nan")
-            slot1_pin = (f"machine={mid} limits linear={lim:.3f}"
-                         if mid and lim == lim else None)
-            geometry_ok = (slot1_pin is not None
-                           and mid != "conveyor-demo-01"
-                           and 0.0 < lim < 1.5 < 2.0)
-        ok = (len(parts) == 2
-              and "decision=DENY reason=SPEED_OVER_LIMIT" in parts[0]
-              and "decision=ALLOW reason=OK" in parts[1]
-              and "ALL 9 CHECKS PASS" in parts[1]
-              and "FI_CONV_EXIT=0" in parts[1]
-              and slot1_pin is not None and slot1_pin in body
-              and conv_pin in body
-              and geometry_ok
-              and "MISSING_CONV_GUARD" not in body)
+        # Wave 11 §5: bound runs use the contract-aware oracle (each
+        # probe verdict predicted from the IR, then compared); the
+        # legacy fixed-probe path stays for unattested runs.
+        ok = (_limits_differ_bound(body, bound) if bound is not None
+              else _limits_differ_legacy(body))
     elif name == "device_chain":
         # Full actuation chain: controller -> guard -> device -> status.
         # The virtual robot must have MOVED (dev_x > 0), every applied
@@ -1141,6 +1223,7 @@ def _ir_binding(ir_path: str | None) -> dict | None:
     # match the codegen manifest, not the raw file bytes.
     data = load_ir_file(ir_path)
     return {"machine_id": data["machine"]["id"],
+            "machine_kind": data["machine"]["kind"],
             "ir_sha256": codegen.ir_sha256(data),
             "linear_limit_mps": float(
                 data["control"]["max_linear_speed_mps"])}
@@ -1409,6 +1492,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
     prov_errors: list[str] = []
     try:
         for name, command in TARGET_MATRIX:
+            if name == "limits_differ":
+                command = _limits_differ_command(ir_binding)
             _stdin, stdout, stderr = client.exec_command(command, timeout=180)
             deadline = time.monotonic() + 180
             while not stdout.channel.exit_status_ready():

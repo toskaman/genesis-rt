@@ -1,0 +1,15 @@
+$ cd /tmp/genesis; slay genesis_guard 2>/dev/null; slay genesis_guard_conv 2>/dev/null; slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sudo -n slay genesis_status 2>/dev/null; sleep 1; rm -f device-conv.log guard-cc.log ctrl-cc.log; test -x ./genesis_guard_conv || { echo MISSING_CONV_GUARD; exit 3; }; ./genesis_device belt > device-conv.log 2>&1 & ./genesis_guard_conv > guard-cc.log 2>&1 & GUARDPID=$!; sleep 2; sudo -n ./genesis_status /tmp/genesis-status-node > status-cc.log 2>&1 & sleep 1; ./genesis_controller 50 > ctrl-cc.log 2>&1 & sleep 4; echo ---CHAIN-STATUS---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?; echo ---DEVICE-CONV-HEAD---; head -3 device-conv.log; slay genesis_controller; sleep 1; echo APPLIES=$(grep -c APPLY device-conv.log); echo APPLY-SAMPLE=$(head -2 device-conv.log | tr '\n' '|'); echo NONGUARD=$(grep APPLY device-conv.log | grep -vc "from_pid=$GUARDPID "); echo BELT=$(grep -c belt_pos device-conv.log); echo GUARDPID=$GUARDPID; slay genesis_guard_conv; slay genesis_device; sudo -n slay genesis_status
+---CHAIN-STATUS---
+state=1 allows=81 denies=0 last_reason=OK last_seq=81 dropped=0 fwd_ok=81 fwd_fail=0 dev_x=2.559 dev_theta=0.000 dev_v=0.640 dev_applied=81 dev_seq=81
+STATUS_EXIT=0
+---DEVICE-CONV-HEAD---
+device: attached as 'genesis_device' (belt mode); awaiting guard-forwarded commands.
+device: APPLY seq=1 v=0.640 w=0.000 from_pid=1703961 applied=1 belt_pos=0.000 belt_jammed=0
+device: APPLY seq=2 v=0.640 w=0.000 from_pid=1703961 applied=1 belt_pos=0.032 belt_jammed=0
+APPLIES=83
+APPLY-SAMPLE=device: attached as 'genesis_device' (belt mode); awaiting guard-forwarded commands.|device: APPLY seq=1 v=0.640 w=0.000 from_pid=1703961 applied=1 belt_pos=0.000 belt_jammed=0|
+NONGUARD=0
+BELT=83
+GUARDPID=1703961
+
+[exit=1]

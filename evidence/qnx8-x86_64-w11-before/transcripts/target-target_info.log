@@ -1,0 +1,10 @@
+$ uname -a; echo ---; pidin -F %n 2>/dev/null | head -5
+QNX qnxqemu 8.0.0 2026/06/05-16:26:03EDT x86pc x86_64
+---
+name                                                                            
+usr/lib/ssh/sshd-session                                                        
+bin/bash                                                                        
+proc/boot/pidin                                                                 
+system/bin/head                                                                 
+
+[exit=0]

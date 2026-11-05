@@ -18,6 +18,7 @@ import hashlib
 import html
 import io
 import json
+import re
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -260,6 +261,66 @@ def _why_lines(verdict: str, state: str, gate: str, qnx_verified: bool,
     return lines or ["unexplained non-pass (report this as a bug)"]
 
 
+_PROBE15_RE = re.compile(
+    r"PROBE linear=1\.500 estop=0 decision=(ALLOW|DENY) reason=([A-Z_]+)")
+_CONFIG_DEFINE_RE = re.compile(
+    r"^#define\s+GENESIS_MAX_LINEAR_MPS\s+(\S+)", re.MULTILINE)
+
+
+def extract_probe15(files: dict[str, bytes]) -> dict[str, str] | None:
+    """Slot-1 verdict for the iconic 1.5 m/s probe (section before the
+    conv marker), or None when the log is absent/unparseable."""
+    raw = files.get("transcripts/target-limits_differ.log")
+    if raw is None:
+        return None
+    text = raw.decode("utf-8", "replace")
+    lines = text.splitlines()
+    # Runner framing ("$ command" / "[exit=..]") is not stdout: drop it
+    # so marker splits land on real output (the echoed command itself
+    # contains the marker text).
+    if lines and lines[0].startswith("$ "):
+        lines = lines[1:]
+    if lines and lines[-1].startswith("[exit="):
+        lines = lines[:-1]
+    section = "\n".join(lines).split("---PROBE-CONV---")[0]
+    match = _PROBE15_RE.search(section)
+    if match is None:
+        return None
+    return {"decision": match.group(1), "reason": match.group(2)}
+
+
+def extract_limit(rec: dict[str, Any],
+                  files: dict[str, bytes]) -> float | None:
+    """Contract speed limit: op params first, ir.json fallback."""
+    try:
+        return float(rec["params"]["ir"]["control"]
+                     ["max_linear_speed_mps"])
+    except (KeyError, TypeError, ValueError):
+        pass
+    try:
+        doc = json.loads(files["ir.json"].decode("utf-8"))
+        return float(doc["control"]["max_linear_speed_mps"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def extract_guard_sha(files: dict[str, bytes]) -> str | None:
+    try:
+        doc = json.loads(files["qnx-build-record.json"].decode("utf-8"))
+        sha = doc["binaries"]["genesis_guard"]["sha256"]
+        return sha if isinstance(sha, str) else None
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def extract_config_define(files: dict[str, bytes]) -> str | None:
+    raw = files.get("sources/genesis_config_gen.h")
+    if raw is None:
+        return None
+    match = _CONFIG_DEFINE_RE.search(raw.decode("utf-8", "replace"))
+    return match.group(1) if match else None
+
+
 def compare_ops(ops_dir: Path, artifacts_root: Path | None,
                 before_id: str, after_id: str) -> dict[str, Any]:
     """Side-by-side assessment of two terminal ops plus a diff summary.
@@ -271,9 +332,17 @@ def compare_ops(ops_dir: Path, artifacts_root: Path | None,
     for key, oid in (("before", before_id), ("after", after_id)):
         files, rec, _red = collect_op_files(ops_dir, oid, artifacts_root)
         sides[key] = assess_op(oid, rec, files)
+        # Wave 11 §7 change proof: contract/code/binary/behavior rows.
+        sides[key]["change_proof"] = {
+            "limit": extract_limit(rec, files),
+            "probe15": extract_probe15(files),
+            "guard_sha": extract_guard_sha(files),
+            "config": extract_config_define(files),
+        }
     b, a = sides["before"], sides["after"]
     bf = set(b["matrix"]["failed"])
     af = set(a["matrix"]["failed"])
+    pb, pa = (b["change_proof"]["probe15"], a["change_proof"]["probe15"])
     sides["diff"] = {
         "ir_changed": b["ir_digest"] != a["ir_digest"],
         "verdict_changed": b["verdict"] != a["verdict"],
@@ -284,6 +353,22 @@ def compare_ops(ops_dir: Path, artifacts_root: Path | None,
         "newly_passed": sorted(bf - af),
         "matrix_before": f'{b["matrix"]["passed"]}/{b["matrix"]["total"]}',
         "matrix_after": f'{a["matrix"]["passed"]}/{a["matrix"]["total"]}',
+        "limit_before": b["change_proof"]["limit"],
+        "limit_after": a["change_proof"]["limit"],
+        "limit_changed": (b["change_proof"]["limit"]
+                          != a["change_proof"]["limit"]),
+        "probe15_before": pb,
+        "probe15_after": pa,
+        "probe15_flipped": (pb is not None and pa is not None
+                            and pb["decision"] != pa["decision"]),
+        "guard_sha_before": b["change_proof"]["guard_sha"],
+        "guard_sha_after": a["change_proof"]["guard_sha"],
+        "guard_sha_changed": (b["change_proof"]["guard_sha"]
+                              != a["change_proof"]["guard_sha"]),
+        "config_before": b["change_proof"]["config"],
+        "config_after": a["change_proof"]["config"],
+        "config_changed": (b["change_proof"]["config"]
+                           != a["change_proof"]["config"]),
     }
     return sides
 
@@ -419,6 +504,116 @@ def build_dossier_zip(ops_dir: str | Path, op_id: str,
                   for name, data in sorted(files.items())},
     }
     files["manifest.json"] = json.dumps(manifest, indent=1).encode("utf-8")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name in sorted(files):
+            zf.writestr(prefix + name, files[name])
+    return buf.getvalue()
+
+
+_COMPARE_VERIFY_MD = """\
+# Compare dossier — verify offline
+
+1. Open `compare-report.html`: every BEFORE/AFTER row shows its source
+   (contract value, generated `#define`, binary sha256, native probe
+   verdict, matrix, gate, release eligibility).
+2. `before.json` / `after.json` are the per-side machine-readable
+   assessments (same schema as the dossier decision panel).
+3. Cross-check digests against each side's own dossier ZIP
+   (`/target/ops/{op_id}/dossier`): IR digest, guard sha256 and the
+   1.5 m/s probe lines in `transcripts/target-limits_differ.log`.
+4. A flipped probe verdict (DENY→ALLOW) with both gates PASS is a
+   verified behavior change; any other combination is shown as-is —
+   this report never invents a green verdict.
+"""
+
+
+def render_compare_report(before_id: str, after_id: str,
+                          sides: dict[str, Any]) -> str:
+    """Self-contained BEFORE/AFTER change-proof HTML page."""
+    b, a, d = sides["before"], sides["after"], sides["diff"]
+
+    def _row(label: str, left: Any, right: Any,
+             changed: bool) -> str:
+        mark = " ⟷" if changed else ""
+        cls = "chg" if changed else "same"
+        return (f'<tr><td>{_esc(label, 60)}</td>'
+                f'<td class="{cls}">{_esc(left, 120)}{mark if changed else ""}'
+                f'</td><td class="{cls}">{_esc(right, 120)}</td></tr>')
+
+    def _probe(side: dict[str, Any]) -> str:
+        p = side["change_proof"]["probe15"]
+        if p is None:
+            return "unknown (no probe line)"
+        return f'{p["decision"]} {p["reason"]}'
+
+    rows = [
+        _row("Contract limit (m/s)", b["change_proof"]["limit"],
+             a["change_proof"]["limit"], d["limit_changed"]),
+        _row("Generated #define", b["change_proof"]["config"],
+             a["change_proof"]["config"], d["config_changed"]),
+        _row("Guard sha256", b["change_proof"]["guard_sha"],
+             a["change_proof"]["guard_sha"], d["guard_sha_changed"]),
+        _row("Native 1.5 m/s probe", _probe(b), _probe(a),
+             d["probe15_flipped"]),
+        _row("Matrix", b["matrix"]["passed"], a["matrix"]["passed"],
+             d["matrix_before"] != d["matrix_after"]),
+        _row("Gate", b["gate"], a["gate"], d["gate_changed"]),
+        _row("Release eligible", b["release_eligible"],
+             a["release_eligible"], d["release_changed"]),
+    ]
+    return f"""\
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Change proof {_esc(before_id, 40)} → {_esc(after_id, 40)}</title>
+<style>body{{font-family:sans-serif;max-width:60rem;margin:2rem auto}}
+table{{border-collapse:collapse;width:100%}}
+td,th{{border:1px solid #888;padding:.35rem .6rem;text-align:left}}
+.chg{{background:#fff3cd}} .same{{background:#f2f2f2}}</style>
+</head><body>
+<h1>Native change proof</h1>
+<p>BEFORE <code>{_esc(before_id, 40)}</code> → AFTER
+<code>{_esc(after_id, 40)}</code>. Changed rows are highlighted and
+marked ⟷ (not color alone).</p>
+<table><tr><th>Row</th><th>BEFORE</th><th>AFTER</th></tr>
+{chr(10).join(rows)}
+</table>
+<p>Newly failed: {_esc(d["newly_failed"], 200) or "—"}.
+Newly passed: {_esc(d["newly_passed"], 200) or "—"}.</p>
+</body></html>"""
+
+
+def build_compare_zip(ops_dir: str | Path, artifacts_root: str | Path | None,
+                      before_id: str, after_id: str) -> bytes:
+    """Portable BEFORE/AFTER comparison dossier ZIP.
+
+    Raises DossierError (404/409/413) like the single-op builder.
+    """
+    ops_path = Path(ops_dir)
+    root = Path(artifacts_root) if artifacts_root else None
+    sides = compare_ops(ops_path, root, before_id, after_id)
+    report = render_compare_report(before_id, after_id, sides)
+    files = {
+        "compare-report.html": _lf(report.encode("utf-8")),
+        "VERIFY.md": _lf(_COMPARE_VERIFY_MD.encode("utf-8")),
+        "before.json": json.dumps(sides["before"], indent=1,
+                                  sort_keys=True).encode("utf-8"),
+        "after.json": json.dumps(sides["after"], indent=1,
+                                 sort_keys=True).encode("utf-8"),
+    }
+    total = sum(len(v) for v in files.values())
+    if total > MAX_DOSSIER_BYTES:
+        raise DossierError(413, "compare dossier size cap exceeded")
+    manifest = {
+        "dossier_version": DOSSIER_VERSION,
+        "kind": "compare",
+        "before": before_id,
+        "after": after_id,
+        "created_utc": _utc_now(),
+        "files": {name: hashlib.sha256(data).hexdigest()
+                  for name, data in sorted(files.items())},
+    }
+    files["manifest.json"] = json.dumps(manifest, indent=1).encode("utf-8")
+    prefix = f"compare-{before_id}-vs-{after_id}/"
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for name in sorted(files):

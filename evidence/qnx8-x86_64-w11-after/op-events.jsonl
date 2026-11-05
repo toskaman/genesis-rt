@@ -1,0 +1,40 @@
+{"seq": 0, "kind": "op_started", "message": "workflow=full", "ts": 1793918147.5527442}
+{"seq": 1, "kind": "state", "message": "VALIDATING", "ts": 1793918147.554142}
+{"seq": 2, "kind": "step_running", "message": "validate: ", "ts": 1793918147.555133}
+{"seq": 3, "kind": "step_done", "message": "validate: IR valid (machine=amr-demo-01, normalized)", "ts": 1793918147.5592053}
+{"seq": 4, "kind": "state", "message": "VALIDATING", "ts": 1793918147.5605347}
+{"seq": 5, "kind": "step_running", "message": "env: ", "ts": 1793918147.5613315}
+{"seq": 6, "kind": "step_done", "message": "env: SDK present (qcc=cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.", "ts": 1793918147.7573793}
+{"seq": 7, "kind": "state", "message": "BUILDING", "ts": 1793918147.7590723}
+{"seq": 8, "kind": "step_running", "message": "generate: ", "ts": 1793918147.7599545}
+{"seq": 9, "kind": "step_done", "message": "generate: 2 files, ir fb2dbb3de8a1", "ts": 1793918147.7630653}
+{"seq": 10, "kind": "state", "message": "BUILDING", "ts": 1793918147.7644773}
+{"seq": 11, "kind": "step_running", "message": "build: ", "ts": 1793918147.7652256}
+{"seq": 12, "kind": "step_done", "message": "build: build ok, 6 binaries", "ts": 1793918148.5875309}
+{"seq": 13, "kind": "state", "message": "STAGING", "ts": 1793918148.5890017}
+{"seq": 14, "kind": "step_running", "message": "probe_image: ", "ts": 1793918148.589769}
+{"seq": 15, "kind": "step_done", "message": "probe_image: image probed", "ts": 1793918148.5920882}
+{"seq": 16, "kind": "state", "message": "STAGING", "ts": 1793918148.5937192}
+{"seq": 17, "kind": "step_running", "message": "qemu_boot: ", "ts": 1793918148.594524}
+{"seq": 18, "kind": "step_done", "message": "qemu_boot: QEMU pid 10176 alive", "ts": 1793918158.8569868}
+{"seq": 19, "kind": "state", "message": "STAGING", "ts": 1793918158.8585784}
+{"seq": 20, "kind": "step_running", "message": "wait_ssh: ", "ts": 1793918158.8594623}
+{"seq": 21, "kind": "step_done", "message": "wait_ssh: ssh banner on port 2222", "ts": 1793918169.1655595}
+{"seq": 22, "kind": "state", "message": "STAGING", "ts": 1793918169.1671498}
+{"seq": 23, "kind": "step_running", "message": "qemu_put: ", "ts": 1793918169.167912}
+{"seq": 24, "kind": "step_done", "message": "qemu_put: 9 files staged + manifest (staging cleaned)", "ts": 1793918171.1863327}
+{"seq": 25, "kind": "state", "message": "VERIFYING", "ts": 1793918171.1880612}
+{"seq": 26, "kind": "step_running", "message": "qemu_verify: ", "ts": 1793918171.1889653}
+{"seq": 27, "kind": "step_done", "message": "qemu_verify: target matrix PASS (see target/)", "ts": 1793918355.0795515}
+{"seq": 28, "kind": "state", "message": "MEASURING", "ts": 1793918355.0812247}
+{"seq": 29, "kind": "step_running", "message": "qemu_perf: ", "ts": 1793918355.0820932}
+{"seq": 30, "kind": "step_done", "message": "qemu_perf: perf done (see perf/)", "ts": 1793918361.545093}
+{"seq": 31, "kind": "step_running", "message": "qemu_stop: ", "ts": 1793918361.546783}
+{"seq": 32, "kind": "step_done", "message": "qemu_stop: QEMU pid 10176 stopped", "ts": 1793918361.7572775}
+{"seq": 33, "kind": "state", "message": "SEALING", "ts": 1793918361.7589743}
+{"seq": 34, "kind": "step_running", "message": "seal: ", "ts": 1793918361.7599344}
+{"seq": 35, "kind": "step_done", "message": "seal: sealed PASS (qnx_verified=True, 8 scenarios)", "ts": 1793918361.8284311}
+{"seq": 36, "kind": "state", "message": "REPLAYING", "ts": 1793918361.829873}
+{"seq": 37, "kind": "step_running", "message": "replay: ", "ts": 1793918361.8306217}
+{"seq": 38, "kind": "step_done", "message": "replay: replay matches (PASS, qnx_verified=True)", "ts": 1793918361.834644}
+{"seq": 39, "kind": "op_completed", "message": "all steps done", "ts": 1793918361.8360486}

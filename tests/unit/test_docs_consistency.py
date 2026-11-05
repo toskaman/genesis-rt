@@ -133,3 +133,34 @@ def test_adversarial_count_matches_collected():
     m = re.search(r"(\d+) tests? collected", proc.stdout)
     assert m is not None, proc.stdout[-500:]
     assert (m.group(1),) == claimed, (m.group(1), claimed)
+
+
+def test_docs_match_facts_source_of_truth():
+    from genesis_rt import facts
+    total = _one(r"(\d+) host tests", _read("docs/jury/JUDGE_SCORECARD.md"),
+                 "scorecard total")
+    assert total == (str(facts.TESTS_WITH_SDK),), total
+    adv = _one(r"(\d+)-test adversarial",
+               _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard adversarial")
+    assert adv == (str(facts.ADVERSARIAL_TESTS),), adv
+    free = _one(r"SDK-free: (\d+) \+ (\d+) honest skips",
+                _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard sdk-free")
+    assert free == (str(facts.TESTS_SDK_FREE_PASSED),
+                    str(facts.TESTS_SDK_FREE_SKIPS)), free
+
+
+def test_devpost_counts_match_facts():
+    from genesis_rt import facts
+    text = _read("docs/devpost-draft.md")
+    m = re.search(r"# (\d+) pass, 0 skip .*SDK-less CI: (\d+) passed \+ "
+                  r"(\d+) honest skips", text)
+    assert m is not None, "devpost count line missing"
+    assert (m.group(1), m.group(2), m.group(3)) == \
+        (str(facts.TESTS_WITH_SDK), str(facts.TESTS_SDK_FREE_PASSED),
+         str(facts.TESTS_SDK_FREE_SKIPS)), m.groups()
+
+
+def test_limitations_e2e_wording_current():
+    text = _read("docs/jury/KNOWN_LIMITATIONS.md")
+    assert "browser E2E is pending" not in text
+    assert "real-browser E2E runs in CI" in text

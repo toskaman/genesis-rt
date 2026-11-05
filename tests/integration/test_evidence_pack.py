@@ -101,3 +101,52 @@ def test_pack_bytes_are_checkout_stable():
     assert cr_files == [], f"CRLF bytes would break digests: {cr_files}"
     attrs = (REPO / ".gitattributes").read_text(encoding="utf-8")
     assert "evidence/** -text" in attrs
+
+
+W11A = REPO / "evidence" / "qnx8-x86_64-w11-before"
+W11B = REPO / "evidence" / "qnx8-x86_64-w11-after"
+W11CMP = REPO / "evidence" / "w11-before-after" / "comparison.json"
+
+
+def test_wave11_packs_verify_clean():
+    for pack in (W11A, W11B):
+        assert (pack / "manifest.json").is_file()
+        proc = _run_verify(pack)
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        assert "VERIFY OK" in proc.stdout
+        assert "matrix=16/16" in proc.stdout
+
+
+def test_wave11_comparison_manifest_matches_packs():
+    cmp = json.loads(W11CMP.read_text(encoding="utf-8"))
+    assert set(cmp["packs"]) == {"before", "after"}
+    for tag, pack in (("before", W11A), ("after", W11B)):
+        entry = cmp["packs"][tag]
+        anchor = hashlib.sha256(
+            (pack / "passport.json").read_bytes()).hexdigest()
+        assert anchor == entry["passport_anchor"], tag
+        assert entry["gate"] == "PASS", tag
+        assert len(entry["matrix"]) == 16, tag
+    b, a = cmp["packs"]["before"], cmp["packs"]["after"]
+    assert b["ir_digest"] != a["ir_digest"]
+    assert b["guard_sha256"] != a["guard_sha256"]
+    assert (b["limit"], a["limit"]) == (1.2, 1.6)
+    # The iconic flip, read from the packed transcripts (slot-1 sections).
+    # NOTE: the marker also appears in the runner "$ command" framing
+    # line, so the AMR-side section is parts[1] of 3.
+    parts_a = (W11A / "transcripts" / "target-limits_differ.log").read_text(
+        encoding="utf-8").split("---PROBE-CONV---")
+    parts_b = (W11B / "transcripts" / "target-limits_differ.log").read_text(
+        encoding="utf-8").split("---PROBE-CONV---")
+    assert len(parts_a) == len(parts_b) == 3, "framing + 2 sections"
+    assert ("PROBE linear=1.500 estop=0 decision=DENY reason=SPEED_OVER_LIMIT"
+            in parts_a[1])
+    assert ("PROBE linear=1.500 estop=0 decision=ALLOW reason=OK"
+            in parts_b[1])
+
+
+def test_wave11_packs_are_checkout_stable():
+    for pack in (W11A, W11B):
+        cr = [p.relative_to(pack).as_posix() for p in sorted(pack.rglob("*"))
+              if p.is_file() and b"\r" in p.read_bytes()]
+        assert cr == [], f"CRLF bytes would break digests: {cr}"

@@ -341,3 +341,86 @@ def test_endpoint_compare_errors(client):
                       "&after=op-000000000000").status_code == 404
     assert client.get(f"/target/ops/compare?before={OP}"
                       "&after=op-111111111111").status_code == 409
+
+
+def _write_change_proof(ops, op_id, limit, decision, reason, sha, define):
+    work = ops / op_id
+    (work / "target" / "target-limits_differ.log").write_text(
+        "$ echo ---PROBE-AMR---; probe 1.5; echo ---PROBE-CONV---\n"
+        "---PROBE-AMR---\n"
+        f"PROBE linear=1.500 estop=0 decision={decision} reason={reason} "
+        "state=1\n---PROBE-CONV---\n"
+        "PROBE linear=1.500 estop=0 decision=ALLOW reason=OK state=1\n"
+        "[exit=0]\n",
+        encoding="utf-8")
+    (work / "gen").mkdir(exist_ok=True)
+    (work / "gen" / "genesis_config_gen.h").write_text(
+        f"#define GENESIS_MAX_LINEAR_MPS {define}\n", encoding="utf-8")
+    (work / "qnx-build-record.json").write_text(json.dumps(
+        {"environment": {"qcc_version": "qcc 12.2.0"},
+         "binaries": {"genesis_guard": {"sha256": sha, "size": 1}}}),
+        encoding="utf-8")
+    rec_p = ops / f"{op_id}.json"
+    rec = json.loads(rec_p.read_text(encoding="utf-8"))
+    rec["params"] = {"ir": {"control": {"max_linear_speed_mps": limit}}}
+    rec_p.write_text(json.dumps(rec), encoding="utf-8")
+
+
+def test_compare_change_proof_rows(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    _write_op(ops, op_id=OP2)
+    _write_change_proof(ops, OP, 1.2, "DENY", "SPEED_OVER_LIMIT",
+                        "aa" * 32, "1.2")
+    _write_change_proof(ops, OP2, 1.6, "ALLOW", "OK", "bb" * 32, "1.6")
+    c = dos_mod.compare_ops(ops, None, OP, OP2)
+    d = c["diff"]
+    assert (d["limit_before"], d["limit_after"],
+            d["limit_changed"]) == (1.2, 1.6, True)
+    assert d["probe15_before"] == {"decision": "DENY",
+                                   "reason": "SPEED_OVER_LIMIT"}
+    assert d["probe15_after"] == {"decision": "ALLOW", "reason": "OK"}
+    assert d["probe15_flipped"] is True
+    assert (d["guard_sha_before"], d["guard_sha_after"],
+            d["guard_sha_changed"]) == ("aa" * 32, "bb" * 32, True)
+    assert (d["config_before"], d["config_after"],
+            d["config_changed"]) == ("1.2", "1.6", True)
+    assert c["before"]["change_proof"]["limit"] == 1.2
+
+
+def test_compare_missing_proof_shows_unknown(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    d = dos_mod.compare_ops(ops, None, OP, OP)["diff"]
+    assert d["probe15_before"] is None
+    assert d["probe15_flipped"] is False
+    assert d["limit_changed"] is False
+
+
+def test_compare_zip_roundtrip(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    _write_op(ops, op_id=OP2)
+    _write_change_proof(ops, OP, 1.2, "DENY", "SPEED_OVER_LIMIT",
+                        "aa" * 32, "1.2")
+    _write_change_proof(ops, OP2, 1.6, "ALLOW", "OK", "bb" * 32, "1.6")
+    blob = dos_mod.build_compare_zip(ops, None, OP, OP2)
+    got = _unzip(blob)
+    names = sorted(n.split("/", 1)[1] for n in got)
+    assert names == ["VERIFY.md", "after.json", "before.json",
+                     "compare-report.html", "manifest.json"]
+    html = got[f"compare-{OP}-vs-{OP2}/compare-report.html"].decode()
+    assert "DENY" in html and "ALLOW" in html and "1.6" in html
+    manifest = json.loads(
+        got[f"compare-{OP}-vs-{OP2}/manifest.json"].decode())
+    assert manifest["kind"] == "compare"
+    for name, digest in manifest["files"].items():
+        data = got[f"compare-{OP}-vs-{OP2}/{name}"]
+        assert hashlib.sha256(data).hexdigest() == digest, name
+
+
+def test_endpoint_compare_dossier(client):
+    r = client.get(f"/target/ops/compare/dossier?before={OP}&after={OP2}")
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"] == "application/zip"
+    assert client.get("/target/ops/compare/dossier?before=x&after=y"
+                      ).status_code == 400
+    assert client.get("/target/ops/compare/dossier?before=op-000000000000"
+                      f"&after={OP}").status_code == 404
