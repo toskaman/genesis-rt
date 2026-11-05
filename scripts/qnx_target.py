@@ -259,7 +259,12 @@ def build_qemu_argv(qemu: str, image_dir: Path, memory: str = "4G",
                      if p.suffix in (".vmdk", ".qcow2", ".img")), None)
     if ifs is None or disk is None:
         raise FileNotFoundError(f"need ifs.bin + disk image under {image_dir}")
-    fmt = ",format=raw" if disk.suffix == "" else ""
+    # Pin unambiguous formats explicitly: QEMU's probe mis-opens a damaged
+    # .vmdk descriptor as raw (guest then sees descriptor bytes as its disk
+    # and every mount fails). Observed 2026-11-05: a torn descriptor (truncated
+    # extent line) probed as raw and silently broke boots until repaired.
+    fmt = {".vmdk": ",format=vmdk", ".qcow2": ",format=qcow2",
+           "": ",format=raw"}.get(disk.suffix, "")
     netdev = "user,id=net0"
     if ssh_port:
         netdev += f",hostfwd=tcp:127.0.0.1:{ssh_port}-:22"

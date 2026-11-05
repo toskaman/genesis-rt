@@ -132,6 +132,39 @@ def test_perf_distribution_nearest_rank(qt):
     assert (d["count"], d["p50"], d["p99"]) == (1, 5.0, 5.0)
 
 
+def _drive_spec(argv):
+    assert "-drive" in argv
+    return argv[argv.index("-drive") + 1]
+
+
+def _image_dir_with(tmp_path, disk_name):
+    out = tmp_path / "imgfmt" / "output"
+    out.mkdir(parents=True)
+    (out / "ifs.bin").write_bytes(b"ifs")
+    (out / disk_name).write_bytes(b"disk")
+    return tmp_path / "imgfmt"
+
+
+def test_vmdk_pins_explicit_format(qt, image_dir):
+    """A .vmdk disk must not rely on QEMU probing: a damaged descriptor
+    probes as raw and the guest silently loses its disk (2026-11-05)."""
+    argv = qt.build_qemu_argv("qemu", image_dir, accel="tcg", boot="disk")
+    assert "format=vmdk" in _drive_spec(argv)
+
+
+def test_qcow2_pins_explicit_format(qt, tmp_path):
+    img = _image_dir_with(tmp_path, "disk.qcow2")
+    argv = qt.build_qemu_argv("qemu", img, accel="tcg", boot="disk")
+    assert "format=qcow2" in _drive_spec(argv)
+
+
+def test_suffixless_disk_pins_raw(qt, tmp_path):
+    img = _image_dir_with(tmp_path, "disk-qemu")
+    argv = qt.build_qemu_argv("qemu", img, accel="tcg", boot="disk",
+                             disk_name="disk-qemu")
+    assert "format=raw" in _drive_spec(argv)
+
+
 def test_estop_target_parser_accepts_and_rejects(qt):
     good = ("---ESTOP-PROBE---\n"
             "PROBE linear=0.500 estop=1 decision=DENY reason=ESTOP state=3\n"
