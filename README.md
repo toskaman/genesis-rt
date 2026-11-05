@@ -24,16 +24,22 @@ trace. One convincing proof-driven demo beats twenty speculative features.
 ## Architecture
 
 ```
-[CLI / Web API / dashboard]        genesis-rt demo
+[CLI / Web API / GENESIS Studio]        genesis-rt demo
          |
-[Planner] -> [Machine IR v1] -> [VALIDATION] -> [Deterministic codegen]
-                                                        |
-                                              [QNX 8.0 target (QEMU)]
-                                               guard/controller/device/
-                                               status/supervisor/faultinject
-                                               (C, native MsgSend/MsgReceive)
-                                                        |
-[Simulator + Fault Lab] <-- host mirror --> [Telemetry + traces]
+[Planner] -> [Machine IR v1 | v2] -> [strict per-version VALIDATION]
+             (AMR, conveyor,               |
+              industrial cell)   [Deterministic codegen v1 / v2]
+                                           |
+                       [Multi-build provenance: host mirror + qcc x86_64]       
+                                           |
+                                 [QNX 8.0 target (QEMU)]
+                                  guard/controller/device/status/
+                                  supervisor/faultinject/cellcheck
+                                  (C, native MsgSend/MsgReceive/MsgReply)
+                                           |
+[Simulator + Fault Lab] <-- host mirror --> [16-step target matrix + traces]
+         |
+[Compare: broken vs fixed]
          |
 [Evidence passport + fail-closed release gate]
 ```
@@ -66,8 +72,8 @@ records QNX steps as `blocked`, never as passed).
 | `genesis-rt validate <ir>` | strict Machine IR validation |
 | `genesis-rt plan "<request>"` | constrained intent → validated IR proposal |
 | `genesis-rt generate <ir> --out <dir>` | deterministic QNX C build files |
-| `genesis-rt simulate <ir>` | nominal 2D run |
-| `genesis-rt faults <ir>` | 8-scenario fault campaign with oracles |
+| `genesis-rt simulate <ir> [--scenario id]` | nominal (or named) scenario for AMR / conveyor / cell, v1 or v2 |
+| `genesis-rt faults <ir>` | declared fault campaign with oracles (AMR 8, conveyor 5, cell 4) |
 | `genesis-rt demo` | full pipeline → evidence passport + gate verdict |
 | `genesis-rt check-env` | probe for QNX SDK toolchain |
 | `genesis-rt serve` | local web API (needs `api` extra) |
