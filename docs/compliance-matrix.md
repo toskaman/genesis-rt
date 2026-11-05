@@ -1,6 +1,6 @@
 # Compliance matrix (QNX Global Hackathon rules)
 
-Source rules: https://qnx.devpost.com/rules (checked 4 Nov 2026).
+Source rules: https://qnx.devpost.com/rules (checked 5 Nov 2026: deadline Dec 15 2026 2pm EST, judging Jan 15–29 2027, video <3 min public YouTube, repo created Nov 4 inside the entry window).
 
 | Rule | How we comply | Evidence |
 |---|---|---|
@@ -8,7 +8,7 @@ Source rules: https://qnx.devpost.com/rules (checked 4 Nov 2026).
 | Full source + assets + reproducible instructions | this repo; README quickstart; jury docs | `README.md`, `docs/jury/` |
 | QNX 8.0 target + toolchain stated | `qnx8_x86_64_qemu`, SDP 8.0 `qcc -Vgcc_ntox86_64` | IR, `docs/quickstart-qnx8-qemu.md` |
 | Genuine QNX evidence | native IPC C code, resource manager, build/run logs path | `target/qnx8/`, passports |
-| Demo video < 3 min, public YouTube | **pending**: assemble from genuine recorded tests | `docs/PROGRESS.md` blocker |
+| Demo video < 3 min, public YouTube | assets ready (42 s genuine footage + narration + subtitles + shot map); edit + voice + publication = owner handoff, still pending | `docs/demo/`, `docs/demo-video-plan.md` |
 | English | all submission materials in English | this repo |
 | One entry category | Developer Tooling & Host Tools | Devpost form |
 | Created/updated during entry period | repo created 4 Nov 2026, history public | git log |
