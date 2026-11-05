@@ -11,7 +11,7 @@ import json
 import subprocess
 import sys
 
-from genesis_rt import evidence, faultlab
+from genesis_rt import evidence, faultlab, provenance
 from genesis_rt.ir import canonical_json
 
 
@@ -115,7 +115,8 @@ def test_replay_transcripts_dir_detects_modified_log(
     proc = _replay(repo_root, str(path), "--required", *full,
                    "--transcripts-dir", str(logs))
     assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert "12/12 match" in proc.stdout
+    n = len(provenance.EXPECTED_TARGET_CHECKS)
+    assert f"{n}/{n} match" in proc.stdout
     (logs / "target-faultinject.log").write_bytes(b"doctored\n")
     proc = _replay(repo_root, str(path), "--required", *full,
                    "--transcripts-dir", str(logs))

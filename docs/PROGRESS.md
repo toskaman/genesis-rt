@@ -1,5 +1,32 @@
 # Progress log
 
+## 2026-11-05 -- P1 Wave 2A : GENESIS CELL (industrial cell end-to-end)
+
+- IR `industrial_cell` + bloc `cell` (stations, transfert, interlock),
+  `presence_bool`, 4 scenarios cellule valides (35/35 IR) ; CellSim +
+  interlock superviseur (10/10) ; faultlab 4/4 + oracles refutables
+  (sabotage prouve le FAIL) ; `examples/cell-demo/cell-ir.json`.
+- Codegen : header politique `genesis_cell_policy.h`, injection
+  makefile (makefiles non-cellule byte-identiques), determinisme
+  (12/12) ; `genesis_cellcheck.c` natif (selftest 9 vecteurs +
+  3 checks, host C 3/3).
+- Matrice 13e step `cell_policy` (7 tests parser) ; `limits_differ`
+  lie au `--ir` (banner slot-1 = machine+limite liees, geometrie
+  sonde imposee, legacy AMR si non lie ; 10 tests) au lieu du pin
+  AMR en dur qui faisait echouer le cycle cellule.
+- Trou §6 bouche : `build_qnx` digere aussi les extras `genesis_*`
+  (cellcheck) sinon la gate ne les liait pas (+3 tests).
+- Preuve cible liee : qcc 7+6+6 binaires 0 warning, 9 stages frais,
+  `verify --ir cell-ir.json` 13/13 PASS, perf 1000/1000 (p50 299 us,
+  p99 634 us), `demo` -> `QNX_PERFORMANCE_MEASURED`
+  (run-8009ee91097e, qnx_verified, release_eligible, 7 binaires lies).
+- Replay ancre : `chain: valid` + `anchor: match` + `transcripts:
+  13/13 match` + `gate: PASS` exit 0 ; transcript falsifie ->
+  `MODIFIED` exit 1. Ancre run-8009ee91097e :
+  `e5f46d7c5de628c8d61cc8009f5f8096fb54c2e0a3e2127047cc5dd113e054ee`.
+- Suite hote 441/441. Chiffres canoniques : 441 tests, matrice
+  13/13, 9 binaires stages. Reste : video (fin projet, user), Devpost.
+
 ## 2026-11-05 -- P0 Wave 1c : Evidence Passport 2.0 (provenance + threat model)
 
 - Provenance de bout en bout : `host/genesis_rt/provenance.py`

@@ -75,3 +75,56 @@ def test_genesis_src_injection_rejected(amr_ir, tmp_path):
                  "caf\xc3\xa9"):
         with pytest.raises(ValueError):
             codegen.generate(amr_ir, tmp_path / "evil", genesis_src=evil)
+
+
+def test_cell_generates_policy_header(cell_ir, tmp_path):
+    manifest = codegen.generate(cell_ir, tmp_path / "cell")
+    assert "genesis_cell_policy.h" in manifest["files"]
+    header = (tmp_path / "cell" / "genesis_cell_policy.h"
+              ).read_text(encoding="utf-8")
+    assert manifest["ir_sha256"] in header
+    assert "GENESIS_CELL_STATION_X_M 6.0" in header
+    assert "GENESIS_CELL_TRANSFER_TICKS 50" in header
+    assert 'GENESIS_CELL_PRESENCE_ID "station-presence"' in header
+    assert 'GENESIS_CELL_AMR_ACTUATOR "amr-drive"' in header
+    assert 'GENESIS_CELL_BELT_ACTUATOR "belt-drive"' in header
+    assert "genesis_cell_transfer_allowed" in header
+
+
+def test_cell_makefile_compiles_cellcheck(cell_ir, tmp_path):
+    codegen.generate(cell_ir, tmp_path / "cell")
+    mk = (tmp_path / "cell" / "genesis_build_gen.mk"
+          ).read_text(encoding="utf-8")
+    assert "-o genesis_cellcheck $(GENESIS_SRC)/cell/genesis_cellcheck.c" in mk
+
+
+def test_non_cell_build_has_no_cell_artifacts(amr_ir, tmp_path):
+    manifest = codegen.generate(amr_ir, tmp_path / "amr")
+    assert "genesis_cell_policy.h" not in manifest["files"]
+    mk = (tmp_path / "amr" / "genesis_build_gen.mk"
+          ).read_text(encoding="utf-8")
+    assert "genesis_cellcheck" not in mk
+    assert "cell_station" not in mk
+
+
+def test_cell_generation_deterministic_bytes(cell_ir, tmp_path):
+    m1 = codegen.generate(cell_ir, tmp_path / "a")
+    m2 = codegen.generate(cell_ir, tmp_path / "b")
+    assert m1 == m2
+    for name in m1["files"]:
+        assert (tmp_path / "a" / name).read_bytes() == (
+            tmp_path / "b" / name).read_bytes()
+
+
+def test_cell_policy_follows_ir(cell_ir, tmp_path):
+    import copy
+    other = copy.deepcopy(cell_ir)
+    other["cell"]["station_x_m"] = 4.0
+    other["cell"]["transfer_ticks"] = 25
+    codegen.generate(cell_ir, tmp_path / "a")
+    codegen.generate(other, tmp_path / "b")
+    ha = (tmp_path / "a" / "genesis_cell_policy.h").read_text()
+    hb = (tmp_path / "b" / "genesis_cell_policy.h").read_text()
+    assert "GENESIS_CELL_STATION_X_M 4.0" in hb
+    assert "GENESIS_CELL_TRANSFER_TICKS 25" in hb
+    assert ha != hb

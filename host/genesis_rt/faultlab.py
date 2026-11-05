@@ -14,8 +14,20 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from . import guard_policy as gp
-from .ir import SCENARIO_IDS, guard_limits
-from .simulator import BeltConfig, BeltSim, DiffDriveSim, SimConfig
+from .ir import CELL_SCENARIO_IDS, SCENARIO_IDS, guard_limits
+from .simulator import (
+    CELL_AT_STATION,
+    CELL_COMPLETE,
+    CELL_ENROUTE,
+    CELL_IDLE,
+    CELL_SAFE,
+    BeltConfig,
+    BeltSim,
+    CellConfig,
+    CellSim,
+    DiffDriveSim,
+    SimConfig,
+)
 
 DEFAULT_SEEDS = {name: 1000 + i for i, name in enumerate(SCENARIO_IDS)}
 DURATION_MS = 3000
@@ -56,6 +68,12 @@ SCENARIO_WINDOWS = {
     "simulator_disconnect": FaultWindow("disconnect", 1000, 1200),
     "belt_jam": FaultWindow("jam", 1000, 1500),
     "estop_pressed": FaultWindow("estop", 1000, 1500),
+    # Cell windows carry the fault kind only: bounds are derived from the
+    # cell geometry at runtime (transfer-relative), see _cell_window.
+    "cell_nominal_transfer": FaultWindow("none", 0, 0),
+    "cell_transfer_jam": FaultWindow("jam", 0, 0),
+    "cell_estop_during_transfer": FaultWindow("estop", 0, 0),
+    "cell_stale_presence": FaultWindow("stale", 0, 0),
 }
 
 
@@ -72,7 +90,16 @@ def run_scenario(ir: dict[str, Any], scenario: str,
         seed = DEFAULT_SEEDS[scenario] if seed is None else seed
         return {"scenario": scenario, "status": "crash", "seed": seed,
                 "error": "belt_jam applies to conveyor machines only"}
+    is_cell_kind = ir["machine"]["kind"] == "industrial_cell"
+    is_cell_scenario = scenario in CELL_SCENARIO_IDS
+    if is_cell_kind != is_cell_scenario:
+        seed = DEFAULT_SEEDS[scenario] if seed is None else seed
+        return {"scenario": scenario, "status": "crash", "seed": seed,
+                "error": "cell scenarios run on industrial_cell only, "
+                         "and cell machines run cell scenarios only"}
     seed = DEFAULT_SEEDS[scenario] if seed is None else seed
+    if is_cell_scenario:
+        return _run_cell_scenario(ir, scenario, seed)
     limits = guard_limits(ir)
     period = int(limits["period_ms"])
     window = SCENARIO_WINDOWS[scenario]
@@ -176,6 +203,138 @@ def run_scenario(ir: dict[str, Any], scenario: str,
              "final_state": ctx.state, **sim.final_stats(),
              "stop_latched_at": stop_latched_at,
              "ticks": len([e for e in trace if e["kind"] == "tick"])}
+    oracle = _ORACLES[scenario]
+    checks = [c.as_dict() for c in oracle(stats, trace, limits, window)]
+    status = "pass" if all(c["passed"] for c in checks) else "fail"
+    return {"scenario": scenario, "seed": seed, "status": status,
+            "checks": checks, "stats": stats, "trace": trace}
+
+
+CELL_BELT_V = 0.5  # transfer belt speed (m/s), under the 1.2 limit
+CELL_RECOVERY_KINDS = ("jam", "stale")  # estop: manual reset only, never auto
+
+
+def _cell_window(cell: dict[str, Any], period: int,
+                 kind: str) -> tuple[FaultWindow, int]:
+    """Transfer-relative fault window + total tick budget for a cell run.
+
+    The AMR drive is deterministic (no motion noise), so the transfer
+    start is known from geometry: arrival tick + 2 settle ticks. The
+    budget covers enroute + transfer + abort + one recovery + margin.
+    """
+    import math as _math
+    dt = period / 1000.0
+    arrival = int(_math.ceil((float(cell["station_x_m"]) - 0.15)
+                              / (NOMINAL_V * dt)))
+    ts_tick = arrival + 2
+    total = arrival + int(cell["transfer_ticks"]) + 300
+    if kind == "none":
+        return FaultWindow("none", 0, 0), total
+    start_ms = (ts_tick + 10) * period
+    if kind == "estop":
+        return FaultWindow("estop", start_ms, total * period), total
+    return FaultWindow(kind, start_ms, start_ms + 500), total
+
+
+def _run_cell_scenario(ir: dict[str, Any], scenario: str,
+                       seed: int) -> dict[str, Any]:
+    """Cell loop: two guarded streams (AMR leg, belt leg) + interlock."""
+    limits = guard_limits(ir)
+    period = int(limits["period_ms"])
+    cell = ir["cell"]
+    kind = SCENARIO_WINDOWS[scenario].kind
+    window, total_ticks = _cell_window(cell, period, kind)
+    sim = CellSim(CellConfig(dt=period / 1000.0,
+                             station_x_m=float(cell["station_x_m"]),
+                             transfer_ticks=int(cell["transfer_ticks"])))
+    sim.reset(seed)
+    amr_ctx, belt_ctx = gp.GuardContext(), gp.GuardContext()
+    amr_seq = belt_seq = 0
+    presence_last_update = 0
+    recovered_done = False
+
+    trace: list[dict[str, Any]] = []
+    allows = denies = 0
+    deny_reasons: dict[str, int] = {}
+    stop_latched_at: int | None = None
+
+    def _cmd(seq: int, t: int, v: float, age: int,
+             estop: bool) -> dict[str, Any]:
+        return {"magic": gp.PROTOCOL_MAGIC, "version": gp.PROTOCOL_VERSION,
+                "size_ok": True, "seq": seq, "now_ms": t,
+                "deadline_ms": t + period + 20,
+                "linear_mps": v, "angular_radps": 0.0,
+                "req_state": gp.ST_NOMINAL, "sensor_age_ms": age,
+                "sim_connected": True, "estop_engaged": 1 if estop else 0}
+
+    try:
+        for tick in range(total_ticks):
+            t = tick * period
+            fault = kind if _in_window(t, window) else "none"
+            sim.set_jam(fault == "jam")
+            sim.set_estop(fault == "estop")
+            sim.freeze_presence(fault == "stale")
+
+            # --- supervisor: one supervised re-arm after jam/stale ---
+            if (kind in CELL_RECOVERY_KINDS and t >= window.end_ms
+                    and not recovered_done):
+                recovered_done = True
+                ok = sim.request_recovery()
+                if belt_ctx.state == gp.ST_SAFE_STOP:
+                    belt_ctx.reset_armed = True
+                trace.append({"t": t, "kind": "supervisor_reset_armed",
+                              "recovered": ok})
+
+            # --- controller: pick the active leg, guard each stream ---
+            if sim.state.phase in (CELL_IDLE, CELL_ENROUTE, CELL_AT_STATION):
+                leg, ctx = "amr", amr_ctx
+                amr_seq += 1
+                cmd = _cmd(amr_seq, t, NOMINAL_V, 0, fault == "estop")
+            else:
+                leg, ctx = "belt", belt_ctx
+                belt_seq += 1
+                if fault == "stale":
+                    age = t - presence_last_update
+                else:
+                    presence_last_update = t
+                    age = 0
+                cmd = _cmd(belt_seq, t, CELL_BELT_V, age, fault == "estop")
+            verdict = gp.decide(cmd, ctx, limits)
+            if verdict["decision"] == gp.ALLOW:
+                allows += 1
+                ctx.state = verdict["state_out"]
+                if leg == "amr":
+                    sim.apply(NOMINAL_V, NOMINAL_W)
+                else:
+                    sim.apply_transfer(CELL_BELT_V)
+            else:
+                denies += 1
+                deny_reasons[verdict["reason"]] = deny_reasons.get(
+                    verdict["reason"], 0) + 1
+                ctx.state = verdict["state_out"]
+                sim.stopped()
+                if (verdict["state_out"] == gp.ST_SAFE_STOP
+                        and stop_latched_at is None):
+                    stop_latched_at = t
+            trace.append({"t": t, "kind": "tick", "fault": fault, "leg": leg,
+                          "decision": verdict["decision"],
+                          "reason": verdict["reason"],
+                          "guard_state": ctx.state, **sim.snapshot()})
+    except Exception as exc:  # harness crash => scenario crash, never a pass
+        return {"scenario": scenario, "seed": seed, "status": "crash",
+                "error": f"{type(exc).__name__}: {exc}", "checks": [],
+                "stats": {}, "trace": trace[-20:]}
+
+    stats = {"allows": allows, "denies": denies,
+             "deny_reasons": deny_reasons,
+             "final_state": belt_ctx.state,
+             "final_state_amr": amr_ctx.state,
+             "final_state_belt": belt_ctx.state,
+             "stop_latched_at": stop_latched_at,
+             "station_x_m": float(cell["station_x_m"]),
+             "transfer_ticks_expected": int(cell["transfer_ticks"]),
+             "ticks": len([e for e in trace if e["kind"] == "tick"]),
+             **sim.final_stats()}
     oracle = _ORACLES[scenario]
     checks = [c.as_dict() for c in oracle(stats, trace, limits, window)]
     status = "pass" if all(c["passed"] for c in checks) else "fail"
@@ -363,6 +522,120 @@ def _o_estop(stats, trace, limits, window):
     ]
 
 
+def _cell_phases(trace):
+    return [e["cell_phase"] for e in trace if e["kind"] == "tick"]
+
+
+def _o_cell_nominal(stats, trace, limits, window):
+    phases = _cell_phases(trace)
+    docked_x = stats["final_x"]
+    return [
+        _c("transfer_completed", stats["cell_phase"] == "COMPLETE"
+           and stats["transfers_completed"] == 1,
+           f"phase={stats['cell_phase']} transfers={stats['transfers_completed']}"),
+        _c("exact_transfer_ticks",
+           trace[-1]["transfer_ticks"] == stats["transfer_ticks_expected"],
+           f"done={trace[-1]['transfer_ticks']}"),
+        _c("amr_reached_station", docked_x >= stats["station_x_m"] - 0.15,
+           f"final_x={docked_x}"),
+        _c("phases_in_order",
+           ["ENROUTE", "AT_STATION", "TRANSFERRING", "COMPLETE"] == sorted(
+               set(phases), key=phases.index),
+           f"visited={sorted(set(phases), key=phases.index)}"),
+        _c("no_denials", stats["denies"] == 0,
+           f"denies={stats['denies']}"),
+        _c("belt_moved", stats["belt_final_position"] > 0.0,
+           f"belt={stats['belt_final_position']}"),
+        _c("no_collision", not stats["collision"] and not stats["wall_hit"],
+           "collision=false required"),
+    ]
+
+
+def _o_cell_jam(stats, trace, limits, window):
+    in_w = _ticks_in(trace, window.start_ms, window.end_ms)
+    belt_span = (max(e["belt_pos"] for e in in_w)
+                 - min(e["belt_pos"] for e in in_w)) if in_w else 1.0
+    tick_span = (max(e["transfer_ticks"] for e in in_w)
+                 - min(e["transfer_ticks"] for e in in_w)) if in_w else 1
+    inhibited = [e for e in in_w if e["inhibited"]]
+    phases = _cell_phases(trace)
+    resets = [e for e in trace if e.get("kind") == "supervisor_reset_armed"]
+    return [
+        _c("safe_abort_on_jam", "SAFE" in phases,
+           f"visited_safe={'SAFE' in phases}"),
+        _c("belt_frozen_in_window", len(in_w) > 0 and belt_span == 0.0,
+           f"span={belt_span} ticks={len(in_w)}"),
+        _c("transfer_frozen_in_window", tick_span == 0,
+           f"tick_span={tick_span}"),
+        _c("inhibit_observed", len(inhibited) > 0,
+           f"inhibited_ticks={len(inhibited)}"),
+        _c("single_supervised_recovery",
+           len(resets) == 1 and resets[0].get("recovered") is True
+           and resets[0]["t"] >= window.end_ms,
+           f"resets={len(resets)}"),
+        _c("transfer_completed_after_recovery",
+           stats["cell_phase"] == "COMPLETE"
+           and stats["transfers_completed"] == 1
+           and stats["recovered"] is True,
+           f"phase={stats['cell_phase']} recovered={stats['recovered']}"),
+    ]
+
+
+def _o_cell_estop(stats, trace, limits, window):
+    in_w = _ticks_in(trace, window.start_ms, window.end_ms)
+    bad = [e for e in in_w
+           if e["decision"] != gp.DENY or e["reason"] != gp.R_ESTOP]
+    post = [e for e in trace if e.get("kind") == "tick"
+            and e["t"] >= window.start_ms]
+    post_motion = ([e for e in post[1:]
+                    if (e["amr_x"], e["belt_pos"])
+                    != (post[0]["amr_x"], post[0]["belt_pos"])]
+                   if post else [])
+    phases = _cell_phases(trace)
+    return [
+        _c("all_denied_estop", len(in_w) > 0 and not bad,
+           f"in_window={len(in_w)} non_estop={len(bad)}"),
+        _c("safe_latched", "SAFE" in phases,
+           f"visited_safe={'SAFE' in phases}"),
+        _c("never_completed", "COMPLETE" not in phases
+           and stats["transfers_completed"] == 0,
+           f"transfers={stats['transfers_completed']}"),
+        _c("no_motion_after_estop", len(post) > 0 and not post_motion,
+           f"moved_ticks={len(post_motion)}"),
+        _c("no_recovery_after_estop", stats["recovered"] is False,
+           f"recovered={stats['recovered']}"),
+        _c("estop_denials_recorded", stats["deny_reasons"].get(
+            gp.R_ESTOP, 0) > 0,
+           f"reasons={stats['deny_reasons']}"),
+    ]
+
+
+def _o_cell_stale(stats, trace, limits, window):
+    in_w = _ticks_in(trace, window.start_ms, window.end_ms)
+    tick_span = (max(e["transfer_ticks"] for e in in_w)
+                 - min(e["transfer_ticks"] for e in in_w)) if in_w else 1
+    phases = _cell_phases(trace)
+    resets = [e for e in trace if e.get("kind") == "supervisor_reset_armed"]
+    return [
+        _c("safe_abort_on_stale", "SAFE" in phases,
+           f"visited_safe={'SAFE' in phases}"),
+        _c("transfer_frozen_in_window", tick_span == 0,
+           f"tick_span={tick_span}"),
+        _c("stale_sensor_denials", stats["deny_reasons"].get(
+            gp.R_STALE_SENSOR, 0) > 0,
+           f"reasons={stats['deny_reasons']}"),
+        _c("single_supervised_recovery",
+           len(resets) == 1 and resets[0].get("recovered") is True,
+           f"resets={len(resets)}"),
+        _c("transfer_completed_after_recovery",
+           stats["cell_phase"] == "COMPLETE"
+           and stats["transfers_completed"] == 1,
+           f"phase={stats['cell_phase']}"),
+        _c("guard_exited_safe_stop", stats["final_state_belt"] == gp.ST_NOMINAL,
+           f"belt_guard={stats['final_state_belt']}"),
+    ]
+
+
 _ORACLES: dict[str, Callable[..., list[Check]]] = {
     "nominal_navigation": _o_nominal,
     "speed_command_over_limit": _o_over_limit,
@@ -374,6 +647,10 @@ _ORACLES: dict[str, Callable[..., list[Check]]] = {
     "simulator_disconnect": _o_disconnect,
     "belt_jam": _o_belt_jam,
     "estop_pressed": _o_estop,
+    "cell_nominal_transfer": _o_cell_nominal,
+    "cell_transfer_jam": _o_cell_jam,
+    "cell_estop_during_transfer": _o_cell_estop,
+    "cell_stale_presence": _o_cell_stale,
 }
 
 

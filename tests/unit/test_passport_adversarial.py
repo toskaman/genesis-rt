@@ -146,18 +146,18 @@ def test_modified_staged_binary_refused(amr_ir, bound_evidence, full):
     assert any("genesis_device" in r for r in v["level_reasons"])
 
 
-# --- 8. incomplete check list: 11/12 names, all passing ---
+# --- 8. incomplete check list: one name dropped, all passing ---
 
 def test_incomplete_check_list_capped(amr_ir, bound_evidence, full):
     tgt = bound_evidence["target"]
     dropped = tgt["checks"].pop()
     tgt["matrix"].remove(dropped["name"])
-    assert dropped["name"] == "v2_transitions"
+    assert dropped["name"] == "cell_policy"  # last of EXPECTED_TARGET_CHECKS
     p = _passport(amr_ir, bound_evidence, full, "short", tgt)
     v = gate.evaluate(p, full)
     assert v["level"] == "QNX_EXECUTED"
     assert v["release_eligible"] is False
-    assert any("v2_transitions" in r for r in v["level_reasons"])
+    assert any("cell_policy" in r for r in v["level_reasons"])
 
 
 # --- 9. omitted scenarios: pinned (existing coverage rule) ---

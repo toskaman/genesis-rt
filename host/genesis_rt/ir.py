@@ -17,9 +17,11 @@ from typing import Any
 SCHEMA_VERSION = 1
 EXECUTION_TARGET = "qnx8_x86_64_qemu"
 
-MACHINE_KINDS = ("differential_drive_robot", "conveyor", "robotic_arm_virtual")
+MACHINE_KINDS = ("differential_drive_robot", "conveyor", "robotic_arm_virtual",
+                 "industrial_cell")
 ACTUATOR_TYPES = ("velocity_command", "position_command", "gripper_command", "belt_speed_command")
-SENSOR_TYPES = ("distance_m", "odometry", "joint_rad", "belt_speed_mps", "estop_bool")
+SENSOR_TYPES = ("distance_m", "odometry", "joint_rad", "belt_speed_mps", "estop_bool",
+                "presence_bool")
 IF_IDS = (
     "proximity_is_stale",
     "speed_exceeds_limit",
@@ -47,6 +49,17 @@ SCENARIO_IDS = (
     "simulator_disconnect",
     "belt_jam",
     "estop_pressed",
+    "cell_nominal_transfer",
+    "cell_transfer_jam",
+    "cell_estop_during_transfer",
+    "cell_stale_presence",
+)
+
+CELL_SCENARIO_IDS = (
+    "cell_nominal_transfer",
+    "cell_transfer_jam",
+    "cell_estop_during_transfer",
+    "cell_stale_presence",
 )
 
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9-_]{0,63}$")
@@ -97,10 +110,10 @@ def validate_ir(data: dict[str, Any]) -> dict[str, Any]:
     """
     _need(isinstance(data, dict), "IR root must be a mapping")
     allowed_top = {"schema_version", "machine", "actuators", "sensors",
-                   "control", "safety_contracts", "verification"}
+                   "control", "safety_contracts", "verification", "cell"}
     unknown = set(data) - allowed_top
     _need(not unknown, f"unknown top-level keys: {sorted(unknown)}")
-    for key in allowed_top:
+    for key in allowed_top - {"cell"}:
         _need(key in data, f"missing required key: {key}")
     _need(type(data["schema_version"]) is int
           and data["schema_version"] == SCHEMA_VERSION,
@@ -180,6 +193,15 @@ def validate_ir(data: dict[str, Any]) -> dict[str, Any]:
         _need(s in SCENARIO_IDS, f"unknown scenario id: {s!r}")
     _need(len(set(scenarios)) == len(scenarios), "verification.scenarios has duplicates")
 
+    is_cell = m["kind"] == "industrial_cell"
+    _need(("cell" in data) == is_cell,
+          "top-level 'cell' block is required for industrial_cell "
+          "and forbidden otherwise")
+    if is_cell:
+        act_types = {a["id"]: a["type"] for a in data["actuators"]}
+        sen_types = {s["id"]: s["type"] for s in data["sensors"]}
+        _validate_cell(data["cell"], act_types, sen_types)
+
     # Normalized deep copy (JSON round-trip keeps only plain data).
     norm: dict[str, Any] = json.loads(json.dumps(data))
     norm["verification"]["scenarios"] = sorted(norm["verification"]["scenarios"])
@@ -187,6 +209,28 @@ def validate_ir(data: dict[str, Any]) -> dict[str, Any]:
     norm["sensors"] = sorted(norm["sensors"], key=lambda s: s["id"])
     norm["safety_contracts"] = sorted(norm["safety_contracts"], key=lambda c: c["name"])
     return norm
+
+
+def _validate_cell(cell: Any, act_types: dict[str, str],
+                   sen_types: dict[str, str]) -> None:
+    """Validate the industrial_cell coordination block."""
+    _need(isinstance(cell, dict)
+          and set(cell) == {"station_x_m", "transfer_ticks",
+                            "presence_sensor", "amr_actuator",
+                            "belt_actuator"},
+          f"cell keys invalid: {sorted(cell) if isinstance(cell, dict) else cell!r}")
+    sx = cell["station_x_m"]
+    _need(type(sx) in (int, float) and 0.0 < float(sx) <= 12.0,
+          "cell.station_x_m must be a number in (0, 12] (bool rejected)")
+    tt = cell["transfer_ticks"]
+    _need(type(tt) is int and 1 <= tt <= 600,
+          "cell.transfer_ticks must be int 1..600 (bool rejected)")
+    _need(sen_types.get(cell["presence_sensor"]) == "presence_bool",
+          "cell.presence_sensor must reference a presence_bool sensor")
+    _need(act_types.get(cell["amr_actuator"]) == "velocity_command",
+          "cell.amr_actuator must reference a velocity_command actuator")
+    _need(act_types.get(cell["belt_actuator"]) == "belt_speed_command",
+          "cell.belt_actuator must reference a belt_speed_command actuator")
 
 
 def guard_limits(ir: dict[str, Any]) -> dict[str, Any]:

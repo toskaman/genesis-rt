@@ -71,6 +71,8 @@ def generate(ir: dict[str, Any], out_dir: str | Path,
     out.mkdir(parents=True, exist_ok=True)
     limits = guard_limits(ir)
     digest = ir_sha256(ir)
+    is_cell = ir["machine"]["kind"] == "industrial_cell"
+    cell = ir.get("cell") or {}
     mapping = {
         "generator_version": GENERATOR_VERSION,
         "template_version": TEMPLATE_VERSION,
@@ -82,10 +84,30 @@ def generate(ir: dict[str, Any], out_dir: str | Path,
         "max_angular": repr(limits["max_angular_speed_radps"]),
         "freshness_limit": str(limits["freshness_limit_ms"]),
         "genesis_src": genesis_src,
+        "cell_station_x": repr(float(cell.get("station_x_m", 0.0))),
+        "cell_transfer_ticks": str(cell.get("transfer_ticks", 0)),
+        "cell_presence_id": str(cell.get("presence_sensor", "")),
+        "cell_amr_actuator": str(cell.get("amr_actuator", "")),
+        "cell_belt_actuator": str(cell.get("belt_actuator", "")),
     }
+    wanted = list(GENERATED_FILES)
+    if is_cell:
+        wanted.append(("genesis_cell_policy.h.tmpl",
+                       "genesis_cell_policy.h"))
     files: dict[str, str] = {}
-    for tmpl_name, out_name in GENERATED_FILES:
+    for tmpl_name, out_name in wanted:
         rendered = _render(tmpl_name, mapping).replace("\r\n", "\n")
+        if is_cell and out_name == "genesis_build_gen.mk":
+            # Cell builds compile the interlock selftest too. Injected in
+            # code (not a template slot) so non-cell makefiles stay
+            # byte-identical.
+            anchor = ("-o genesis_faultinject $(GENESIS_SRC)/common/"
+                      "guard_policy.c $(GENESIS_SRC)/faultinject/"
+                      "genesis_faultinject.c\n")
+            rule = ("\t$(QCC) $(QCC_FLAGS) -o genesis_cellcheck "
+                    "$(GENESIS_SRC)/cell/genesis_cellcheck.c\n")
+            assert rendered.count(anchor) == 1, "makefile anchor drifted"
+            rendered = rendered.replace(anchor, anchor + rule)
         if not rendered.endswith("\n"):
             rendered += "\n"
         (out / out_name).write_text(rendered, encoding="utf-8", newline="\n")
@@ -93,7 +115,7 @@ def generate(ir: dict[str, Any], out_dir: str | Path,
     return {
         "generator_version": GENERATOR_VERSION,
         "template_version": TEMPLATE_VERSION,
-        "templates": {tmpl: template_sha256(tmpl) for tmpl, _ in GENERATED_FILES},
+        "templates": {tmpl: template_sha256(tmpl) for tmpl, _ in wanted},
         "genesis_src": genesis_src,
         "ir_sha256": digest,
         "files": files,

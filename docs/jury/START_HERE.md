@@ -3,7 +3,7 @@
 GENESIS RT turns a constrained machine description into a native QNX 8.0
 controller plus a hash-linked evidence passport. Category: **Developer
 Tooling & Host Tools**. Everything below runs without a QNX SDK; the SDK
-path is verified by the authors (native `qcc` build + on-target 12/12 matrix)
+path is verified by the authors (native `qcc` build + on-target 13/13 matrix)
 and reproducible per `docs/quickstart-qnx8-qemu.md`. Without an SDK the
 suite reports QNX steps as blocked/skipped, never as passed.
 
@@ -25,8 +25,8 @@ Open `ui/dashboard.html`, load the passport, and every verdict links to data.
 python -m pytest tests/ -q
 ```
 
-Expect green (380 tests). With an SDK the QNX build test compiles the
-6 native binaries per machine build for real (8 staged on target: AMR set + `genesis_guard_conv` + `genesis_guard_v2`); without one it reports an honest skip —
+Expect green (441 tests). With an SDK the QNX build test compiles the
+6 native binaries per machine build for real (7 for the cell, 9 staged on target: bound set + `genesis_guard_conv` + `genesis_guard_v2`); without one it reports an honest skip —
 never a QNX pass.
 
 ## 3. What to read next

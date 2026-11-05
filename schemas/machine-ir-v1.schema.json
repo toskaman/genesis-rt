@@ -14,7 +14,7 @@
       "additionalProperties": false,
       "properties": {
         "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9-_]*$" },
-        "kind": { "enum": ["differential_drive_robot", "conveyor", "robotic_arm_virtual"] },
+        "kind": { "enum": ["differential_drive_robot", "conveyor", "robotic_arm_virtual", "industrial_cell"] },
         "execution_target": { "const": "qnx8_x86_64_qemu" },
         "simulation_only": { "const": true }
       }
@@ -43,7 +43,7 @@
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9-_]*$" },
-          "type": { "enum": ["distance_m", "odometry", "joint_rad", "belt_speed_mps", "estop_bool"] },
+          "type": { "enum": ["distance_m", "odometry", "joint_rad", "belt_speed_mps", "estop_bool", "presence_bool"] },
           "freshness_limit_ms": { "type": "integer", "minimum": 1, "maximum": 60000 }
         }
       }
@@ -93,9 +93,22 @@
             "enum": ["nominal_navigation", "speed_command_over_limit", "stale_proximity_150ms",
                      "planner_process_crash", "delayed_command", "dropped_message",
                      "corrupted_message", "simulator_disconnect", "belt_jam",
-                     "estop_pressed"]
+                     "estop_pressed", "cell_nominal_transfer", "cell_transfer_jam",
+                     "cell_estop_during_transfer", "cell_stale_presence"]
           }
         }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "required": ["station_x_m", "transfer_ticks", "presence_sensor", "amr_actuator", "belt_actuator"],
+      "additionalProperties": false,
+      "properties": {
+        "station_x_m": { "type": "number", "exclusiveMinimum": 0, "maximum": 12 },
+        "transfer_ticks": { "type": "integer", "minimum": 1, "maximum": 600 },
+        "presence_sensor": { "type": "string" },
+        "amr_actuator": { "type": "string" },
+        "belt_actuator": { "type": "string" }
       }
     }
   }

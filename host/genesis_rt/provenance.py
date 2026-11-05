@@ -43,6 +43,7 @@ EXPECTED_TARGET_CHECKS = (
     "supervisor_respawn",
     "supervisor_giveup",
     "v2_transitions",
+    "cell_policy",
 )
 
 TARGET_PLATFORM = "qnx8_x86_64_qemu"

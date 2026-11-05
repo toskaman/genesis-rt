@@ -125,3 +125,50 @@ def test_rejects_bool_and_non_numeric_limits(amr_ir_dict, path, value):
     """True==1 must not smuggle bools past strict numeric validation."""
     with pytest.raises(IRValidationError):
         validate_ir(_mutate(amr_ir_dict, path, value))
+
+
+def _cell_doc(repo_root):
+    return json.loads((repo_root / "examples" / "cell-demo" / "cell-ir.json"
+                       ).read_text(encoding="utf-8"))
+
+
+def test_cell_example_valid(repo_root):
+    c = load_ir_file(repo_root / "examples" / "cell-demo" / "cell-ir.json")
+    assert c["machine"]["kind"] == "industrial_cell"
+    assert c["cell"]["presence_sensor"] == "station-presence"
+    assert "cell_nominal_transfer" in c["verification"]["scenarios"]
+
+
+def test_cell_block_required_for_cell_kind(repo_root):
+    bad = _cell_doc(repo_root)
+    del bad["cell"]
+    with pytest.raises(IRValidationError):
+        validate_ir(bad)
+
+
+def test_cell_block_forbidden_for_other_kinds(amr_ir_dict):
+    bad = copy.deepcopy(amr_ir_dict)
+    bad["cell"] = {"station_x_m": 6.0, "transfer_ticks": 50,
+                   "presence_sensor": "x", "amr_actuator": "y",
+                   "belt_actuator": "z"}
+    with pytest.raises(IRValidationError):
+        validate_ir(bad)
+
+
+@pytest.mark.parametrize("path,value", [
+    (["cell", "station_x_m"], 0.0),
+    (["cell", "station_x_m"], 13.0),
+    (["cell", "station_x_m"], True),
+    (["cell", "station_x_m"], float("nan")),
+    (["cell", "transfer_ticks"], 0),
+    (["cell", "transfer_ticks"], 601),
+    (["cell", "transfer_ticks"], True),
+    (["cell", "presence_sensor"], "amr-odometry"),  # wrong sensor type
+    (["cell", "presence_sensor"], "no-such-sensor"),
+    (["cell", "amr_actuator"], "belt-drive"),  # wrong actuator type
+    (["cell", "belt_actuator"], "amr-drive"),  # wrong actuator type
+    (["cell", "belt_actuator"], "no-such-actuator"),
+])
+def test_cell_block_rejects_bad_values(repo_root, path, value):
+    with pytest.raises(IRValidationError):
+        validate_ir(_mutate(_cell_doc(repo_root), path, value))

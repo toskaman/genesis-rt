@@ -49,7 +49,7 @@ The guard policy is implemented once in C and mirrored in Python, with a
 compiled conformance harness proving identical decisions on every vector.
 
 Honest scope: host fault results are simulated; on-target QNX 8.0/QEMU
-execution is verified (12/12 matrix, 9/9 IPC checks, `qcc` 0 warnings),
+execution is verified (13/13 matrix, 9/9 IPC checks, `qcc` 0 warnings),
 and passports always report `qnx_verified` explicitly. Simulation-only,
 prototype-grade, no safety certification claimed. Judges start at
 `docs/jury/START_HERE.md`.

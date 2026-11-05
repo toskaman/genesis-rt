@@ -128,7 +128,15 @@ def build_qnx(build_dir: str | Path, makefile: str = "genesis_build_gen.mk",
     if ok:
         # Provenance anchor (§6): digest every output so the gate can
         # prove the staged target binaries ARE this build's outputs.
-        for name in EXPECTED_BINS:
+        # Per-machine extras (e.g. genesis_cellcheck, built only by cell
+        # gen dirs) are digested too: otherwise the gate would not bind
+        # them and a swapped staged extra would pass silently.
+        names = list(EXPECTED_BINS)
+        for p in sorted(bdir.iterdir(), key=lambda q: q.name):
+            if (p.is_file() and p.name.startswith("genesis_")
+                    and "." not in p.name and p.name not in names):
+                names.append(p.name)
+        for name in names:
             artifact = bdir / name
             if not artifact.exists():
                 artifact = bdir / f"{name}.exe"

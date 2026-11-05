@@ -497,11 +497,20 @@ TARGET_MATRIX = [
      " ./genesis_guard_v2 > guard-v2est.log 2>&1 & sleep 2;"
      " echo ---V2-ESTOP---; ./genesis_faultinject probe estop;"
      " slay genesis_guard_v2 2>/dev/null; slay genesis_guard 2>/dev/null; true"),
+    ("cell_policy",
+     "cd /tmp/genesis;"
+     " test -x ./genesis_cellcheck || { echo MISSING_CELLCHECK; exit 3; };"
+     " ./genesis_cellcheck selftest; echo CELL_EXIT=$?"),
 ]
 
 
-def _matrix_check(name: str, body: str, status: int) -> dict:
-    """Parse one matrix step into a pass/fail check (strict assertions)."""
+def _matrix_check(name: str, body: str, status: int,
+                  bound: dict | None = None) -> dict:
+    """Parse one matrix step into a pass/fail check (strict assertions).
+
+    bound is the _ir_binding() dict when verify ran with --ir: the
+    limits_differ step pins the slot-1 guard banner to the bound IR
+    instead of the legacy AMR machine."""
     if name == "target_info":
         ok = status == 0 and "QNX" in body and "x86_64" in body
     elif name == "faultinject":
@@ -519,17 +528,37 @@ def _matrix_check(name: str, body: str, status: int) -> dict:
               and "state=1 " in body.split("---STATUS-AFTER---")[0]
               and body.rsplit("state=", 1)[1].startswith("3 "))
     elif name == "limits_differ":
-        # Same probe (1.5 mps) must DENY on the AMR guard (limit 1.2) and
-        # ALLOW on the conveyor guard (limit 2.0): generated limits drive
-        # runtime behavior. Guard banners pin which binary answered.
+        # Same probe (1.5 mps) must DENY on the slot-1 guard and ALLOW on
+        # the conveyor guard (limit 2.0): generated limits drive runtime
+        # behavior. Guard banners pin which binary answered; the slot-1
+        # banner must match the --ir-bound machine (legacy AMR when
+        # unattested). Geometry is enforced: a bound limit >= the probe
+        # would make the DENY expectation meaningless, so it fails
+        # closed instead of weakening the assertion.
         parts = body.split("---PROBE-CONV---")
+        conv_pin = "machine=conveyor-demo-01 limits linear=2.000"
+        if bound is None:
+            slot1_pin: str | None = "machine=amr-demo-01 limits linear=1.200"
+            geometry_ok = True
+        else:
+            try:
+                mid = str(bound["machine_id"])
+                lim = float(bound["linear_limit_mps"])
+            except (KeyError, TypeError, ValueError):
+                mid, lim = "", float("nan")
+            slot1_pin = (f"machine={mid} limits linear={lim:.3f}"
+                         if mid and lim == lim else None)
+            geometry_ok = (slot1_pin is not None
+                           and mid != "conveyor-demo-01"
+                           and 0.0 < lim < 1.5 < 2.0)
         ok = (len(parts) == 2
               and "decision=DENY reason=SPEED_OVER_LIMIT" in parts[0]
               and "decision=ALLOW reason=OK" in parts[1]
               and "ALL 9 CHECKS PASS" in parts[1]
               and "FI_CONV_EXIT=0" in parts[1]
-              and "machine=amr-demo-01 limits linear=1.200" in body
-              and "machine=conveyor-demo-01 limits linear=2.000" in body
+              and slot1_pin is not None and slot1_pin in body
+              and conv_pin in body
+              and geometry_ok
               and "MISSING_CONV_GUARD" not in body)
     elif name == "device_chain":
         # Full actuation chain: controller -> guard -> device -> status.
@@ -614,6 +643,14 @@ def _matrix_check(name: str, body: str, status: int) -> dict:
               and "MISSING_V2_GUARD" not in body and "FI_V2_EXIT=0" in body
               and secs[4].count("PASS ") >= 9
               and all(w in s for w, s in zip(wants, secs)))
+    elif name == "cell_policy":
+        # Cell interlock selftest, native: 9 truth-table vectors + 3
+        # policy bound checks from the generated cell header.
+        m = re.search(r"CELL_POLICY: (PASS|FAIL) (\d+)/(\d+)", body)
+        ok = ("MISSING_CELLCHECK" not in body and "CELL_EXIT=0" in body
+              and m is not None and m.group(1) == "PASS"
+              and m.group(2) == m.group(3) == "12"
+              and body.count("CELLCHECK") == 12)
     else:
         ok = False
     return {"name": name, "passed": ok, "detail": body[-500:].strip().replace("\n", " | ")}
@@ -698,7 +735,9 @@ def _ir_binding(ir_path: str | None) -> dict | None:
     # match the codegen manifest, not the raw file bytes.
     data = load_ir_file(ir_path)
     return {"machine_id": data["machine"]["id"],
-            "ir_sha256": codegen.ir_sha256(data)}
+            "ir_sha256": codegen.ir_sha256(data),
+            "linear_limit_mps": float(
+                data["control"]["max_linear_speed_mps"])}
 
 
 def _target_identity_block(uname: str | None) -> dict:
@@ -817,7 +856,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
                 body = stdout.read().decode("utf-8", "replace")
                 (out_dir / f"target-{name}.log").write_text(
                     f"$ {command}\n{body}\n[exit={status}]\n", encoding="utf-8")
-                check = _matrix_check(name, body, status)
+                check = _matrix_check(name, body, status, ir_binding)
                 results.append(check)
                 all_ok = all_ok and check["passed"]
                 print(f"target:{name}: {'PASS' if check['passed'] else 'FAIL'}")

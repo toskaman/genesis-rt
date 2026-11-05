@@ -35,6 +35,16 @@ def amr_ir_dict(amr_ir_path: Path) -> dict:
 
 
 @pytest.fixture()
+def cell_ir_path(repo_root: Path) -> Path:
+    return repo_root / "examples" / "cell-demo" / "cell-ir.json"
+
+
+@pytest.fixture()
+def cell_ir(cell_ir_path: Path) -> dict:
+    return load_ir_file(cell_ir_path)
+
+
+@pytest.fixture()
 def bound_evidence(amr_ir: dict, tmp_path: Path) -> dict:
     """Bound QNX evidence (single source for the §6 contract fixtures).
 

@@ -19,8 +19,9 @@
   boot to a login prompt.
 - Target: `QNX qnxqemu 8.0.0 x86_64`, SSH `qnxuser` (password = the
   image-default username; never committed, pass via `GENESIS_TARGET_PASSWORD`).
-- Verified 5 Nov 2026: `qcc` builds 6 binaries per machine with
-  0 warnings (8 staged on target); on-target matrix 12/12 PASS
+- Verified 5 Nov 2026: `qcc` builds 6 binaries per machine (7 for
+  the industrial cell: + `genesis_cellcheck`) with 0 warnings
+  (9 staged on target); on-target matrix 13/13 PASS
   (`qnx_verified: true`, replay valid).
 
 ## 1. Get the SDK lawfully (your 10 minutes, cannot be automated)
@@ -91,14 +92,16 @@ at boot; password via `GENESIS_TARGET_PASSWORD`, never on the command line):
 ```sh
 python scripts/qnx_target.py put /tmp/genesis-qnx/genesis_* --dest /tmp/genesis
 python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json
-# expect: 12/12 PASS — target_info, faultinject (9/9), status_live,
-# limits_differ (probe 1.5: AMR DENY vs conveyor ALLOW + 9/9 vs conv),
+# expect: 13/13 PASS — target_info, faultinject (9/9), status_live,
+# limits_differ (probe 1.5: slot-1 DENY vs conveyor ALLOW + 9/9 vs conv;
+# slot-1 banner pinned to --ir when bound, else legacy AMR),
 # device_chain (guard→device→status, APPLIES≥20, NONGUARD=0),
 # conv_chain (conv guard→belt device, BELT≥20, belt moved),
 # estop_target (probe estop → DENY ESTOP + state=3 latch),
 # target_perf (bench 200 shape), controller_flow,
 # supervisor_respawn, supervisor_giveup,
-# v2_transitions (v1/v2 guard contrast on probe state 2/3 + 9/9 on v2)
+# v2_transitions (v1/v2 guard contrast on probe state 2/3 + 9/9 on v2),
+# cell_policy (native interlock selftest 12/12)
 python scripts/qnx_target.py perf --samples 1000 --out artifacts/qnx-perf
 # expect: PASS 1000/1000, p50 ~0.3 ms under TCG (see docs/perf-baseline.md);
 # feed the record to `genesis-rt demo --perf-record` for the top gate tier
@@ -106,6 +109,8 @@ python scripts/qnx_target.py perf --samples 1000 --out artifacts/qnx-perf
 # guard as genesis_guard_conv, or limits_differ fails MISSING_CONV_GUARD.
 # NOTE: build the v2 dir too (`generate machine-ir-v2.json`) and upload
 # its guard as genesis_guard_v2, or v2_transitions fails MISSING_V2_GUARD.
+# NOTE: build the cell dir (`generate examples/cell-demo/cell-ir.json`)
+# and upload its genesis_cellcheck, or cell_policy fails MISSING_CELLCHECK.
 ```
 
 SSH discipline (measured): the guest sshd (OpenSSH >= 9.8) enforces

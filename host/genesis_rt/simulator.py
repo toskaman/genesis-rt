@@ -189,3 +189,192 @@ class BeltSim:
                 # denial counts) apply unchanged to belt machines.
                 "final_x": round(s.position_m, 4), "final_y": 0.0,
                 "collision": False, "wall_hit": False}
+
+
+# --- GENESIS CELL: AMR + conveyor + transfer interlock -------------------
+
+CELL_IDLE = 0
+CELL_ENROUTE = 1
+CELL_AT_STATION = 2
+CELL_TRANSFERRING = 3
+CELL_COMPLETE = 4
+CELL_SAFE = 5
+
+CELL_PHASE_NAMES = ("IDLE", "ENROUTE", "AT_STATION", "TRANSFERRING",
+                    "COMPLETE", "SAFE")
+
+
+def cell_transfer_allowed(phase: int, presence_fresh: bool,
+                          presence: bool, jammed: bool,
+                          estop: bool) -> bool:
+    """Pure transfer interlock (mirrored by genesis_cellcheck on QNX).
+
+    The belt may run for transfer only while the transfer phase holds
+    with live presence proof and no jam or e-stop. Anything else
+    inhibits the transfer; the caller latches the safe phase.
+    """
+    return (phase == CELL_TRANSFERRING and presence_fresh and presence
+            and not jammed and not estop)
+
+
+@dataclass(frozen=True)
+class CellConfig:
+    dt: float = 0.01
+    station_x_m: float = 6.0
+    transfer_ticks: int = 50
+    station_tol_m: float = 0.15
+
+
+@dataclass
+class CellState:
+    phase: int = CELL_IDLE
+    transfer_done_ticks: int = 0
+    transfers_completed: int = 0
+    estop: bool = False
+    estop_latched: bool = False
+    jammed: bool = False
+    presence: bool = False
+    presence_fresh: bool = True
+    inhibited: bool = False
+    recovered: bool = False
+    t_ms: int = 0
+
+
+class CellSim:
+    """Fixed-step industrial cell: AMR leg + belt leg + interlock.
+
+    The AMR drives to the transfer station, docks, and the belt runs
+    exactly ``transfer_ticks`` guarded ticks. E-stop latches the safe
+    phase permanently for the run; jam and stale-presence abort the
+    transfer but allow ONE supervised recovery (re-qualify presence,
+    restart the transfer). Deterministic: motion integrates without
+    noise; only the proximity sensor carries seeded noise.
+    """
+
+    def __init__(self, config: CellConfig | None = None) -> None:
+        self.config = config or CellConfig()
+        self.amr = DiffDriveSim(SimConfig(dt=self.config.dt))
+        self.belt = BeltSim(BeltConfig(dt=self.config.dt))
+        self.state = CellState()
+        self.rng = random.Random(0)
+
+    def reset(self, seed: int) -> CellState:
+        self.amr.reset(seed)
+        self.belt.reset(seed)
+        self.state = CellState()
+        self.rng = random.Random(seed)
+        return self.state
+
+    def set_jam(self, jammed: bool) -> CellState:
+        self.state.jammed = bool(jammed)
+        self.belt.set_jam(jammed)
+        return self.state
+
+    def set_estop(self, engaged: bool) -> CellState:
+        self.state.estop = bool(engaged)
+        if engaged:
+            self.state.estop_latched = True  # manual reset only, never auto
+        return self.state
+
+    def freeze_presence(self, frozen: bool) -> CellState:
+        self.state.presence_fresh = not frozen
+        return self.state
+
+    def apply(self, v: float, w: float) -> CellState:
+        """Advance the AMR leg (ignored unless ENROUTE)."""
+        s, c = self.state, self.config
+        s.t_ms += int(round(c.dt * 1000))
+        if s.phase in (CELL_IDLE, CELL_ENROUTE):
+            if s.phase == CELL_IDLE:
+                s.phase = CELL_ENROUTE
+            self.amr.apply(v, w)
+        else:
+            self.amr.stopped()  # docked/aborted/complete: no AMR motion
+        self.belt.stopped()  # belt only moves via apply_transfer
+        self._update(s, c)
+        return s
+
+    def apply_transfer(self, v: float) -> CellState:
+        """Advance the belt leg for transfer (interlock-gated)."""
+        s, c = self.state, self.config
+        s.t_ms += int(round(c.dt * 1000))
+        self.amr.stopped()  # docked: the AMR never moves during transfer
+        if cell_transfer_allowed(s.phase, s.presence_fresh, s.presence,
+                                 s.jammed, s.estop):
+            s.inhibited = False
+            self.belt.apply(v, 0.0)
+            s.transfer_done_ticks += 1
+            if s.transfer_done_ticks >= c.transfer_ticks:
+                s.phase = CELL_COMPLETE
+                s.transfers_completed += 1
+        else:
+            s.inhibited = True
+            self.belt.stopped()
+        self._update(s, c)
+        return s
+
+    def stopped(self) -> CellState:
+        """Advance one fixed step with both legs frozen."""
+        s, c = self.state, self.config
+        s.t_ms += int(round(c.dt * 1000))
+        self.amr.stopped()
+        self.belt.stopped()
+        self._update(s, c)
+        return s
+
+    def _update(self, s: CellState, c: CellConfig) -> None:
+        if s.phase == CELL_SAFE or s.phase == CELL_COMPLETE:
+            return
+        if s.estop:
+            s.phase = CELL_SAFE
+            return
+        at_station = self.amr.state.x >= c.station_x_m - c.station_tol_m
+        if s.presence_fresh:
+            s.presence = at_station
+        if s.phase == CELL_ENROUTE and at_station:
+            s.phase = CELL_AT_STATION
+        elif s.phase == CELL_AT_STATION:
+            if s.presence_fresh and s.presence:
+                s.phase = CELL_TRANSFERRING
+        elif s.phase == CELL_TRANSFERRING:
+            if s.jammed or not s.presence_fresh or not s.presence:
+                s.phase = CELL_SAFE  # aborted transfer, supervised recovery only
+
+    def request_recovery(self) -> bool:
+        """Supervised re-arm after jam/stale abort. Never after e-stop.
+
+        Returns True when the cell re-enters AT_STATION to re-qualify
+        presence and restart the transfer from tick zero.
+        """
+        s = self.state
+        if s.phase != CELL_SAFE or s.estop or s.estop_latched:
+            return False
+        if s.jammed or not s.presence_fresh:
+            return False
+        s.phase = CELL_AT_STATION
+        s.transfer_done_ticks = 0
+        s.recovered = True
+        return True
+
+    def snapshot(self) -> dict[str, Any]:
+        s = self.state
+        return {"cell_phase": CELL_PHASE_NAMES[s.phase],
+                "presence": s.presence, "presence_fresh": s.presence_fresh,
+                "transfers": s.transfers_completed,
+                "transfer_ticks": s.transfer_done_ticks,
+                "inhibited": s.inhibited,
+                "amr_x": round(self.amr.state.x, 4),
+                "belt_pos": round(self.belt.state.position_m, 4),
+                "belt_jammed": s.jammed}
+
+    def final_stats(self) -> dict[str, Any]:
+        s = self.state
+        a = self.amr.state
+        return {"cell_phase": CELL_PHASE_NAMES[s.phase],
+                "transfers_completed": s.transfers_completed,
+                "recovered": s.recovered,
+                "belt_final_position": round(
+                    self.belt.state.position_m, 4),
+                # primary-axis aliases for generic oracles.
+                "final_x": round(a.x, 4), "final_y": round(a.y, 4),
+                "collision": a.collision, "wall_hit": a.wall_hit}
