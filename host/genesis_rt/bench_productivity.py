@@ -65,7 +65,7 @@ def run_cmd(argv: list[str], *, cwd: Path,
     try:
         proc = subprocess.run(argv, cwd=str(cwd), env=env,
                               capture_output=True, text=True,
-                              timeout=timeout)
+                              errors="replace", timeout=timeout)
     except FileNotFoundError:
         return {"argv": argv, "exit": "blocked",
                 "wall_s": round(time.perf_counter() - start, 3),

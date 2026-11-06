@@ -102,3 +102,43 @@ def test_stop_refused_process_is_left_alive(qt, tmp_path, monkeypatch, capsys):
     finally:
         child.kill()
         child.wait()
+
+
+def _null_stdout_run(*args, **kwargs):
+    import types
+    return types.SimpleNamespace(stdout=None, returncode=0)
+
+
+def test_pid_is_qemu_tolerates_dead_reader_thread(qt, monkeypatch):
+    """stdout=None (decode-killed reader) reads as 'not QEMU', never crashes.
+
+    Regression: fr tasklist emits cp850 0xFF (NBSP in "Information :");
+    under UTF-8-forced decoding the reader thread dies, stdout is None,
+    and `.lower()` raised AttributeError inside qemu-stop cleanup.
+    """
+    monkeypatch.setattr(qt.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(qt.subprocess, "run", _null_stdout_run)
+    assert qt._pid_is_qemu(424242) is False
+
+
+def test_win_pid_listed_tolerates_dead_reader_thread(qt, monkeypatch):
+    """stdout=None is unknown: keep waiting, same as the OSError branch."""
+    monkeypatch.setattr(qt.subprocess, "run", _null_stdout_run)
+    assert qt._win_pid_listed(424242) is True
+
+
+def test_pid_is_qemu_capture_replaces_oem_bytes(qt, monkeypatch):
+    """tasklist capture must pass errors='replace' (OEM console bytes)."""
+    import types
+    seen = {}
+
+    def _fake_run(*args, **kwargs):
+        seen.update(kwargs)
+        return types.SimpleNamespace(
+            stdout='"qemu-system-x86_64.exe","4242","Console","1","8,192 K"',
+            returncode=0)
+
+    monkeypatch.setattr(qt.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(qt.subprocess, "run", _fake_run)
+    assert qt._pid_is_qemu(4242) is True
+    assert seen.get("errors") == "replace"

@@ -134,7 +134,8 @@ def server_head(repo_root: Path) -> str:
     try:
         out = subprocess.run(
             ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
-            capture_output=True, text=True, timeout=30, check=True)
+            capture_output=True, text=True, timeout=30, check=True,
+            errors="replace")
     except (subprocess.SubprocessError, OSError) as exc:
         raise RunnerError(f"cannot determine server HEAD: {exc}") from exc
     head = out.stdout.strip()
@@ -320,7 +321,13 @@ def _join_op(config: RunnerConfig, valid: dict[str, Any],
         while time.time() < deadline:
             op = target.get(op_id)
             if op is None:
-                break
+                # Transient read miss, never final: on Windows the atomic
+                # tmp-replace in _write_record leaves microsecond windows
+                # where the record is momentarily unreadable. Breaking here
+                # produced bogus instant TIMEOUTs plus a spurious
+                # cross-instance cancel that poisoned live ops (2026-11-06).
+                time.sleep(1.0)
+                continue
             if op.get("state") in TERMINAL_TARGET:
                 break
             time.sleep(1.0)
@@ -332,12 +339,19 @@ def _join_op(config: RunnerConfig, valid: dict[str, Any],
                 target.cancel(op_id)
             except Exception:
                 pass
-        op = target.get(op_id) or {}
+        op = target.get(op_id)
+        op_missing = op is None
+        op = op or {}
         state = op.get("state", "UNKNOWN")
         if timed_out:
-            status, reason = "TIMEOUT", (
-                f"op {op_id} exceeded {valid['timeout_s']}s; "
-                "cancel requested")
+            if op_missing:
+                status, reason = "TIMEOUT", (
+                    f"op {op_id} record unreadable after "
+                    f"{valid['timeout_s']}s; cancel requested")
+            else:
+                status, reason = "TIMEOUT", (
+                    f"op {op_id} exceeded {valid['timeout_s']}s; "
+                    "cancel requested")
         elif state == "COMPLETED":
             status, reason = "COMPLETED", ""
         elif state == "CANCELLED":

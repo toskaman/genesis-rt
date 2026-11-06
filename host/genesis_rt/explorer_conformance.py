@@ -40,7 +40,7 @@ def build_harness(repo_root: str | Path, workdir: str | Path,
            str(src / "common" / "guard_policy.c"),
            str(src / "host_tests" / "guard_vector.c")]
     proc = subprocess.run(cmd, capture_output=True, text=True,
-                          timeout=timeout)
+                          errors="replace", timeout=timeout)
     if proc.returncode != 0:
         raise RuntimeError(f"C harness build failed:\n{proc.stderr}")
     return out
@@ -90,7 +90,8 @@ def replay_conformance(record: dict[str, Any], limits: dict[str, Any],
             binary = build_harness(repo_root, tmp, timeout=timeout)
             proc = subprocess.run(
                 [str(binary)], input="\n".join(lines) + "\n",
-                capture_output=True, text=True, timeout=timeout)
+                capture_output=True, text=True, timeout=timeout,
+                errors="replace")
     except (RuntimeError, subprocess.SubprocessError, OSError) as exc:
         return {"supported": False, "reason": str(exc)[:300]}
     if proc.returncode != 0:

@@ -420,11 +420,15 @@ def _pid_is_qemu(pid: int) -> bool:
     """
     if platform.system() == "Windows":
         try:
+            # errors="replace": console tools emit OEM bytes (observed: fr
+            # tasklist NBSP before ':' arrives as cp850 0xFF, fatal to a
+            # UTF-8-forced reader thread, leaving stdout None).
             proc = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
-                                  capture_output=True, text=True, timeout=15)
+                                  capture_output=True, text=True, timeout=15,
+                                  errors="replace")
         except OSError:
             return False
-        return "qemu-system-" in proc.stdout.lower()
+        return "qemu-system-" in (proc.stdout or "").lower()
     try:
         cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().decode("utf-8", "replace")
     except OSError:
@@ -442,9 +446,12 @@ def _win_pid_listed(pid: int) -> bool:
     """
     try:
         proc = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
-                              capture_output=True, text=True, timeout=15)
+                              capture_output=True, text=True, timeout=15,
+                              errors="replace")
     except (OSError, subprocess.SubprocessError):
         return True  # unknown: keep waiting (safe direction, still bounded)
+    if proc.stdout is None:
+        return True  # decode death: unknown, same safe direction
     return f'"{pid}"' in proc.stdout
 
 

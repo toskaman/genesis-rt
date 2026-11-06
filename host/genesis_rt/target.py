@@ -243,7 +243,17 @@ class TargetRunner:
         path = self._record_path(rec["op_id"])
         tmp = path.with_suffix(".tmp")
         tmp.write_text(json.dumps(rec, indent=2), encoding="utf-8")
-        tmp.replace(path)
+        # Windows: a concurrent reader (open without FILE_SHARE_DELETE)
+        # makes replace fail with WinError 5. The contention window is
+        # microseconds; retry bounded before failing loud (2026-11-06).
+        for attempt in range(10):
+            try:
+                tmp.replace(path)
+                return
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(0.02)
 
     def _emit(self, op_id: str, kind: str, message: str) -> None:
         with self._lock:

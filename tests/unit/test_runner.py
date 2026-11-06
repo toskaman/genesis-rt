@@ -291,3 +291,76 @@ def test_second_job_blocked_while_target_leased(head, tmp_path):
         assert status(cfg, "j2")["status"] == "BLOCKED"
     finally:
         target.close()
+
+
+class _FlakyTarget:
+    """TargetRunner double with a scripted get() sequence (join tests)."""
+
+    def __init__(self, ops_dir, script):
+        self._script = script  # None: always unreadable; list: pop per poll
+        self._last = {"op_id": "?", "state": "EXECUTING", "reason": "",
+                      "artifacts": {}}
+        self.cancel_calls = []
+
+    def get(self, op_id):
+        if self._script is None:
+            return None
+        if self._script:
+            self._last = self._script.pop(0)
+        return self._last  # records are sticky once terminal
+
+    def cancel(self, op_id):
+        self.cancel_calls.append(op_id)
+        return {"op_id": op_id, "state": "CANCELLED", "reason": "cancelled",
+                "artifacts": {}}
+
+    def close(self):
+        pass
+
+
+def _seed_running(cfg, job_id):
+    store = runner.JobStore(cfg.jobs_dir)
+    store.put({"job_id": job_id, "status": "RUNNING", "op_id": "op-flaky",
+               "timeout_s": 30, "created": time.time(),
+               "updated": time.time()})
+
+
+def test_join_retries_transient_read_miss(cfg, monkeypatch):
+    """A None from target.get() mid-run is transient, never final.
+
+    Regression: on Windows the atomic record replace leaves microsecond
+    unreadable windows; the waiter used to break instantly, writing a
+    bogus TIMEOUT and spuriously cancelling the live op (2026-11-06).
+    """
+    import genesis_rt.target as target_mod
+
+    terminal = {"op_id": "op-flaky", "state": "FAILED",
+                "reason": "stub failure at build", "artifacts": {}}
+    doubles = []
+
+    def _factory(ops_dir):
+        dbl = _FlakyTarget(ops_dir, [None, None, dict(terminal)])
+        doubles.append(dbl)
+        return dbl
+
+    monkeypatch.setattr(target_mod, "TargetRunner", _factory)
+    _seed_running(cfg, "job-flaky")
+    runner._join_op(cfg, {"job_id": "job-flaky", "timeout_s": 30},
+                    "op-flaky", time.time())
+    rec = status(cfg, "job-flaky")
+    assert rec["status"] == "FAILED"
+    assert "stub failure at build" in rec["reason"]
+    assert doubles and doubles[0].cancel_calls == []
+
+
+def test_join_missing_record_times_out_with_clear_reason(cfg, monkeypatch):
+    import genesis_rt.target as target_mod
+
+    monkeypatch.setattr(target_mod, "TargetRunner",
+                        lambda ops_dir: _FlakyTarget(ops_dir, None))
+    _seed_running(cfg, "job-ghost")
+    runner._join_op(cfg, {"job_id": "job-ghost", "timeout_s": 2},
+                    "op-ghost", time.time())
+    rec = status(cfg, "job-ghost")
+    assert rec["status"] == "TIMEOUT"
+    assert "record unreadable" in rec["reason"]

@@ -72,7 +72,7 @@ def main(argv=None) -> int:
         return 2
     commit = args.commit or subprocess.run(
         ["git", "rev-parse", "--short=7", "HEAD"], capture_output=True,
-        text=True, cwd=REPO).stdout.strip()
+        text=True, errors="replace", cwd=REPO).stdout.strip()
 
     out = Path(args.out)
     if out.exists():

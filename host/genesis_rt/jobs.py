@@ -62,10 +62,11 @@ def pid_alive(pid: int) -> bool:
         try:
             proc = subprocess.run(
                 ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
-                capture_output=True, text=True, timeout=15)
+                capture_output=True, text=True, timeout=15,
+                errors="replace")
         except (OSError, subprocess.SubprocessError):
             return True
-        for line in proc.stdout.splitlines():
+        for line in (proc.stdout or "").splitlines():
             fields = line.split('","')
             if len(fields) >= 2 and fields[1].strip('" ') == str(pid):
                 return True

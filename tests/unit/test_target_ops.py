@@ -550,3 +550,39 @@ def test_start_retries_on_op_id_collision(runner, monkeypatch):
     assert second["op_id"] == "op-abcdef123456"  # retried, not reused
     assert runner.get(first["op_id"])["state"] == "COMPLETED"  # intact
     _poll_state(runner, second["op_id"])
+
+
+def test_write_record_retries_transient_replace_denied(runner, monkeypatch):
+    """Windows: replace() denied by a concurrent reader is retried.
+
+    Observed as WinError 5 flaking _run threads; the contention window is
+    microseconds, so a bounded retry succeeds instead of killing the op.
+    """
+    from pathlib import Path
+    real_replace = Path.replace
+    calls = []
+
+    def _flaky_replace(self, target):
+        calls.append(1)
+        if len(calls) < 3:
+            raise PermissionError(13, "denied")
+        return real_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", _flaky_replace)
+    runner._write_record({"op_id": "op-retry", "state": "EXECUTING",
+                          "reason": "", "steps": []})
+    assert len(calls) == 3
+    assert runner.get("op-retry")["state"] == "EXECUTING"
+
+
+def test_write_record_gives_up_after_bounded_retries(runner, monkeypatch):
+    """Persistent replace denial still fails loud (never silent loss)."""
+    from pathlib import Path
+
+    def _always_denied(self, target):
+        raise PermissionError(13, "denied")
+
+    monkeypatch.setattr(Path, "replace", _always_denied)
+    with pytest.raises(PermissionError):
+        runner._write_record({"op_id": "op-denied", "state": "EXECUTING",
+                              "reason": "", "steps": []})

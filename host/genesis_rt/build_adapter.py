@@ -27,6 +27,7 @@ def _run(argv: list[str], cwd: Path | None = None, timeout: int = 120,
          env: dict[str, str] | None = None) -> dict[str, Any]:
     try:
         proc = subprocess.run(argv, capture_output=True, text=True,
+                              errors="replace",
                               cwd=str(cwd) if cwd else None, timeout=timeout,
                               check=False, env=env)
     except FileNotFoundError:

@@ -58,7 +58,7 @@ def _clean(value: object) -> str:
 
 def _git(args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True,
-                          text=True, timeout=60)
+                          text=True, errors="replace", timeout=60)
 
 
 def _git_bytes(args: list[str]) -> subprocess.CompletedProcess[bytes]:

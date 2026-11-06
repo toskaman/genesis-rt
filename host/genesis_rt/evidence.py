@@ -44,7 +44,7 @@ def _git_commit(repo: str | Path | None = None) -> str | None:
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--short=12", "HEAD"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=10, errors="replace",
             cwd=str(repo) if repo else None, check=False,
         )
     except (OSError, subprocess.SubprocessError):
