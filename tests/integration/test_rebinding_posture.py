@@ -81,6 +81,7 @@ AUDITED_GET_ROUTES = [
     "/examples/{example}/{file}",
     "/genesis_verify.js",
     "/health",
+    "/ipc-timeline",
     "/jobs",
     "/jobs/{job_id}",
     "/jobs/{job_id}/events",
