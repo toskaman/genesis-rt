@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test deps
-        run: pip install pytest pyyaml fastapi httpx uvicorn playwright jsonschema
+        run: pip install pytest pyyaml fastapi httpx uvicorn playwright jsonschema cryptography
       - name: Install Chromium for browser E2E
         run: python -m playwright install --with-deps chromium
       - name: Host C policy check

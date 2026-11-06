@@ -299,6 +299,87 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_sign_pack(args: argparse.Namespace) -> int:
+    try:
+        from . import signing
+    except ImportError as exc:
+        print(f"sign-pack needs cryptography: pip install cryptography ({exc})",
+              file=sys.stderr)
+        return 2
+    pack = Path(args.pack)
+    manifest = pack / "manifest.json"
+    if not manifest.is_file():
+        print(f"no manifest.json in {pack}", file=sys.stderr)
+        return 2
+    meta = json.loads(manifest.read_text(encoding="utf-8"))
+    if not isinstance(meta, dict) or not meta.get("pack"):
+        print("manifest.json has no pack name", file=sys.stderr)
+        return 2
+    key_pem = Path(args.key).read_text(encoding="utf-8")
+    try:
+        envelope = signing.sign_manifest(
+            manifest_bytes=manifest.read_bytes(),
+            purpose=signing.PURPOSE_EVIDENCE_PACK,
+            signer_id=args.signer_id, key_id=args.key_id,
+            private_pem=key_pem, scope={"pack": meta["pack"]},
+            supersedes=args.supersedes)
+    except signing.SignatureError as exc:
+        print(f"signing failed: {exc}", file=sys.stderr)
+        return 1
+    out = pack / "manifest.sig.json"
+    out.write_text(json.dumps(envelope, indent=2, sort_keys=True) + "\n",
+                   encoding="utf-8")
+    print(f"signed {meta['pack']} key={args.key_id} "
+          f"signer={args.signer_id} -> {out}")
+    return 0
+
+
+def _cmd_verify_pack(args: argparse.Namespace) -> int:
+    try:
+        from . import signing
+    except ImportError as exc:
+        print(f"verify-pack needs cryptography: pip install cryptography ({exc})",
+              file=sys.stderr)
+        return 2
+    pack = Path(args.pack)
+    manifest = pack / "manifest.json"
+    sig = pack / "manifest.sig.json"
+    verdict: dict[str, object] = {"pack": str(pack), "status": "INVALID"}
+    if not manifest.is_file():
+        verdict["reason"] = "no manifest.json"
+    elif not signing.is_signed(pack):
+        verdict["status"] = "UNSIGNED"
+        verdict["reason"] = ("no manifest.sig.json: integrity is hash-only, "
+                             "no signer bound")
+    else:
+        try:
+            trust_raw = json.loads(Path(args.trust).read_text(
+                encoding="utf-8"))
+            trust = trust_raw.get("keys", {})
+            meta = json.loads(manifest.read_text(encoding="utf-8"))
+            body = signing.verify_envelope(
+                envelope=json.loads(sig.read_text(encoding="utf-8")),
+                manifest_bytes=manifest.read_bytes(), trust=trust,
+                purpose=signing.PURPOSE_EVIDENCE_PACK,
+                scope={"pack": meta.get("pack")})
+            verdict = {"pack": meta.get("pack"), "status": "SIGNED_VALID",
+                       "signer_id": body.get("signer_id"),
+                       "key_id": body.get("key_id"),
+                       "signed_utc": body.get("signed_utc")}
+        except (signing.SignatureError, ValueError, OSError,
+                TypeError, AttributeError) as exc:
+            verdict["reason"] = str(exc)
+    if args.json:
+        print(json.dumps(verdict, indent=2, sort_keys=True))
+    elif verdict["status"] == "SIGNED_VALID":
+        print(f"{verdict['pack']}: SIGNED_VALID signer={verdict['signer_id']} "
+              f"key={verdict['key_id']}")
+    else:
+        print(f"{pack}: {verdict['status']}: {verdict.get('reason')}")
+    return {"SIGNED_VALID": 0, "UNSIGNED": 2}.get(
+        str(verdict["status"]), 1)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="genesis-rt", description="GENESIS RT host toolchain")
     sub = p.add_subparsers(dest="command", required=True)
@@ -383,6 +464,15 @@ def build_parser() -> argparse.ArgumentParser:
     c.set_defaults(func=_cmd_check_env)
     sv = sub.add_parser("serve", help="start the local web API (needs api extra)")
     sv.add_argument("--port", type=int, default=8077); sv.set_defaults(func=_cmd_serve)
+    sg = sub.add_parser("sign-pack", help="Ed25519-sign an evidence-pack manifest")
+    sg.add_argument("pack"); sg.add_argument("--key", required=True)
+    sg.add_argument("--signer-id", required=True); sg.add_argument("--key-id", required=True)
+    sg.add_argument("--supersedes", default=None)
+    sg.set_defaults(func=_cmd_sign_pack)
+    vf = sub.add_parser("verify-pack", help="verify an evidence-pack signature (0 valid, 2 unsigned, 1 invalid)")
+    vf.add_argument("pack"); vf.add_argument("--trust", required=True)
+    vf.add_argument("--json", action="store_true")
+    vf.set_defaults(func=_cmd_verify_pack)
     return p
 
 
