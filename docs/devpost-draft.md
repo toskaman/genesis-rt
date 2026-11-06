@@ -1,7 +1,7 @@
 # Devpost submission draft (fill in video URL, then paste)
 
 Category: **Developer Tooling & Host Tools**.
-Video: `<paste public YouTube URL, < 3:00>` — record per `docs/demo-video-plan.md`.
+Video: `<paste public YouTube URL, < 3:00>` — upload `docs/demo/genesis-rt-demo-w12.mp4` (154.664 s, voiced) per `docs/demo/PUBLICATION_HANDOFF_W12.md`.
 Repo: https://github.com/toskaman/genesis-rt
 Codelab (bonus box): https://github.com/toskaman/genesis-rt/blob/main/docs/codelab/README.md
 
@@ -65,11 +65,13 @@ plus an advanced QNX codelab (guards, supervision, provenance, replay —
 every command executed, host blocks CI-enforced).
 
 Honest scope: host fault results are simulated; on-target QNX 8.0/QEMU
-execution is verified (16/16 matrix, 9/9 IPC checks, `qcc` 0 warnings),
-and passports always report `qnx_verified` explicitly. A public,
-SDK-free evidence pack (`evidence/qnx8-x86_64-verified-b22cea1/`,
-34 files + independent `verify.py`) lets anyone replay the native
-campaign and its tamper control. Simulation-only, prototype-grade,
+execution is verified (16/16 matrix, 9/9 native fault-injection
+checks over IPC, `qcc` 0 warnings), and passports always report
+`qnx_verified` explicitly. Two public, SDK-free evidence packs
+(`evidence/qnx8-x86_64-w11-before/` and
+`evidence/qnx8-x86_64-w11-after/`, 34 files each + independent
+`verify.py`) let anyone replay both native campaigns and the tamper
+control. Simulation-only, prototype-grade,
 no safety certification claimed. Judges start at
 `docs/jury/START_HERE.md`.
 
@@ -94,7 +96,7 @@ git clone https://github.com/toskaman/genesis-rt.git && cd genesis-rt
 pip install pytest pyyaml
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
-python -m pytest tests/ -q   # 1051 pass, 0 skip with the QNX SDK (6 Nov 2026, this box); SDK-less CI: 1046 passed + 5 honest skips (3 QNX-build + 1 SDK-only codelab + 1 real-build target op)
+python -m pytest tests/ -q   # 1058 pass, 0 skip with the QNX SDK (6 Nov 2026, this box); SDK-less CI: 1053 passed + 5 honest skips (3 QNX-build + 1 SDK-only codelab + 1 real-build target op)
 ```
 
 Open `ui/dashboard.html` and load the passport to inspect every verdict.

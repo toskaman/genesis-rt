@@ -164,3 +164,80 @@ def test_limitations_e2e_wording_current():
     text = _read("docs/jury/KNOWN_LIMITATIONS.md")
     assert "browser E2E is pending" not in text
     assert "real-browser E2E runs in CI" in text
+
+
+def test_video_claim_matches_facts():
+    """Wave 12 §5: current docs pin the voiced submission video."""
+    from genesis_rt import facts
+    assert (ROOT / facts.VIDEO_FILE).is_file()
+    for rel in ("docs/compliance-matrix.md", "docs/demo-video-plan.md",
+                "docs/CLAIMS.md", "docs/devpost-draft.md", "README.md"):
+        assert facts.VIDEO_FILE in _read(rel), rel
+    for rel in ("docs/demo/MEDIA_VALIDATION_W12.md", "docs/CLAIMS.md"):
+        assert str(facts.VIDEO_DURATION_S) in _read(rel), rel
+
+
+def test_no_stale_video_handoff_claims():
+    """Wave 12 §5: edit + voice are done; only upload is pending."""
+    matrix = _read("docs/compliance-matrix.md")
+    assert "42 s genuine footage" not in matrix
+    assert "edit + voice + publication = owner handoff, still pending" not in matrix
+    plan = _read("docs/demo-video-plan.md")
+    assert "Voice track + final edit +" not in plan
+    assert "genesis-rt-demo-w12.mp4" in plan
+
+
+def test_readme_covers_flagship_capabilities():
+    """Wave 12 §5: README must surface the five newer capabilities."""
+    text = _read("README.md")
+    for token in ("Contract-aware native verification",
+                  "qnx8-x86_64-w11-before",
+                  "IPC execution timeline",
+                  "ci_ir_check.py",
+                  "review dossier",
+                  "docs/CLAIMS.md"):
+        assert token in text, token
+
+
+def test_devpost_packs_and_checks_current():
+    """Wave 12 §5: devpost points at the w11 packs, not the legacy one."""
+    text = _read("docs/devpost-draft.md")
+    assert "qnx8-x86_64-w11-before" in text
+    assert "qnx8-x86_64-w11-after" in text
+    assert "b22cea1" not in text
+    assert "9/9 native fault-injection" in text
+    assert "PUBLICATION_HANDOFF_W12" in text
+
+
+def test_e2e_count_matches_collected():
+    """Wave 12 §5: registry E2E count equals collected browser tests."""
+    from genesis_rt import facts
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "tests/e2e",
+         "-o", "addopts=", "--collect-only", "-q", "-p", "no:warnings"],
+        capture_output=True, text=True, cwd=ROOT, timeout=180)
+    m = re.search(r"(\d+) tests? collected", proc.stdout)
+    assert m is not None, proc.stdout[-500:]
+    assert m.group(1) == str(facts.E2E_BROWSER_TESTS), m.group(1)
+
+
+def test_claims_registry_matches_facts():
+    """Wave 12 §5: docs/CLAIMS.md agrees with facts.py pins."""
+    from genesis_rt import facts
+    text = _read("docs/CLAIMS.md")
+    for token in (str(facts.TESTS_WITH_SDK),
+                  str(facts.TESTS_SDK_FREE_PASSED),
+                  str(facts.ADVERSARIAL_TESTS),
+                  facts.PACK_BEFORE, facts.PACK_AFTER,
+                  facts.VIDEO_FILE, "PUBLICATION_HANDOFF_W12.md"):
+        assert token in text, token
+    assert (ROOT / facts.PACK_BEFORE / "verify.py").is_file()
+    assert (ROOT / facts.PACK_AFTER / "verify.py").is_file()
+
+
+def test_safety_disclaimer_present_not_certified():
+    """Wave 12 §5: no certification language without the disclaimer."""
+    for rel in ("README.md", "docs/CLAIMS.md", "docs/devpost-draft.md"):
+        text = _read(rel)
+        assert "no safety certification" in text.lower(), rel
+        assert "certified" not in text.lower(), rel

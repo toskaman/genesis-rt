@@ -1,5 +1,12 @@
 # Demo video plan (target 2:40–2:55, hard cap < 3:00)
 
+> Wave 12 status: this plan is EXECUTED. The submission video is
+> `docs/demo/genesis-rt-demo-w12.mp4` (154.664 s, voiced, AAC,
+> `subtitles-w12.srt`) — see `docs/demo/MEDIA_VALIDATION_W12.md`.
+> Only the YouTube upload remains an owner handoff
+> (`docs/demo/PUBLICATION_HANDOFF_W12.md`). The storyboard below is
+> kept as the executed record.
+
 Record only genuine runs. Studio-first shot list (the CLI-only cut is
 retired: pipelines and target ops run from Studio Live since Wave 7/8):
 
@@ -22,5 +29,7 @@ status), `NARRATION.md`, `subtitles.srt` (timed, editable),
 `SHOT_EVIDENCE.md` (every claim → file/op/command), 3 verified
 1080p screenshots, and `footage-raw-studio-2026-11-05.webm`
 (42 s authentic take: judge A→C + real fault job + BEFORE
-decision + BEFORE/AFTER compare). Voice track + final edit +
-YouTube upload remain an owner handoff.
+decision + BEFORE/AFTER compare). Wave 11 assembled the 154.6 s
+final visual edit from these; Wave 12 added the voice track
+(local Piper TTS, deterministic) — only the YouTube upload
+remains an owner handoff.

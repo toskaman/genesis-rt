@@ -21,6 +21,27 @@ on purpose with **seeded fault injection**, and produces a **hash-linked
 evidence passport** where every green verdict links to a real execution
 trace. One convincing proof-driven demo beats twenty speculative features.
 
+## What's proven (Wave 12)
+
+- **Contract-aware native verification**: the on-target oracle derives
+  expectations from the validated Machine IR — a valid limit change
+  (1.2 → 1.6 m/s) flips the 1.5 m/s probe DENY → ALLOW and both
+  revisions still pass 16/16; a stale build is refused with no passport.
+- **Two public BEFORE/AFTER evidence packs**
+  (`evidence/qnx8-x86_64-w11-before/`, `...-after/`): 34 files each,
+  15-link passport chains, SDK-free `verify.py`, tamper control
+  included.
+- **Native IPC execution timeline** from real QNX `CLOCK_MONOTONIC`
+  timestamps (`evidence/ipc-timeline/`).
+- **CI IR impact bridge** (`scripts/ci_ir_check.py`): changed-IR
+  validation and impact reports on every push/PR.
+- **Professional review dossier**: one-click ZIP export (report +
+  raw data + offline verify) from any target operation.
+- **Submission video**: `docs/demo/genesis-rt-demo-w12.mp4`
+  (154.664 s, voiced, verbatim subtitles) — YouTube upload pending.
+
+Canonical numbers live in [docs/CLAIMS.md](docs/CLAIMS.md).
+
 ## Architecture
 
 ```
