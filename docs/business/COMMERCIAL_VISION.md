@@ -39,7 +39,7 @@ passport (full host suite green — run `pytest -o addopts=""` for the current c
   delta, passport delta.
 - Scheduling experiments (`qnx_target.py sched`, 4 configs × 200
   samples measured) and the 16-step target matrix are one command each.
-- Productivity benchmark (2026-11-05, `bench/productivity/`): six
+- Productivity benchmark (2026-11-06, `bench/productivity/`): six
   engineering tasks take 8 GENESIS commands vs 30 reference commands
   + 10 manual steps, catch 5/5 injected faults vs 3/5 (methodology v2, competent stock-jsonschema validate reference), and re-run
   with identical semantic summaries. Reference workflows are
@@ -121,7 +121,7 @@ roadmap, pricing hypotheses, pilot-partner criteria, PMF risks.
 
 ## 7. Adoption obstacles (honest)
 
-- **Prototype maturity:** a ~1015-test host suite (6 Nov 2026: 1015 passed with SDK, 0 skips; SDK-free 1010 passed + 5 honest skips) and a 16-step matrix are strong
+- **Prototype maturity:** a ~1046-test host suite (6 Nov 2026: 1046 passed with SDK, 0 skips; SDK-free 1041 passed + 5 honest skips) and a 16-step matrix are strong
   for a hackathon, thin for production. Needs hardening sprints,
   fuzzing depth (§13), and long-session robustness (§15).
 - **QNX licensing:** see §9 — customers need their own commercial QNX

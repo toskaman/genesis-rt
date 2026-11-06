@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the IR check diffs against the push base
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -24,6 +26,16 @@ jobs:
           printf 'LIMITS 1.2 1.0 100\n47454E31 1 1 1 0 50 0.5 0.0 1 0 1 0 1\n' | /tmp/guard_vector
       - name: Unit + integration + fault + acceptance tests
         run: python -m pytest tests/ -q
+      - name: GENESIS IR check (changed files)
+        run: |
+          GENESIS_CI_BASE="${{ github.event.before }}" PYTHONPATH=host \
+            python scripts/ci_ir_check.py --out ir-ci-report.json
+      - name: Upload IR check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ir-ci-report
+          path: ir-ci-report.json
       - name: Verified demo pipeline
         run: |
           PYTHONPATH=host python scripts/run_verified_demo.py

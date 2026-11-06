@@ -164,6 +164,36 @@ def _machine_name(ir: dict[str, Any] | None) -> str:
     return str(mach) if mach else "unnamed machine"
 
 
+def _coverage_of(gate_body: dict[str, Any]) -> dict[str, Any]:
+    """Normalize the gate coverage record (old shapes tolerated).
+
+    Returns counts plus the omitted scenario names; unknown shapes
+    report "?" rather than inventing numbers.
+    """
+    cov = gate_body.get("coverage")
+    if not isinstance(cov, dict):
+        return {"declared": "?", "required": "?", "omitted": [],
+                "targeted": None}
+    omitted = cov.get("omitted", [])
+    if not isinstance(omitted, list):
+        omitted = []
+
+    def _num(value: Any) -> Any:
+        if isinstance(value, bool):
+            return "?"
+        if isinstance(value, (int, float)) and value == int(value) \
+                and value >= 0:
+            return int(value)
+        if isinstance(value, list):
+            return len(value)
+        return "?"
+
+    return {"declared": _num(cov.get("declared")),
+            "required": _num(cov.get("required")),
+            "omitted": [str(s)[:80] for s in omitted],
+            "targeted": bool(omitted)}
+
+
 def assess_op(op_id: str, rec: dict[str, Any],
               files: dict[str, bytes]) -> dict[str, Any]:
     """Verdict + explanation inputs shared by the report and /decision.
@@ -207,6 +237,7 @@ def assess_op(op_id: str, rec: dict[str, Any],
         if isinstance(r, dict) and r.get("kind") == "gate_verdict" \
                 and isinstance(r.get("body"), dict):
             gate_body = r["body"]
+    coverage = _coverage_of(gate_body)
     return {
         "op_id": op_id,
         "verdict": verdict,
@@ -231,6 +262,7 @@ def assess_op(op_id: str, rec: dict[str, Any],
         "matrix": {"passed": sum(1 for c in passed if c.get("passed")),
                    "total": len(passed), "failed": failed},
         "perf_samples": len(samples) if isinstance(samples, list) else 0,
+        "coverage": coverage,
         "missing_evidence": missing,
         "chain_errors": [str(e)[:200] for e in chain_errors],
         "why": _why_lines(verdict, state, gate, qnx_verified,
@@ -407,6 +439,19 @@ def render_report(op_id: str, rec: dict[str, Any], files: dict[str, bytes],
     red_html = ("none" if not redacted else
                 ", ".join(f"<code>{_esc(r, 120)}</code>" for r in redacted))
     why_html = "".join(f"<li>{_esc(w, 200)}</li>" for w in a["why"])
+    cov = a["coverage"]
+    if cov["targeted"] is None:
+        coverage_html = "unknown (old passport without a coverage record)"
+    elif cov["targeted"]:
+        omitted = ", ".join(f"<code>{_esc(s, 60)}</code>"
+                            for s in cov["omitted"])
+        coverage_html = (f'<span class="fail">TARGETED — full verification '
+                         f'PENDING</span> ({_esc(cov["required"])} of '
+                         f'{_esc(cov["declared"])} declared required; '
+                         f'omitted: {omitted})')
+    else:
+        coverage_html = (f'Full coverage ({_esc(cov["required"])}/'
+                         f'{_esc(cov["declared"])})')
 
     body = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
@@ -420,12 +465,26 @@ font-size:.92em}}.pass{{color:#0a5;font-weight:bold}}
 .badge{{display:inline-block;padding:.2em .8em;border-radius:.4em;
 color:#fff}}.badge.pass{{background:#0a5}}.badge.fail{{background:#c00}}
 .badge.unknown{{background:#a60}}code{{background:#f2f2f2}}
-.note{{color:#555;font-size:.9em}}</style></head><body>
+.note{{color:#555;font-size:.9em}}
+nav.toc{{background:#f6f6f6;border:1px solid #ddd;padding:.6em 1em;
+margin:1em 0}}nav.toc ul{{margin:.2em 0;padding-left:1.2em}}
+nav.toc li{{margin:.15em 0}}
+@media print{{body{{max-width:none;margin:0;color:#000}}
+nav.toc{{border:1px solid #999}}table{{page-break-inside:auto}}
+tr{{page-break-inside:avoid}}a{{color:#000;text-decoration:none}}}}
+</style></head><body>
 <h1>GENESIS RT engineering dossier</h1>
 <p>op <code>{_esc(op_id, 64)}</code> ·
 workflow <code>{_esc((rec.get("workflow") or "?"), 60)}</code> ·
 <span class="badge {badge}">{_esc(verdict, 16)}</span></p>
-<h2>Executive summary</h2>
+<nav class="toc" aria-label="Contents"><ul>
+<li><a href="#summary">Executive summary</a></li>
+<li><a href="#why">Why this verdict</a></li>
+<li><a href="#matrix">Verification matrix (native QNX)</a></li>
+<li><a href="#replay">Evidence replay</a></li>
+<li><a href="#impact">Change impact</a></li>
+<li><a href="#limitations">Limitations</a></li></ul></nav>
+<h2 id="summary">Executive summary</h2>
 <table><tr><th>Item</th><th>Value</th></tr>
 <tr><td>Machine</td><td>{_esc(a["machine"], 120)}</td></tr>
 <tr><td>Op state</td><td>{_esc(a["state"], 32)}</td></tr>
@@ -434,24 +493,25 @@ workflow <code>{_esc((rec.get("workflow") or "?"), 60)}</code> ·
 <tr><td>QNX verified</td><td>{_esc(a["qnx_verified"], 8)}</td></tr>
 <tr><td>Matrix</td><td>{n_pass}/{len(checks)} checks passed</td></tr>
 <tr><td>Perf samples</td><td>{_esc(a["perf_samples"], 8)}</td></tr>
+<tr><td>Coverage</td><td>{coverage_html}</td></tr>
 <tr><td>IR digest</td><td><code>{_esc(a["ir_digest"], 80)}</code></td></tr>
 <tr><td>Toolchain</td><td>{_esc(a["toolchain"], 160)}</td></tr>
 <tr><td>Missing evidence</td><td>{missing_html}</td></tr>
 <tr><td>Redacted keys</td><td>{red_html}</td></tr></table>
-<h2>Why this verdict</h2>
+<h2 id="why">Why this verdict</h2>
 <ul>{why_html}</ul>
-<h2>Verification matrix (native QNX)</h2>
+<h2 id="matrix">Verification matrix (native QNX)</h2>
 <table><tr><th>Check</th><th>Result</th><th>Detail</th></tr>
 {matrix_html}</table>
-<h2>Evidence replay</h2>
+<h2 id="replay">Evidence replay</h2>
 <p class="{"pass" if not a["chain_errors"] else "fail"}">{replay_html}</p>
 <p class="note">Replayed with the repo verifier over the bundled
 passport.json. Digests of every bundled file are in manifest.json.</p>
-<h2>Change impact</h2>
+<h2 id="impact">Change impact</h2>
 <p>No baseline op is linked to this record, so no before/after diff is
 shown. Compare IR digests across dossiers to attribute behavior changes
 to specification changes.</p>
-<h2>Limitations</h2>
+<h2 id="limitations">Limitations</h2>
 <ul><li>Virtual machine outputs only; no physical actuation.</li>
 <li>QNX runs under QEMU here, not on physical hardware; timings are
 regression aids, not hard-real-time guarantees.</li>

@@ -1,0 +1,37 @@
+$ cd /tmp/genesis; slay genesis_guard 2>/dev/null; sleep 1; GENESIS_IPC_TRACE=1 ./genesis_guard > guard-trace.log 2>&1 & sleep 2; GENESIS_IPC_TRACE=1 ./genesis_faultinject bench 5; echo BENCH_EXIT=$?; slay genesis_guard; sleep 1; echo ---GUARD-LOG---; cat guard-trace.log
+TRACE SEND seq=1 t=25726002818
+TRACE DONE seq=1 t=25727295029
+SAMPLE 1292.211
+TRACE SEND seq=2 t=25727481699
+TRACE DONE seq=2 t=25727874568
+SAMPLE 392.869
+TRACE SEND seq=3 t=25727940258
+TRACE DONE seq=3 t=25728921899
+SAMPLE 981.641
+TRACE SEND seq=4 t=25729086676
+TRACE DONE seq=4 t=25729728558
+SAMPLE 641.882
+TRACE SEND seq=5 t=25729791883
+TRACE DONE seq=5 t=25730664558
+SAMPLE 872.675
+PERF_DONE n=5
+BENCH_EXIT=0
+---GUARD-LOG---
+guard: attached as 'genesis_guard' chid=1
+guard: machine=amr-demo-01 limits linear=1.200 angular=1.000 freshness=100ms
+TRACE RECV seq=1 t=25726328062
+TRACE REPLY seq=1 t=25726848354 decision=ALLOW
+guard: seq=1 decision=ALLOW reason=OK state=1
+TRACE RECV seq=2 t=25727543141
+TRACE REPLY seq=2 t=25727666716 decision=ALLOW
+guard: seq=2 decision=ALLOW reason=OK state=1
+TRACE RECV seq=3 t=25728355937
+TRACE REPLY seq=3 t=25728561815 decision=ALLOW
+guard: seq=3 decision=ALLOW reason=OK state=1
+TRACE RECV seq=4 t=25729195501
+TRACE REPLY seq=4 t=25729388333 decision=ALLOW
+guard: seq=4 decision=ALLOW reason=OK state=1
+TRACE RECV seq=5 t=25730106236
+TRACE REPLY seq=5 t=25730318147 decision=ALLOW
+guard: seq=5 decision=ALLOW reason=OK state=1
+[exit=0]

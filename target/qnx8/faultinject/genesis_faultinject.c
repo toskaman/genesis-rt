@@ -159,6 +159,11 @@ static int run_bench(int coid, const char *arg) {
         printf("BENCH usage: genesis_faultinject bench <1..100000>\n");
         return 2;
     }
+    /* IPC timeline trace (Wave 11 S12): off unless GENESIS_IPC_TRACE=1.
+     * Same CLOCK_MONOTONIC as the guard, so SEND/DONE join with the
+     * guard's RECV/REPLY by seq on the host. */
+    const char *trace_env = getenv("GENESIS_IPC_TRACE");
+    int trace = trace_env != NULL && strcmp(trace_env, "1") == 0;
     genesis_cmd_t cmd;
     memset(&cmd, 0, sizeof cmd);
     cmd.magic = GENESIS_PROTOCOL_MAGIC;
@@ -177,12 +182,19 @@ static int run_bench(int coid, const char *arg) {
         }
         genesis_reply_t reply;
         uint64_t t0 = now_ns();
+        if (trace)
+            printf("TRACE SEND seq=%u t=%llu\n", cmd.seq,
+                   (unsigned long long)t0);
         int rc = MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply);
-        uint64_t dt = now_ns() - t0;
+        uint64_t t1 = now_ns();
+        uint64_t dt = t1 - t0;
         if (rc != 0) {
             printf("BENCH MsgSend error at trip %ld\n", i);
             return 2;
         }
+        if (trace)
+            printf("TRACE DONE seq=%u t=%llu\n", cmd.seq,
+                   (unsigned long long)t1);
         printf("SAMPLE %.3f\n", (double)dt / 1000.0);
     }
     printf("PERF_DONE n=%ld\n", n);

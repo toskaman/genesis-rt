@@ -1,0 +1,12 @@
+{
+  "qemu": "C:\\Program Files\\qemu\\qemu-system-x86_64.exe",
+  "image": "E:\\qnx800\\images\\qemu\\qemu",
+  "port": 2222,
+  "binaries": {
+    "genesis_guard": "b7aac2765039a426f0fa2bbbbc62a9ce93df8db4eefe362f282975022cc06dc8",
+    "genesis_faultinject": "ec271027a1aeb9ccc220e1d2bc3897e18ebe8d5c40400e2063d98e1d1f8721cd"
+  },
+  "bench_rc": 0,
+  "trips": 5,
+  "errors": []
+}

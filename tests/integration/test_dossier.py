@@ -424,3 +424,93 @@ def test_endpoint_compare_dossier(client):
                       ).status_code == 400
     assert client.get("/target/ops/compare/dossier?before=op-000000000000"
                       f"&after={OP}").status_code == 404
+
+
+def _report_for(ops_dir: Path, op_id: str = OP) -> str:
+    blob = dos_mod.build_dossier_zip(ops_dir, op_id)
+    files = _unzip(blob)
+    return files[f"dossier-{op_id}/report.html"].decode("utf-8")
+
+
+def test_dossier_report_has_toc_anchors_and_print_css(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    report = _report_for(ops)
+    assert '<nav class="toc"' in report
+    for anchor in ("summary", "why", "matrix", "replay", "impact",
+                   "limitations"):
+        assert f'href="#{anchor}"' in report, anchor
+        assert f'<h2 id="{anchor}">' in report, anchor
+    assert "@media print" in report
+
+
+def test_dossier_coverage_unknown_for_old_passport(tmp_path):
+    ops = _write_op(tmp_path / "ops")  # gate body without coverage
+    report = _report_for(ops)
+    assert "<td>Coverage</td>" in report
+    assert "old passport without a coverage record" in report
+
+
+def _write_targeted_op(ops_dir: Path) -> Path:
+    ops_dir.mkdir(parents=True, exist_ok=True)
+    rec = {"op_id": OP, "workflow": "full", "state": "COMPLETED",
+           "params": {},
+           "artifacts": {"qnx_verified": True, "ir_sha256": "abc123",
+                         "replay": "MATCH"}}
+    (ops_dir / f"{OP}.json").write_text(json.dumps(rec), encoding="utf-8")
+    (ops_dir / f"{OP}.events.jsonl").write_text(
+        '{"seq": 0, "kind": "op_started"}\n', encoding="utf-8")
+    work = ops_dir / OP
+    (work / "target").mkdir(parents=True)
+    (work / "perf").mkdir(parents=True)
+    (work / "ir.json").write_text(json.dumps(_ir()), encoding="utf-8")
+    pp = build_passport(
+        OP, _ir(), {"ir_sha256": "abc123", "sources": ["gen.c"]},
+        [{"scenario": "nominal", "seed": 1000, "status": "pass",
+          "checks": [{"name": "c1", "passed": True}], "stats": {},
+          "trace": []}],
+        qnx_build={"status": "ok"},
+        qnx_target={"checks": [{"name": "c1", "passed": True,
+                                "detail": "ok"}]},
+        qnx_perf={"raw_samples_us": [1.0], "method": "target_clock"})
+    attach_verdict(pp, {"verdict": "PASS", "tier": "QNX_EXECUTED",
+                        "coverage": {"declared": 8, "required": 3,
+                                     "omitted": ["s4", "s5", "s6", "s7",
+                                                 "s8"]}})
+    (work / "passport.json").write_text(json.dumps(pp), encoding="utf-8")
+    (work / "target" / "qnx-target-record.json").write_text(json.dumps(
+        {"checks": [{"name": "c1", "passed": True, "detail": "ok"}],
+         "ir": {"ir_sha256": "abc123"}}), encoding="utf-8")
+    (work / "perf" / "qnx-perf-record.json").write_text(json.dumps(
+        {"raw_samples_us": [1.0], "method": "target_clock"}),
+        encoding="utf-8")
+    (work / "qnx-build-record.json").write_text(json.dumps(
+        {"environment": {"qcc_version": "qcc 12.2.0"}}), encoding="utf-8")
+    return ops_dir
+
+
+def test_dossier_targeted_coverage_rendered(tmp_path):
+    ops = _write_targeted_op(tmp_path / "ops")
+    report = _report_for(ops)
+    assert "TARGETED" in report
+    assert "full verification PENDING" in report
+    assert "3 of 8" in report
+    assert "s4" in report  # omitted scenarios named
+
+
+def test_coverage_of_tolerates_shapes():
+    full = dos_mod._coverage_of(
+        {"coverage": {"declared": 8, "required": 8, "omitted": []}})
+    assert full == {"declared": 8, "required": 8, "omitted": [],
+                    "targeted": False}
+    listed = dos_mod._coverage_of(
+        {"coverage": {"declared": ["a", "b"], "required": ["a"],
+                      "omitted": ["b"]}})
+    assert listed["declared"] == 2 and listed["required"] == 1
+    assert listed["targeted"] is True
+    weird = dos_mod._coverage_of({"coverage": {"declared": None,
+                                               "required": True,
+                                               "omitted": "x"}})
+    assert weird["declared"] == "?" and weird["required"] == "?"
+    assert weird["omitted"] == [] and weird["targeted"] is False
+    missing = dos_mod._coverage_of({})
+    assert missing["targeted"] is None

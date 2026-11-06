@@ -13,8 +13,10 @@
 
 #ifdef __QNXNTO__
 #include <errno.h>
+#include <stdlib.h>
 #include <sys/dispatch.h>
 #include <sys/neutrino.h>
+#include <time.h>
 /* Machine-specific limits BAKED IN at build time from the generated
  * header (`genesis-rt generate` output, `-I.` on the compile line).
  * A missing/stale header is a compile error, never a silent default:
@@ -72,9 +74,18 @@ static void forward_to_device(const genesis_cmd_t *cmd, uint32_t state_out) {
     }
 }
 
+static uint64_t trace_now_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000u + (uint64_t)ts.tv_nsec;
+}
+
 int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
+    /* IPC timeline trace (Wave 11 S12): default off. */
+    const char *trace_env = getenv("GENESIS_IPC_TRACE");
+    int trace = trace_env != NULL && strcmp(trace_env, "1") == 0;
     name_attach_t *attach = name_attach(NULL, GENESIS_ATTACH_NAME, 0);
     if (attach == NULL) {
         fprintf(stderr, "guard: name_attach failed: %s\n", strerror(errno));
@@ -121,6 +132,9 @@ int main(int argc, char **argv) {
             MsgReply(rcvid, EOK, &s, sizeof s);
             continue;
         }
+        if (trace)
+            printf("TRACE RECV seq=%u t=%llu\n", msg.cmd.seq,
+                   (unsigned long long)trace_now_ns());
         genesis_verdict_t v =
             genesis_guard_decide(&msg.cmd, nbytes, &g_ctx, &g_limits);
         g_ctx.state = v.state_out;
@@ -138,6 +152,13 @@ int main(int argc, char **argv) {
         reply.decision = v.decision;
         reply.reason = v.reason;
         reply.state_out = v.state_out;
+        if (trace) {
+            printf("TRACE REPLY seq=%u t=%llu decision=%s\n",
+                   msg.cmd.seq,
+                   (unsigned long long)trace_now_ns(),
+                   v.decision == GENESIS_ALLOW ? "ALLOW" : "DENY");
+            fflush(stdout); /* slain, never exits: flush per probe */
+        }
         MsgReply(rcvid, EOK, &reply, sizeof reply);
         printf("guard: seq=%u decision=%s reason=%s state=%u\n", msg.cmd.seq,
                v.decision == GENESIS_ALLOW ? "ALLOW" : "DENY",

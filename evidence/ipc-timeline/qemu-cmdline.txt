@@ -1,0 +1,1 @@
+C:\Program Files\qemu\qemu-system-x86_64.exe -m 4G -smp 4 -drive file=E:\qnx800\images\qemu\qemu\output\disk-qemu.vmdk,if=ide,id=drv0,format=vmdk -serial mon:stdio -nographic -netdev user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22 -device virtio-net-pci,netdev=net0 -kernel E:\qnx800\images\qemu\qemu\output\ifs.bin -cpu max -pidfile E:\qnx800\images\qemu\qemu\output\qemu.pid
