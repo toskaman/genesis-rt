@@ -5,11 +5,14 @@ and pinned to measured code facts. Fast checks only (no full-suite recount;
 absolute totals come from measured runs + CI and are updated with them)."""
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 from genesis_rt.provenance import EXPECTED_TARGET_CHECKS
 
@@ -212,6 +215,9 @@ def test_devpost_packs_and_checks_current():
 def test_e2e_count_matches_collected():
     """Wave 12 §5: registry E2E count equals collected browser tests."""
     from genesis_rt import facts
+    if importlib.util.find_spec("playwright") is None:
+        pytest.skip("playwright not installed (documented-optional e2e dep; "
+                    "see INSTALL.md .[e2e])")
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", "tests/e2e",
          "-o", "addopts=", "--collect-only", "-q", "-p", "no:warnings"],

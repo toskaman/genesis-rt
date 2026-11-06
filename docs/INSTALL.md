@@ -17,7 +17,7 @@ virtualenv. Everything runs locally; nothing phones home.
 | A C compiler | `cc`, `gcc`, or `clang` on `PATH` — needed only for the host C conformance checks and the `generate` benchmark lane (`build_adapter.py`, `explorer_conformance.py` probe in that order); the pure-Python suite runs without one |
 | QNX SDP 8.0 | OPTIONAL — host-only mode is fully functional without it; without an SDK the pipeline records QNX steps as `blocked`, never as passed |
 | QEMU | OPTIONAL — only for the native target loop (`qemu-system-x86_64` on `PATH`) |
-| Chromium | OPTIONAL — only for the real-browser E2E tests (`python -m playwright install chromium`, as CI does) |
+| Chromium | OPTIONAL — only for the real-browser E2E tests (`pip install -e ".[e2e]" then `python -m playwright install chromium`, as CI does) |
 
 ## Install (both platforms)
 
@@ -36,6 +36,17 @@ pip install -e ".[dev]"
 (see `pyproject.toml`). The API server needs the `fastapi` /
 `uvicorn` pair (`genesis-rt serve` fails with an actionable
 message without them).
+
+Real-browser E2E needs the documented-optional extra plus a browser
+(same as CI):
+
+```sh
+pip install -e ".[e2e]"
+python -m playwright install chromium
+```
+
+Without `.[e2e]`, `tests/e2e` collects zero tests and the E2E-count
+consistency check skips instead of failing.
 
 ## Verify the install
 
