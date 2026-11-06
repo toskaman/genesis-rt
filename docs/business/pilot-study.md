@@ -5,6 +5,11 @@ complete package a team needs to run a fair before/after evaluation.
 No participants, testimonials, or savings figures exist — anything
 added later must cite its dated raw data.
 
+Companion files: `pilot-consent.md` (consent + confidentiality),
+`buyer-interview.md` (30-min interview guide),
+`decision-maker-survey.md` (post-pilot survey), and
+`bench/productivity/analyze_pilot.py` (results aggregation).
+
 ## 1. What the pilot measures
 
 Whether an embedded team working on QNX-native controller software
@@ -105,13 +110,19 @@ team, and QNX SDP binaries/images/license files are never shared.
 ## 7. Technical limitations (read before starting)
 
 - QNX-native steps need an SDP 8.0 + QEMU target (current
-  record: `evidence/qnx8-x86_64-verified-b22cea1/` +
-  `docs/audits/WAVE10_BASELINE.md`); without them the genesis
+  record: `evidence/qnx8-x86_64-w11-before/` and
+  `evidence/qnx8-x86_64-w11-after/`, 16/16 each; see
+  `docs/audits/WAVE11_RELEASE.md`); without them the genesis
   lane is host-only and `qnx_verified` stays false.
 - The bundled reference lane in `bench/productivity/` is
   synthetic; human teams use their own real practice instead.
 - Machine scenarios are virtual; no physical actuation exists.
-- Single local operator; no team/CI workflow yet.
+- Single local operator per lane; the CI/team workflow exists
+  as a self-hosted reference (`docs/runner/SELF_HOSTED_RUNNER.md`,
+  needs a licensed runner host) — not as a hosted service.
+- Aggregate filled templates with
+  `bench/productivity/analyze_pilot.py` (JSONL schema in its
+  docstring); it refuses to compare samples below 2 teams.
 
 ## 8. Reproduction scripts
 
