@@ -514,3 +514,59 @@ def test_coverage_of_tolerates_shapes():
     assert weird["omitted"] == [] and weird["targeted"] is False
     missing = dos_mod._coverage_of({})
     assert missing["targeted"] is None
+
+
+def _job(op_id=OP):
+    return {"job_id": "ci-42", "status": "COMPLETED",
+            "operation": "native_full", "revision": "f" * 40,
+            "ir_sha256": "abc123", "plan_id": "plan-1",
+            "adapter": "local", "op_id": op_id,
+            "qnx_verified": True}
+
+
+def test_dossier_embeds_runner_job(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    blob = dos_mod.build_dossier_zip(ops, OP, job_record=_job())
+    files = _unzip(blob)
+    body = files[f"dossier-{OP}/runner-job.json"].decode("utf-8")
+    assert json.loads(body)["job_id"] == "ci-42"
+    report = files[f"dossier-{OP}/report.html"].decode("utf-8")
+    assert "ci-42" in report and "ffffffffffff" in report
+    assert "runner-job.json" in report
+    manifest = json.loads(files[f"dossier-{OP}/manifest.json"])
+    assert f"runner-job.json" in manifest["files"]
+
+
+def test_dossier_without_job_says_local(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    blob = dos_mod.build_dossier_zip(ops, OP)
+    files = _unzip(blob)
+    assert f"dossier-{OP}/runner-job.json" not in files
+    report = files[f"dossier-{OP}/report.html"].decode("utf-8")
+    assert "no runner job linked" in report
+
+
+def test_dossier_escapes_job_fields(tmp_path):
+    ops = _write_op(tmp_path / "ops")
+    job = _job()
+    job["job_id"] = "<img src=x>"
+    blob = dos_mod.build_dossier_zip(ops, OP, job_record=job)
+    report = _unzip(blob)[f"dossier-{OP}/report.html"].decode("utf-8")
+    assert "<img" not in report and "&lt;img" in report
+
+
+def test_find_job_by_op(tmp_path):
+    from genesis_rt.runner import find_job_by_op
+
+    jobs = tmp_path / "jobs"
+    jobs.mkdir()
+    (jobs / "job-ci-42.json").write_text(json.dumps(_job()),
+                                          encoding="utf-8")
+    (jobs / "job-other.json").write_text(json.dumps(_job(OP2)),
+                                          encoding="utf-8")
+    (jobs / "job-broken.json").write_text("{oops", encoding="utf-8")
+    found = find_job_by_op(jobs, OP)
+    assert found and found["job_id"] == "ci-42"
+    assert find_job_by_op(jobs, "op-000000000000") is None
+    assert find_job_by_op(jobs, "not-an-op") is None
+    assert find_job_by_op(tmp_path / "missing", OP) is None

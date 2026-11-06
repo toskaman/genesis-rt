@@ -357,6 +357,34 @@ def _join_op(config: RunnerConfig, valid: dict[str, Any],
         target.close()
 
 
+def find_job_by_op(jobs_dir: Path, op_id: str) -> dict[str, Any] | None:
+    """Return the job record that produced ``op_id``, if any.
+
+    Bounded scan (1000 newest files); never raises — lookup
+    failures mean "no job linked", never a dossier failure.
+    """
+    try:
+        from .target import valid_op_id
+
+        if not valid_op_id(op_id):
+            return None
+        jobs = Path(jobs_dir)
+        if not jobs.is_dir():
+            return None
+        cands = sorted(jobs.glob("job-*.json"),
+                       key=lambda p: p.stat().st_mtime, reverse=True)[:1000]
+        for path in cands:
+            try:
+                rec = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(rec, dict) and rec.get("op_id") == op_id:
+                return rec
+    except OSError:
+        pass
+    return None
+
+
 def status(config: RunnerConfig, job_id: str) -> dict[str, Any] | None:
     if not JOB_ID_RE.fullmatch(job_id or ""):
         return None

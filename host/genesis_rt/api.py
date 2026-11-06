@@ -633,10 +633,13 @@ def create_app() -> Any:
         from fastapi.responses import Response  # type: ignore[import-not-found]
 
         from .dossier import DossierError, build_dossier_zip
+        from .runner import find_job_by_op
         if not valid_op_id(op_id):
             raise HTTPException(400, "invalid op id")
+        job = find_job_by_op(ARTIFACTS / "runner-jobs", op_id)
         try:
-            blob = build_dossier_zip(trunner.ops_dir, op_id, ARTIFACTS)
+            blob = build_dossier_zip(trunner.ops_dir, op_id, ARTIFACTS,
+                                     job)
         except DossierError as exc:
             raise HTTPException(exc.status, str(exc)) from None
         return Response(

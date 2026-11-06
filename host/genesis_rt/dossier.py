@@ -84,9 +84,13 @@ def _load_json(data: bytes) -> dict[str, Any] | None:
 
 
 def collect_op_files(ops_dir: Path, op_id: str,
-                     artifacts_root: Path | None = None
+                     artifacts_root: Path | None = None,
+                     job_record: dict[str, Any] | None = None
                      ) -> tuple[dict[str, bytes], dict[str, Any], list[str]]:
     """Return (arcname -> bytes, op record, redacted key paths).
+
+    ``job_record`` is the runner job that produced this op, if any
+    (embedded as runner-job.json; never required).
 
     Raises DossierError(404) for unknown ops, 409 for non-terminal ops,
     413 when caps are exceeded.
@@ -118,6 +122,10 @@ def collect_op_files(ops_dir: Path, op_id: str,
     clean_rec = _redact(rec, "", redacted)
     _add("target-op.json", _lf(json.dumps(clean_rec, indent=1)
                                .encode("utf-8")))
+    if isinstance(job_record, dict) and job_record.get("job_id"):
+        _add("runner-job.json", _lf(json.dumps(job_record, indent=1,
+                                               sort_keys=True, default=str)
+                                    .encode("utf-8")))
     ev_p = ops_dir / f"{op_id}.events.jsonl"
     if ev_p.is_file():
         _add("op-events.jsonl", _lf(ev_p.read_bytes()))
@@ -406,7 +414,9 @@ def compare_ops(ops_dir: Path, artifacts_root: Path | None,
 
 
 def render_report(op_id: str, rec: dict[str, Any], files: dict[str, bytes],
-                  redacted: list[str]) -> tuple[str, str]:
+                  redacted: list[str],
+                  job_record: dict[str, Any] | None = None
+                  ) -> tuple[str, str]:
     """Return (report.html, verdict) with verdict in PASS/FAIL/NOT VERIFIED."""
     a = assess_op(op_id, rec, files)
     verdict = a["verdict"]
@@ -439,6 +449,16 @@ def render_report(op_id: str, rec: dict[str, Any], files: dict[str, bytes],
     red_html = ("none" if not redacted else
                 ", ".join(f"<code>{_esc(r, 120)}</code>" for r in redacted))
     why_html = "".join(f"<li>{_esc(w, 200)}</li>" for w in a["why"])
+    if isinstance(job_record, dict) and job_record.get("job_id"):
+        rev = str(job_record.get("revision") or "?")[:12]
+        job_html = (f'job <code>{_esc(job_record.get("job_id"), 64)}</code> · '
+                    f'rev <code>{_esc(rev, 12)}</code> · '
+                    f'adapter <code>{_esc(job_record.get("adapter"), 16)}</code> · '
+                    f'status <code>{_esc(job_record.get("status"), 16)}</code> · '
+                    f'plan <code>{_esc(job_record.get("plan_id") or "none", 64)}</code> '
+                    f'(full record: <code>runner-job.json</code>)')
+    else:
+        job_html = "local op (no runner job linked)"
     cov = a["coverage"]
     if cov["targeted"] is None:
         coverage_html = "unknown (old passport without a coverage record)"
@@ -487,6 +507,7 @@ workflow <code>{_esc((rec.get("workflow") or "?"), 60)}</code> ·
 <h2 id="summary">Executive summary</h2>
 <table><tr><th>Item</th><th>Value</th></tr>
 <tr><td>Machine</td><td>{_esc(a["machine"], 120)}</td></tr>
+<tr><td>CI job</td><td>{job_html}</td></tr>
 <tr><td>Op state</td><td>{_esc(a["state"], 32)}</td></tr>
 <tr><td>Gate verdict</td><td>{_esc(a["gate"], 16)}</td></tr>
 <tr><td>Release eligible</td><td>{_esc(a["release_eligible"], 8)}</td></tr>
@@ -543,15 +564,18 @@ for f,d in m['files'].items()) else 'DIGEST MISMATCH')"
 
 
 def build_dossier_zip(ops_dir: str | Path, op_id: str,
-                      artifacts_root: str | Path | None = None) -> bytes:
+                      artifacts_root: str | Path | None = None,
+                      job_record: dict[str, Any] | None = None) -> bytes:
     """Build the portable dossier ZIP for a terminal op.
 
     Raises DossierError with an HTTP-style status (404/409/413).
     """
     ops_path = Path(ops_dir)
     root = Path(artifacts_root) if artifacts_root else None
-    files, rec, redacted = collect_op_files(ops_path, op_id, root)
-    report, _verdict = render_report(op_id, rec, files, redacted)
+    files, rec, redacted = collect_op_files(ops_path, op_id, root,
+                                            job_record)
+    report, _verdict = render_report(op_id, rec, files, redacted,
+                                     job_record)
     prefix = f"dossier-{op_id}/"
     files["report.html"] = _lf(report.encode("utf-8"))
     files["VERIFY.md"] = _lf(_VERIFY_MD.encode("utf-8"))
