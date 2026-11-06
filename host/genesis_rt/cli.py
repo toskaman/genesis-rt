@@ -380,6 +380,92 @@ def _cmd_verify_pack(args: argparse.Namespace) -> int:
         str(verdict["status"]), 1)
 
 
+def _runner_dirs(args: argparse.Namespace) -> tuple:
+    from pathlib import Path as _P
+    jobs = _P(args.jobs_dir) if args.jobs_dir else REPO_ROOT / "artifacts" / "runner-jobs"
+    ops = _P(args.ops_dir) if args.ops_dir else REPO_ROOT / "artifacts" / "target-ops"
+    return jobs, ops
+
+
+def _cmd_runner_submit(args: argparse.Namespace) -> int:
+    import os as _os
+    import time as _time
+    from . import runner as _runner
+    token = _os.environ.get("GENESIS_RUNNER_TOKEN")
+    if not token:
+        print("GENESIS_RUNNER_TOKEN is not set", file=sys.stderr)
+        return 2
+    jobs_dir, ops_dir = _runner_dirs(args)
+    body = Path(args.job).read_bytes()
+    cfg = _runner.RunnerConfig(
+        repo_root=REPO_ROOT, jobs_dir=jobs_dir, target_ops_dir=ops_dir,
+        image_dir=args.image_dir, adapter=args.adapter)
+    target = None
+    if args.adapter == "local":
+        from .target import TargetRunner
+        target = TargetRunner(ops_dir)
+    try:
+        try:
+            rec = _runner.submit(body, _runner.sign_body(body, token),
+                                 config=cfg, token=token, target=target)
+        except _runner.RunnerAuthError as exc:
+            print(f"auth failed: {exc}", file=sys.stderr)
+            return 1
+        except _runner.RunnerBusy as exc:
+            print(f"target busy: {exc}", file=sys.stderr)
+            return 2
+        except _runner.RunnerError as exc:
+            print(f"rejected: {exc}", file=sys.stderr)
+            return 1
+        if args.no_wait or rec.get("status") in _runner.TERMINAL_JOB:
+            print(json.dumps(rec, indent=2, sort_keys=True, default=str))
+            return 0 if rec.get("status") == "COMPLETED" else 1
+        deadline = _time.time() + rec.get("timeout_s", 600) + 120
+        while _time.time() < deadline:
+            cur = _runner.status(cfg, rec["job_id"]) or {}
+            if cur.get("status") in _runner.TERMINAL_JOB:
+                print(json.dumps(cur, indent=2, sort_keys=True, default=str))
+                return 0 if cur.get("status") == "COMPLETED" else 1
+            _time.sleep(2.0)
+        print(f"timed out waiting for {rec['job_id']}", file=sys.stderr)
+        return 1
+    finally:
+        if target is not None:
+            target.close()
+
+
+def _cmd_runner_status(args: argparse.Namespace) -> int:
+    from . import runner as _runner
+    jobs_dir, _ = _runner_dirs(args)
+    cfg = _runner.RunnerConfig(repo_root=REPO_ROOT, jobs_dir=jobs_dir,
+                               target_ops_dir=REPO_ROOT / "artifacts")
+    rec = _runner.status(cfg, args.job_id)
+    if rec is None:
+        print(f"unknown job: {args.job_id}", file=sys.stderr)
+        return 2
+    print(json.dumps(rec, indent=2, sort_keys=True, default=str))
+    return 0
+
+
+def _cmd_runner_cancel(args: argparse.Namespace) -> int:
+    from . import runner as _runner
+    jobs_dir, ops_dir = _runner_dirs(args)
+    cfg = _runner.RunnerConfig(repo_root=REPO_ROOT, jobs_dir=jobs_dir,
+                               target_ops_dir=ops_dir)
+    from .target import TargetRunner
+    target = TargetRunner(ops_dir)
+    try:
+        try:
+            rec = _runner.cancel(cfg, args.job_id, target)
+        except _runner.RunnerError as exc:
+            print(f"cancel failed: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(rec, indent=2, sort_keys=True, default=str))
+        return 0
+    finally:
+        target.close()
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="genesis-rt", description="GENESIS RT host toolchain")
     sub = p.add_subparsers(dest="command", required=True)
@@ -473,6 +559,19 @@ def build_parser() -> argparse.ArgumentParser:
     vf.add_argument("pack"); vf.add_argument("--trust", required=True)
     vf.add_argument("--json", action="store_true")
     vf.set_defaults(func=_cmd_verify_pack)
+    rs = sub.add_parser("runner-submit", help="submit a signed native-verification job (token in GENESIS_RUNNER_TOKEN)")
+    rs.add_argument("--job", required=True); rs.add_argument("--adapter", default="local", choices=("local", "fake"))
+    rs.add_argument("--jobs-dir", default=None); rs.add_argument("--ops-dir", default=None)
+    rs.add_argument("--image-dir", default=None); rs.add_argument("--no-wait", action="store_true")
+    rs.set_defaults(func=_cmd_runner_submit)
+    rt = sub.add_parser("runner-status", help="show a runner job record")
+    rt.add_argument("--job-id", required=True); rt.add_argument("--jobs-dir", default=None)
+    rt.add_argument("--ops-dir", default=None)
+    rt.set_defaults(func=_cmd_runner_status)
+    rc = sub.add_parser("runner-cancel", help="cancel a runner job")
+    rc.add_argument("--job-id", required=True); rc.add_argument("--jobs-dir", default=None)
+    rc.add_argument("--ops-dir", default=None)
+    rc.set_defaults(func=_cmd_runner_cancel)
     return p
 
 
