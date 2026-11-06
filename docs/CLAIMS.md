@@ -7,8 +7,8 @@ their own historical numbers.
 
 ## Test counts
 
-- With QNX SDK: **1058/1058** (`facts.TESTS_WITH_SDK`).
-- SDK-free: **1053 passed + 5 honest skips** (3 QNX-build + 1 SDK-only
+- With QNX SDK: **1078/1078** (`facts.TESTS_WITH_SDK`).
+- SDK-free: **1073 passed + 5 honest skips** (3 QNX-build + 1 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`).
@@ -52,7 +52,13 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
 - `.github/workflows/host-ci.yml`: host suite + real-browser E2E.
 - `.github/workflows/qnx.yml`: QNX-gated native workflow.
 - `scripts/ci_ir_check.py`: validates changed Machine IRs
-  (`examples/*/*.json`, `projects/*/*.json`) and reports impact.
+  (`examples/**/*.json`, `projects/**/*.json`, renames tracked,
+  deletions verdict-neutral) and reports impact; also emits the
+  ProofOS verification plan (`proofos-plan.json`, schema
+  `host/genesis_rt/proofos.py`), which never grants release
+  eligibility by itself.
+- PR checks diff against the genuine PR base; push checks against
+  the push base (first-push zero-SHA falls back to all IRs).
   Public runners never see QNX credentials or proprietary assets.
 
 ## Video status

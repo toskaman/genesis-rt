@@ -5,6 +5,11 @@ on:
     branches: ["**"]
   pull_request:
 
+# Wave 12 §7: one run per ref; a newer push cancels the older one.
+concurrency:
+  group: host-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   host:
     runs-on: ubuntu-latest
@@ -28,8 +33,23 @@ jobs:
         run: python -m pytest tests/ -q
       - name: GENESIS IR check (changed files)
         run: |
-          GENESIS_CI_BASE="${{ github.event.before }}" PYTHONPATH=host \
-            python scripts/ci_ir_check.py --out ir-ci-report.json
+          # Wave 12 §7: PRs use the genuine PR base; pushes use the
+          # push base (github.event.before is empty on PR events, and
+          # the all-zero SHA of a first push falls back to all IRs).
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          GENESIS_CI_BASE="$BASE" PYTHONPATH=host \
+            python scripts/ci_ir_check.py --out ir-ci-report.json \
+              --plan-out proofos-plan.json
+      - name: Upload ProofOS plan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proofos-plan
+          path: proofos-plan.json
       - name: Upload IR check report
         if: always()
         uses: actions/upload-artifact@v4
