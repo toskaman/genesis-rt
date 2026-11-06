@@ -74,5 +74,5 @@ python evidence/qnx8-x86_64-w11-after/verify.py evidence/qnx8-x86_64-w11-after
 cp -r evidence/qnx8-x86_64-w11-before /tmp/tamperdemo/pack
 # flip 1 byte in transcripts/target-faultinject.log, then:
 python /tmp/tamperdemo/pack/verify.py /tmp/tamperdemo/pack  # rc=2
-python -m pytest tests/ -q   # 1014 with SDK, 0 skips (see facts.py)
+python -m pytest tests/ -q   # 1015 with SDK, 0 skips (see facts.py)
 ```

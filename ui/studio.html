@@ -3017,16 +3017,14 @@ async function openJob(jobId) {
   storeSet('studio.job', jobId);
   try {
     const rec = await api('/jobs/' + encodeURIComponent(jobId));
-    if (rec.state === 'succeeded' || rec.state === 'failed' ||
-        rec.state === 'cancelled' || rec.state === 'interrupted') {
-      Live.jobError = rec.error || null;
-      if (rec.state === 'succeeded') {
-        el('pipe-out').innerHTML = '<p class="note">Loading job…</p>';
-      }
-      finishJob(jobId);
-    } else {
-      openStream(jobId);  // active: attach a fresh stream (dedupe by seq)
-    }
+    Live.jobError = rec.error || null;
+    // Always re-attach via the event stream, even for terminal jobs:
+    // the server replays the full ordered history and then closes the
+    // stream, so the banner + phase log render the true final state.
+    // Rendering finishJob straight from empty events showed finished
+    // jobs as "state active / phase queued" (E2E: navigation/refresh
+    // on slow runners re-attached after completion).
+    openStream(jobId);  // attach a fresh stream (dedupe by seq)
   } catch (e) { el('pipe-out').innerHTML = errHtml('open job failed', e); }
 }
 async function refreshHistory() {

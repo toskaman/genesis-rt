@@ -335,6 +335,45 @@ def test_navigation_during_run_preserves_job(page):
     _cancelled_or_completed(page, job_id)  # end the run quickly
 
 
+def test_reattach_to_finished_job_shows_terminal_state(page):
+    """Re-attach after completion renders the true terminal banner.
+
+    Deterministic regression: openJob used to render finishJob from
+    empty events for terminal jobs, so a finished run re-opened via
+    tab return (or boot restore) showed "state active / phase queued"
+    with no succeeded/failed text. The stream replay now restores the
+    real final state instead.
+    """
+    _pick_example(page)
+    page.locator("#pipe-run").click()
+    page.wait_for_function(
+        "() => (window.Live && Live.jobId) || ''", timeout=30_000)
+    job_id = _job_id(page)
+    page.wait_for_function(
+        "() => { const t = document.querySelector('#pipe-out').innerText;"
+        f" return t.includes('{job_id}') && "
+        "(t.includes('succeeded') || t.includes('failed')); }",
+        timeout=JOB_TIMEOUT_MS)
+    for tab in ("designer", "pipeline"):  # leave + re-attach to finished job
+        page.locator(f'button[data-tab="{tab}"]').click()
+    # Gate on a fresh replay: openJob resets jobEvents, so a nonzero
+    # length proves the re-attach rendered (guards against asserting on
+    # the stale pre-navigation panel). The old terminal path never
+    # repopulated events, so this gate alone fails pre-fix.
+    page.wait_for_function(
+        "() => (window.Live && window.Live.jobEvents.length) > 0",
+        timeout=30_000)
+    page.wait_for_function(
+        "() => { const t = document.querySelector('#pipe-out').innerText;"
+        f" return t.includes('{job_id}') && "
+        "(t.includes('state succeeded') || "
+        "t.includes('state failed') || "
+        "t.includes('state cancelled')); }",
+        timeout=30_000)
+    assert "phase queued" not in page.locator("#pipe-out").inner_text()
+    assert page.locator("#pipe-cancel").is_disabled()  # terminal: no cancel
+
+
 # -- Passport trust ------------------------------------------------------
 
 
