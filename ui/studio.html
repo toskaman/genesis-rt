@@ -188,6 +188,13 @@ verify → measure. IR comes from the source picked in the Pipeline tab.</p>
 <select id="top-cmp-after"></select>
 <button class="ghost" id="top-cmp-run">Compare</button></div>
 <div id="top-compare"><p class="note">Pick two finished ops to compare.</p></div>
+<h3>Native IPC timeline</h3>
+<p class="note">Real SEND → RECV → REPLY → DONE spans from the committed
+native capture (QNX 8.0 on QEMU, CLOCK_MONOTONIC nanoseconds). Device
+spans are not timestamped and stay unknown; QEMU timings guide
+regressions, not hardware guarantees.</p>
+<div class="row"><button class="ghost" id="ipc-load">Load IPC timeline</button></div>
+<div id="ipc-out"><p class="note">Not loaded.</p></div>
 </section>
 
 <section class="tabpage" id="tab-twin" role="tabpanel">
@@ -319,6 +326,13 @@ revisions? Passports travel as raw text (never re-serialized).</p>
 <button class="ghost" id="graph-release">Release check</button>
 </div>
 <div id="graph-releaseout"><p class="note">No release check yet.</p></div>
+<h3>Review brief</h3>
+<p class="note">Paste a ProofOS verification plan (<code>plan.json</code>
+from CI) for a six-paragraph human-readable brief. Invalid plans fail
+closed with reasons; the verdict wording is backend-derived.</p>
+<textarea class="editor" style="min-height:9rem" id="review-plan" aria-label="verification plan JSON" placeholder='{"plan_version": 1, ...}'></textarea>
+<div class="row"><button class="act" id="review-render">Render brief</button></div>
+<div id="review-out"><p class="note">No brief yet.</p></div>
 </section>
 
 <section class="tabpage" id="tab-run" role="tabpanel">
@@ -3181,6 +3195,163 @@ async function graphCompare() {
     out.innerHTML = renderGraphDiffHtml(await postJson('/graphs/compare', body));
   } catch (e) { out.innerHTML = errHtml('graph compare failed', e); }
 }
+/* Pure render core (no DOM): tested under node. Wave 12 §10/§11. */
+function fmtUs(v) {
+  if (v === null || v === undefined) return 'unknown';
+  return Number(v).toFixed(1) + ' µs';
+}
+function renderReviewBriefHtml(summary) {
+  /* Renders the structured proofos.summarize_plan contract: six
+   * sections plus residual risks. Every value is backend-derived. */
+  const s = summary || {};
+  let h = '<h4>What changed</h4>';
+  const changed = s.what_changed || [];
+  if (!changed.length) {
+    h += '<p class="note">No changed files in this plan.</p>';
+  } else {
+    h += '<table><tr><th>path</th><th>status</th><th>before</th>' +
+      '<th>after</th></tr>' + changed.map((c) =>
+      '<tr><td><code>' + esc(c.path) + '</code>' +
+      (c.renamed_from ? ' (was <code>' + esc(c.renamed_from) +
+        '</code>)' : '') + '</td><td>' + esc(c.status) +
+      '</td><td><code>' + esc(c.before || '—') + '</code></td><td><code>' +
+      esc(c.after || '—') + '</code></td></tr>').join('') + '</table>';
+  }
+  const why = s.why_matters || {};
+  h += '<h4>Why it matters</h4><p>Limits changed in ' +
+    esc((why.limits_changed || []).length) + ' file(s)' +
+    ((why.limits_changed || []).map((p) => ' <code>' + esc(p) +
+      '</code>').join('')) + '; requirements changed: ' +
+    esc(why.requirements_changed || 0) + '.</p>';
+  const retest = why.retest_advisory || [];
+  h += retest.length
+    ? '<p>Retest advisory: ' + retest.map((r) => '<code>' + esc(r) +
+      '</code>').join(' ') + '</p>'
+    : '<p class="note">No targeted retest advisory.</p>';
+  const tested = s.what_tested || {};
+  h += '<h4>What was tested</h4><p>Host: ' +
+    (tested.host || []).map((t) => '<code>' + esc(t) + '</code>')
+      .join(' ') + '.</p><p>Native: ' +
+    (tested.native_needed
+      ? esc(tested.native_checks) + ' check(s) required on <code>' +
+        esc(tested.native_platform || '?') + '</code>'
+      : 'not required by this plan') + '.</p>';
+  const hap = s.what_happened || {};
+  h += '<h4>What happened</h4><p>Stage: <code>' +
+    esc(hap.stage || '?') + '</code>.</p>';
+  const hist = hap.history || [];
+  if (hist.length) {
+    h += '<ul>' + hist.map((e) => '<li><code>' + esc(e.stage) +
+      '</code> — ' + esc(e.note || '') + '</li>').join('') + '</ul>';
+  }
+  const trust = s.trust || {};
+  h += '<h4>Can we trust the evidence</h4>' +
+    '<table><tr><th>field</th><th>value</th></tr>' +
+    '<tr><td>plan_id</td><td><code>' + esc(trust.plan_id || '?') +
+    '</code></td></tr><tr><td>generator</td><td><code>' +
+    esc(trust.generator || '?') + '</code></td></tr>' +
+    '<tr><td>source</td><td><code>' + esc(trust.source_commit || '?') +
+    '</code></td></tr><tr><td>base</td><td><code>' +
+    esc(trust.base_commit || '?') + '</code></td></tr>' +
+    '<tr><td>IR report</td><td><code>' +
+    esc(trust.report_sha256 || 'not bound') +
+    '</code></td></tr></table>';
+  const acc = s.can_accept || {};
+  h += '<h4>Can the change be accepted</h4><p>' +
+    (acc.eligible
+      ? '<span class="pass">ELIGIBLE</span>'
+      : '<span class="fail">NOT ELIGIBLE at plan time</span>') +
+    '</p>';
+  const reasons = acc.reasons || [];
+  if (reasons.length) {
+    h += '<ul>' + reasons.map((r) => '<li>' + esc(r) + '</li>')
+      .join('') + '</ul>';
+  }
+  const risks = s.residual_risks || [];
+  if (risks.length) {
+    h += '<h4>Residual risks</h4><ul>' +
+      risks.map((r) => '<li>' + esc(r) + '</li>').join('') + '</ul>';
+  }
+  return h;
+}
+function renderIpcTimelineHtml(data) {
+  if (!data || !data.available) {
+    return '<p class="note">IPC timeline unavailable: ' +
+      esc((data && data.reason) || 'no capture') + '.</p>';
+  }
+  const trips = data.trips || [];
+  if (!trips.length) return '<p class="note">Capture holds no trips.</p>';
+  const maxNs = Math.max.apply(null, trips.map((t) =>
+    ((t.done_ns || 0) - (t.send_ns || 0)) > 0
+      ? (t.done_ns - t.send_ns) : 0).concat([1]));
+  const meta = data.run_meta || {};
+  const qemuExe = String(meta.qemu || '?').split('\\').pop();
+  let h = '<p class="note">Source: ' + esc(data.source || '') +
+    ' · clock: ' + esc(data.clock || '') +
+    ' · instrumentation: <code>' + esc(data.instrumentation || '') +
+    '</code> · image: <code>' + esc(meta.image || '?') +
+    '</code> · ssh port: <code>' + esc(meta.port || '?') +
+    '</code> · qemu: <code>' + esc(qemuExe) + '</code></p>';
+  h += '<table><tr><th>seq</th><th>SEND → RECV → REPLY → DONE</th>' +
+    '<th>round-trip</th><th>guard span</th><th>device span</th>' +
+    '<th>decision</th></tr>';
+  for (const t of trips) {
+    const ok = [t.send_ns, t.recv_ns, t.reply_ns, t.done_ns]
+      .every((v) => typeof v === 'number') && t.done_ns > t.send_ns;
+    let bar;
+    if (!ok) {
+      bar = '<span class="note">incomplete span</span>';
+    } else {
+      const pct = (a, b) => Math.max(1, Math.round(
+        ((b - a) / maxNs) * 100));
+      bar = '<span style="display:inline-flex;width:100%;height:.8em;' +
+        'background:#010409" title="SEND → RECV → REPLY → DONE">' +
+        '<span style="background:#1f6feb;width:' +
+        esc(pct(t.send_ns, t.recv_ns)) + '%;" title="SEND → RECV"></span>' +
+        '<span style="background:#8b949e;width:' +
+        esc(pct(t.recv_ns, t.reply_ns)) + '%;" title="RECV → REPLY (guard)"></span>' +
+        '<span style="background:#1f6feb;width:' +
+        esc(pct(t.reply_ns, t.done_ns)) + '%;" title="REPLY → DONE"></span></span>';
+    }
+    h += '<tr><td><code>' + esc(t.seq) + '</code></td><td>' + bar +
+      '</td><td>' + esc(fmtUs(t.round_trip_us)) + '</td>' +
+      '<td>' + esc(fmtUs(t.guard_span_us)) + '</td>' +
+      '<td>unknown (not measured)</td>' +
+      '<td><code>' + esc(t.decision) + '</code></td></tr>';
+  }
+  h += '</table><p class="note">Blue = client↔guard transit ' +
+    '(SEND → RECV, REPLY → DONE); grey = guard processing (RECV → REPLY). ' +
+    'Exact values are in the table; bars scale to the slowest trip.</p>';
+  for (const w of (data.warnings || [])) {
+    h += '<p class="note">Warning: ' + esc(w) + '</p>';
+  }
+  if ((data.errors || []).length) {
+    h += '<p class="warn">' + esc(data.errors.length) +
+      ' capture error(s); first: <code>' +
+      esc(JSON.stringify(data.errors[0])) + '</code></p>';
+  }
+  return h;
+}
+async function ipcLoad() {
+  const out = el('ipc-out');
+  try {
+    out.innerHTML = renderIpcTimelineHtml(await api('/ipc-timeline'));
+  } catch (e) { out.innerHTML = errHtml('IPC timeline failed', e); }
+}
+async function reviewRender() {
+  const out = el('review-out');
+  let plan;
+  try {
+    plan = JSON.parse(el('review-plan').value);
+  } catch (e) {
+    out.innerHTML = '<p class="fail">Plan is not valid JSON.</p>';
+    return;
+  }
+  try {
+    const got = await postJson('/review/plan', { plan: plan });
+    out.innerHTML = renderReviewBriefHtml(got.summary);
+  } catch (e) { out.innerHTML = errHtml('review brief failed', e); }
+}
 function wireEvidence() {
   el('graphfile').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -3222,6 +3393,7 @@ function wireEvidence() {
   });
   el('graph-compare').addEventListener('click', graphCompare);
   el('graph-release').addEventListener('click', graphRelease);
+  el('review-render').addEventListener('click', reviewRender);
 }
 async function cxExample(selectId) {
   const v = el(selectId).value;
@@ -3482,6 +3654,7 @@ function wireLive() {
   });
   el('top-refresh').addEventListener('click', refreshTargetHistory);
   el('top-cmp-run').addEventListener('click', compareTargetOps);
+  el('ipc-load').addEventListener('click', ipcLoad);
   el('pipe-cancel').addEventListener('click', async () => {
     if (!Live.jobId) return;
     try {

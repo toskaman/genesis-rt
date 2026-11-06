@@ -91,6 +91,9 @@ if BaseModel is not None:
         passport: dict[str, Any] | str
         scenario: str
 
+    class PlanRequest(BaseModel):
+        plan: dict[str, Any]
+
 else:  # pragma: no cover - import-time fallback without the api extra
     RunRequest = None  # type: ignore[assignment, misc]
     CompareRequest = None  # type: ignore[assignment, misc]
@@ -101,6 +104,7 @@ ARTIFACTS = REPO_ROOT / "artifacts" / "runs"
 MAX_IR_BYTES = 256 * 1024
 MAX_SCENARIOS = 32
 MAX_PASSPORT_TEXT = 3 * 1024 * 1024
+MAX_PLAN_BYTES = 256 * 1024
 
 # Canonical run_id rule lives in orchestrator (single source of truth);
 # the API re-checks early for 400 mapping, run_pipeline enforces it.
@@ -174,6 +178,7 @@ def create_app() -> Any:
     from .orchestrator import active_runs, request_cancel
     from .projects import (ProjectFull, ProjectNotFound, ProjectStore,
                            summarize, validate_any, valid_project_id)
+    from .proofos import summarize_plan, validate_plan
 
     db_path = ARTIFACTS / "runs.db"
     mgr = JobManager(db_path, ARTIFACTS)
@@ -928,6 +933,71 @@ def create_app() -> Any:
         except ValueError as exc:
             raise HTTPException(400, f"bad request: {exc}") from exc
         return JSONResponse(status)
+
+    @app.get("/ipc-timeline")
+    def get_ipc_timeline() -> JSONResponse:
+        # Wave 12 §11: serve the committed native capture only
+        # (server-side path, no user input). Missing spans stay null.
+        base = REPO_ROOT / "evidence" / "ipc-timeline"
+        try:
+            payload = json.loads((base / "timeline.json").read_text(
+                encoding="utf-8"))
+            meta = json.loads((base / "run-meta.json").read_text(
+                encoding="utf-8"))
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            return JSONResponse({"available": False,
+                                 "reason": "committed capture not found",
+                                 "source": "evidence/ipc-timeline"})
+
+        def _span(trip: dict[str, Any], a: str, b: str) -> float | None:
+            x, y = trip.get(a), trip.get(b)
+            if isinstance(x, int) and isinstance(y, int):
+                return round((y - x) / 1000.0, 3)
+            return None
+
+        trips = []
+        raw = payload.get("trips", {})
+        for seq in sorted(raw, key=lambda s: int(s)):
+            trip = raw[seq]
+            trips.append({
+                "seq": int(seq),
+                "send_ns": trip.get("send"),
+                "recv_ns": trip.get("recv"),
+                "reply_ns": trip.get("reply"),
+                "done_ns": trip.get("done"),
+                "decision": trip.get("decision"),
+                "round_trip_us": _span(trip, "send", "done"),
+                "guard_span_us": _span(trip, "recv", "reply"),
+                "device_span_us": None,  # not timestamped: unknown
+            })
+        return JSONResponse({
+            "available": True,
+            "source": "evidence/ipc-timeline (committed Wave 11 capture)",
+            "instrumentation": "GENESIS_IPC_TRACE=1",
+            "clock": "QNX CLOCK_MONOTONIC, nanoseconds",
+            "processes": {"client": "genesis_faultinject bench",
+                          "guard": "genesis_guard"},
+            "trips": trips,
+            "errors": payload.get("errors", []),
+            "run_meta": meta,
+            "warnings": [
+                "QEMU timings: regression aids, not hardware or "
+                "worst-case guarantees",
+                "device-forward events are not timestamped "
+                "(unknown, never invented)"],
+        })
+
+    @app.post("/review/plan")
+    def post_review_plan(req: PlanRequest) -> JSONResponse:
+        # Wave 12 §10: fail-closed brief for one verification plan.
+        if len(json.dumps(req.plan)) > MAX_PLAN_BYTES:
+            raise HTTPException(400, "plan payload too large")
+        errors = validate_plan(req.plan)
+        if errors:
+            return JSONResponse({"valid": False, "errors": errors},
+                                status_code=400)
+        return JSONResponse({"valid": True,
+                             "summary": summarize_plan(req.plan)})
 
     @app.post("/explore")
     def post_explore(req: ExploreRequest) -> JSONResponse:

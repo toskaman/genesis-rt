@@ -186,6 +186,73 @@ def validate_plan(plan: Any) -> list[str]:
     return errors
 
 
+def summarize_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    """Human-readable review brief for one validated plan (pure).
+
+    Answers the six reviewer questions. Every string derives from
+    plan fields; nothing is inferred. ``residual_risks`` names what
+    the plan alone cannot settle.
+    """
+    changes = plan.get("changes", [])
+    retest: list[str] = []
+    for entry in changes:
+        for scen in entry.get("retest") or []:
+            item = f"{entry.get('path')}:{scen}"
+            if item not in retest:
+                retest.append(item)
+    native = plan.get("required_native_checks", [])
+    target = plan.get("target_requirements", {})
+    release = plan.get("release_status", {})
+    risks: list[str] = []
+    if any(not c.get("valid") for c in changes):
+        risks.append("invalid IR entries must be fixed before any "
+                     "verification counts")
+    if target.get("needed") and plan.get("stage") in (
+            "CHANGE_DETECTED", "IR_VALIDATED", "IMPACT_ANALYZED",
+            "HOST_VERIFIED", "NATIVE_PENDING"):
+        risks.append("native target verification still pending: host "
+                     "results alone cannot release this change")
+    if not target.get("needed"):
+        risks.append("no native checks required by this plan (no "
+                     "contract change detected)")
+    risks.append("plan authenticity: unsigned in transit "
+                 "(signed plans: see evidence-trust policy)")
+    return {
+        "what_changed": [
+            {"path": c.get("path"), "status": c.get("status"),
+             "renamed_from": c.get("renamed_from"),
+             "before": (c.get("ir_sha256_before") or "")[:12] or None,
+             "after": (c.get("ir_sha256_after") or "")[:12] or None}
+            for c in changes],
+        "why_matters": {
+            "limits_changed": [c.get("path") for c in changes
+                               if c.get("limits_changed")],
+            "requirements_changed": sum(
+                int(c.get("requirements_changed") or 0)
+                for c in changes),
+            "retest_advisory": retest},
+        "what_tested": {
+            "host": list(plan.get("required_host_tests", [])),
+            "native_needed": bool(target.get("needed")),
+            "native_platform": target.get("platform"),
+            "native_checks": len(native)},
+        "what_happened": {
+            "stage": plan.get("stage"),
+            "history": list(plan.get("stage_history", []))},
+        "trust": {
+            "plan_id": plan.get("plan_id"),
+            "generator": plan.get("generator"),
+            "source_commit": plan.get("source_commit"),
+            "base_commit": plan.get("base_commit"),
+            "report_sha256": (plan.get("evidence") or {}).get(
+                "ir_report_sha256")},
+        "can_accept": {
+            "eligible": bool(release.get("eligible", False)),
+            "reasons": list(release.get("reasons", []))},
+        "residual_risks": risks,
+    }
+
+
 def advance(plan: dict[str, Any], to: str,
             note: str = "") -> dict[str, Any]:
     """Move a plan to a new stage (returns a new dict; raises ValueError
