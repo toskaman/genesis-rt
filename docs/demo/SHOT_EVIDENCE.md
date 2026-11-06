@@ -44,3 +44,35 @@ python evidence/qnx8-x86_64-verified-b22cea1/verify.py
 PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
 python -m pytest tests/ -q   # 890 with SDK, 885 + 5 skips without
 ```
+
+## Wave 11 final edit (genesis-rt-demo-w11.mp4, 154.6 s)
+
+Every frame is captured software or a verbatim terminal card (long
+lines wrapped for legibility; bytes unchanged). Proof cards render
+the exact stdout of the commands below.
+
+| Segment | Screen content | Evidence |
+|---|---|---|
+| title 0-4 | Title card | edit asset |
+| s1 4-15 | Judge Mode stage A (LIVE) | `examples/amr-demo/machine-ir.json` |
+| s2 15-28.7 | Designer validation OK, limit 1.2 | `POST /validate` 200 |
+| s3 28.7-43.5 | Source pin MATCH (pack header) | `evidence/qnx8-x86_64-w11-before/sources/` |
+| s4 43.5-60.2 | op-d08d3d3ea346 COMPLETED, 16/16 PASS | local op store + BEFORE pack |
+| s5 60.2-72 | Live fault job, targeted PASS | run-ce237c9af65d (artifacts, git-ignored) |
+| s6 72-89.6 | Evidence graph, 22 nodes | same run passport |
+| s7 89.6-110.3 | BEFORE/AFTER compare, both PASS + flip | ops A/B + comparison manifest |
+| s7c 110.3-117 | Campaign C FAIL (stale build) | op-ad562b34f8de (local only) |
+| s8a 117-124 | BEFORE pack verify OK | command below |
+| s8b 124-131 | AFTER pack verify OK | command below |
+| s8c 131-139 | 1-byte tamper FAIL (rc=2) | /tmp reproduction below |
+| s9 139-149.6 | Judge stage G (the value) | live Studio |
+| end 149.6-154.6 | End card | edit asset |
+
+```sh
+python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before
+python evidence/qnx8-x86_64-w11-after/verify.py evidence/qnx8-x86_64-w11-after
+cp -r evidence/qnx8-x86_64-w11-before /tmp/tamperdemo/pack
+# flip 1 byte in transcripts/target-faultinject.log, then:
+python /tmp/tamperdemo/pack/verify.py /tmp/tamperdemo/pack  # rc=2
+python -m pytest tests/ -q   # 1014 with SDK, 0 skips (see facts.py)
+```

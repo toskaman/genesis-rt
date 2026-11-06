@@ -55,6 +55,7 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'esc') return esc(c.arg);
     if (c.fn === 'irsha') return irShaOfText(c.arg);
     if (c.fn === 'intent') { const r = renderIntentHtml(c.arg); return r.ok ? r.sha : 'ERR:' + r.html; }
+    if (c.fn === 'intent_auth') { const j = JSON.parse(c.arg); const r = renderIntentHtml(j.text, j.sha); return [r.ok, r.sha, r.html.includes(j.sha)]; }
     if (c.fn === 'provenance') return parseProvenance(c.arg);
     if (c.fn === 'source') { const j = JSON.parse(c.arg); return renderSourceHtml(j.files, j.irSha); }
     if (c.fn === 'lab') return renderLabHtml(passportScenarios(JSON.parse(c.arg)));
@@ -204,6 +205,18 @@ def test_studio_irsha_matches_python(repo_root, tmp_path):
         got = _run_js([{"fn": "irsha", "arg": raw},
                        {"fn": "intent", "arg": raw}], tmp_path)
         assert got == [want, want], name
+
+
+@node
+def test_intent_authoritative_sha_override(repo_root, tmp_path):
+    """Backend digest overrides the live JS recomputation in the banner."""
+    raw = (repo_root / "examples" / "amr-demo" / "machine-ir.json"
+           ).read_text(encoding="utf-8")
+    auth = "ab" * 32
+    got = _run_js([{"fn": "intent_auth",
+                    "arg": json.dumps({"text": raw, "sha": auth})}],
+                  tmp_path)
+    assert got == [[True, auth, True]]
 
 
 @node
@@ -672,6 +685,8 @@ def test_live_release_banner_targeted_and_full(amr_ir, tmp_path):
     assert "TARGETED run" in sub and "PENDING" in sub
     assert "NOT release eligible" in sub
     assert "stale_proximity_150ms" in sub  # one omitted scenario
+    assert "2 of 8" in sub  # numeric coverage counts, not list lengths
+    assert "undefined" not in sub and "undefined" not in full
     assert "Full coverage" in full and ">NO<" in full
     assert "No gate record" in none
 

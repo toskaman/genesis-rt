@@ -366,7 +366,7 @@ function irShaOfText(text) {
   return sha256Hex(enc.encode(canonNode(root)));
 }
 
-function renderIntentHtml(text) {
+function renderIntentHtml(text, authoritativeSha) {
   let p;
   try { p = JSON.parse(text); } catch (e) {
     return { ok: false, html: '<p class="fail">Not valid JSON.</p>' };
@@ -378,6 +378,10 @@ function renderIntentHtml(text) {
   try { sha = irShaOfText(text); } catch (e) {
     return { ok: false, html: '<p class="fail">IR rejected by strict parse: ' + esc(e.message) + '</p>' };
   }
+  // Backend digest wins when the text went through JS reserialization
+  // (JSON.stringify spells 1.0 as 1, which a literal-sensitive hash
+  // cannot forgive); the live value stays as instant pre-POST feedback.
+  if (authoritativeSha) sha = authoritativeSha;
   const m = p.machine, c = p.control;
   const sens = Array.isArray(p.sensors) ? p.sensors : [];
   const fresh = sens.length ? Math.min(...sens.map(s => s.freshness_limit_ms)) : '?';
@@ -1631,7 +1635,11 @@ function renderReleaseBannerHtml(gateRec) {
   }
   const cov = gateRec.coverage || {};
   const omitted = cov.omitted || [];
-  const req = (cov.required || []).length, dec = (cov.declared || []).length;
+  // Backend sends counts as numbers (older shapes used lists);
+  // never render "undefined" for a missing count.
+  const num = (v) => (typeof v === 'number' && isFinite(v) ? v
+    : (Array.isArray(v) ? v.length : '?'));
+  const req = num(cov.required), dec = num(cov.declared);
   if (omitted.length) {
     return '<div class="banner">TARGETED run: ' + esc(req) + ' of ' +
       esc(dec) + ' declared scenarios required — full verification ' +
@@ -1718,6 +1726,17 @@ function onTabSwitch(name) {
   } catch (e) { /* private mode: persistence unavailable */ }
   if (typeof Live !== 'undefined' && Live && Live.es && name !== 'pipeline') Live.closeStream();
   if (typeof Live !== 'undefined' && Live && Live.closeTargetStream && name !== 'target') Live.closeTargetStream();
+  // Returning with a detached run must re-attach: otherwise the job/op
+  // keeps running server-side while the UI shows a stale view with a
+  // permanently disabled Cancel (E2E: navigation_during_run).
+  if (name === 'pipeline' && typeof Live !== 'undefined' && Live &&
+      Live.jobId && !Live.es && typeof openJob === 'function') {
+    openJob(Live.jobId);
+  }
+  if (name === 'target' && typeof Live !== 'undefined' && Live &&
+      Live.opId && !Live.topEs && typeof openTargetOp === 'function') {
+    openTargetOp(Live.opId);
+  }
   if (name !== 'twin' && typeof stopTwin === 'function') stopTwin();
   if (name === 'judge' && typeof renderJudge === 'function') renderJudge();
 }
@@ -2511,9 +2530,11 @@ function designerUseText(text, summary, pid) {
     el('intent-out').innerHTML = renderSummaryHtml(summary) + r.html;
     el('designer-graph').innerHTML = stateGraphSvg(summary);
     el('designer-err').innerHTML = '';
-  } else {
-    designerValidate();
   }
+  // Always re-validate: only the backend digest is spelling-stable
+  // (JSON reserialization turns 1.0 into 1), and the Source pin
+  // check compares against it.
+  designerValidate();
   el('des-save').disabled = !Live.projectPid;
 }
 function locateInEditor(needle) {
@@ -2554,7 +2575,12 @@ async function designerValidate() {
   el('intent-out').innerHTML = r.html;
   try {
     const res = await postJson('/validate', { ir: doc });
-    el('intent-out').innerHTML = renderSummaryHtml(res.summary) + r.html;
+    // Authoritative digest of the validated doc (spelling-stable);
+    // the live JS value above is instant feedback only.
+    Studio.irSha = res.ir_sha256 || Studio.irSha;
+    const settled = renderIntentHtml(text, Studio.irSha);
+    el('intent-out').innerHTML = renderSummaryHtml(res.summary) +
+      (settled.ok ? settled.html : r.html);
     el('designer-graph').innerHTML = stateGraphSvg(res.summary);
     el('designer-err').innerHTML =
       '<p class="pass">Backend validation: OK (schema v' +

@@ -742,7 +742,13 @@ def create_app() -> Any:
             version, valid = validate_any(req.ir)
         except IRValidationError as exc:
             raise HTTPException(400, f"invalid IR: {exc}") from exc
-        return JSONResponse({"ok": True, "summary": summarize(version, valid)})
+        # Authoritative digest of the VALIDATED doc: unlike a JS
+        # recomputation over reserialized text (JSON.stringify turns
+        # 1.0 into 1), this is int/float-spelling stable, so the
+        # Source tab pin check compares against it.
+        from .codegen import ir_sha256
+        return JSONResponse({"ok": True, "summary": summarize(version, valid),
+                             "ir_sha256": ir_sha256(valid)})
 
     def _project_or_404(pid: str) -> str:
         if not valid_project_id(pid):

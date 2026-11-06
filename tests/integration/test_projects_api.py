@@ -59,6 +59,29 @@ def test_validate_ok_and_invalid(client, amr_ir_dict):
     assert "invalid IR" in r.text
 
 
+def test_validate_returns_stable_ir_sha256(client, amr_ir_dict):
+    """ir_sha256 is the digest of the VALIDATED doc (Source pin source).
+
+    Regression: the Studio pin check hashed reserialized text, and
+    JSON.stringify spells 1.0 as 1, so genuine generated files showed
+    MISMATCH. The backend digest survives int/float respelling.
+    """
+    import copy
+
+    from genesis_rt.codegen import ir_sha256
+    from genesis_rt.projects import validate_any
+
+    r = client.post("/validate", json={"ir": amr_ir_dict})
+    assert r.status_code == 200
+    _, valid = validate_any(amr_ir_dict)
+    assert r.json()["ir_sha256"] == ir_sha256(valid)
+    damaged = copy.deepcopy(amr_ir_dict)
+    damaged["control"]["max_angular_speed_radps"] = 1  # JS spells 1.0 so
+    r2 = client.post("/validate", json={"ir": damaged})
+    assert r2.status_code == 200
+    assert r2.json()["ir_sha256"] == r.json()["ir_sha256"]
+
+
 def test_create_from_example_defaults_name(client):
     body = _mk(client)
     assert body["name"] == "amr-demo-01"

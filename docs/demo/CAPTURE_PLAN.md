@@ -32,6 +32,36 @@ shots 1, 5, and 7 end-to-end.
   box. Narration script + timed subtitles are ready for the owner.
 - Final edit + YouTube upload: OWNER HANDOFF (needs account + voice).
 
+## Wave 11 final edit (6 Nov 2026) -- VISUAL COMPLETE
+
+The Wave 10 take above is superseded as the story: AFTER now PASSES
+with its own passport (contract-aware oracle), and the fail-closed
+beat moved to Campaign C (stale build refused).
+
+Final: `docs/demo/genesis-rt-demo-w11.mp4` (154.6 s, 1920x1080,
+H.264/yuv420p, silent) + `docs/demo/subtitles-w11.srt` (21 cues).
+
+Deterministic pipeline (re-runnable, real data only):
+
+```sh
+set PYTHONPATH=host
+python docs/demo/capture_w11.py --out docs/demo/footage-w11 \
+  --scenes s1,s2,s3,s4,s5,s6,s7,s7c,s9
+python docs/demo/assemble_w11.py --footage docs/demo/footage-w11 \
+  --out docs/demo/genesis-rt-demo-w11.mp4
+```
+
+- `capture_w11.py`: Playwright scenes against the live Studio + real
+  local op store (W11 ops A/B/C); s5 runs a genuine fault job.
+- `assemble_w11.py`: title/end cards + verbatim terminal proof cards
+  (verify BEFORE/AFTER + 1-byte tamper FAIL) + concat; asserts < 180 s
+  and prints the subtitle timeline.
+- Raw clips: `docs/demo/footage-w11/s*.webm` (kept as edit sources).
+
+Remaining owner handoffs (see `NARRATION_W11.md`): voiceover
+recording + YouTube upload. The shipped edit is silent-by-design
+with full timed subtitles.
+
 ## Rules (binding)
 
 - No mockups, no precomputed PASS, no hardware claims. QEMU is
