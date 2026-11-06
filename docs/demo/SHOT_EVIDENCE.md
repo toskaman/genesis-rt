@@ -3,7 +3,14 @@
 Every demo claim resolves to a file, an op, or a command. Nothing
 on screen is staged.
 
-## Ops (local target store `artifacts/runs/target-ops/`)
+> Wave 12 note: the current submission video is the voiced
+> `genesis-rt-demo-w12.mp4` (154.664 s, AAC). Its manifest is the
+> "Wave 11 final edit" table below (same timeline + visuals) plus
+> `MEDIA_VALIDATION_W12.md` (§4B audit: 0 drift lines) and
+> `subtitles-w12.srt`. Sections marked HISTORICAL describe
+> Wave ≤10 assets and are kept for provenance only.
+
+## [HISTORICAL — Wave ≤10] Ops (local target store `artifacts/runs/target-ops/`)
 
 - BEFORE `op-0350e9bd4818`: COMPLETED 13/13 stages, matrix 16/16
   PASS, 1000 perf samples, gate PASS `QNX_PERFORMANCE_MEASURED`,
@@ -16,7 +23,7 @@ on screen is staged.
   IR digest `fb2dbb3de8a19546d29be71b55e9f89bc37241627339430d11fea40c319e4d5c`.
 - Detail: `docs/jury/BEFORE_AFTER_NATIVE.md`.
 
-## Public evidence pack (no SDK needed)
+## [HISTORICAL — Wave ≤10] Public evidence pack (no SDK needed)
 
 - `evidence/qnx8-x86_64-verified-b22cea1/`: BEFORE passport,
   target + perf records, transcripts, `verify.py`,
@@ -24,7 +31,7 @@ on screen is staged.
 - Tamper control: the pack verifier rejects modified bundles
   (negative tests in `tests/integration/test_evidence_pack.py`).
 
-## Shots
+## [HISTORICAL — Wave ≤10] Shots
 
 | Shot | Evidence |
 |---|---|
@@ -37,7 +44,7 @@ on screen is staged.
 | 8 passport + replay | BEFORE `passport.json` + `scripts/replay.py` MATCH |
 | 9 value + dossier | `/target/ops/op-0350e9bd4818/dossier` (.zip: report + manifest + raw + VERIFY.md) |
 
-## Verification commands (reviewer)
+## [HISTORICAL — Wave ≤10] Verification commands (reviewer)
 
 ```sh
 python evidence/qnx8-x86_64-verified-b22cea1/verify.py

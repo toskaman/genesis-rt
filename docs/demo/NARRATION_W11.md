@@ -65,14 +65,21 @@ printed by `docs/demo/assemble_w11.py`:
 | 139.0-149.6 | s9 | Judge stage G (the value) |
 | 149.6-154.6 | end | End card |
 
-## Voice handoff (owner action)
+## Voice handoff (owner action) — CLOSED in Wave 12
 
-Status: NOT RECORDED. No authorized natural-English voice option is
-available on this box (no TTS service, no studio mic configured), so
-the shipped MP4 is intentionally silent with full timed subtitles.
+Wave 11 status was NOT RECORDED (silent MP4 + timed subtitles).
+Wave 12 recorded the script with local Piper TTS
+(`en_US-lessac-medium`): see `voiceover-w12.txt` (editable script),
+`voiceover-w12.flac` (lossless voice source), `VOICEOVER_W12.json`
+(render report), `subtitles-w12.srt` (re-timed captions) and the
+voiced `genesis-rt-demo-w12.mp4` (154.664 s, AAC). Validation:
+`MEDIA_VALIDATION_W12.md`. Remaining owner actions (listen-once,
+YouTube upload, Devpost URL): `PUBLICATION_HANDOFF_W12.md`.
 
-To finish: record the script above (~2:20 at narration pace), mix
-under no music (or a licensed bed), mux:
+Note: the Wave 11 draft mux below used `-shortest`, which risks
+truncating the video to a shorter audio track. The Wave 12 pipeline
+builds the audio to exactly the video length and muxes without
+`-shortest` (guarded with `-t 154.664`) — do not use the old form:
 
 ```sh
 ffmpeg -i genesis-rt-demo-w11.mp4 -i voiceover.wav \

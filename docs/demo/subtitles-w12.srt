@@ -1,0 +1,103 @@
+1
+00:00:00,500 --> 00:00:04,000
+GENESIS RT: the physical world compiler for QNX
+
+2
+00:00:04,200 --> 00:00:09,901
+Embedded software must behave correctly
+even when real systems fail. This is Genesis RT:
+
+3
+00:00:09,901 --> 00:00:14,580
+Describe a machine, generate native QNX software,
+and prove it behaves.
+
+4
+00:00:15,200 --> 00:00:19,681
+Everything starts from a machine contract:
+sensors, actuators, safety limits.
+
+5
+00:00:19,681 --> 00:00:23,890
+The designer validates every field
+before anything is built.
+
+6
+00:00:29,000 --> 00:00:32,960
+Genesis generates the QNX controller:
+guard policy and build files.
+
+7
+00:00:32,960 --> 00:00:37,070
+Each file carries its source hash,
+pinned against the contract.
+
+8
+00:00:43,800 --> 00:00:50,447
+Then it runs for real: compiled with the QNX
+toolchain, executed on QNX 8 under QEMU.
+
+9
+00:00:50,447 --> 00:00:54,040
+Sixteen checks, a thousand performance samples.
+Gate: PASS.
+
+10
+00:01:00,500 --> 00:01:06,456
+Now break it: a stale-sensor fault is injected live.
+The guard answers; the run records it.
+
+11
+00:01:06,456 --> 00:01:10,050
+A targeted verdict -- honest about
+what was not re-tested.
+
+12
+00:01:12,300 --> 00:01:17,503
+Diagnose with the evidence graph: every verdict
+links back to scenarios, binaries, requirements.
+
+13
+00:01:17,503 --> 00:01:22,090
+Click any node: the proof behind the claim,
+ready for review.
+
+14
+00:01:29,900 --> 00:01:35,789
+Change one limit -- 1.2 to 1.6 meters per second --
+and verify both revisions.
+
+15
+00:01:35,789 --> 00:01:42,260
+Before denies the 1.5 command; after allows it.
+Same rigor, new behavior -- two passports.
+
+16
+00:01:50,500 --> 00:01:55,750
+A stale build bound to the new contract
+is refused. No passport. Fail closed.
+
+17
+00:01:57,300 --> 00:02:00,944
+Both passports replay independently --
+no servers, no trust-me step.
+
+18
+00:02:00,944 --> 00:02:04,968
+Before and after verify clean:
+thirty-four files, fifteen links each.
+
+19
+00:02:04,968 --> 00:02:10,660
+Flip a single byte, and the verifier
+rejects the pack. Evidence you can defend.
+
+20
+00:02:19,300 --> 00:02:24,600
+Specify. Compile. Run. Break. Prove.
+Genesis RT for QNX.
+
+21
+00:02:30,000 --> 00:02:34,000
+Evidence your whole team can inspect.
+

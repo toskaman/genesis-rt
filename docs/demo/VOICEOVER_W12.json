@@ -1,0 +1,101 @@
+{
+  "video": "docs/demo/genesis-rt-demo-w11.mp4",
+  "video_duration_s": 154.664,
+  "sample_rate": 22050,
+  "voice": "en_US-lessac-medium",
+  "blocks": [
+    {
+      "index": 0,
+      "start": 4.2,
+      "duration": 10.23,
+      "end": 14.43,
+      "gap_after_prev": 4.2,
+      "bleed_into_next": 0.0,
+      "words": 25
+    },
+    {
+      "index": 1,
+      "start": 15.2,
+      "duration": 8.54,
+      "end": 23.74,
+      "gap_after_prev": 0.77,
+      "bleed_into_next": 0.0,
+      "words": 19
+    },
+    {
+      "index": 2,
+      "start": 29.0,
+      "duration": 7.92,
+      "end": 36.92,
+      "gap_after_prev": 5.26,
+      "bleed_into_next": 0.0,
+      "words": 20
+    },
+    {
+      "index": 3,
+      "start": 43.8,
+      "duration": 10.09,
+      "end": 53.89,
+      "gap_after_prev": 6.88,
+      "bleed_into_next": 0.0,
+      "words": 24
+    },
+    {
+      "index": 4,
+      "start": 60.5,
+      "duration": 9.4,
+      "end": 69.9,
+      "gap_after_prev": 6.61,
+      "bleed_into_next": 0.0,
+      "words": 25
+    },
+    {
+      "index": 5,
+      "start": 72.3,
+      "duration": 9.64,
+      "end": 81.94,
+      "gap_after_prev": 2.4,
+      "bleed_into_next": 0.0,
+      "words": 24
+    },
+    {
+      "index": 6,
+      "start": 89.9,
+      "duration": 12.21,
+      "end": 102.11,
+      "gap_after_prev": 7.96,
+      "bleed_into_next": 0.0,
+      "words": 27
+    },
+    {
+      "index": 7,
+      "start": 110.5,
+      "duration": 5.1,
+      "end": 115.6,
+      "gap_after_prev": 8.39,
+      "bleed_into_next": 0.0,
+      "words": 14
+    },
+    {
+      "index": 8,
+      "start": 117.3,
+      "duration": 13.21,
+      "end": 130.51,
+      "gap_after_prev": 1.7,
+      "bleed_into_next": 0.0,
+      "words": 33
+    },
+    {
+      "index": 9,
+      "start": 139.3,
+      "duration": 5.15,
+      "end": 144.45,
+      "gap_after_prev": 8.79,
+      "bleed_into_next": 0.0,
+      "words": 9
+    }
+  ],
+  "total_words": 220,
+  "peak_abs": 32767,
+  "overruns": []
+}

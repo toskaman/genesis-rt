@@ -1,0 +1,61 @@
+# Wave 12 voiceover script (TTS source of truth)
+#
+# Same words as NARRATION_W11.md, with TTS-only spelling adjustments
+# (subtitles keep the original spelling):
+#   QEMU  -> Q-Emu   (espeak phonemizes plain QEMU as "keh-moo";
+#                     Q-Emu renders "kyoo-ee-myoo", the natural reading)
+#   --    -> .      (sentence break; piper pauses on periods)
+# QNX renders "cue-en-ex" and GENESIS RT "genesis ar tee" verbatim
+# (verified via piper --debug phoneme dump, Wave 12 audit).
+# Numbers stay numeric ("one point two"). No other changes.
+#
+# Format: ## <start-seconds> then one paragraph per block.
+# Render: python docs/demo/voiceover_w12.py --script this file
+#         --voice-dir <piper voices> --out docs/demo/voiceover-w12.wav
+
+## 4.2
+Embedded software must behave correctly even when real systems
+fail. This is Genesis RT: describe a machine, generate native QNX
+software, and prove it behaves.
+
+## 15.2
+Everything starts from a machine contract: sensors, actuators,
+safety limits. The designer validates every field before anything
+is built.
+
+## 29.0
+Genesis generates the QNX controller: guard policy and build files.
+Each file carries its source hash, pinned against the contract.
+
+## 43.8
+Then it runs for real: compiled with the QNX toolchain, executed on
+QNX 8 under Q-Emu. Sixteen checks, a thousand performance samples.
+Gate: PASS.
+
+## 60.5
+Now break it: a stale-sensor fault is injected live. The guard
+answers; the run records it. A targeted verdict. Honest about what
+was not re-tested.
+
+## 72.3
+Diagnose with the evidence graph: every verdict links back to
+scenarios, binaries, requirements. Click any node: the proof behind
+the claim, ready for review.
+
+## 89.9
+Change one limit. 1.2 to 1.6 meters per second. And verify both
+revisions. Before denies the 1.5 command; after allows it. Same
+rigor, new behavior. Two passports.
+
+## 110.5
+A stale build bound to the new contract is refused. No passport.
+Fail closed.
+
+## 117.3
+Both passports replay independently. No servers, no trust-me step.
+Before and after verify clean: thirty-four files, fifteen links
+each. Flip a single byte, and the verifier rejects the pack.
+Evidence you can defend.
+
+## 139.3
+Specify. Compile. Run. Break. Prove. Genesis RT for QNX.
