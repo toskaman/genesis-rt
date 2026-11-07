@@ -18,9 +18,9 @@ try { var t = localStorage.getItem('studio.theme'); if (t === 'light' || t === '
    default; light follows the OS unless the viewer picks a theme. */
 :root {
   color-scheme: dark;
-  --bg:#0d1117; --panel:#0f141b; --surface:#161b22; --surface-2:#21262d; --sunken:#010409;
-  --border:#30363d; --fg:#e6edf3; --mut:#9da7b3; --accent:#1f6feb; --on-accent:#ffffff;
-  --focus:#79c0ff; --ok:#3fb950; --bad:#f85149; --warn:#d29922; --bad-bg:#5a1f1f;
+  --bg:#0b1017; --panel:#10161f; --surface:#151c26; --surface-2:#1c2632; --sunken:#070b10;
+  --border:#2c3949; --control-border:#5b6c82; --fg:#f2f5f9; --mut:#a8b7c8; --accent:#2f6fbf; --accent-fg:#669cda; --on-accent:#ffffff;
+  --focus:#8bb8ec; --ok:#50c6a6; --bad:#e87982; --warn:#e3b36a; --bad-bg:#3a1d22;
   --radius:6px; --space-1:.25rem; --space-2:.5rem; --space-3:1rem; --space-4:1.5rem;
   --font-ui:system-ui,-apple-system,"Segoe UI",sans-serif; --font-mono:ui-monospace,"Cascadia Mono",monospace;
   --motion:120ms ease-out;
@@ -28,14 +28,14 @@ try { var t = localStorage.getItem('studio.theme'); if (t === 'light' || t === '
 :root[data-theme="light"] {
   color-scheme: light;
   --bg:#ffffff; --panel:#f6f8fa; --surface:#f6f8fa; --surface-2:#eaeef2; --sunken:#ffffff;
-  --border:#8c959f; --fg:#1f2328; --mut:#57606a; --accent:#0969da; --on-accent:#ffffff;
+  --border:#8c959f; --control-border:#6e7781; --fg:#1f2328; --mut:#57606a; --accent:#0969da; --accent-fg:#0969da; --on-accent:#ffffff;
   --focus:#0550ae; --ok:#1a7f37; --bad:#cf222e; --warn:#9a6700; --bad-bg:#ffebe9;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
     --bg:#ffffff; --panel:#f6f8fa; --surface:#f6f8fa; --surface-2:#eaeef2; --sunken:#ffffff;
-    --border:#8c959f; --fg:#1f2328; --mut:#57606a; --accent:#0969da; --on-accent:#ffffff;
+    --border:#8c959f; --control-border:#6e7781; --fg:#1f2328; --mut:#57606a; --accent:#0969da; --accent-fg:#0969da; --on-accent:#ffffff;
     --focus:#0550ae; --ok:#1a7f37; --bad:#cf222e; --warn:#9a6700; --bad-bg:#ffebe9;
   }
 }
@@ -45,7 +45,7 @@ canvas { background:#0d1117; border-radius:var(--radius); } /* instrument panel 
 .themebar select { padding:.2rem .4rem; font-size:.8rem; }
 .explain { border-left:3px solid var(--warn); padding:.4rem .7rem; margin:.4rem 0; background:var(--surface); }
 .explain details summary { cursor:pointer; color:var(--mut); font-size:.8rem; }
-body { position:relative; background:var(--bg); color:var(--fg); font-family:var(--font-ui); margin:2rem auto; max-width:64rem; padding:0 1rem; }
+body { position:relative; background:var(--bg); color:var(--fg); font-family:var(--font-ui); margin:0; padding:0; line-height:1.5; }
 h1 small { color:var(--mut); font-weight:normal; }
 .pass { color:var(--ok); font-weight:bold; } .fail { color:var(--bad); font-weight:bold; }
 .warn { color:var(--warn); font-weight:bold; }
@@ -106,75 +106,165 @@ ol.phases { display:flex; gap:.4rem; flex-wrap:wrap; list-style:none; padding:0;
 ol.phases li { border:1px solid var(--border); padding:.2rem .5rem; color:var(--mut); }
 ol.phases li.pass { color:var(--ok); border-color:var(--ok); }
 .errflash { border:1px solid var(--bad); }
+
+/* WCAG 1.4.11: interactive control boundaries >= 3:1 against their background. */
+select, input[type=text], input[type=number], textarea, button.ghost, .cta button:not(.primary) { border-color:var(--control-border) !important; }
+/* ---- Application shell (Ascension) ---- */
+.app { display:grid; grid-template-columns:15.5rem minmax(0,1fr); min-height:100vh; }
+.sidebar { position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--panel); border-right:1px solid var(--border);
+  padding:1rem .75rem; display:flex; flex-direction:column; gap:1rem; box-sizing:border-box; }
+.brand { display:flex; align-items:center; gap:.5rem; font-weight:700; letter-spacing:.01em; padding:.25rem .5rem; }
+.brand-mark { width:.9rem; height:.9rem; border-radius:3px; background:var(--accent-fg); box-shadow:inset 0 0 0 3px var(--panel); outline:1.5px solid var(--accent-fg); }
+.brand-sub { color:var(--mut); font-weight:500; }
+.sidebar .tabs { flex-direction:column; align-items:stretch; margin:0; gap:0; }
+.sidebar .tabs .tg { display:flex; flex-direction:column; align-items:stretch; gap:1px; margin-bottom:.6rem; }
+.sidebar .tabs .grp { margin:0 .5rem .25rem; font-size:.7rem; }
+.sidebar .tabs button { text-align:left; background:transparent; border:0; border-radius:6px; padding:.32rem .6rem; font-size:.9rem; color:var(--fg); }
+.sidebar .tabs button:hover { background:var(--surface-2); }
+.sidebar .tabs button[aria-selected="true"] { background:var(--surface-2); color:var(--fg); font-weight:600; box-shadow:inset 3px 0 0 var(--accent-fg); }
+.side-foot { margin-top:auto; display:flex; flex-direction:column; gap:.5rem; font-size:.8rem; }
+.side-foot #live-status { border:1px solid var(--border); border-radius:var(--radius); padding:.5rem .6rem; background:var(--surface); }
+.side-foot #live-status p, .side-foot #live-status div { margin:0; }
+.side-foot #live-status .banner { border:0; padding:0; background:transparent; }
+.side-foot #live-status { font-size:.75rem; line-height:1.4; color:var(--mut); }
+.side-foot .themebar { justify-content:flex-start; }
+.workspace { min-width:0; padding:1.25rem clamp(1rem,3vw,2.5rem) 3rem; }
+main { max-width:88rem; }
+main p, main li { max-width:78ch; }
+.crumbs { color:var(--mut); font-size:.8rem; margin:0 0 .75rem; }
+.crumbs #crumb-page { color:var(--fg); }
+.overview { border:0; background:transparent; padding:0; margin:0; }
+.hero { padding:1.5rem 0 1.75rem; border-bottom:1px solid var(--border); margin-bottom:1.5rem; }
+.eyebrow { color:var(--accent-fg); font-size:.8rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase; margin:0 0 .5rem; }
+.hero h1 { font-size:clamp(1.6rem,3.2vw,2.4rem); line-height:1.15; margin:0 0 .6rem; letter-spacing:-.01em; }
+.lede { font-size:1.05rem; color:var(--mut); margin:0 0 1.1rem; }
+.section-h { font-size:1.1rem; margin:1.75rem 0 .4rem; }
+.proof-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); gap:.75rem; margin:.6rem 0; }
+.proof-card { border:1px solid var(--border); border-radius:8px; background:var(--surface); padding:.9rem 1rem; }
+.proof-card h3 { margin:0 0 .5rem; font-size:.95rem; display:flex; flex-direction:column; gap:.15rem; }
+.proof-card .probe { margin:.2rem 0; font-size:1rem; }
+.proof-card .meta { margin:.4rem 0 0; color:var(--mut); font-size:.8rem; overflow-wrap:anywhere; }
+.proof-neg { border-style:dashed; }
+.mono { font-family:var(--font-mono); font-weight:500; font-size:.85rem; color:var(--mut); }
+.small { font-size:.75rem; }
+.verdict { font-weight:700; letter-spacing:.03em; padding:.05rem .45rem; border-radius:4px; border:1px solid currentColor; }
+.v-allow { color:var(--ok); } .v-deny { color:var(--bad); }
+.tag { display:inline-block; font-size:.7rem; font-weight:600; padding:.05rem .4rem; border-radius:4px; border:1px solid var(--border); letter-spacing:.02em; }
+.tag-native { color:var(--ok); border-color:var(--ok); } .tag-host { color:var(--warn); border-color:var(--warn); }
+.tag-archived { color:var(--mut); } .tag-live { color:var(--accent-fg); border-color:var(--accent-fg); }
+.flow { list-style:none; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(13rem,1fr)); gap:.75rem; counter-reset:f; }
+.flow li { border-top:2px solid var(--accent-fg); padding:.6rem 0 0; display:flex; flex-direction:column; gap:.2rem; }
+.flow li span { color:var(--mut); font-size:.9rem; }
+.tabpage > h2:first-child { margin-top:.25rem; margin-bottom:.35rem; }
+.page-intro { color:var(--mut); margin:0 0 1.1rem; }
+@media (max-width: 56rem) {
+  .app { grid-template-columns:1fr; }
+  .sidebar { position:static; height:auto; border-right:0; border-bottom:1px solid var(--border); }
+  .sidebar .tabs { flex-direction:row; flex-wrap:wrap; gap:.25rem .75rem; }
+  .sidebar .tabs .tg { flex-direction:row; flex-wrap:wrap; align-items:center; margin:0; }
+  .sidebar .tabs .grp { flex-basis:auto; margin:0 .25rem 0 0; }
+  .side-foot { margin-top:0; }
+}
 </style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header>
-<div class="themebar"><label for="theme-sel">Theme</label>
-<select id="theme-sel"><option value="system">System</option><option value="dark">Dark</option><option value="light">Light</option></select></div>
-<h1>GENESIS RT <small>Studio Live — specify → compile → run → break → prove</small></h1>
-<section class="overview" aria-labelledby="ov-h">
-<h2 id="ov-h">Build QNX-native software. Prove how it behaves.</h2>
-<p>A machine contract (typed IR) generates QNX 8.0 C code that runs under
-native message passing. A requirement change produces a different, correct
-behavior — and both revisions carry independently verifiable evidence.</p>
-<table class="proof" aria-label="Flagship native proof (archived QNX 8.0 campaigns)">
-<caption class="note" style="text-align:left">ARCHIVED native evidence (QNX 8.0, QEMU x86_64) — not a live run</caption>
-<thead><tr><th scope="col"><span class="sr-only">Property</span></th><th scope="col">BEFORE</th><th scope="col">AFTER</th></tr></thead>
-<tbody>
-<tr><th scope="row">Contract <code>max_linear_speed_mps</code></th><td>1.2</td><td>1.6</td></tr>
-<tr><th scope="row">Probe 1.5 m/s</th><td><span class="fail">DENY</span> SPEED_OVER_LIMIT</td><td><span class="pass">ALLOW</span> OK</td></tr>
-<tr><th scope="row">Native matrix</th><td>16/16</td><td>16/16</td></tr>
-<tr><th scope="row">Pack</th><td><code>evidence/qnx8-x86_64-w11-before</code></td><td><code>evidence/qnx8-x86_64-w11-after</code></td></tr>
-</tbody></table>
-<p class="note">Both verdicts are correct under their own contract. Pairing the
-1.6 contract with the stale 1.2 binary is rejected. Verify offline:
-<code>python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before</code></p>
-<div class="cta">
-<button type="button" class="primary" data-go="judge">Explore verified demo</button>
-<button type="button" data-go="projects">Open workspace</button>
-</div>
-</section>
+<div class="app">
+<aside class="sidebar" aria-label="Application">
+<div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>GENESIS RT</span><span class="brand-sub">Studio</span></div>
+<nav aria-label="Studio sections"><div class="tabs" role="tablist" aria-orientation="vertical" aria-label="Studio sections">
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Start</span>
+<button role="tab" aria-selected="true" aria-controls="tab-overview" id="tabbtn-overview" data-tab="overview">Overview</button>
+<button role="tab" aria-selected="false" aria-controls="tab-judge" id="tabbtn-judge" data-tab="judge">Guided demo</button></span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Build</span>
+<button role="tab" aria-selected="false" aria-controls="tab-projects" id="tabbtn-projects" data-tab="projects">Projects</button>
+<button role="tab" aria-selected="false" aria-controls="tab-designer" id="tabbtn-designer" data-tab="designer">Machine designer</button>
+<button role="tab" aria-selected="false" aria-controls="tab-source" id="tabbtn-source" data-tab="source">Generated C</button></span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Verify</span>
+<button role="tab" aria-selected="false" aria-controls="tab-pipeline" id="tabbtn-pipeline" data-tab="pipeline">Host pipeline</button>
+<button role="tab" aria-selected="false" aria-controls="tab-target" id="tabbtn-target" data-tab="target">QNX target runner</button>
+<button role="tab" aria-selected="false" aria-controls="tab-lab" id="tabbtn-lab" data-tab="lab">Fault lab</button></span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Evidence</span>
+<button role="tab" aria-selected="false" aria-controls="tab-passport" id="tabbtn-passport" data-tab="passport">Evidence passport</button>
+<button role="tab" aria-selected="false" aria-controls="tab-diff" id="tabbtn-diff" data-tab="diff">Before / After</button>
+<button role="tab" aria-selected="false" aria-controls="tab-evidence" id="tabbtn-evidence" data-tab="evidence">Evidence graph</button></span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Explore</span>
+<button role="tab" aria-selected="false" aria-controls="tab-twin" id="tabbtn-twin" data-tab="twin">Digital twin</button>
+<button role="tab" aria-selected="false" aria-controls="tab-run" id="tabbtn-run" data-tab="run">CLI commands</button></span>
+</div></nav>
+<div class="side-foot">
 <div id="live-status" role="status"><p class="note">Probing backend…</p></div>
 <details class="note"><summary>What needs the backend?</summary>
 Projects, Designer, Pipeline and Evidence need the live backend
 (<code>PYTHONPATH=host python -m genesis_rt.cli serve</code>, then open
 <code>http://127.0.0.1:8077/</code>). Source, Twin, Lab, Passport, Diff
 and Run keep working on local files with no backend.</details>
-</header>
-<nav aria-label="Studio sections"><div class="tabs" role="tablist" aria-label="Studio sections">
-<span class="tg" role="none"><span class="grp" aria-hidden="true">Start</span>
-<button role="tab" aria-selected="false" aria-controls="tab-judge" id="tabbtn-judge" data-tab="judge">Guided tour</button></span>
-<span class="tg" role="none"><span class="grp" aria-hidden="true">Machines</span>
-<button role="tab" aria-selected="true" aria-controls="tab-projects" id="tabbtn-projects" data-tab="projects">Projects</button>
-<button role="tab" aria-selected="false" aria-controls="tab-designer" id="tabbtn-designer" data-tab="designer">Designer</button></span>
-<span class="tg" role="none"><span class="grp" aria-hidden="true">Build &amp; Run</span>
-<button role="tab" aria-selected="false" aria-controls="tab-source" id="tabbtn-source" data-tab="source">Generated source</button>
-<button role="tab" aria-selected="false" aria-controls="tab-pipeline" id="tabbtn-pipeline" data-tab="pipeline">Host pipeline</button>
-<button role="tab" aria-selected="false" aria-controls="tab-target" id="tabbtn-target" data-tab="target">QNX target</button></span>
-<span class="tg" role="none"><span class="grp" aria-hidden="true">Verify</span>
-<button role="tab" aria-selected="false" aria-controls="tab-lab" id="tabbtn-lab" data-tab="lab">Fault lab</button>
-<button role="tab" aria-selected="false" aria-controls="tab-run" id="tabbtn-run" data-tab="run">Run results</button></span>
-<span class="tg" role="none"><span class="grp" aria-hidden="true">Evidence</span>
-<button role="tab" aria-selected="false" aria-controls="tab-passport" id="tabbtn-passport" data-tab="passport">Passport</button>
-<button role="tab" aria-selected="false" aria-controls="tab-diff" id="tabbtn-diff" data-tab="diff">Before / After</button>
-<button role="tab" aria-selected="false" aria-controls="tab-evidence" id="tabbtn-evidence" data-tab="evidence">Evidence graph</button></span>
-<span class="tg" role="none"><span class="grp" aria-hidden="true">Explore</span>
-<button role="tab" aria-selected="false" aria-controls="tab-twin" id="tabbtn-twin" data-tab="twin">Digital twin</button></span>
-</div></nav>
+<div class="themebar"><label for="theme-sel">Theme</label>
+<select id="theme-sel"><option value="system">System</option><option value="dark">Dark</option><option value="light">Light</option></select></div>
+</div>
+</aside>
+<div class="workspace">
+<p class="crumbs" id="crumbs"><span id="crumb-sec">Start</span><span aria-hidden="true"> / </span><span id="crumb-page" aria-current="page">Overview</span></p>
 <main id="main" tabindex="-1">
 
+<section class="tabpage active overview" id="tab-overview" role="tabpanel" aria-labelledby="tabbtn-overview">
+<div class="hero">
+<p class="eyebrow">GENESIS RT · QNX 8.0 host toolchain</p>
+<h1 id="ov-h">Build QNX-native software. Prove how it behaves.</h1>
+<p class="lede">Define a machine contract, generate native QNX software, verify
+its behavior, and inspect independently verifiable evidence.</p>
+<div class="cta">
+<button type="button" class="primary" data-go="judge">Explore verified demo</button>
+<button type="button" data-go="projects">Open workspace</button>
+</div>
+</div>
+
+<h2 class="section-h">One requirement change, verified natively twice</h2>
+<p class="note src-label"><span class="tag tag-archived">Archived</span> Native QNX 8.0 evidence (QEMU x86_64) from committed packs — not a live run.</p>
+<div class="proof-grid" role="group" aria-label="Flagship native proof">
+<article class="proof-card">
+<h3>Before <span class="mono">max_linear_speed_mps = 1.2</span></h3>
+<p class="probe">Probe 1.5 m/s → <span class="verdict v-deny">DENY</span> <span class="mono small">SPEED_OVER_LIMIT</span></p>
+<p class="meta">Native matrix <strong>16/16</strong> · <code>evidence/qnx8-x86_64-w11-before</code></p>
+</article>
+<article class="proof-card">
+<h3>After <span class="mono">max_linear_speed_mps = 1.6</span></h3>
+<p class="probe">Probe 1.5 m/s → <span class="verdict v-allow">ALLOW</span> <span class="mono small">OK</span></p>
+<p class="meta">Native matrix <strong>16/16</strong> · <code>evidence/qnx8-x86_64-w11-after</code> · rerun <code>…-after-rerun</code></p>
+</article>
+<article class="proof-card proof-neg">
+<h3>Stale binary <span class="mono">1.6 contract + 1.2 build</span></h3>
+<p class="probe">Release gate → <span class="verdict v-deny">REJECTED</span></p>
+<p class="meta">Only <code>limits_differ</code> fails; no passport is sealed.</p>
+</article>
+</div>
+<p class="note">Both decisions are correct under their own contract — that is the point.
+Verify offline, no QNX SDK needed:
+<code>python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before</code></p>
+
+<h2 class="section-h">How it works</h2>
+<ol class="flow">
+<li><strong>Specify</strong><span>A typed Machine IR contract — limits, sensors, safety rules — strictly validated.</span></li>
+<li><strong>Verify</strong><span>Deterministic QNX C, built with qcc, run on the target under native IPC and injected faults.</span></li>
+<li><strong>Prove</strong><span>A hash-linked passport and a fail-closed release gate that anyone can replay offline.</span></li>
+</ol>
+<p class="note">Status labels used everywhere: <span class="tag tag-native">Native</span> ran on QNX ·
+<span class="tag tag-host">Host only</span> verified on the development machine ·
+<span class="tag tag-archived">Archived</span> committed evidence · <span class="tag tag-live">Live</span> running now.</p>
+</section>
+
 <section class="tabpage" id="tab-judge" role="tabpanel" aria-labelledby="tabbtn-judge">
-<h2>Judge Mode — guided tour</h2>
+<h2>Guided demo</h2>
+<p class="page-intro">The core result in seven steps: machine, contract, generated QNX code, native verification, a fault, the before/after change, and offline verification. Use <b>Next</b> to move on; nothing needs to be installed.</p>
 <p class="note">Seven stages, each driving the real product below.
 LIVE runs against the backend now; ARCHIVED shows the committed
 sample while the backend is offline.</p>
 <div id="judge-out"><p class="note">Loading…</p></div>
 </section>
 
-<section class="tabpage active" id="tab-projects" role="tabpanel" aria-labelledby="tabbtn-projects">
+<section class="tabpage" id="tab-projects" role="tabpanel" aria-labelledby="tabbtn-projects">
 <h2>Projects</h2>
+<p class="page-intro">Your saved machine contracts. Create one from an example, then open it in the <b>Machine designer</b> to edit and validate.</p>
 <div id="projects-out"><p class="note">Loading…</p></div>
 <h3>Create</h3>
 <div class="row">
@@ -194,6 +284,7 @@ sample while the backend is offline.</p>
 
 <section class="tabpage" id="tab-designer" role="tabpanel" aria-labelledby="tabbtn-designer">
 <h2>Machine designer</h2>
+<p class="page-intro">Edit a machine contract (Machine IR JSON — the single source of truth) and validate it. Errors point to the exact field. Next: run it in the <b>Host pipeline</b>.</p>
 <div class="row">
 <label for="des-example">example</label>
 <select id="des-example" aria-label="open example"></select>
@@ -222,7 +313,8 @@ above is the single source of truth).</p></div>
 </section>
 
 <section class="tabpage" id="tab-source" role="tabpanel" aria-labelledby="tabbtn-source">
-<h2>Generated source</h2>
+<h2>Generated C</h2>
+<p class="page-intro">Inspect the QNX C build files generated from a contract. Identical contracts always produce byte-identical files.</p>
 <input type="file" id="srcfiles" aria-label="Generated source files to inspect (.h, .c, .mk)" accept=".h,.c,.mk" multiple>
 <div id="source-out"><p class="note">Open generated files
 (<code>genesis_config_gen.h</code>, <code>genesis_machine_gen.c</code>,
@@ -230,7 +322,8 @@ above is the single source of truth).</p></div>
 </section>
 
 <section class="tabpage" id="tab-pipeline" role="tabpanel" aria-labelledby="tabbtn-pipeline">
-<h2>Pipeline</h2>
+<h2>Host pipeline</h2>
+<p class="page-intro">Run validation, code generation and the 8-scenario fault campaign on this machine. Results are <span class="tag tag-host">Host only</span> until they run on the QNX target.</p>
 <div class="row">
 <label for="pipe-example">example</label>
 <select id="pipe-example" aria-label="run example"></select>
@@ -290,7 +383,7 @@ then pick a scenario in the Lab tab to replay its trace here.</p></div>
 </section>
 
 <section class="tabpage" id="tab-lab" role="tabpanel" aria-labelledby="tabbtn-lab">
-<h2>Failure lab</h2>
+<h2>Fault lab</h2>
 <div id="lab-out"><p class="note">Load a passport in the Passport tab to
 list its scenarios, seeds and oracle checks.</p></div>
 <h3>Counterexample explorer</h3>
@@ -336,14 +429,15 @@ the C guard or the QNX target; tiers are never merged.</p>
 </section>
 
 <section class="tabpage" id="tab-passport" role="tabpanel" aria-labelledby="tabbtn-passport">
-<h2>Proof passport</h2>
+<h2>Evidence passport</h2>
+<p class="page-intro">Open a <code>passport.json</code> to re-verify its hash chain in your browser and read every verdict with its evidence.</p>
 <input type="file" id="ppfile" aria-label="Passport JSON file" accept=".json">
 <div id="pp-out"><p class="note">Open a <code>passport.json</code>. The hash
 chain is re-verified live; a stored PASS is shown only when valid.</p></div>
 </section>
 
 <section class="tabpage" id="tab-diff" role="tabpanel" aria-labelledby="tabbtn-diff">
-<h2>Broken vs fixed</h2>
+<h2>Before / After</h2>
 <p class="note">Load two passports (A = before, B = after). Both chains are
 re-verified; the delta table appears only when both are valid.</p>
 <p>A (before): <input type="file" id="diffile-a" aria-label="Passport A (before)" accept=".json"></p>
@@ -422,7 +516,7 @@ closed with reasons; the verdict wording is backend-derived.</p>
 </section>
 
 <section class="tabpage" id="tab-run" role="tabpanel" aria-labelledby="tabbtn-run">
-<h2>Run the pipeline</h2>
+<h2>CLI commands</h2>
 <p class="note">Copy-paste on your machine (repo root). Outputs land in
 <code>artifacts/</code>; drop them into the tabs above.</p>
 <pre class="cmd">PYTHONPATH=host python -m genesis_rt.cli validate examples/amr-demo/machine-ir.json
@@ -1830,7 +1924,24 @@ const Studio = { irSha: null, passport: null, scens: [], twinA: null, twinB: nul
                  diffA: null, diffB: null, graph: null, graphPassportText: null,
                  graphRun: null, passportText: null, impact: null,
                  impactPid: null, impactTo: null };
-function switchTab(name) {
+const TAB_SECTION = { overview: 'Start', judge: 'Start', projects: 'Build',
+  designer: 'Build', source: 'Build', pipeline: 'Verify', target: 'Verify',
+  lab: 'Verify', run: 'Explore', passport: 'Evidence', diff: 'Evidence',
+  evidence: 'Evidence', twin: 'Explore' };
+function switchTab(name, opts) {
+  if (!Object.prototype.hasOwnProperty.call(TAB_SECTION, name)) name = 'overview';
+  const btn = document.getElementById('tabbtn-' + name);
+  const sec = document.getElementById('crumb-sec');
+  const pg = document.getElementById('crumb-page');
+  if (sec) sec.textContent = TAB_SECTION[name];
+  if (pg && btn) pg.textContent = btn.textContent;
+  // Deep links: #/<tab>. Back/forward replays switches without pushing.
+  try {
+    if (!(opts && opts.fromHistory) && typeof history !== 'undefined' &&
+        history.pushState && location.hash !== '#/' + name) {
+      history.pushState({ tab: name }, '', '#/' + name);
+    }
+  } catch (e) { /* file:// or sandboxed: routing is best-effort */ }
   document.querySelectorAll('.tabs button').forEach(
     (x) => { const on = x.dataset.tab === name;
              x.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -1845,8 +1956,8 @@ document.querySelectorAll('.tabs button').forEach((b) => {
   b.addEventListener('keydown', (ev) => {
     const all = Array.from(document.querySelectorAll('.tabs button'));
     const i = all.indexOf(b); let j = -1;
-    if (ev.key === 'ArrowRight') j = (i + 1) % all.length;
-    else if (ev.key === 'ArrowLeft') j = (i - 1 + all.length) % all.length;
+    if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') j = (i + 1) % all.length;
+    else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') j = (i - 1 + all.length) % all.length;
     else if (ev.key === 'Home') j = 0; else if (ev.key === 'End') j = all.length - 1;
     if (j < 0) return;
     ev.preventDefault(); all[j].focus(); switchTab(all[j].dataset.tab);
@@ -1865,6 +1976,12 @@ document.querySelectorAll('.tabs button').forEach((b) => {
     try { localStorage.setItem('studio.theme', v); } catch (e) { /* storage blocked */ }
   });
 })();
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('popstate', () => {
+    const h = (location.hash || '').replace(/^#\/?/, '');
+    switchTab(TAB_SECTION[h] ? h : 'overview', { fromHistory: true });
+  });
+}
 document.querySelectorAll('.overview [data-go]').forEach((b) => {
   b.addEventListener('click', () => {
     switchTab(b.dataset.go);
@@ -3832,13 +3949,12 @@ async function refreshLive() {
     el('graph-out').innerHTML = '<p class="note">Backend offline.</p>';
   }
   try {
-    const tabs = ['judge', 'projects', 'designer', 'source', 'pipeline',
-                  'target', 'twin', 'lab', 'passport', 'diff', 'evidence',
-                  'run'];
+    // Priority: deep link (#/tab) > last tab this session > Overview.
+    const fromHash = (location.hash || '').replace(/^#\/?/, '');
     const t = storeGet('studio.tab');
-    // First visit opens the guided tour (jury feedback); returning
-    // viewers get their last tab back.
-    if (t && tabs.indexOf(t) >= 0) switchTab(t); else switchTab('judge');
+    if (fromHash && TAB_SECTION[fromHash]) switchTab(fromHash, { fromHistory: true });
+    else if (t && TAB_SECTION[t]) switchTab(t, { fromHistory: true });
+    else switchTab('overview', { fromHistory: true });
   } catch (e) { /* never break boot on restore */ }
 }
 function liveBoot() {
@@ -3850,5 +3966,7 @@ function liveBoot() {
 liveBoot();
 </script>
 </main>
+</div>
+</div>
 </body>
 </html>

@@ -29,7 +29,7 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 from genesis_rt import api as api_mod  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-TABS = ["judge", "projects", "designer", "source", "pipeline", "target",
+TABS = ["overview", "judge", "projects", "designer", "source", "pipeline", "target",
         "lab", "run", "passport", "diff", "evidence", "twin"]
 AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]
 
