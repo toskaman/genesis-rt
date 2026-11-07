@@ -37,8 +37,9 @@ trace. One convincing proof-driven demo beats twenty speculative features.
   validation and impact reports on every push/PR.
 - **Professional review dossier**: one-click ZIP export (report +
   raw data + offline verify) from any target operation.
-- **Submission video**: `docs/demo/genesis-rt-demo-w12.mp4`
-  (154.664 s, voiced, verbatim subtitles) — YouTube upload pending.
+- **Final submission video: DEFERRED BY OWNER.** The historical cut
+  `docs/demo/genesis-rt-demo-w12.mp4` (154.664 s) predates the current
+  Studio and is **not** the final video; see `submission/VIDEO_DEFERRED.md`.
 
 Canonical numbers live in [docs/CLAIMS.md](docs/CLAIMS.md).
 

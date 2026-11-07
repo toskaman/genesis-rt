@@ -262,3 +262,33 @@ def test_total_count_matches_collected():
                                                      facts.TESTS_WITH_SDK)
     assert facts.TESTS_SDK_FREE_PASSED + facts.TESTS_SDK_FREE_SKIPS == \
         facts.TESTS_WITH_SDK
+
+
+def test_qnx_workflow_does_not_overclaim_target_run():
+    """TITAN: a build-only QNX lane must say so; it may only drop the
+    NOT EXECUTED marker once it actually runs the target verifier."""
+    wf = _read(".github/workflows/qnx.yml")
+    runs_campaign = "qnx_target.py verify" in wf
+    if not runs_campaign:
+        assert "NOT EXECUTED" in wf
+        assert "BUILD-ONLY" in wf
+        assert "build-and-run" not in wf
+
+
+def test_video_status_deferred_everywhere():
+    """TITAN: no current-facing doc may present the W12 cut as final."""
+    for rel in ("README.md", "docs/CLAIMS.md", "docs/compliance-matrix.md",
+                "docs/devpost-draft.md", "docs/jury/JUDGE_SCORECARD.md"):
+        text = _read(rel)
+        assert re.search(r"DEFERRED", text), rel
+    assert "- **Submission video**:" not in _read("README.md")
+    assert "- Submission video:" not in _read("docs/CLAIMS.md")
+
+
+def test_limitations_match_rfc1982_implementation():
+    """TITAN: limitations must not call wrap handling 'documented only'
+    while guard_policy.c implements RFC 1982 serial arithmetic."""
+    lim = _read("docs/limitations-and-safety.md")
+    assert "RFC 1982" in _read("target/qnx8/common/guard_policy.c")
+    assert "documents the boundary instead" not in lim
+    assert "RFC 1982" in lim

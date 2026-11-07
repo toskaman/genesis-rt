@@ -24,6 +24,8 @@ jobs:
         run: pip install pytest pyyaml fastapi httpx uvicorn playwright jsonschema cryptography
       - name: Install Chromium for browser E2E
         run: python -m playwright install --with-deps chromium
+      - name: Install axe-core for the automated WCAG 2.2 scan
+        run: npm install --no-save axe-core@4.10.2
       - name: Host C policy check
         run: |
           cc -O1 -Wall -Wextra -Itarget/qnx8/include -Itarget/qnx8/common \

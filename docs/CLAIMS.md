@@ -7,8 +7,8 @@ their own historical numbers.
 
 ## Test counts
 
-- Collected total: **1140** (`facts.TESTS_WITH_SDK`; with the SDK all run, 0 skips).
-- SDK-free (measured 7 Nov 2026): **1135 passed + 5 honest skips** (3 QNX-build + 1 SDK-only
+- Collected total: **1146** (`facts.TESTS_WITH_SDK`; with the SDK all run, 0 skips).
+- SDK-free (measured 7 Nov 2026): **1141 passed + 5 honest skips** (3 QNX-build + 1 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`).
@@ -63,7 +63,10 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
 
 ## Video status
 
-- Submission video: `docs/demo/genesis-rt-demo-w12.mp4`
+- **Status: `DEFERRED_BY_OWNER`; final submission `PENDING_VIDEO`**
+  (`submission/VIDEO_DEFERRED.md`). The entries below describe the
+  historical W12 cut only — it is not the final submission video.
+- Historical cut: `docs/demo/genesis-rt-demo-w12.mp4`
   (**154.664 s**, 1920x1080 H.264 + AAC voiceover, faststart).
 - Captions: `docs/demo/subtitles-w12.srt` (21 cues, verbatim).
 - Voice source: `docs/demo/voiceover-w12.flac` + `voiceover-w12.txt`

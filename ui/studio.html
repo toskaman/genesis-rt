@@ -9,71 +9,109 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
 <title>GENESIS RT — Studio</title>
+<script>
+/* Apply saved theme before first paint (no flash). */
+try { var t = localStorage.getItem('studio.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
 <style>
-:root { color-scheme: dark; --bg:#0d1117; --fg:#e6edf3; --ok:#3fb950; --bad:#f85149; --mut:#8b949e; }
-body { background:var(--bg); color:var(--fg); font-family:system-ui,sans-serif; margin:2rem auto; max-width:64rem; padding:0 1rem; }
+/* GENESIS RT design tokens (docs/design/DESIGN_SYSTEM.md). Dark is the
+   default; light follows the OS unless the viewer picks a theme. */
+:root {
+  color-scheme: dark;
+  --bg:#0d1117; --panel:#0f141b; --surface:#161b22; --surface-2:#21262d; --sunken:#010409;
+  --border:#30363d; --fg:#e6edf3; --mut:#9da7b3; --accent:#1f6feb; --on-accent:#ffffff;
+  --focus:#79c0ff; --ok:#3fb950; --bad:#f85149; --warn:#d29922; --bad-bg:#5a1f1f;
+  --radius:6px; --space-1:.25rem; --space-2:.5rem; --space-3:1rem; --space-4:1.5rem;
+  --font-ui:system-ui,-apple-system,"Segoe UI",sans-serif; --font-mono:ui-monospace,"Cascadia Mono",monospace;
+  --motion:120ms ease-out;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg:#ffffff; --panel:#f6f8fa; --surface:#f6f8fa; --surface-2:#eaeef2; --sunken:#ffffff;
+  --border:#8c959f; --fg:#1f2328; --mut:#57606a; --accent:#0969da; --on-accent:#ffffff;
+  --focus:#0550ae; --ok:#1a7f37; --bad:#cf222e; --warn:#9a6700; --bad-bg:#ffebe9;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg:#ffffff; --panel:#f6f8fa; --surface:#f6f8fa; --surface-2:#eaeef2; --sunken:#ffffff;
+    --border:#8c959f; --fg:#1f2328; --mut:#57606a; --accent:#0969da; --on-accent:#ffffff;
+    --focus:#0550ae; --ok:#1a7f37; --bad:#cf222e; --warn:#9a6700; --bad-bg:#ffebe9;
+  }
+}
+button, select, input, textarea { border-radius:var(--radius); font-family:inherit; }
+canvas { background:#0d1117; border-radius:var(--radius); } /* instrument panel stays dark in both themes */
+.themebar { display:flex; justify-content:flex-end; gap:.4rem; align-items:center; font-size:.8rem; }
+.themebar select { padding:.2rem .4rem; font-size:.8rem; }
+.explain { border-left:3px solid var(--warn); padding:.4rem .7rem; margin:.4rem 0; background:var(--surface); }
+.explain details summary { cursor:pointer; color:var(--mut); font-size:.8rem; }
+body { position:relative; background:var(--bg); color:var(--fg); font-family:var(--font-ui); margin:2rem auto; max-width:64rem; padding:0 1rem; }
 h1 small { color:var(--mut); font-weight:normal; }
 .pass { color:var(--ok); font-weight:bold; } .fail { color:var(--bad); font-weight:bold; }
-.warn { color:#d29922; font-weight:bold; }
+.warn { color:var(--warn); font-weight:bold; }
 table { border-collapse:collapse; width:100%; margin:1rem 0; }
-td, th { border:1px solid #30363d; padding:.4rem .6rem; text-align:left; font-size:.9rem; }
+td, th { border:1px solid var(--border); padding:.4rem .6rem; text-align:left; font-size:.9rem; }
 code { font-size:.8rem; }
 input[type=file] { margin:1rem 0; }
 .note { color:var(--mut); font-size:.85rem; }
-.banner { border:1px solid #30363d; padding:.6rem .8rem; margin:1rem 0; font-size:.9rem; }
+.banner { border:1px solid var(--border); padding:.6rem .8rem; margin:1rem 0; font-size:.9rem; }
 .tabs { display:flex; gap:.25rem; flex-wrap:wrap; align-items:center; margin:1rem 0; row-gap:.5rem; }
 .tabs .tg { display:inline-flex; gap:.25rem; align-items:center; flex-wrap:wrap; }
 .tabs .grp { color:var(--mut); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; margin:0 .2rem 0 .7rem; }
 .tabs .grp:first-child { margin-left:0; }
-:focus-visible { outline:2px solid #79c0ff; outline-offset:2px; }
-.skip { position:absolute; left:-999px; } .skip:focus { left:1rem; top:.5rem; background:#1f6feb; color:#fff; padding:.4rem .8rem; z-index:10; }
-.overview { border:1px solid #30363d; padding:1rem 1.2rem; margin:1rem 0; background:#0f141b; }
+:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.skip { position:absolute; left:-999px; } .skip:focus { left:1rem; top:.5rem; background:var(--accent); color:var(--on-accent); padding:.4rem .8rem; z-index:10; }
+.overview { border:1px solid var(--border); padding:1rem 1.2rem; margin:1rem 0; background:var(--panel); }
 .overview h2 { margin:.1rem 0 .4rem; font-size:1.35rem; }
 .overview .cta { display:flex; gap:.6rem; flex-wrap:wrap; margin:.8rem 0 .2rem; }
-.overview .cta button { padding:.5rem 1rem; font-size:.95rem; cursor:pointer; border:1px solid #30363d; background:#161b22; color:var(--fg); }
-.overview .cta button.primary { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+.overview .cta button { padding:.5rem 1rem; font-size:.95rem; cursor:pointer; border:1px solid var(--border); background:var(--surface); color:var(--fg); }
+.overview .cta button.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
 .proof { border-collapse:collapse; font-size:.85rem; margin:.6rem 0; max-width:100%; }
 .overview code { overflow-wrap:anywhere; word-break:break-word; }
-.proof th, .proof td { border:1px solid #30363d; padding:.3rem .6rem; text-align:left; }
+.proof th, .proof td { border:1px solid var(--border); padding:.3rem .6rem; text-align:left; }
 @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; scroll-behavior:auto !important; } }
-@media (max-width: 40rem) { body { margin:1rem auto; } .tabs .grp { flex-basis:100%; margin-left:0; } }
-.tabs button { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.45rem .8rem; cursor:pointer; font-size:.9rem; }
-.tabs button[aria-selected="true"] { background:#1f6feb; border-color:#1f6feb; }
+@media (max-width: 40rem) { .themebar { position:static; justify-content:flex-end; margin-bottom:.5rem; } .proof { display:block; overflow-x:auto; } .proof th, .proof td { padding:.25rem .4rem; } body { margin:1rem auto; } .tabs .grp { flex-basis:100%; margin-left:0; } }
+.tabs button { background:var(--surface); color:var(--fg); border:1px solid var(--border); padding:.45rem .8rem; cursor:pointer; font-size:.9rem; }
+.tabs button[aria-selected="true"] { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
 .tabpage { display:none; } .tabpage.active { display:block; }
-pre.cmd { background:#161b22; border:1px solid #30363d; padding:.6rem .8rem; overflow-x:auto; font-size:.82rem; }
-canvas.twin { border:1px solid #30363d; width:100%; max-width:40rem; background:#010409; }
-.twinctl button { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.3rem .7rem; margin-right:.4rem; cursor:pointer; }
+pre.cmd { background:var(--surface); border:1px solid var(--border); padding:.6rem .8rem; overflow-x:auto; font-size:.82rem; }
+canvas.twin { border:1px solid var(--border); width:100%; max-width:40rem; background:var(--sunken); }
+.twinctl button { background:var(--surface); color:var(--fg); border:1px solid var(--border); padding:.3rem .7rem; margin-right:.4rem; cursor:pointer; }
 .twinctl button:disabled { opacity:.45; cursor:default; }
 input[type=range].twinscrub { width:100%; max-width:40rem; margin:.4rem 0; }
-.twinmarkers button { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.2rem .5rem; margin:0 .3rem .3rem 0; cursor:pointer; font-size:.8rem; }
-.twinmarkers button.sev-fail { border-color:#f85149; } .twinmarkers button.sev-warn { border-color:#d29922; }
+.twinmarkers button { background:var(--surface); color:var(--fg); border:1px solid var(--border); padding:.2rem .5rem; margin:0 .3rem .3rem 0; cursor:pointer; font-size:.8rem; }
+.twinmarkers button.sev-fail { border-color:var(--bad); } .twinmarkers button.sev-warn { border-color:var(--warn); }
 table.twinside { max-width:40rem; } table.twinside td:first-child { color:var(--mut); width:9rem; }
-.twin-ev pre { background:#010409; border:1px solid #30363d; padding:.5rem; overflow-x:auto; font-size:.78rem; max-width:40rem; }
-tr.pick { cursor:pointer; } tr.pick:hover td { background:#161b22; }
+.twin-ev pre { background:var(--sunken); border:1px solid var(--border); padding:.5rem; overflow-x:auto; font-size:.78rem; max-width:40rem; }
+tr.pick { cursor:pointer; } tr.pick:hover td { background:var(--surface); }
 #live-status { margin:1rem 0; }
 .row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; margin:.6rem 0; }
 .row label { font-size:.85rem; color:var(--mut); }
-select, input[type=text], input[type=number] { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.4rem .6rem; font-size:.9rem; max-width:100%; }
-button.act { background:#1f6feb; color:#fff; border:1px solid #1f6feb; padding:.4rem .8rem; cursor:pointer; font-size:.9rem; }
-button.ghost { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.4rem .8rem; cursor:pointer; font-size:.9rem; }
+select, input[type=text], input[type=number] { background:var(--surface); color:var(--fg); border:1px solid var(--border); padding:.4rem .6rem; font-size:.9rem; max-width:100%; }
+button.act { background:var(--accent); color:var(--on-accent); border:1px solid var(--accent); padding:.4rem .8rem; cursor:pointer; font-size:.9rem; }
+button.ghost { background:var(--surface); color:var(--fg); border:1px solid var(--border); padding:.4rem .8rem; cursor:pointer; font-size:.9rem; }
 button.act:disabled, button.ghost:disabled { opacity:.45; cursor:default; }
-textarea.editor { width:100%; min-height:16rem; background:#010409; color:var(--fg); border:1px solid #30363d; font-family:ui-monospace,monospace; font-size:.8rem; padding:.6rem; box-sizing:border-box; }
-svg.graph { border:1px solid #30363d; background:#010409; max-width:40rem; width:100%; }
-svg.graph .edge { stroke:#8b949e; stroke-width:1.5; }
-svg.graph .elabel { fill:#8b949e; font-size:10px; text-anchor:middle; }
-svg.graph .node rect { fill:#161b22; stroke:#8b949e; }
-svg.graph .node.init rect { stroke:#1f6feb; stroke-width:2; }
-svg.graph .node.safe rect { stroke:#3fb950; stroke-width:2; }
-svg.graph .nlabel { fill:#e6edf3; font-size:11px; text-anchor:middle; }
+textarea.editor { width:100%; min-height:16rem; background:var(--sunken); color:var(--fg); border:1px solid var(--border); font-family:var(--font-mono); font-size:.8rem; padding:.6rem; box-sizing:border-box; }
+svg.graph { border:1px solid var(--border); background:var(--sunken); max-width:40rem; width:100%; }
+svg.graph .edge { stroke:var(--mut); stroke-width:1.5; }
+svg.graph .elabel { fill:var(--mut); font-size:10px; text-anchor:middle; }
+svg.graph .node rect { fill:var(--surface); stroke:var(--mut); }
+svg.graph .node.init rect { stroke:var(--accent); stroke-width:2; }
+svg.graph .node.safe rect { stroke:var(--ok); stroke-width:2; }
+svg.graph .nlabel { fill:var(--fg); font-size:11px; text-anchor:middle; }
 svg.graph g.node { cursor:pointer; }
 ol.phases { display:flex; gap:.4rem; flex-wrap:wrap; list-style:none; padding:0; font-size:.8rem; }
-ol.phases li { border:1px solid #30363d; padding:.2rem .5rem; color:var(--mut); }
+ol.phases li { border:1px solid var(--border); padding:.2rem .5rem; color:var(--mut); }
 ol.phases li.pass { color:var(--ok); border-color:var(--ok); }
 .errflash { border:1px solid var(--bad); }
 </style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
+<header>
+<div class="themebar"><label for="theme-sel">Theme</label>
+<select id="theme-sel"><option value="system">System</option><option value="dark">Dark</option><option value="light">Light</option></select></div>
 <h1>GENESIS RT <small>Studio Live — specify → compile → run → break → prove</small></h1>
 <section class="overview" aria-labelledby="ov-h">
 <h2 id="ov-h">Build QNX-native software. Prove how it behaves.</h2>
@@ -82,7 +120,7 @@ native message passing. A requirement change produces a different, correct
 behavior — and both revisions carry independently verifiable evidence.</p>
 <table class="proof" aria-label="Flagship native proof (archived QNX 8.0 campaigns)">
 <caption class="note" style="text-align:left">ARCHIVED native evidence (QNX 8.0, QEMU x86_64) — not a live run</caption>
-<thead><tr><th scope="col"></th><th scope="col">BEFORE</th><th scope="col">AFTER</th></tr></thead>
+<thead><tr><th scope="col"><span class="sr-only">Property</span></th><th scope="col">BEFORE</th><th scope="col">AFTER</th></tr></thead>
 <tbody>
 <tr><th scope="row">Contract <code>max_linear_speed_mps</code></th><td>1.2</td><td>1.6</td></tr>
 <tr><th scope="row">Probe 1.5 m/s</th><td><span class="fail">DENY</span> SPEED_OVER_LIMIT</td><td><span class="pass">ALLOW</span> OK</td></tr>
@@ -102,6 +140,7 @@ behavior — and both revisions carry independently verifiable evidence.</p>
 (<code>PYTHONPATH=host python -m genesis_rt.cli serve</code>, then open
 <code>http://127.0.0.1:8077/</code>). Source, Twin, Lab, Passport, Diff
 and Run keep working on local files with no backend.</p>
+</header>
 <nav aria-label="Studio sections"><div class="tabs" role="tablist" aria-label="Studio sections">
 <span class="tg" role="none"><span class="grp" aria-hidden="true">Guided demo</span>
 <button role="tab" aria-selected="false" aria-controls="tab-judge" id="tabbtn-judge" data-tab="judge">Judge tour</button></span>
@@ -181,7 +220,7 @@ above is the single source of truth).</p></div>
 
 <section class="tabpage" id="tab-source" role="tabpanel" aria-labelledby="tabbtn-source">
 <h2>Generated source</h2>
-<input type="file" id="srcfiles" accept=".h,.c,.mk" multiple>
+<input type="file" id="srcfiles" aria-label="Generated source files to inspect (.h, .c, .mk)" accept=".h,.c,.mk" multiple>
 <div id="source-out"><p class="note">Open generated files
 (<code>genesis_config_gen.h</code>, <code>genesis_machine_gen.c</code>,
 …). Provenance headers are pinned against the loaded IR.</p></div>
@@ -295,7 +334,7 @@ the C guard or the QNX target; tiers are never merged.</p>
 
 <section class="tabpage" id="tab-passport" role="tabpanel" aria-labelledby="tabbtn-passport">
 <h2>Proof passport</h2>
-<input type="file" id="ppfile" accept=".json">
+<input type="file" id="ppfile" aria-label="Passport JSON file" accept=".json">
 <div id="pp-out"><p class="note">Open a <code>passport.json</code>. The hash
 chain is re-verified live; a stored PASS is shown only when valid.</p></div>
 </section>
@@ -304,8 +343,8 @@ chain is re-verified live; a stored PASS is shown only when valid.</p></div>
 <h2>Broken vs fixed</h2>
 <p class="note">Load two passports (A = before, B = after). Both chains are
 re-verified; the delta table appears only when both are valid.</p>
-<p>A (before): <input type="file" id="diffile-a" accept=".json"></p>
-<p>B (after): <input type="file" id="diffile-b" accept=".json"></p>
+<p>A (before): <input type="file" id="diffile-a" aria-label="Passport A (before)" accept=".json"></p>
+<p>B (after): <input type="file" id="diffile-b" aria-label="Passport B (after)" accept=".json"></p>
 <p><button class="ghost" id="diff-twin">Replay A/B in Twin</button></p>
 <div id="diff-out"><p class="note">No comparison yet.</p></div>
 </section>
@@ -400,6 +439,21 @@ python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json
 'use strict';
 /* Pure render core (no DOM): tested under node. Every interpolated
  * value goes through esc(). */
+
+/* Plain-language trust summary (TITAN UX). The precise fields stay
+ * visible next to it; this only translates them for non-experts. */
+function trustSentence(qnxVerified, releaseEligible) {
+  const q = qnxVerified === true || qnxVerified === 'true';
+  const r = releaseEligible === true || releaseEligible === 'true';
+  let t = q
+    ? 'These results come from the generated binaries running on the QNX 8.0 target.'
+    : 'These results were verified on the host. They have not been executed on the QNX target.';
+  if (releaseEligible !== undefined && releaseEligible !== null) {
+    t += r ? ' Every required check passed, so the release gate allows this build.'
+           : ' The release gate refuses this build until every required check has passed on its target.';
+  }
+  return '<p class="explain" data-plain="trust">' + esc(t) + '</p>';
+}
 
 /* Recompute the manifest ir_sha256 from raw IR file text: strict-parse,
  * apply the validator's normalization (sort scenarios, actuators by
@@ -532,6 +586,7 @@ function renderPassportHtml(text) {
   if (chainOk && p.gate && p.gate !== stored) {
     h += '<div class="banner fail">envelope mismatch: outer gate=' + esc(p.gate) +
       ' differs from chained verdict=' + esc(stored) + ' (envelope is not hashed)</div>';
+    h += '<p class="explain">The summary label on this file disagrees with the hash-chained verdict inside it. Trust the chained verdict; the label was edited after sealing.</p>';
   }
   h += '<h3>Run <code>' + esc(p.run_id) + '</code> — gate: ' +
     (shown === 'PASS' ? '<span class="pass">PASS</span>'
@@ -540,6 +595,8 @@ function renderPassportHtml(text) {
     esc(verdict && verdict.body ? verdict.body.qnx_verified : 'unknown') +
     '</b> · records: ' + esc(p.chain.length) + ' · created: ' +
     esc(p.created_utc || '?') + '</p>';
+  h += trustSentence(verdict && verdict.body ? verdict.body.qnx_verified : undefined,
+                     verdict && verdict.body ? verdict.body.release_eligible : undefined);
   h += '<table><tr><th>record</th><th>status</th><th>hash</th></tr>';
   for (const r of p.chain) {
     const st = (r.body && (r.body.status || r.body.verdict)) || '—';
@@ -1223,6 +1280,7 @@ function renderDecisionHtml(d) {
     (((d.chain_errors || []).length === 0)
       ? '<span class="pass">clean</span>'
       : '<span class="fail">FAILED</span>') + '</p>';
+  h += trustSentence(d.qnx_verified, d.release_eligible);
   h += '<ul>' + (d.why || []).map((w) => '<li>' + esc(w) + '</li>').join('') +
     '</ul>';
   const miss = (d.missing_evidence || []).map((x) => '<code>' + esc(x) +
@@ -1432,6 +1490,7 @@ function renderGraphHtml(graph, opts) {
   h += '<p>' + graphPill(verdict.status || '?') + ' ' + esc(verdict.label || '?') +
     ' — qnx_verified=<code>' + esc(vd.qnx_verified) +
     '</code> release_eligible=<code>' + esc(vd.release_eligible) + '</code></p>';
+  h += trustSentence(vd.qnx_verified, vd.release_eligible);
   const reqs = byType('requirement');
   h += '<h3>Requirements</h3>';
   if (!reqs.length) {
@@ -1790,6 +1849,19 @@ document.querySelectorAll('.tabs button').forEach((b) => {
     ev.preventDefault(); all[j].focus(); switchTab(all[j].dataset.tab);
   });
 });
+(function initTheme() {
+  const sel = document.getElementById('theme-sel');
+  if (!sel) return;
+  let cur = 'system';
+  try { cur = localStorage.getItem('studio.theme') || 'system'; } catch (e) { /* storage blocked */ }
+  sel.value = cur;
+  sel.addEventListener('change', () => {
+    const v = sel.value;
+    if (v === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', v);
+    try { localStorage.setItem('studio.theme', v); } catch (e) { /* storage blocked */ }
+  });
+})();
 document.querySelectorAll('.overview [data-go]').forEach((b) => {
   b.addEventListener('click', () => {
     switchTab(b.dataset.go);

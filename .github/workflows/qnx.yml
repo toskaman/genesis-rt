@@ -1,28 +1,38 @@
-name: qnx-target
+name: qnx-native-build
 
-# Runs ONLY on a self-hosted runner with QNX SDP 8.0 installed.
-# It never reports a green "QNX tested" when skipped: without the
-# qnx label + SDK the job does not run at all, and passports keep
-# qnx_verified=false. See docs/quickstart-qnx8-qemu.md.
+# BUILD-ONLY lane. Runs ONLY on a self-hosted runner labelled `qnx` with
+# QNX SDP 8.0 installed. It compiles the generated sources with qcc and
+# records the binaries. It does NOT boot QEMU and does NOT run the native
+# 16-step target campaign: a green run here means "qcc build OK", never
+# "QNX tested". Passports from host CI keep qnx_verified=false.
+# The native campaign is run via the Studio Target tab or
+# `scripts/qnx_target.py` (boot / put / run / verify; docs/quickstart-qnx8-qemu.md);
+# its results live in the committed evidence packs under evidence/.
 on:
   workflow_dispatch:
 
 jobs:
-  qnx-build-and-run:
+  qnx-native-build:
     runs-on: [self-hosted, qnx]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Probe QNX toolchain
+      - name: "Stage 1/4: probe QNX toolchain"
         run: |
           PYTHONPATH=host python scripts/qnx_env_check.py
           test -n "$QNX_TARGET" || (echo "QNX_TARGET not set" && exit 1)
-      - name: Generate + native qcc build
+      - name: "Stage 2/4: generate sources"
         run: |
           PYTHONPATH=host python -m genesis_rt.cli generate \
             examples/amr-demo/machine-ir.json --out /tmp/genesis-qnx-build
-          make -C /tmp/genesis-qnx-build -f genesis_build_gen.mk qnx
-      - name: Record native build evidence
-        run: ls -l /tmp/genesis-qnx-build/genesis_*
+      - name: "Stage 3/4: native qcc build"
+        run: make -C /tmp/genesis-qnx-build -f genesis_build_gen.mk qnx
+      - name: "Stage 4/4: record build provenance"
+        run: |
+          ls -l /tmp/genesis-qnx-build/genesis_*
+          sha256sum /tmp/genesis-qnx-build/genesis_* | tee /tmp/genesis-qnx-build/SHA256SUMS
+      - name: "Native target campaign: NOT EXECUTED in this workflow"
+        run: |
+          echo "::notice title=QNX target campaign::NOT EXECUTED - this lane is build-only (no QEMU boot, no 16-step matrix, no passport). See docs/quickstart-qnx8-qemu.md."
