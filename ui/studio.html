@@ -69,6 +69,7 @@ input[type=file] { margin:1rem 0; }
 .overview .cta button.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
 .proof { border-collapse:collapse; font-size:.85rem; margin:.6rem 0; max-width:100%; }
 .overview code { overflow-wrap:anywhere; word-break:break-word; }
+.proof code { overflow-wrap:anywhere; }
 .proof th, .proof td { border:1px solid var(--border); padding:.3rem .6rem; text-align:left; }
 @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; scroll-behavior:auto !important; } }
 @media (max-width: 40rem) { .themebar { position:static; justify-content:flex-end; margin-bottom:.5rem; } .proof { display:block; overflow-x:auto; } .proof th, .proof td { padding:.25rem .4rem; } body { margin:1rem auto; } .tabs .grp { flex-basis:100%; margin-left:0; } }
@@ -136,29 +137,31 @@ behavior — and both revisions carry independently verifiable evidence.</p>
 </div>
 </section>
 <div id="live-status" role="status"><p class="note">Probing backend…</p></div>
-<p class="note">Projects, Designer, Pipeline and Evidence need the live backend
+<details class="note"><summary>What needs the backend?</summary>
+Projects, Designer, Pipeline and Evidence need the live backend
 (<code>PYTHONPATH=host python -m genesis_rt.cli serve</code>, then open
 <code>http://127.0.0.1:8077/</code>). Source, Twin, Lab, Passport, Diff
-and Run keep working on local files with no backend.</p>
+and Run keep working on local files with no backend.</details>
 </header>
 <nav aria-label="Studio sections"><div class="tabs" role="tablist" aria-label="Studio sections">
-<span class="tg" role="none"><span class="grp" aria-hidden="true">Guided demo</span>
-<button role="tab" aria-selected="false" aria-controls="tab-judge" id="tabbtn-judge" data-tab="judge">Judge tour</button></span>
-<span class="tg" role="none"><span class="grp" aria-hidden="true">Build</span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Start</span>
+<button role="tab" aria-selected="false" aria-controls="tab-judge" id="tabbtn-judge" data-tab="judge">Guided tour</button></span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Machines</span>
 <button role="tab" aria-selected="true" aria-controls="tab-projects" id="tabbtn-projects" data-tab="projects">Projects</button>
-<button role="tab" aria-selected="false" aria-controls="tab-designer" id="tabbtn-designer" data-tab="designer">Designer</button>
-<button role="tab" aria-selected="false" aria-controls="tab-source" id="tabbtn-source" data-tab="source">Source</button></span>
+<button role="tab" aria-selected="false" aria-controls="tab-designer" id="tabbtn-designer" data-tab="designer">Designer</button></span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Build &amp; Run</span>
+<button role="tab" aria-selected="false" aria-controls="tab-source" id="tabbtn-source" data-tab="source">Generated source</button>
+<button role="tab" aria-selected="false" aria-controls="tab-pipeline" id="tabbtn-pipeline" data-tab="pipeline">Host pipeline</button>
+<button role="tab" aria-selected="false" aria-controls="tab-target" id="tabbtn-target" data-tab="target">QNX target</button></span>
 <span class="tg" role="none"><span class="grp" aria-hidden="true">Verify</span>
-<button role="tab" aria-selected="false" aria-controls="tab-pipeline" id="tabbtn-pipeline" data-tab="pipeline">Pipeline</button>
-<button role="tab" aria-selected="false" aria-controls="tab-target" id="tabbtn-target" data-tab="target">QNX Target</button>
-<button role="tab" aria-selected="false" aria-controls="tab-lab" id="tabbtn-lab" data-tab="lab">Fault Lab</button>
-<button role="tab" aria-selected="false" aria-controls="tab-run" id="tabbtn-run" data-tab="run">Run</button></span>
+<button role="tab" aria-selected="false" aria-controls="tab-lab" id="tabbtn-lab" data-tab="lab">Fault lab</button>
+<button role="tab" aria-selected="false" aria-controls="tab-run" id="tabbtn-run" data-tab="run">Run results</button></span>
 <span class="tg" role="none"><span class="grp" aria-hidden="true">Evidence</span>
 <button role="tab" aria-selected="false" aria-controls="tab-passport" id="tabbtn-passport" data-tab="passport">Passport</button>
-<button role="tab" aria-selected="false" aria-controls="tab-diff" id="tabbtn-diff" data-tab="diff">Before/After</button>
+<button role="tab" aria-selected="false" aria-controls="tab-diff" id="tabbtn-diff" data-tab="diff">Before / After</button>
 <button role="tab" aria-selected="false" aria-controls="tab-evidence" id="tabbtn-evidence" data-tab="evidence">Evidence graph</button></span>
 <span class="tg" role="none"><span class="grp" aria-hidden="true">Explore</span>
-<button role="tab" aria-selected="false" aria-controls="tab-twin" id="tabbtn-twin" data-tab="twin">Digital Twin</button></span>
+<button role="tab" aria-selected="false" aria-controls="tab-twin" id="tabbtn-twin" data-tab="twin">Digital twin</button></span>
 </div></nav>
 <main id="main" tabindex="-1">
 
@@ -3833,7 +3836,9 @@ async function refreshLive() {
                   'target', 'twin', 'lab', 'passport', 'diff', 'evidence',
                   'run'];
     const t = storeGet('studio.tab');
-    if (t && tabs.indexOf(t) >= 0) switchTab(t);
+    // First visit opens the guided tour (jury feedback); returning
+    // viewers get their last tab back.
+    if (t && tabs.indexOf(t) >= 0) switchTab(t); else switchTab('judge');
   } catch (e) { /* never break boot on restore */ }
 }
 function liveBoot() {
