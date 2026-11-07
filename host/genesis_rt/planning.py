@@ -77,12 +77,25 @@ class OfflineProvider:
 # release gate, and its output is discarded unless validate_ir accepts it.
 LLM_MAX_RESPONSE_BYTES = 64 * 1024
 LLM_TIMEOUT_S = 60
-_LLM_SYSTEM = (
-    "You draft GENESIS RT Machine IR (schema_version 1) as ONE JSON object and "
-    "nothing else. Only simulation-only machines: machine.simulation_only must "
-    "be true and execution_target 'qnx8_x86_64_qemu'. Never remove limits or "
-    "guards. If the request is unsafe or ambiguous, return "
-    '{"refusal": "<reason>"}. Use this example as the exact shape:\n')
+_KIND_PHRASE = {"differential_drive_robot": "AMR robot", "conveyor": "conveyor",
+                "robotic_arm_virtual": "robotic arm"}
+_LLM_SYSTEM = """You extract a machine INTENT for GENESIS RT. Reply with ONE JSON
+object and nothing else, exactly these keys:
+{"kind": one of ["differential_drive_robot", "conveyor", "robotic_arm_virtual"]
+         or null,
+ "period_ms": integer or null,
+ "max_linear_speed_mps": number or null,
+ "refusal": null or a short reason}
+Mapping hints: AMR, rover, mobile/warehouse robot -> differential_drive_robot;
+belt, conveyor -> conveyor; arm, manipulator, gripper -> robotic_arm_virtual.
+Rules: use null for any value the request does not state (defaults are applied
+later). Copy numbers exactly. Units must be milliseconds and m/s: if the request
+gives a period in seconds or minutes, or a speed in km/h or other units, set
+refusal "wrong units: state the period in ms and the speed in m/s". Refuse
+(set refusal) if the request is not about one of these simulated machines, asks
+to disable guards, limits or simulation, targets real hardware, or is too vague
+to name a machine. Speeds above 10 m/s or periods outside 1..1000 ms: refusal
+"out of range"."""
 
 
 class LLMProvider:
@@ -107,16 +120,14 @@ class LLMProvider:
         if not re.match(r"^https?://", self.endpoint):
             raise PlannerRejection("GENESIS_AI_ENDPOINT must be an http(s) URL")
 
-    def propose_raw(self, request: str, machine_id: str) -> Any:
-        example = offline_propose("small AMR max speed 1.2", machine_id=machine_id)
+    def _chat(self, request: str) -> Any:
         body = json.dumps({
             "model": self.model,
             "temperature": 0,
             "response_format": {"type": "json_object"},
             "messages": [
-                {"role": "system", "content": _LLM_SYSTEM + json.dumps(example)},
-                {"role": "user", "content":
-                    f"machine_id: {machine_id}\nrequest: {request[:2000]}"},
+                {"role": "system", "content": _LLM_SYSTEM},
+                {"role": "user", "content": request[:2000]},
             ],
         }).encode("utf-8")
         headers = {"Content-Type": "application/json"}
@@ -134,17 +145,53 @@ class LLMProvider:
         if len(raw) > LLM_MAX_RESPONSE_BYTES:
             raise PlannerRejection("llm response exceeds 64 KiB limit")
         try:
-            content = json.loads(raw)["choices"][0]["message"]["content"]
-            proposal = json.loads(content)
+            return json.loads(json.loads(raw)["choices"][0]["message"]["content"])
         except (ValueError, KeyError, IndexError, TypeError) as exc:
             raise PlannerRejection(f"llm returned malformed output: {exc.__class__.__name__}") from None
-        if isinstance(proposal, dict) and "refusal" in proposal:
-            raise PlannerRejection(f"llm refused: {str(proposal['refusal'])[:200]}")
-        if isinstance(proposal, dict):
-            proposal.setdefault("machine", {})
-            if isinstance(proposal["machine"], dict):
-                proposal["machine"]["id"] = machine_id
-        return proposal
+
+    def propose_raw(self, request: str, machine_id: str) -> Any:
+        """Model -> structured intent -> deterministic offline template.
+
+        The model never writes IR. Its intent is type-checked here, turned
+        into a canonical request for the deterministic planner, and the
+        planner's result is checked to carry exactly the intended values.
+        """
+        # Deterministic guards first: units, ranges, ambiguity and length are
+        # judged by the offline parser, never by the model (measured on
+        # qwen2.5:7b: the model tends to drop "5 km/h" and apply defaults).
+        # Only "unknown machine kind" -- i.e. phrasing the keyword parser
+        # cannot map -- is handed to the model.
+        try:
+            offline_propose(request, machine_id=machine_id)
+        except PlannerRejection as exc:
+            if not str(exc).startswith("unknown machine kind"):
+                raise
+        intent = self._chat(request)
+        if not isinstance(intent, dict):
+            raise PlannerRejection("llm returned a non-object intent")
+        if intent.get("refusal"):
+            raise PlannerRejection(f"llm refused: {str(intent['refusal'])[:200]}")
+        kind = intent.get("kind")
+        if kind not in _KIND_PHRASE:
+            raise PlannerRejection(f"llm intent has unknown kind {kind!r}")
+        period = intent.get("period_ms")
+        speed = intent.get("max_linear_speed_mps")
+        if period is not None and (type(period) is not int or not 1 <= period <= 1000):
+            raise PlannerRejection(f"llm intent period_ms out of range: {period!r}")
+        if speed is not None and (isinstance(speed, bool) or not isinstance(speed, (int, float))
+                                  or not 0 < speed <= 10):
+            raise PlannerRejection(f"llm intent speed out of range: {speed!r}")
+        canon = _KIND_PHRASE[kind]
+        if period is not None:
+            canon += f" with {period} ms period"
+        if speed is not None:
+            canon += f" and {float(speed)} m/s max speed"
+        ir = offline_propose(canon, machine_id=machine_id)
+        got = ir["machine"]["kind"], ir["control"]["period_ms"], ir["control"]["max_linear_speed_mps"]
+        if got[0] != kind or (period is not None and got[1] != period) or \
+                (speed is not None and abs(got[2] - float(speed)) > 1e-9):
+            raise PlannerRejection(f"deterministic template disagrees with llm intent: {got}")
+        return ir
 
 
 PROVIDERS: dict[str, type[Any]] = {"offline": OfflineProvider, "llm": LLMProvider}

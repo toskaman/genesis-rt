@@ -96,9 +96,26 @@ fixed; recorded as a limitation.
 
 ### Still open
 
-Sealed run with a real LLM; measured user benefit (interviews / timed
+Measured user benefit (interviews / timed
 task); KVM or hardware timing; byte-reproducible qcc builds; screen-reader
 session; deeper visual redesign.
+
+## Wave 3 — real-model evaluation (same day)
+
+Owner-approved throwaway Vultr VM (12 vCPU, CPU only, ~45 min, est.
+< 0.25 USD of credits, destroyed afterwards with its SSH key). Ollama +
+`qwen2.5:7b-instruct`. Three measured rounds changed the architecture:
+
+| Round | Design | 28-case eval | Unsafe accepts |
+|---|---|---|---|
+| 1 | model writes IR | 19/28 (valid 2/10) | 1 |
+| 2 | model → intent → deterministic template | 24/28 | 4 |
+| 3 | + deterministic unit/range/ambiguity guards before the model | **28/28** | **0** |
+
+Paraphrase set (outside the keyword vocabulary): offline 3/8, llm **8/8**.
+End-to-end: model-planned IR → generate → host pipeline → passport PASS,
+replay valid (host-only evidence). Data:
+`evals/results/2026-11-07-qwen2.5-7b/`.
 
 ## Verdicts
 

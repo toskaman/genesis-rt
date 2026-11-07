@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "machine": {
+    "id": "amr-llm-01",
+    "kind": "differential_drive_robot",
+    "execution_target": "qnx8_x86_64_qemu",
+    "simulation_only": true
+  },
+  "actuators": [
+    {
+      "id": "left-motor",
+      "type": "velocity_command"
+    },
+    {
+      "id": "right-motor",
+      "type": "velocity_command"
+    }
+  ],
+  "sensors": [
+    {
+      "id": "odometry",
+      "type": "odometry",
+      "freshness_limit_ms": 100
+    },
+    {
+      "id": "proximity",
+      "type": "distance_m",
+      "freshness_limit_ms": 100
+    }
+  ],
+  "control": {
+    "period_ms": 20,
+    "max_linear_speed_mps": 0.8,
+    "max_angular_speed_radps": 1.0,
+    "guarded_state_transitions": true
+  },
+  "safety_contracts": [
+    {
+      "name": "simulator-watchdog",
+      "if": "simulator_disconnected",
+      "then": "command_virtual_stop"
+    },
+    {
+      "name": "speed-limit",
+      "if": "speed_exceeds_limit",
+      "then": "reject_command"
+    },
+    {
+      "name": "stale-proximity-stop",
+      "if": "proximity_is_stale",
+      "then": "command_virtual_stop"
+    }
+  ],
+  "verification": {
+    "scenarios": [
+      "corrupted_message",
+      "delayed_command",
+      "dropped_message",
+      "nominal_navigation",
+      "planner_process_crash",
+      "simulator_disconnect",
+      "speed_command_over_limit",
+      "stale_proximity_150ms"
+    ]
+  }
+}

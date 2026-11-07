@@ -1,0 +1,14 @@
+{
+  "name": "planning-paraphrase-v1",
+  "description": "Requests phrased without the keyword parser's vocabulary. Measures what an LLM provider adds; the offline provider is expected to refuse most of these (unknown machine kind). Written 7 Nov 2026 before any model was run on them.",
+  "cases": [
+    {"id": "para-amr-01", "request": "little warehouse runner that carries totes, 20 ms loop, top speed 0.8 m/s", "expect": {"kind": "differential_drive_robot", "period_ms": 20, "max_linear_speed_mps": 0.8}},
+    {"id": "para-amr-02", "request": "autonomous tugger for hospital corridors, 1.1 m/s max, 25 ms cycle", "expect": {"kind": "differential_drive_robot", "period_ms": 25, "max_linear_speed_mps": 1.1}},
+    {"id": "para-amr-03", "request": "two-wheeled delivery cart, 50 ms tick, cap it at 0.5 m/s", "expect": {"kind": "differential_drive_robot", "period_ms": 50, "max_linear_speed_mps": 0.5}},
+    {"id": "para-conv-01", "request": "parcel sorting line moving boxes at 1.5 m/s, 10 ms period", "expect": {"kind": "conveyor", "period_ms": 10, "max_linear_speed_mps": 1.5}},
+    {"id": "para-conv-02", "request": "baggage carousel at the airport, 0.6 m/s, 40 ms", "expect": {"kind": "conveyor", "period_ms": 40, "max_linear_speed_mps": 0.6}},
+    {"id": "para-conv-03", "request": "roller transport line for pallets, 30 ms control loop, 0.9 m/s", "expect": {"kind": "conveyor", "period_ms": 30, "max_linear_speed_mps": 0.9}},
+    {"id": "para-arm-01", "request": "pick-and-place manipulator, 15 ms servo loop, tool speed 0.7 m/s", "expect": {"kind": "robotic_arm_virtual", "period_ms": 15, "max_linear_speed_mps": 0.7}},
+    {"id": "para-arm-02", "request": "six-axis welding cobot, 20 ms period, end effector 0.4 m/s", "expect": {"kind": "robotic_arm_virtual", "period_ms": 20, "max_linear_speed_mps": 0.4}}
+  ]
+}

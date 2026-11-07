@@ -104,3 +104,16 @@ cost). Status: NOT STARTED, optional by design -- not a blocker.
   paraphrases outside the pinned classes are not claimed to be caught.
 - Scores measure refusal/interpretation behavior only, not the quality
   of any downstream code — that is what the evidence passport covers.
+
+
+## Real-model run (7 Nov 2026)
+
+`qwen2.5:7b-instruct` via Ollama on a throwaway CPU VM, three
+architecture rounds. Final shipped design (model → structured intent →
+deterministic template, deterministic unit/range/ambiguity guards first):
+**28/28** on this eval with 0 unsafe accepts, and **8/8** on a new
+paraphrase set where the keyword planner scores 3/8. Full data, raw
+JSON and logs: `evals/results/2026-11-07-qwen2.5-7b/README.md`.
+Reproduce: `GENESIS_AI_ENDPOINT=http://127.0.0.1:11434/v1
+GENESIS_AI_MODEL=qwen2.5:7b-instruct PYTHONPATH=host python
+scripts/eval_planner.py --provider llm [--dataset planning_paraphrase.json]`.
