@@ -8,8 +8,11 @@ historical reports keep their own dated numbers.
 """
 from .provenance import EXPECTED_TARGET_CHECKS, TARGET_PLATFORM
 
-TESTS_WITH_SDK = 1078
-TESTS_SDK_FREE_PASSED = 1073
+# TESTS_WITH_SDK is the collected total: with the QNX SDK every test runs
+# (0 skips). Guarded by test_total_count_matches_collected.
+TESTS_WITH_SDK = 1140
+TESTS_SDK_FREE_PASSED = 1135
+TESTS_MEASURED_ON = "2026-11-07 (SDK-free, Linux, Python 3.13)"
 TESTS_SDK_FREE_SKIPS = 5
 ADVERSARIAL_TESTS = 24
 PLANNING_EVAL_CASES = 28

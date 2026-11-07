@@ -13,11 +13,12 @@ No QNX SDK needed except where marked.
 | Full demo + passport | `PYTHONPATH=host python scripts/run_verified_demo.py` | `verdict: PASS` |
 | Passport replays | `PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json` | `chain: valid`, `gate: PASS` |
 | Gate blocks sabotage | `python -m pytest tests/integration/test_pipeline.py tests/acceptance/ -q` | green |
-| Whole suite | `python -m pytest tests/ -q` | green, 1078 tests w/ SDK, 0 skips (6 Nov 2026; else 1073 + 5 honest skips: 3 QNX-build + 1 SDK-only codelab + 1 real-build target op; +1 cksum-conformance where coreutils is absent) |
+| Whole suite | `python -m pytest tests/ -q` | green, 1140 tests (all run w/ SDK; SDK-free 7 Nov 2026: 1135 + 5 honest skips: 3 QNX-build + 1 SDK-only codelab + 1 real-build target op; +1 cksum-conformance where coreutils is absent) |
 | QNX SDK probe | `PYTHONPATH=host python scripts/qnx_env_check.py` | JSON, `sdk_present` honest |
 | **QNX native build (needs SDK)** | `source ~/qnx800/qnxsdp-env.sh` then generate + `make -f genesis_build_gen.mk qnx` | 6 `genesis_*` binaries per machine build (7 for cell: + `genesis_cellcheck`), 0 warnings (9 staged on target: bound set + `genesis_guard_conv` + `genesis_guard_v2`) |
 | **QNX run (needs SDK+QEMU)** | `python scripts/qnx_target.py put <bins>` then `verify` | 16/16 matrix PASS, `qnx_verified: true` |
-| Native evidence pack (no SDK) | `python evidence/qnx8-x86_64-verified-b22cea1/verify.py` | `VERIFY OK`, 16/16, 1000 samples, bindings hold |
+| Native BEFORE/AFTER packs (no SDK, canonical) | `python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before` then the same for `qnx8-x86_64-w11-after` | both `VERIFY OK`, 16/16, 1000 samples; 1.5 m/s probe DENY (1.2 limit) → ALLOW (1.6 limit), see `evidence/w11-before-after/COMPARISON.md` |
+| Legacy native pack (historical, b22cea1) | `python evidence/qnx8-x86_64-verified-b22cea1/verify.py` | `VERIFY OK`, 16/16 (kept as historical record) |
 
 `PYTHONPATH=host` is unnecessary after `pip install -e .`.
 

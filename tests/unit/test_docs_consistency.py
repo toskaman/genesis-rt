@@ -31,17 +31,17 @@ def _one(pat: str, text: str, label: str) -> tuple[str, ...]:
 
 def test_suite_total_agrees_across_docs():
     a = _one(r"(\d+) host tests", _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard total")
-    b = _one(r"(\d+) tests w/ SDK", _read("docs/jury/REPRODUCE.md"), "reproduce total")
-    c = _one(r"Expect green \((\d+) with SDK", _read("docs/jury/START_HERE.md"), "start-here total")
-    d = _one(r"~(\d+)-test host suite", _read("docs/business/COMMERCIAL_VISION.md"), "commercial total")
+    b = _one(r"green, (\d+) tests", _read("docs/jury/REPRODUCE.md"), "reproduce total")
+    c = _one(r"Expect green \((\d+) tests", _read("docs/jury/START_HERE.md"), "start-here total")
+    d = _one(r"(\d+)-test host suite", _read("docs/business/COMMERCIAL_VISION.md"), "commercial total")
     assert a == b == c == d, (a, b, c, d)
 
 
 def test_sdk_free_counts_agree_across_docs():
     a = _one(r"SDK-free: (\d+) \+ (\d+) honest skips", _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard sdk-free")
-    b = _one(r"else (\d+) \+ (\d+) honest skips", _read("docs/jury/REPRODUCE.md"), "reproduce sdk-free")
-    c = _one(r"SDK-free: (\d+) passed \+ (\d+) honest skips", _read("docs/jury/START_HERE.md"), "start-here sdk-free")
-    d = _one(r"SDK-free (\d+) passed \+ (\d+) honest skips", _read("docs/business/COMMERCIAL_VISION.md"), "commercial sdk-free")
+    b = _one(r"SDK-free [^:]*: (\d+) \+ (\d+) honest skips", _read("docs/jury/REPRODUCE.md"), "reproduce sdk-free")
+    c = _one(r"SDK-free[^:]*: (\d+) passed \+ (\d+) honest skips", _read("docs/jury/START_HERE.md"), "start-here sdk-free")
+    d = _one(r"SDK-free: (\d+) passed \+ (\d+) honest skips", _read("docs/business/COMMERCIAL_VISION.md"), "commercial sdk-free")
     assert a == b == c == d, (a, b, c, d)
 
 
@@ -247,3 +247,18 @@ def test_safety_disclaimer_present_not_certified():
         text = _read(rel)
         assert "no safety certification" in text.lower(), rel
         assert "certified" not in text.lower(), rel
+
+
+def test_total_count_matches_collected():
+    """Registry total equals the collected suite (catches stale claims)."""
+    from genesis_rt import facts
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "tests", "-o", "addopts=",
+         "--collect-only", "-q", "-p", "no:warnings"],
+        capture_output=True, text=True, cwd=ROOT, timeout=300)
+    m = re.search(r"(\d+) tests? collected", proc.stdout)
+    assert m is not None, proc.stdout[-500:]
+    assert int(m.group(1)) == facts.TESTS_WITH_SDK, (m.group(1),
+                                                     facts.TESTS_WITH_SDK)
+    assert facts.TESTS_SDK_FREE_PASSED + facts.TESTS_SDK_FREE_SKIPS == \
+        facts.TESTS_WITH_SDK
