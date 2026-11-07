@@ -34,6 +34,31 @@ TABS = ["judge", "projects", "designer", "source", "pipeline", "target",
 AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]
 
 
+_BROWSER_CANDIDATES = [
+    os.environ.get("GENESIS_E2E_BROWSER", ""),
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser",
+]
+
+
+def _launch(p):
+    """Bundled Chromium, else a system Chrome/Edge (same policy as the
+    other E2E files), else a visible skip."""
+    try:
+        return p.chromium.launch(headless=True, timeout=60_000)
+    except Exception as exc:  # noqa: BLE001 - fall back to system browsers
+        last = exc
+    for cand in _BROWSER_CANDIDATES:
+        if cand and Path(cand).is_file():
+            try:
+                return p.chromium.launch(headless=True, executable_path=cand,
+                                         timeout=60_000)
+            except Exception as exc:  # noqa: BLE001
+                last = exc
+    pytest.skip(f"no usable browser for e2e ({last})")
+
+
 def _axe_source() -> str | None:
     for cand in (os.environ.get("GENESIS_AXE_JS", ""),
                  str(ROOT / "node_modules" / "axe-core" / "axe.min.js")):
@@ -77,7 +102,7 @@ def test_axe_wcag22_no_serious_violations(studio_url, theme):
         pytest.skip("axe-core not installed (npm install --no-save "
                     "axe-core@4.10.2) — automated a11y scan NOT executed")
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = _launch(p)
         pg = browser.new_page(viewport={"width": 1366, "height": 900})
         pg.add_init_script(
             f"try{{localStorage.setItem('studio.theme','{theme}')}}catch(e){{}}")
@@ -105,7 +130,7 @@ def test_axe_wcag22_no_serious_violations(studio_url, theme):
 def test_reflow_320px_every_tab(studio_url):
     """WCAG 1.4.10: no page-level horizontal scroll at 320 CSS px."""
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = _launch(p)
         pg = browser.new_page(viewport={"width": 320, "height": 640})
         pg.goto(studio_url)
         pg.wait_for_load_state("networkidle")
