@@ -10,8 +10,8 @@ from .provenance import EXPECTED_TARGET_CHECKS, TARGET_PLATFORM
 
 # TESTS_WITH_SDK is the collected total: with the QNX SDK every test runs
 # (0 skips). Guarded by test_total_count_matches_collected.
-TESTS_WITH_SDK = 1158
-TESTS_SDK_FREE_PASSED = 1153
+TESTS_WITH_SDK = 1166
+TESTS_SDK_FREE_PASSED = 1161
 TESTS_MEASURED_ON = "2026-11-07 TITAN wave (SDK-free, Linux, Python 3.13)"
 TESTS_SDK_FREE_SKIPS = 5
 ADVERSARIAL_TESTS = 24

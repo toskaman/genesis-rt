@@ -59,23 +59,39 @@ def llm_env(monkeypatch):
     return setup
 
 
-def test_valid_proposal_passes_gate(llm_env):
-    good = propose("small AMR max speed 1.4", machine_id="x")
-    srv, seen = llm_env(lambda b: (200, _chat(good)), key="sk-secret")
-    ir = plan_machine("AMR at 1.4 m/s", machine_id="amr-llm", provider="llm")
+def test_valid_intent_builds_ir_deterministically(llm_env):
+    intent = {"kind": "differential_drive_robot", "period_ms": 20,
+              "max_linear_speed_mps": 0.8, "refusal": None}
+    srv, seen = llm_env(lambda b: (200, _chat(intent)), key="sk-secret")
+    ir = plan_machine("warehouse AMR, 20 ms, 0.8 m/s", machine_id="amr-llm",
+                      provider="llm")
     srv.shutdown()
     assert ir["machine"]["id"] == "amr-llm"
     assert ir["machine"]["simulation_only"] is True
+    assert (ir["control"]["period_ms"], ir["control"]["max_linear_speed_mps"]) == (20, 0.8)
+    assert ir == propose("AMR robot with 20 ms period and 0.8 m/s max speed",
+                         machine_id="amr-llm")
     assert seen["auth"] == "Bearer sk-secret"
     assert seen["body"]["response_format"] == {"type": "json_object"}
 
 
-def test_unsafe_proposal_rejected_by_validation(llm_env):
-    bad = propose("small AMR max speed 1.4", machine_id="x")
-    bad["machine"]["simulation_only"] = False   # model "helpfully" unlocks HW
-    srv, _ = llm_env(lambda b: (200, _chat(bad)))
-    with pytest.raises(PlannerRejection, match="rejected by IR validation"):
-        plan_machine("AMR", provider="llm")
+@pytest.mark.parametrize("intent,match", [
+    ({"kind": "mobile_rover"}, "unknown kind"),
+    ({"kind": "conveyor", "max_linear_speed_mps": 25}, "out of range"),
+    ({"kind": "conveyor", "max_linear_speed_mps": True}, "out of range"),
+    ({"kind": "conveyor", "period_ms": 0}, "out of range"),
+    ({"kind": "conveyor", "period_ms": 2.5}, "out of range"),
+    ({"kind": "conveyor", "simulation_only": False, "max_linear_speed_mps": 1.0}, None),
+])
+def test_intent_is_type_checked(llm_env, intent, match):
+    """The model cannot smuggle IR fields: only kind/period/speed are read."""
+    srv, _ = llm_env(lambda b: (200, _chat(intent)))
+    if match is None:
+        ir = plan_machine("parcel walkway for the depot", provider="llm")
+        assert ir["machine"]["simulation_only"] is True
+    else:
+        with pytest.raises(PlannerRejection, match=match):
+            plan_machine("parcel walkway for the depot", provider="llm")
     srv.shutdown()
 
 
@@ -84,26 +100,26 @@ def test_unsafe_proposal_rejected_by_validation(llm_env):
     (_chat("```json {oops"), "malformed"),
     (json.dumps({"choices": []}).encode(), "malformed"),
     (_chat({"refusal": "too vague"}), "llm refused"),
-    (_chat([1, 2, 3]), "non-object"),
+    (_chat([1, 2, 3]), "non-object intent"),
 ])
 def test_malformed_or_refused_output(llm_env, payload, match):
     srv, _ = llm_env(lambda b: (200, payload))
     with pytest.raises(PlannerRejection, match=match):
-        plan_machine("AMR", provider="llm")
+        plan_machine("warehouse runner carrying totes", provider="llm")
     srv.shutdown()
 
 
 def test_oversized_response_rejected(llm_env):
     srv, _ = llm_env(lambda b: (200, b"x" * (LLM_MAX_RESPONSE_BYTES + 10)))
     with pytest.raises(PlannerRejection, match="64 KiB"):
-        plan_machine("AMR", provider="llm")
+        plan_machine("warehouse runner carrying totes", provider="llm")
     srv.shutdown()
 
 
 def test_http_error_does_not_leak_key(llm_env):
     srv, _ = llm_env(lambda b: (500, b"{}"), key="sk-very-secret")
     with pytest.raises(PlannerRejection) as ei:
-        plan_machine("AMR", provider="llm")
+        plan_machine("warehouse runner carrying totes", provider="llm")
     srv.shutdown()
     assert "HTTP 500" in str(ei.value)
     assert "sk-very-secret" not in str(ei.value)
@@ -123,11 +139,30 @@ def test_unconfigured_llm_is_explicit(monkeypatch):
     monkeypatch.delenv("GENESIS_AI_ENDPOINT", raising=False)
     monkeypatch.delenv("GENESIS_AI_MODEL", raising=False)
     with pytest.raises(PlannerRejection, match="not configured"):
-        plan_machine("AMR", provider="llm")
+        plan_machine("warehouse runner carrying totes", provider="llm")
 
 
 def test_unreachable_endpoint(monkeypatch):
     monkeypatch.setenv("GENESIS_AI_ENDPOINT", "http://127.0.0.1:9/v1")
     monkeypatch.setenv("GENESIS_AI_MODEL", "m")
     with pytest.raises(PlannerRejection, match="unreachable|HTTP"):
-        plan_machine("AMR", provider="llm")
+        plan_machine("warehouse runner carrying totes", provider="llm")
+
+
+@pytest.mark.parametrize("request_text,match", [
+    ("AMR robot at 5 km/h", "not m/s"),
+    ("robot with 1 second control period", "not milliseconds"),
+    ("robot arm mounted beside a conveyor belt", "ambiguous"),
+])
+def test_deterministic_guards_run_before_model(llm_env, request_text, match):
+    """Measured failure mode of qwen2.5:7b (7 Nov 2026 eval): the model
+    returned null for unit-bearing values and defaults filled them in.
+    Units/ambiguity are now judged deterministically before any call."""
+    calls = []
+    intent = {"kind": "conveyor", "period_ms": None,
+              "max_linear_speed_mps": None, "refusal": None}
+    srv, _ = llm_env(lambda b: (calls.append(1) or 200, _chat(intent)))
+    with pytest.raises(PlannerRejection, match=match):
+        plan_machine(request_text, provider="llm")
+    srv.shutdown()
+    assert calls == []

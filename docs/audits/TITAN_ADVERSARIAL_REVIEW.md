@@ -32,9 +32,9 @@ no sealed evidence; second, zero measured user benefit.
 
 ### Open (needs owner or external input)
 
-- Sealed run of a **real** LLM proposing IR (needs a model: e.g. start
-  the local Ollama and pull a model — a multi-GB download not done
-  without asking).
+- ~~Sealed run of a real LLM~~ **Done (wave 3):** qwen2.5:7b, 28/28 + 8/8
+  paraphrases vs 3/8 offline, 0 unsafe accepts; end-to-end passport.
+  See `evals/results/2026-11-07-qwen2.5-7b/`.
 - Measured benefit: 2–3 interviews or one timed internal task.
 - KVM/hardware latency run + priority/deadline-miss scenario.
 - Clean toolchain/identity capture in the committed packs (the packs are
@@ -95,4 +95,4 @@ Status: **OK** holds with evidence · **FIXED** this wave · **OPEN**.
 | 47 | QNX-specific? | OK | native IPC, resmgr, QEMU target |
 | 48 | Judge reproduces strongest claim? | OK | `verify.py` both packs, no SDK |
 | 49 | Evidence per criterion? | OK/OPEN | Impact weakest |
-| 50 | Single weakness costing the Grand Prize? | OPEN | AI depth + measured impact (see §1) |
+| 50 | Single weakness costing the Grand Prize? | OPEN | measured user impact (AI depth now measured: 8/8 vs 3/8 paraphrases) |
