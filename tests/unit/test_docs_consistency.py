@@ -292,3 +292,11 @@ def test_limitations_match_rfc1982_implementation():
     assert "RFC 1982" in _read("target/qnx8/common/guard_policy.c")
     assert "documents the boundary instead" not in lim
     assert "RFC 1982" in lim
+
+
+def test_claims_e2e_count_matches_facts():
+    """Ascension: CLAIMS once said 21 E2E while 24 were collected."""
+    from genesis_rt import facts
+    m = re.search(r"Real-browser E2E: \*\*(\d+)\*\* collected", _read("docs/CLAIMS.md"))
+    assert m is not None
+    assert int(m.group(1)) == facts.E2E_BROWSER_TESTS

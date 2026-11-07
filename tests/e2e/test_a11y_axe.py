@@ -29,7 +29,7 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 from genesis_rt import api as api_mod  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-TABS = ["judge", "projects", "designer", "source", "pipeline", "target",
+TABS = ["overview", "judge", "projects", "designer", "source", "pipeline", "target",
         "lab", "run", "passport", "diff", "evidence", "twin"]
 AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]
 
@@ -41,6 +41,15 @@ _BROWSER_CANDIDATES = [
     "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser",
 ]
 
+
+
+def _nav_click(pg, tab):
+    """Click a Studio nav entry the way a user would: on narrow screens
+    the navigation sits behind the Menu button."""
+    toggle = pg.locator("#menu-toggle")
+    if toggle.count() and toggle.is_visible() and not pg.locator(f'button[data-tab="{tab}"]').is_visible():
+        toggle.click()
+    pg.locator(f'button[data-tab="{tab}"]').click()
 
 def _launch(p):
     """Bundled Chromium, else a system Chrome/Edge (same policy as the
@@ -111,7 +120,7 @@ def test_axe_wcag22_no_serious_violations(studio_url, theme):
         pg.add_script_tag(content=axe)
         problems = []
         for tab in TABS:
-            pg.locator(f'button[data-tab="{tab}"]').click()
+            _nav_click(pg, tab)
             pg.wait_for_timeout(150)
             res = pg.evaluate(
                 """async (tags) => {
@@ -136,7 +145,7 @@ def test_reflow_320px_every_tab(studio_url):
         pg.wait_for_load_state("networkidle")
         bad = []
         for tab in TABS:
-            pg.locator(f'button[data-tab="{tab}"]').click()
+            _nav_click(pg, tab)
             pg.wait_for_timeout(100)
             over = pg.evaluate("document.documentElement.scrollWidth - "
                                "document.documentElement.clientWidth")

@@ -1,0 +1,11 @@
+run: run-18e910f79192  verdict: PASS  level: HOST_TESTED  release_eligible: False  qnx_verified: False  elapsed: 0.17s
+passport: /root/genesis-rt/artifacts/runs/run-18e910f79192/passport.json
+  level: qnx_build.status='blocked' (need 'ok' for QNX_COMPILED)
+  corrupted_message: pass
+  delayed_command: pass
+  dropped_message: pass
+  nominal_navigation: pass
+  planner_process_crash: pass
+  simulator_disconnect: pass
+  speed_command_over_limit: pass
+  stale_proximity_150ms: pass

@@ -85,6 +85,9 @@ Both verdicts are correct under their own contract. Pairing the 1.6
 contract with the stale 1.2-built binary is rejected by the gate. The AFTER
 campaign was re-executed from scratch on 7 Nov 2026 (op-24fecbf11df8, 16/16,
 `evidence/qnx8-x86_64-w11-after-rerun/`).
+Every published native binary (18 across the three packs) rebuilds
+bit-for-bit from its commit with `scripts/qnx_rebuild_check.py`; between BEFORE and AFTER exactly the three binaries that compile in the
+limits change and the other three are byte-identical.
 
 **AI, without AI theatre.** The optional LLM planner never writes the
 contract: the model extracts a structured intent, deterministic code checks
@@ -116,7 +119,7 @@ python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before
 python evidence/qnx8-x86_64-w11-after/verify.py evidence/qnx8-x86_64-w11-after
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve   # Studio at http://127.0.0.1:8077/
-python -m pytest tests/ -q   # 1166 pass, 0 skip with the QNX SDK (all collected tests run); SDK-less CI: 1161 passed + 5 honest skips (measured 7 Nov 2026) (3 QNX-build + 1 SDK-only codelab + 1 real-build target op)
+python -m pytest tests/ -q   # 1192 pass, 0 skip with the QNX SDK (all collected tests run); SDK-less CI: 1187 passed + 5 honest skips (measured 7 Nov 2026) (3 QNX-build + 1 SDK-only codelab + 1 real-build target op)
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then
@@ -125,8 +128,7 @@ With an SDK: `python scripts/qnx_env_check.py`, then
 ## Limitations
 
 QEMU only (no real hardware), TCG timing is relative, simulation-only
-machines, no safety certification, no hardware attestation, `qcc` builds
-not byte-reproducible across runs (generated C is), the native CI lane is
+machines, no safety certification, no hardware attestation, the native CI lane is
 build-only (target campaigns run on the author's machine and ship as
 evidence packs), and no external user study yet. Full list:
 `docs/jury/KNOWN_LIMITATIONS.md`.

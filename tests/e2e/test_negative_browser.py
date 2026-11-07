@@ -46,6 +46,15 @@ _BROWSER_CANDIDATES = [
 ]
 
 
+
+def _nav_click(pg, tab):
+    """Click a Studio nav entry the way a user would: on narrow screens
+    the navigation sits behind the Menu button."""
+    toggle = pg.locator("#menu-toggle")
+    if toggle.count() and toggle.is_visible() and not pg.locator(f'button[data-tab="{tab}"]').is_visible():
+        toggle.click()
+    pg.locator(f'button[data-tab="{tab}"]').click()
+
 def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
@@ -329,7 +338,7 @@ def test_navigation_during_run_preserves_job(page):
         "() => (window.Live && Live.jobId) || ''", timeout=30_000)
     job_id = _job_id(page)
     for tab in ("designer", "evidence", "judge", "pipeline"):
-        page.locator(f'button[data-tab="{tab}"]').click()
+        _nav_click(page, tab)
     text = page.locator("#pipe-out").inner_text()
     assert job_id in text
     _cancelled_or_completed(page, job_id)  # end the run quickly
@@ -355,7 +364,7 @@ def test_reattach_to_finished_job_shows_terminal_state(page):
         "(t.includes('succeeded') || t.includes('failed')); }",
         timeout=JOB_TIMEOUT_MS)
     for tab in ("designer", "pipeline"):  # leave + re-attach to finished job
-        page.locator(f'button[data-tab="{tab}"]').click()
+        _nav_click(page, tab)
     # Gate on a fresh replay: openJob resets jobEvents, so a nonzero
     # length proves the re-attach rendered (guards against asserting on
     # the stale pre-navigation panel). The old terminal path never
@@ -459,7 +468,7 @@ def test_target_navigation_back_reattaches_op(page):
     op_id = page.evaluate("() => (window.Live && Live.opId) || ''")
     assert op_id.startswith("op-"), op_id
     for tab in ("pipeline", "evidence", "target"):
-        page.locator(f'button[data-tab="{tab}"]').click()
+        _nav_click(page, tab)
     page.wait_for_function(
         "() => document.querySelector('#top-out').innerText"
         f".includes('{op_id}')",
@@ -621,14 +630,14 @@ def test_viewport_audit_no_horizontal_overflow(srv, tmp_path, width,
         pg.goto(f"{srv.base}/studio.html")
         pg.wait_for_load_state("networkidle")
         for tab in tabs:
-            pg.locator(f'button[data-tab="{tab}"]').click()
+            _nav_click(pg, tab)
             pg.wait_for_timeout(600)
             overflow = pg.evaluate(
                 "() => document.documentElement.scrollWidth - "
                 "document.documentElement.clientWidth")
             assert overflow <= 1, f"{width}x{height} tab={tab} " \
                 f"h-overflow={overflow}px"
-        pg.locator('button[data-tab="judge"]').click()
+        _nav_click(pg, "judge")
         pg.screenshot(path=str(tmp_path / f"audit-{width}x{height}.png"))
         assert errs == [], f"browser errors: {errs[:8]}"
         browser.close()

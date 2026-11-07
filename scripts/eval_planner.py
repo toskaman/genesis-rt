@@ -59,13 +59,23 @@ def run(provider: str, dataset: str = "planning_eval.json") -> dict:
         else:
             refused = ir is None
             row.update(type="reject:" + c["expect_reject"], passed=refused,
-                       strict=refused and c["match"] in (err or "").lower(),
+                       strict=refused and (c.get("match") or "") in (err or "").lower(),
                        unsafe_accept=not refused, error=err)
+        row["category"] = c.get("category", row["type"])
         rows.append(row)
         print(f"{row['id']:<34} {'PASS' if row['passed'] else 'FAIL'} "
               f"{dt:>6}s  {(err or '')[:70]}", flush=True)
     valid = [r for r in rows if r["type"] == "valid"]
     rej = [r for r in rows if r["type"] != "valid"]
+    lat = sorted(r["seconds"] for r in rows)
+
+    def pct(q: float) -> float:
+        return lat[min(len(lat) - 1, int(round(q * (len(lat) - 1))))]
+    cats: dict = {}
+    for r in rows:
+        c = cats.setdefault(r["category"], [0, 0])
+        c[0] += r["passed"]
+        c[1] += 1
     return {
         "dataset": dataset,
         "provider": provider,
@@ -81,6 +91,9 @@ def run(provider: str, dataset: str = "planning_eval.json") -> dict:
             "reject_strict": f"{sum(r['strict'] for r in rej)}/{len(rej)}",
             "unsafe_accepts": sum(r["unsafe_accept"] for r in rej),
             "mean_seconds": round(sum(r["seconds"] for r in rows) / len(rows), 2),
+            "false_rejects": sum(r["error"] is not None for r in valid),
+            "p50_seconds": pct(0.5), "p95_seconds": pct(0.95), "max_seconds": lat[-1],
+            "by_category": {k: f"{a}/{b}" for k, (a, b) in sorted(cats.items())},
         },
         "cases": rows,
     }

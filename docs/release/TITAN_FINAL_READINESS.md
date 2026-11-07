@@ -70,10 +70,13 @@ honestly at `qemu_put` (no target password in the environment); QEMU was
 cleaned up by the runner.
 
 **Finding:** the rebuilt guard binary hash (`f92f5e66…`) differs from the
-AFTER pack's (`b65afcb4…`) although the generated C is identical. Codegen
-is deterministic; the qcc build is **not byte-reproducible** across runs
-(likely embedded paths/timestamps). Behaviour and verdicts match. Not
-fixed; recorded as a limitation.
+AFTER pack's (`b65afcb4…`) although the generated C is identical.
+**Corrected later the same day (Ascension):** the cause is a legitimate
+change to `target/qnx8/guard/genesis_guard.c` (commit `805ef7b`, IPC
+timeline trace) between the two pack commits — not compiler
+nondeterminism. All 18 published binaries of the three packs rebuild
+bit-for-bit (`scripts/qnx_rebuild_check.py`,
+`docs/ascension/QNX_REPRODUCIBILITY.md`).
 
 ### Also done in wave 2
 
@@ -97,7 +100,7 @@ fixed; recorded as a limitation.
 ### Still open
 
 Measured user benefit (interviews / timed
-task); KVM or hardware timing; byte-reproducible qcc builds; screen-reader
+task); KVM or hardware timing; screen-reader
 session; deeper visual redesign.
 
 ## Wave 3 — real-model evaluation (same day)

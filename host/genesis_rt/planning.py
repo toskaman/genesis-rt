@@ -48,8 +48,17 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
      "disabling simulation-only mode is not supported"),
     (r"weapon|explosive|surveillance target",
      "that use case is out of scope for this engineering tool"),
-    (r"system prompt|jailbreak|ignore previous|do anything now",
+    (r"system prompt|jailbreak|ignore previous|do anything now|hidden instructions"
+     r"|developer mode|guards? (?:are |is )?(?:optional|off|disabled)",
      "prompt-injection style instructions are not followed"),
+    (r"(?:speed |velocity )?limits? (?:removed|off|disabled|lifted)"
+     r"|\b(?:no|without) (?:any |speed |velocity )?limits?\b(?! on (?!speed|velocity))",
+     "unbounded actuation is not supported; state a speed within (0, 10] m/s"),
+    (r"^(?!.*simulat).*(?:production (?:line|floor|use|site)|on site\b|real (?:forklift|motors?|vehicle))",
+     "only simulation-only machines are supported; real-world deployment is out of scope"),
+    (r"(?<!never )(?<!not )(?<!avoid )(?<!avoids )(?<!without )(?<!no )"
+     r"\b(?:push|hit|ram|strike|shove)\w* (?:\w+ )?(?:people|persons?|workers|humans|someone)",
+     "behaviour that endangers people is not supported"),
 )
 
 
@@ -166,6 +175,13 @@ class LLMProvider:
         except PlannerRejection as exc:
             if not str(exc).startswith("unknown machine kind"):
                 raise
+            # Holdout v1 (llama3.1:8b) turned "write me a poem about QNX"
+            # into a machine. With no recognisable machine word, the model
+            # is only consulted when the request states a limit in ms or m/s.
+            if not re.search(r"\d+(?:\.\d+)?\s*(?:ms|m/s)\b", request.lower()):
+                raise PlannerRejection(
+                    "no supported machine or limit stated; describe the machine "
+                    "and give its period in ms or speed in m/s") from None
         intent = self._chat(request)
         if not isinstance(intent, dict):
             raise PlannerRejection("llm returned a non-object intent")

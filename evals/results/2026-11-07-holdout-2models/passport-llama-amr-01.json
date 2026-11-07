@@ -1,0 +1,4106 @@
+{
+  "chain": [
+    {
+      "body": {
+        "ir_sha256": "f59cdf8cd05f442a6eee2b7ab818bd88bd2ebf344706e223b9d4149c7329782f",
+        "limits": {
+          "freshness_limit_ms": 100,
+          "max_angular_speed_radps": 1.0,
+          "max_linear_speed_mps": 0.9,
+          "period_ms": 25
+        },
+        "machine": {
+          "execution_target": "qnx8_x86_64_qemu",
+          "id": "llama-amr-01",
+          "kind": "differential_drive_robot",
+          "simulation_only": true
+        },
+        "scenarios": [
+          "corrupted_message",
+          "delayed_command",
+          "dropped_message",
+          "nominal_navigation",
+          "planner_process_crash",
+          "simulator_disconnect",
+          "speed_command_over_limit",
+          "stale_proximity_150ms"
+        ],
+        "schema_version": 1
+      },
+      "hash": "135edfe562e654f285c5a4ecf9d06ebeb319c7098d46442e3f064f6eaf0ce7fc",
+      "kind": "ir",
+      "prev_hash": "GENESIS000000000000000000000000000000000000000000000000000000000",
+      "seq": 0
+    },
+    {
+      "body": {
+        "files": {
+          "genesis_build_gen.mk": "3b75fb2bfbf4adfede52046d56081573525c13f85c84c5d0bc968ed8464cac19",
+          "genesis_config_gen.h": "9e18c927ee559e7e360d30db1defe92827290fbf095ba9457a6f70498e01e79f"
+        },
+        "generator_version": "0.1.0",
+        "genesis_src": "/root/genesis-rt/target/qnx8",
+        "ir_sha256": "f59cdf8cd05f442a6eee2b7ab818bd88bd2ebf344706e223b9d4149c7329782f",
+        "template_version": "1.0",
+        "templates": {
+          "genesis_build_gen.mk.tmpl": "194bb470e3b84eaa214b1a39e0515205ecec3915e5078d173ede09afd827e5f2",
+          "genesis_config_gen.h.tmpl": "1f57435c5144060cdce0b6cb5434941bc0b8182b782e63d7df407bf08c64002e"
+        }
+      },
+      "hash": "65a4658babcad12a4956aa443ddc5b81b247d30421af30ce29439a0d78c6f2b9",
+      "kind": "codegen",
+      "prev_hash": "135edfe562e654f285c5a4ecf9d06ebeb319c7098d46442e3f064f6eaf0ce7fc",
+      "seq": 1
+    },
+    {
+      "body": {
+        "environment": {
+          "qcc": null,
+          "qcc_version": null,
+          "qemu": {
+            "path": null,
+            "present": false,
+            "version": null
+          },
+          "qnx_host": null,
+          "qnx_target": null,
+          "sdk_present": false
+        },
+        "reason": "QNX SDP 8.0 SDK/toolchain not installed; see docs/quickstart-qnx8-qemu.md",
+        "status": "blocked",
+        "verified_on_target": false
+      },
+      "hash": "08fdb7c377afa8acbac5b85e90f7388a9b419a33ee929454bc53a48a3d915cc5",
+      "kind": "qnx_build",
+      "prev_hash": "65a4658babcad12a4956aa443ddc5b81b247d30421af30ce29439a0d78c6f2b9",
+      "seq": 2
+    },
+    {
+      "body": {
+        "status": "missing"
+      },
+      "hash": "c779a89e60a239231939a67adb021f993e9e89ba37cd3b4e1fa7232a93257b65",
+      "kind": "qnx_target",
+      "prev_hash": "08fdb7c377afa8acbac5b85e90f7388a9b419a33ee929454bc53a48a3d915cc5",
+      "seq": 3
+    },
+    {
+      "body": {
+        "checks": [
+          {
+            "detail": "reasons={'BAD_MAGIC': 2}",
+            "name": "bad_magic_denied",
+            "passed": true
+          },
+          {
+            "detail": "latched_at=1000",
+            "name": "safe_stop_latched",
+            "passed": true
+          },
+          {
+            "detail": "state=1",
+            "name": "recovered_after_reset",
+            "passed": true
+          }
+        ],
+        "scenario": "corrupted_message",
+        "seed": 1006,
+        "stats": {
+          "allows": 118,
+          "collision": false,
+          "denies": 2,
+          "deny_reasons": {
+            "BAD_MAGIC": 2
+          },
+          "final_state": 1,
+          "final_x": 1.475,
+          "final_y": 0.0,
+          "stop_latched_at": 1000,
+          "ticks": 120,
+          "wall_hit": false
+        },
+        "status": "pass",
+        "trace": {
+          "digest": "a3d7fb90a0336fbd2d890f00a6d09554b6037b2f38ca09910f531c0579047c24",
+          "event_count": 121,
+          "events_head": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 0,
+              "theta": 0.0,
+              "x": 0.0125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 25,
+              "theta": 0.0,
+              "x": 0.025,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 50,
+              "theta": 0.0,
+              "x": 0.0375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 75,
+              "theta": 0.0,
+              "x": 0.05,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 100,
+              "theta": 0.0,
+              "x": 0.0625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 125,
+              "theta": 0.0,
+              "x": 0.075,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 150,
+              "theta": 0.0,
+              "x": 0.0875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 175,
+              "theta": 0.0,
+              "x": 0.1,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 200,
+              "theta": 0.0,
+              "x": 0.1125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 225,
+              "theta": 0.0,
+              "x": 0.125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 250,
+              "theta": 0.0,
+              "x": 0.1375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 275,
+              "theta": 0.0,
+              "x": 0.15,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 300,
+              "theta": 0.0,
+              "x": 0.1625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 325,
+              "theta": 0.0,
+              "x": 0.175,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 350,
+              "theta": 0.0,
+              "x": 0.1875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 375,
+              "theta": 0.0,
+              "x": 0.2,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 400,
+              "theta": 0.0,
+              "x": 0.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 425,
+              "theta": 0.0,
+              "x": 0.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 450,
+              "theta": 0.0,
+              "x": 0.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 475,
+              "theta": 0.0,
+              "x": 0.25,
+              "y": 0.0
+            }
+          ],
+          "events_tail": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2500,
+              "theta": 0.0,
+              "x": 1.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2525,
+              "theta": 0.0,
+              "x": 1.25,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2550,
+              "theta": 0.0,
+              "x": 1.2625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2575,
+              "theta": 0.0,
+              "x": 1.275,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2600,
+              "theta": 0.0,
+              "x": 1.2875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2625,
+              "theta": 0.0,
+              "x": 1.3,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2650,
+              "theta": 0.0,
+              "x": 1.3125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2675,
+              "theta": 0.0,
+              "x": 1.325,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2700,
+              "theta": 0.0,
+              "x": 1.3375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2725,
+              "theta": 0.0,
+              "x": 1.35,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2750,
+              "theta": 0.0,
+              "x": 1.3625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2775,
+              "theta": 0.0,
+              "x": 1.375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2800,
+              "theta": 0.0,
+              "x": 1.3875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2825,
+              "theta": 0.0,
+              "x": 1.4,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2850,
+              "theta": 0.0,
+              "x": 1.4125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2875,
+              "theta": 0.0,
+              "x": 1.425,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2900,
+              "theta": 0.0,
+              "x": 1.4375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2925,
+              "theta": 0.0,
+              "x": 1.45,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2950,
+              "theta": 0.0,
+              "x": 1.4625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2975,
+              "theta": 0.0,
+              "x": 1.475,
+              "y": 0.0
+            }
+          ],
+          "truncated": true
+        }
+      },
+      "hash": "1850ecca3284e7d6b5a5b730a98439e1cd3d3ff5e1a867cfb9793dd327e09beb",
+      "kind": "scenario:corrupted_message",
+      "prev_hash": "c779a89e60a239231939a67adb021f993e9e89ba37cd3b4e1fa7232a93257b65",
+      "seq": 4
+    },
+    {
+      "body": {
+        "checks": [
+          {
+            "detail": "reasons={'OVERDUE_DEADLINE': 4}",
+            "name": "overdue_denied",
+            "passed": true
+          },
+          {
+            "detail": "stop_latched_at=None",
+            "name": "no_safe_stop",
+            "passed": true
+          },
+          {
+            "detail": "state=1",
+            "name": "recovered_nominal",
+            "passed": true
+          }
+        ],
+        "scenario": "delayed_command",
+        "seed": 1004,
+        "stats": {
+          "allows": 116,
+          "collision": false,
+          "denies": 4,
+          "deny_reasons": {
+            "OVERDUE_DEADLINE": 4
+          },
+          "final_state": 1,
+          "final_x": 1.45,
+          "final_y": 0.0,
+          "stop_latched_at": null,
+          "ticks": 120,
+          "wall_hit": false
+        },
+        "status": "pass",
+        "trace": {
+          "digest": "e6705697b4782276fcbd41462ecc09d5dae8d224e46cd0953e80ca5747de2ac8",
+          "event_count": 120,
+          "events_head": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 0,
+              "theta": 0.0,
+              "x": 0.0125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 25,
+              "theta": 0.0,
+              "x": 0.025,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 50,
+              "theta": 0.0,
+              "x": 0.0375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 75,
+              "theta": 0.0,
+              "x": 0.05,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 100,
+              "theta": 0.0,
+              "x": 0.0625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 125,
+              "theta": 0.0,
+              "x": 0.075,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 150,
+              "theta": 0.0,
+              "x": 0.0875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 175,
+              "theta": 0.0,
+              "x": 0.1,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 200,
+              "theta": 0.0,
+              "x": 0.1125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 225,
+              "theta": 0.0,
+              "x": 0.125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 250,
+              "theta": 0.0,
+              "x": 0.1375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 275,
+              "theta": 0.0,
+              "x": 0.15,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 300,
+              "theta": 0.0,
+              "x": 0.1625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 325,
+              "theta": 0.0,
+              "x": 0.175,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 350,
+              "theta": 0.0,
+              "x": 0.1875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 375,
+              "theta": 0.0,
+              "x": 0.2,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 400,
+              "theta": 0.0,
+              "x": 0.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 425,
+              "theta": 0.0,
+              "x": 0.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 450,
+              "theta": 0.0,
+              "x": 0.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 475,
+              "theta": 0.0,
+              "x": 0.25,
+              "y": 0.0
+            }
+          ],
+          "events_tail": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2500,
+              "theta": 0.0,
+              "x": 1.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2525,
+              "theta": 0.0,
+              "x": 1.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2550,
+              "theta": 0.0,
+              "x": 1.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2575,
+              "theta": 0.0,
+              "x": 1.25,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2600,
+              "theta": 0.0,
+              "x": 1.2625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2625,
+              "theta": 0.0,
+              "x": 1.275,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2650,
+              "theta": 0.0,
+              "x": 1.2875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2675,
+              "theta": 0.0,
+              "x": 1.3,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2700,
+              "theta": 0.0,
+              "x": 1.3125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2725,
+              "theta": 0.0,
+              "x": 1.325,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2750,
+              "theta": 0.0,
+              "x": 1.3375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2775,
+              "theta": 0.0,
+              "x": 1.35,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2800,
+              "theta": 0.0,
+              "x": 1.3625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2825,
+              "theta": 0.0,
+              "x": 1.375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2850,
+              "theta": 0.0,
+              "x": 1.3875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2875,
+              "theta": 0.0,
+              "x": 1.4,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2900,
+              "theta": 0.0,
+              "x": 1.4125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2925,
+              "theta": 0.0,
+              "x": 1.425,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2950,
+              "theta": 0.0,
+              "x": 1.4375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2975,
+              "theta": 0.0,
+              "x": 1.45,
+              "y": 0.0
+            }
+          ],
+          "truncated": true
+        }
+      },
+      "hash": "5eb398a0d0c9d1cb2f572baff9bd6ba6a77f1ef0d223313b9dc2db2653bdd2ac",
+      "kind": "scenario:delayed_command",
+      "prev_hash": "1850ecca3284e7d6b5a5b730a98439e1cd3d3ff5e1a867cfb9793dd327e09beb",
+      "seq": 5
+    },
+    {
+      "body": {
+        "checks": [
+          {
+            "detail": "gap_events=3",
+            "name": "gap_detected",
+            "passed": true
+          },
+          {
+            "detail": "ticks_during_gap=0 allows_during_gap=0",
+            "name": "no_allow_without_command",
+            "passed": true
+          },
+          {
+            "detail": "state=1",
+            "name": "recovered",
+            "passed": true
+          }
+        ],
+        "scenario": "dropped_message",
+        "seed": 1005,
+        "stats": {
+          "allows": 116,
+          "collision": false,
+          "denies": 0,
+          "deny_reasons": {},
+          "final_state": 1,
+          "final_x": 1.45,
+          "final_y": 0.0,
+          "stop_latched_at": null,
+          "ticks": 116,
+          "wall_hit": false
+        },
+        "status": "pass",
+        "trace": {
+          "digest": "005e70553b0f567d00429085c44060a937cf05a22145a5cd100582d88c5b356c",
+          "event_count": 120,
+          "events_head": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 0,
+              "theta": 0.0,
+              "x": 0.0125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 25,
+              "theta": 0.0,
+              "x": 0.025,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 50,
+              "theta": 0.0,
+              "x": 0.0375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 75,
+              "theta": 0.0,
+              "x": 0.05,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 100,
+              "theta": 0.0,
+              "x": 0.0625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 125,
+              "theta": 0.0,
+              "x": 0.075,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 150,
+              "theta": 0.0,
+              "x": 0.0875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 175,
+              "theta": 0.0,
+              "x": 0.1,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 200,
+              "theta": 0.0,
+              "x": 0.1125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 225,
+              "theta": 0.0,
+              "x": 0.125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 250,
+              "theta": 0.0,
+              "x": 0.1375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 275,
+              "theta": 0.0,
+              "x": 0.15,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 300,
+              "theta": 0.0,
+              "x": 0.1625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 325,
+              "theta": 0.0,
+              "x": 0.175,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 350,
+              "theta": 0.0,
+              "x": 0.1875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 375,
+              "theta": 0.0,
+              "x": 0.2,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 400,
+              "theta": 0.0,
+              "x": 0.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 425,
+              "theta": 0.0,
+              "x": 0.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 450,
+              "theta": 0.0,
+              "x": 0.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 475,
+              "theta": 0.0,
+              "x": 0.25,
+              "y": 0.0
+            }
+          ],
+          "events_tail": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2500,
+              "theta": 0.0,
+              "x": 1.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2525,
+              "theta": 0.0,
+              "x": 1.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2550,
+              "theta": 0.0,
+              "x": 1.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2575,
+              "theta": 0.0,
+              "x": 1.25,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2600,
+              "theta": 0.0,
+              "x": 1.2625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2625,
+              "theta": 0.0,
+              "x": 1.275,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2650,
+              "theta": 0.0,
+              "x": 1.2875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2675,
+              "theta": 0.0,
+              "x": 1.3,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2700,
+              "theta": 0.0,
+              "x": 1.3125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2725,
+              "theta": 0.0,
+              "x": 1.325,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2750,
+              "theta": 0.0,
+              "x": 1.3375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2775,
+              "theta": 0.0,
+              "x": 1.35,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2800,
+              "theta": 0.0,
+              "x": 1.3625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2825,
+              "theta": 0.0,
+              "x": 1.375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2850,
+              "theta": 0.0,
+              "x": 1.3875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2875,
+              "theta": 0.0,
+              "x": 1.4,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2900,
+              "theta": 0.0,
+              "x": 1.4125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2925,
+              "theta": 0.0,
+              "x": 1.425,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2950,
+              "theta": 0.0,
+              "x": 1.4375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2975,
+              "theta": 0.0,
+              "x": 1.45,
+              "y": 0.0
+            }
+          ],
+          "truncated": true
+        }
+      },
+      "hash": "1846deb43d7dc5d56e753b8c5369e6a7eb29a490cede7a9571e0eb27cd455fb2",
+      "kind": "scenario:dropped_message",
+      "prev_hash": "5eb398a0d0c9d1cb2f572baff9bd6ba6a77f1ef0d223313b9dc2db2653bdd2ac",
+      "seq": 6
+    },
+    {
+      "body": {
+        "checks": [
+          {
+            "detail": "denies=0",
+            "name": "no_denials",
+            "passed": true
+          },
+          {
+            "detail": "collision=false required",
+            "name": "no_collision",
+            "passed": true
+          },
+          {
+            "detail": "wall_hit=false required",
+            "name": "no_wall_hit",
+            "passed": true
+          },
+          {
+            "detail": "final_x=1.5",
+            "name": "progress",
+            "passed": true
+          },
+          {
+            "detail": "state=1",
+            "name": "nominal_state",
+            "passed": true
+          }
+        ],
+        "scenario": "nominal_navigation",
+        "seed": 1000,
+        "stats": {
+          "allows": 120,
+          "collision": false,
+          "denies": 0,
+          "deny_reasons": {},
+          "final_state": 1,
+          "final_x": 1.5,
+          "final_y": 0.0,
+          "stop_latched_at": null,
+          "ticks": 120,
+          "wall_hit": false
+        },
+        "status": "pass",
+        "trace": {
+          "digest": "b166d90120d90b8d66ec0be2fc92ba7b3cf5e97048a16be578283ed790dc275c",
+          "event_count": 120,
+          "events_head": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 0,
+              "theta": 0.0,
+              "x": 0.0125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 25,
+              "theta": 0.0,
+              "x": 0.025,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 50,
+              "theta": 0.0,
+              "x": 0.0375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 75,
+              "theta": 0.0,
+              "x": 0.05,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 100,
+              "theta": 0.0,
+              "x": 0.0625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 125,
+              "theta": 0.0,
+              "x": 0.075,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 150,
+              "theta": 0.0,
+              "x": 0.0875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 175,
+              "theta": 0.0,
+              "x": 0.1,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 200,
+              "theta": 0.0,
+              "x": 0.1125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 225,
+              "theta": 0.0,
+              "x": 0.125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 250,
+              "theta": 0.0,
+              "x": 0.1375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 275,
+              "theta": 0.0,
+              "x": 0.15,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 300,
+              "theta": 0.0,
+              "x": 0.1625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 325,
+              "theta": 0.0,
+              "x": 0.175,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 350,
+              "theta": 0.0,
+              "x": 0.1875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 375,
+              "theta": 0.0,
+              "x": 0.2,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 400,
+              "theta": 0.0,
+              "x": 0.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 425,
+              "theta": 0.0,
+              "x": 0.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 450,
+              "theta": 0.0,
+              "x": 0.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 475,
+              "theta": 0.0,
+              "x": 0.25,
+              "y": 0.0
+            }
+          ],
+          "events_tail": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2500,
+              "theta": 0.0,
+              "x": 1.2625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2525,
+              "theta": 0.0,
+              "x": 1.275,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2550,
+              "theta": 0.0,
+              "x": 1.2875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2575,
+              "theta": 0.0,
+              "x": 1.3,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2600,
+              "theta": 0.0,
+              "x": 1.3125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2625,
+              "theta": 0.0,
+              "x": 1.325,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2650,
+              "theta": 0.0,
+              "x": 1.3375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2675,
+              "theta": 0.0,
+              "x": 1.35,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2700,
+              "theta": 0.0,
+              "x": 1.3625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2725,
+              "theta": 0.0,
+              "x": 1.375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2750,
+              "theta": 0.0,
+              "x": 1.3875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2775,
+              "theta": 0.0,
+              "x": 1.4,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2800,
+              "theta": 0.0,
+              "x": 1.4125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2825,
+              "theta": 0.0,
+              "x": 1.425,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2850,
+              "theta": 0.0,
+              "x": 1.4375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2875,
+              "theta": 0.0,
+              "x": 1.45,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2900,
+              "theta": 0.0,
+              "x": 1.4625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2925,
+              "theta": 0.0,
+              "x": 1.475,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2950,
+              "theta": 0.0,
+              "x": 1.4875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2975,
+              "theta": 0.0,
+              "x": 1.5,
+              "y": 0.0
+            }
+          ],
+          "truncated": true
+        }
+      },
+      "hash": "45bfe0ac75311a5b309beb4d40c73930cf83bf15a9ed0afca2f6d0291e151666",
+      "kind": "scenario:nominal_navigation",
+      "prev_hash": "1846deb43d7dc5d56e753b8c5369e6a7eb29a490cede7a9571e0eb27cd455fb2",
+      "seq": 7
+    },
+    {
+      "body": {
+        "checks": [
+          {
+            "detail": "gap_events=19",
+            "name": "gap_detected",
+            "passed": true
+          },
+          {
+            "detail": "max_displacement=0.0 ticks_during_gap=0",
+            "name": "watchdog_zero_motion",
+            "passed": true
+          },
+          {
+            "detail": "state=1",
+            "name": "recovered",
+            "passed": true
+          },
+          {
+            "detail": "collision=false required",
+            "name": "no_collision",
+            "passed": true
+          }
+        ],
+        "scenario": "planner_process_crash",
+        "seed": 1003,
+        "stats": {
+          "allows": 100,
+          "collision": false,
+          "denies": 0,
+          "deny_reasons": {},
+          "final_state": 1,
+          "final_x": 1.25,
+          "final_y": 0.0,
+          "stop_latched_at": null,
+          "ticks": 100,
+          "wall_hit": false
+        },
+        "status": "pass",
+        "trace": {
+          "digest": "19a10d4387875be698ccbaa6d52d8838b3c2bdd79a9f327b2cd1d5f68e4d7454",
+          "event_count": 120,
+          "events_head": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 0,
+              "theta": 0.0,
+              "x": 0.0125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 25,
+              "theta": 0.0,
+              "x": 0.025,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 50,
+              "theta": 0.0,
+              "x": 0.0375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 75,
+              "theta": 0.0,
+              "x": 0.05,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 100,
+              "theta": 0.0,
+              "x": 0.0625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 125,
+              "theta": 0.0,
+              "x": 0.075,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 150,
+              "theta": 0.0,
+              "x": 0.0875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 175,
+              "theta": 0.0,
+              "x": 0.1,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 200,
+              "theta": 0.0,
+              "x": 0.1125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 225,
+              "theta": 0.0,
+              "x": 0.125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 250,
+              "theta": 0.0,
+              "x": 0.1375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 275,
+              "theta": 0.0,
+              "x": 0.15,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 300,
+              "theta": 0.0,
+              "x": 0.1625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 325,
+              "theta": 0.0,
+              "x": 0.175,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 350,
+              "theta": 0.0,
+              "x": 0.1875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 375,
+              "theta": 0.0,
+              "x": 0.2,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 400,
+              "theta": 0.0,
+              "x": 0.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 425,
+              "theta": 0.0,
+              "x": 0.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 450,
+              "theta": 0.0,
+              "x": 0.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 475,
+              "theta": 0.0,
+              "x": 0.25,
+              "y": 0.0
+            }
+          ],
+          "events_tail": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2500,
+              "theta": 0.0,
+              "x": 1.0125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2525,
+              "theta": 0.0,
+              "x": 1.025,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2550,
+              "theta": 0.0,
+              "x": 1.0375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2575,
+              "theta": 0.0,
+              "x": 1.05,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2600,
+              "theta": 0.0,
+              "x": 1.0625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2625,
+              "theta": 0.0,
+              "x": 1.075,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2650,
+              "theta": 0.0,
+              "x": 1.0875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2675,
+              "theta": 0.0,
+              "x": 1.1,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2700,
+              "theta": 0.0,
+              "x": 1.1125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2725,
+              "theta": 0.0,
+              "x": 1.125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2750,
+              "theta": 0.0,
+              "x": 1.1375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2775,
+              "theta": 0.0,
+              "x": 1.15,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2800,
+              "theta": 0.0,
+              "x": 1.1625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2825,
+              "theta": 0.0,
+              "x": 1.175,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2850,
+              "theta": 0.0,
+              "x": 1.1875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2875,
+              "theta": 0.0,
+              "x": 1.2,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2900,
+              "theta": 0.0,
+              "x": 1.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2925,
+              "theta": 0.0,
+              "x": 1.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2950,
+              "theta": 0.0,
+              "x": 1.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2975,
+              "theta": 0.0,
+              "x": 1.25,
+              "y": 0.0
+            }
+          ],
+          "truncated": true
+        }
+      },
+      "hash": "21b5c55bde84061c5e880d292f4ec2e867bfbd7c9512977f3549f04221d0c088",
+      "kind": "scenario:planner_process_crash",
+      "prev_hash": "45bfe0ac75311a5b309beb4d40c73930cf83bf15a9ed0afca2f6d0291e151666",
+      "seq": 8
+    },
+    {
+      "body": {
+        "checks": [
+          {
+            "detail": "reasons={'SIM_DISCONNECTED': 8}",
+            "name": "disconnect_denied",
+            "passed": true
+          },
+          {
+            "detail": "latched_at=1000",
+            "name": "safe_stop_latched",
+            "passed": true
+          },
+          {
+            "detail": "state=1",
+            "name": "recovered_after_reset",
+            "passed": true
+          }
+        ],
+        "scenario": "simulator_disconnect",
+        "seed": 1007,
+        "stats": {
+          "allows": 112,
+          "collision": false,
+          "denies": 8,
+          "deny_reasons": {
+            "SIM_DISCONNECTED": 8
+          },
+          "final_state": 1,
+          "final_x": 1.4,
+          "final_y": 0.0,
+          "stop_latched_at": 1000,
+          "ticks": 120,
+          "wall_hit": false
+        },
+        "status": "pass",
+        "trace": {
+          "digest": "91d1ebc6f8bb9fc7183e509bbb12b41dab2e5aff59a43dfe5bfd65ef48173015",
+          "event_count": 121,
+          "events_head": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 0,
+              "theta": 0.0,
+              "x": 0.0125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 25,
+              "theta": 0.0,
+              "x": 0.025,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 50,
+              "theta": 0.0,
+              "x": 0.0375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 75,
+              "theta": 0.0,
+              "x": 0.05,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 100,
+              "theta": 0.0,
+              "x": 0.0625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 125,
+              "theta": 0.0,
+              "x": 0.075,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 150,
+              "theta": 0.0,
+              "x": 0.0875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 175,
+              "theta": 0.0,
+              "x": 0.1,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 200,
+              "theta": 0.0,
+              "x": 0.1125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 225,
+              "theta": 0.0,
+              "x": 0.125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 250,
+              "theta": 0.0,
+              "x": 0.1375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 275,
+              "theta": 0.0,
+              "x": 0.15,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 300,
+              "theta": 0.0,
+              "x": 0.1625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 325,
+              "theta": 0.0,
+              "x": 0.175,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 350,
+              "theta": 0.0,
+              "x": 0.1875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 375,
+              "theta": 0.0,
+              "x": 0.2,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 400,
+              "theta": 0.0,
+              "x": 0.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 425,
+              "theta": 0.0,
+              "x": 0.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 450,
+              "theta": 0.0,
+              "x": 0.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 475,
+              "theta": 0.0,
+              "x": 0.25,
+              "y": 0.0
+            }
+          ],
+          "events_tail": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2500,
+              "theta": 0.0,
+              "x": 1.1625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2525,
+              "theta": 0.0,
+              "x": 1.175,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2550,
+              "theta": 0.0,
+              "x": 1.1875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2575,
+              "theta": 0.0,
+              "x": 1.2,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2600,
+              "theta": 0.0,
+              "x": 1.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2625,
+              "theta": 0.0,
+              "x": 1.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2650,
+              "theta": 0.0,
+              "x": 1.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2675,
+              "theta": 0.0,
+              "x": 1.25,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2700,
+              "theta": 0.0,
+              "x": 1.2625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2725,
+              "theta": 0.0,
+              "x": 1.275,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2750,
+              "theta": 0.0,
+              "x": 1.2875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2775,
+              "theta": 0.0,
+              "x": 1.3,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2800,
+              "theta": 0.0,
+              "x": 1.3125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2825,
+              "theta": 0.0,
+              "x": 1.325,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2850,
+              "theta": 0.0,
+              "x": 1.3375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2875,
+              "theta": 0.0,
+              "x": 1.35,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2900,
+              "theta": 0.0,
+              "x": 1.3625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2925,
+              "theta": 0.0,
+              "x": 1.375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2950,
+              "theta": 0.0,
+              "x": 1.3875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2975,
+              "theta": 0.0,
+              "x": 1.4,
+              "y": 0.0
+            }
+          ],
+          "truncated": true
+        }
+      },
+      "hash": "e950fad32d3a003fbfd8f4475bc6486d9c5a606ce0f6052f1bc3ebb798bdb329",
+      "kind": "scenario:simulator_disconnect",
+      "prev_hash": "21b5c55bde84061c5e880d292f4ec2e867bfbd7c9512977f3549f04221d0c088",
+      "seq": 9
+    },
+    {
+      "body": {
+        "checks": [
+          {
+            "detail": "reasons={'SPEED_OVER_LIMIT': 2}",
+            "name": "over_limit_denied",
+            "passed": true
+          },
+          {
+            "detail": "stop_latched_at=None",
+            "name": "no_safe_stop",
+            "passed": true
+          },
+          {
+            "detail": "state=1",
+            "name": "recovered_nominal",
+            "passed": true
+          },
+          {
+            "detail": "collision=false required",
+            "name": "no_collision",
+            "passed": true
+          }
+        ],
+        "scenario": "speed_command_over_limit",
+        "seed": 1001,
+        "stats": {
+          "allows": 118,
+          "collision": false,
+          "denies": 2,
+          "deny_reasons": {
+            "SPEED_OVER_LIMIT": 2
+          },
+          "final_state": 1,
+          "final_x": 1.475,
+          "final_y": 0.0,
+          "stop_latched_at": null,
+          "ticks": 120,
+          "wall_hit": false
+        },
+        "status": "pass",
+        "trace": {
+          "digest": "88e07d0b5d2afd9a5cd067653481a0aeade789c21b1caf999751901d11d98a33",
+          "event_count": 120,
+          "events_head": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 0,
+              "theta": 0.0,
+              "x": 0.0125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 25,
+              "theta": 0.0,
+              "x": 0.025,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 50,
+              "theta": 0.0,
+              "x": 0.0375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 75,
+              "theta": 0.0,
+              "x": 0.05,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 100,
+              "theta": 0.0,
+              "x": 0.0625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 125,
+              "theta": 0.0,
+              "x": 0.075,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 150,
+              "theta": 0.0,
+              "x": 0.0875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 175,
+              "theta": 0.0,
+              "x": 0.1,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 200,
+              "theta": 0.0,
+              "x": 0.1125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 225,
+              "theta": 0.0,
+              "x": 0.125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 250,
+              "theta": 0.0,
+              "x": 0.1375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 275,
+              "theta": 0.0,
+              "x": 0.15,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 300,
+              "theta": 0.0,
+              "x": 0.1625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 325,
+              "theta": 0.0,
+              "x": 0.175,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 350,
+              "theta": 0.0,
+              "x": 0.1875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 375,
+              "theta": 0.0,
+              "x": 0.2,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 400,
+              "theta": 0.0,
+              "x": 0.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 425,
+              "theta": 0.0,
+              "x": 0.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 450,
+              "theta": 0.0,
+              "x": 0.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 475,
+              "theta": 0.0,
+              "x": 0.25,
+              "y": 0.0
+            }
+          ],
+          "events_tail": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2500,
+              "theta": 0.0,
+              "x": 1.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2525,
+              "theta": 0.0,
+              "x": 1.25,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2550,
+              "theta": 0.0,
+              "x": 1.2625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2575,
+              "theta": 0.0,
+              "x": 1.275,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2600,
+              "theta": 0.0,
+              "x": 1.2875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2625,
+              "theta": 0.0,
+              "x": 1.3,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2650,
+              "theta": 0.0,
+              "x": 1.3125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2675,
+              "theta": 0.0,
+              "x": 1.325,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2700,
+              "theta": 0.0,
+              "x": 1.3375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2725,
+              "theta": 0.0,
+              "x": 1.35,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2750,
+              "theta": 0.0,
+              "x": 1.3625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2775,
+              "theta": 0.0,
+              "x": 1.375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2800,
+              "theta": 0.0,
+              "x": 1.3875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2825,
+              "theta": 0.0,
+              "x": 1.4,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2850,
+              "theta": 0.0,
+              "x": 1.4125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2875,
+              "theta": 0.0,
+              "x": 1.425,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2900,
+              "theta": 0.0,
+              "x": 1.4375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2925,
+              "theta": 0.0,
+              "x": 1.45,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2950,
+              "theta": 0.0,
+              "x": 1.4625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2975,
+              "theta": 0.0,
+              "x": 1.475,
+              "y": 0.0
+            }
+          ],
+          "truncated": true
+        }
+      },
+      "hash": "25d80342286606ecc2dcb16fcb290ebf8561f67da344c812a034df0cf8d3b5aa",
+      "kind": "scenario:speed_command_over_limit",
+      "prev_hash": "e950fad32d3a003fbfd8f4475bc6486d9c5a606ce0f6052f1bc3ebb798bdb329",
+      "seq": 10
+    },
+    {
+      "body": {
+        "checks": [
+          {
+            "detail": "reasons={'STALE_SENSOR': 2}",
+            "name": "stale_detected",
+            "passed": true
+          },
+          {
+            "detail": "latched_at=1100",
+            "name": "safe_stop_latched",
+            "passed": true
+          },
+          {
+            "detail": "allows_after=0",
+            "name": "no_motion_while_stale",
+            "passed": true
+          },
+          {
+            "detail": "state=1",
+            "name": "recovered_after_reset",
+            "passed": true
+          }
+        ],
+        "scenario": "stale_proximity_150ms",
+        "seed": 1002,
+        "stats": {
+          "allows": 118,
+          "collision": false,
+          "denies": 2,
+          "deny_reasons": {
+            "STALE_SENSOR": 2
+          },
+          "final_state": 1,
+          "final_x": 1.475,
+          "final_y": 0.0,
+          "stop_latched_at": 1100,
+          "ticks": 120,
+          "wall_hit": false
+        },
+        "status": "pass",
+        "trace": {
+          "digest": "450d29d5894afcd854d145f21e673f22ee5bcde554c24086595ac75aaaad04c6",
+          "event_count": 121,
+          "events_head": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 0,
+              "theta": 0.0,
+              "x": 0.0125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 25,
+              "theta": 0.0,
+              "x": 0.025,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 50,
+              "theta": 0.0,
+              "x": 0.0375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 75,
+              "theta": 0.0,
+              "x": 0.05,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 100,
+              "theta": 0.0,
+              "x": 0.0625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 125,
+              "theta": 0.0,
+              "x": 0.075,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 150,
+              "theta": 0.0,
+              "x": 0.0875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 175,
+              "theta": 0.0,
+              "x": 0.1,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 200,
+              "theta": 0.0,
+              "x": 0.1125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 225,
+              "theta": 0.0,
+              "x": 0.125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 250,
+              "theta": 0.0,
+              "x": 0.1375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 275,
+              "theta": 0.0,
+              "x": 0.15,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 300,
+              "theta": 0.0,
+              "x": 0.1625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 325,
+              "theta": 0.0,
+              "x": 0.175,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 350,
+              "theta": 0.0,
+              "x": 0.1875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 375,
+              "theta": 0.0,
+              "x": 0.2,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 400,
+              "theta": 0.0,
+              "x": 0.2125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 425,
+              "theta": 0.0,
+              "x": 0.225,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 450,
+              "theta": 0.0,
+              "x": 0.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 475,
+              "theta": 0.0,
+              "x": 0.25,
+              "y": 0.0
+            }
+          ],
+          "events_tail": [
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2500,
+              "theta": 0.0,
+              "x": 1.2375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2525,
+              "theta": 0.0,
+              "x": 1.25,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2550,
+              "theta": 0.0,
+              "x": 1.2625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2575,
+              "theta": 0.0,
+              "x": 1.275,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2600,
+              "theta": 0.0,
+              "x": 1.2875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2625,
+              "theta": 0.0,
+              "x": 1.3,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2650,
+              "theta": 0.0,
+              "x": 1.3125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2675,
+              "theta": 0.0,
+              "x": 1.325,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2700,
+              "theta": 0.0,
+              "x": 1.3375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2725,
+              "theta": 0.0,
+              "x": 1.35,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2750,
+              "theta": 0.0,
+              "x": 1.3625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2775,
+              "theta": 0.0,
+              "x": 1.375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2800,
+              "theta": 0.0,
+              "x": 1.3875,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2825,
+              "theta": 0.0,
+              "x": 1.4,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2850,
+              "theta": 0.0,
+              "x": 1.4125,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2875,
+              "theta": 0.0,
+              "x": 1.425,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2900,
+              "theta": 0.0,
+              "x": 1.4375,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2925,
+              "theta": 0.0,
+              "x": 1.45,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2950,
+              "theta": 0.0,
+              "x": 1.4625,
+              "y": 0.0
+            },
+            {
+              "decision": "ALLOW",
+              "fault": "none",
+              "kind": "tick",
+              "reason": "OK",
+              "state": 1,
+              "t": 2975,
+              "theta": 0.0,
+              "x": 1.475,
+              "y": 0.0
+            }
+          ],
+          "truncated": true
+        }
+      },
+      "hash": "769717a862ad15d44eac99ca32fe8a8b9ff86bc9307aec2a19793b2d9e75a3ad",
+      "kind": "scenario:stale_proximity_150ms",
+      "prev_hash": "25d80342286606ecc2dcb16fcb290ebf8561f67da344c812a034df0cf8d3b5aa",
+      "seq": 11
+    },
+    {
+      "body": {
+        "scenarios_failed": 0,
+        "scenarios_passed": 8,
+        "scenarios_total": 8
+      },
+      "hash": "0eb4c832c2243c642b6ed6a14eccb5aa6a9598310b0a795e8704ebe325cb2172",
+      "kind": "summary",
+      "prev_hash": "769717a862ad15d44eac99ca32fe8a8b9ff86bc9307aec2a19793b2d9e75a3ad",
+      "seq": 12
+    },
+    {
+      "body": {
+        "coverage": {
+          "declared": 8,
+          "omitted": [],
+          "required": 8
+        },
+        "failed": [],
+        "level": "HOST_TESTED",
+        "level_reasons": [
+          "qnx_build.status='blocked' (need 'ok' for QNX_COMPILED)"
+        ],
+        "missing": [],
+        "qnx_verified": false,
+        "reasons": [],
+        "release_eligible": false,
+        "required": [
+          "corrupted_message",
+          "delayed_command",
+          "dropped_message",
+          "nominal_navigation",
+          "planner_process_crash",
+          "simulator_disconnect",
+          "speed_command_over_limit",
+          "stale_proximity_150ms"
+        ],
+        "verdict": "PASS"
+      },
+      "hash": "03e29fdcd36f0a631c6678e055f2005779cf83de334b23fdf55f98eb52ffb99b",
+      "kind": "gate_verdict",
+      "prev_hash": "0eb4c832c2243c642b6ed6a14eccb5aa6a9598310b0a795e8704ebe325cb2172",
+      "seq": 13
+    }
+  ],
+  "created_utc": "2026-11-07T17:43:42+00:00",
+  "environment": {
+    "genesis_version": "0.1.0",
+    "git_commit": "400da70feeff",
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "qnx": {
+      "environment": {
+        "qcc": null,
+        "qcc_version": null,
+        "qemu": {
+          "path": null,
+          "present": false,
+          "version": null
+        },
+        "qnx_host": null,
+        "qnx_target": null,
+        "sdk_present": false
+      },
+      "reason": "QNX SDP 8.0 SDK/toolchain not installed; see docs/quickstart-qnx8-qemu.md",
+      "status": "blocked",
+      "verified_on_target": false
+    }
+  },
+  "gate": "PASS",
+  "passport_version": 1,
+  "run_id": "run-18e910f79192"
+}
