@@ -26,3 +26,19 @@ verifiable evidence or a named weakness.
 are prepared without assuming they combine.)
 
 
+
+## Internal re-assessment — 7 Nov 2026 (TITAN waves 1–3)
+
+The table above is the earlier self-assessment. Re-scored from current
+evidence, with an independent judge-panel agent's scores alongside
+(`docs/audits/TITAN_ADVERSARIAL_REVIEW.md`; the agent reviewed before
+waves 2–3 landed).
+
+| Criterion | Earlier self | Agent (pre-wave 2) | Now | Why (evidence) | Main gap |
+|---|---|---|---|---|---|
+| Technological Implementation | 9 | 7 | **9** | real QNX IPC + resmgr + supervisor; BEFORE/AFTER packs + fresh native rerun 16/16 (op-24fecbf11df8); 1166-test suite green on Windows+SDK and Linux CI | QEMU/TCG only; qcc not byte-reproducible; native CI lane build-only |
+| Design | 9 | 6 | **7** | task-based nav, guided tour default, themes + tokens, plain-language trust lines, axe WCAG 2.2 clean in CI | single 3.9k-line page; still dense above the fold; no screen-reader session |
+| Potential Impact | 8 | 4 | **5** | narrowed, sourced positioning as a complement to Parasoft/LDRA/VectorCAST | zero pilots, zero interviews, no measured user benefit |
+| Innovation & AI Creativity | 9 | 6 | **8** | contract→binary→behaviour→passport binding + stale-binary rejection; LLM intent architecture measured: 28/28, 8/8 vs 3/8 paraphrases, 0 unsafe accepts | one model, small eval sets |
+
+No 10/10 is claimed. Video quality is not scored (deferred by owner).
