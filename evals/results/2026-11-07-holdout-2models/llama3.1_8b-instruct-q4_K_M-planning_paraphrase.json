@@ -1,0 +1,138 @@
+{
+  "dataset": "planning_paraphrase.json",
+  "provider": "llm",
+  "model": "llama3.1:8b-instruct-q4_K_M",
+  "host": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "utc": "2026-11-07T17:39:00Z",
+  "summary": {
+    "total": 8,
+    "passed": 7,
+    "valid_passed": "7/8",
+    "reject_passed": "0/0",
+    "reject_strict": "0/0",
+    "unsafe_accepts": 0,
+    "mean_seconds": 2.06,
+    "false_rejects": 0,
+    "p50_seconds": 2.09,
+    "p95_seconds": 2.14,
+    "max_seconds": 2.14,
+    "by_category": {
+      "valid": "7/8"
+    }
+  },
+  "cases": [
+    {
+      "id": "para-amr-01",
+      "request": "little warehouse runner that carries totes, 20 ms loop, top speed 0.8 m/s",
+      "seconds": 2.07,
+      "type": "valid",
+      "passed": false,
+      "error": null,
+      "got": {
+        "kind": "conveyor",
+        "period_ms": 20,
+        "max_linear_speed_mps": 0.8
+      },
+      "category": "valid"
+    },
+    {
+      "id": "para-amr-02",
+      "request": "autonomous tugger for hospital corridors, 1.1 m/s max, 25 ms cycle",
+      "seconds": 2.09,
+      "type": "valid",
+      "passed": true,
+      "error": null,
+      "got": {
+        "kind": "differential_drive_robot",
+        "period_ms": 25,
+        "max_linear_speed_mps": 1.1
+      },
+      "category": "valid"
+    },
+    {
+      "id": "para-amr-03",
+      "request": "two-wheeled delivery cart, 50 ms tick, cap it at 0.5 m/s",
+      "seconds": 2.14,
+      "type": "valid",
+      "passed": true,
+      "error": null,
+      "got": {
+        "kind": "differential_drive_robot",
+        "period_ms": 50,
+        "max_linear_speed_mps": 0.5
+      },
+      "category": "valid"
+    },
+    {
+      "id": "para-conv-01",
+      "request": "parcel sorting line moving boxes at 1.5 m/s, 10 ms period",
+      "seconds": 1.96,
+      "type": "valid",
+      "passed": true,
+      "error": null,
+      "got": {
+        "kind": "conveyor",
+        "period_ms": 10,
+        "max_linear_speed_mps": 1.5
+      },
+      "category": "valid"
+    },
+    {
+      "id": "para-conv-02",
+      "request": "baggage carousel at the airport, 0.6 m/s, 40 ms",
+      "seconds": 1.99,
+      "type": "valid",
+      "passed": true,
+      "error": null,
+      "got": {
+        "kind": "conveyor",
+        "period_ms": 40,
+        "max_linear_speed_mps": 0.6
+      },
+      "category": "valid"
+    },
+    {
+      "id": "para-conv-03",
+      "request": "roller transport line for pallets, 30 ms control loop, 0.9 m/s",
+      "seconds": 2.01,
+      "type": "valid",
+      "passed": true,
+      "error": null,
+      "got": {
+        "kind": "conveyor",
+        "period_ms": 30,
+        "max_linear_speed_mps": 0.9
+      },
+      "category": "valid"
+    },
+    {
+      "id": "para-arm-01",
+      "request": "pick-and-place manipulator, 15 ms servo loop, tool speed 0.7 m/s",
+      "seconds": 2.11,
+      "type": "valid",
+      "passed": true,
+      "error": null,
+      "got": {
+        "kind": "robotic_arm_virtual",
+        "period_ms": 15,
+        "max_linear_speed_mps": 0.7
+      },
+      "category": "valid"
+    },
+    {
+      "id": "para-arm-02",
+      "request": "six-axis welding cobot, 20 ms period, end effector 0.4 m/s",
+      "seconds": 2.12,
+      "type": "valid",
+      "passed": true,
+      "error": null,
+      "got": {
+        "kind": "robotic_arm_virtual",
+        "period_ms": 20,
+        "max_linear_speed_mps": 0.4
+      },
+      "category": "valid"
+    }
+  ],
+  "prefilter": true
+}

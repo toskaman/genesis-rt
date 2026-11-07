@@ -1,0 +1,37 @@
+Sat Nov  7 05:33:27 PM UTC 2026
+400da70 Merge pull request #9 from toskaman/titan-final
+c72eeebb2b0c055461f2c2cf796466e545f347e704a7767ab85318a5dd6e7654  host/genesis_rt/planning.py
+61837b09e1dd301d5f48ac8c4c3df0915c3f0bcc02f9eeec6455a2fa54c8e074  evals/planning_eval.json
+0113e9f429c628c990952e65bd087c9b4cd6d07b5d803dcac95031da485f7776  evals/planning_holdout.json
+8d46077b1fcd82fc20e211388301cec981f20cb0622b5c47a0684995049946bb  evals/planning_paraphrase.json
+12
+ollama version is 0.40.15
+NAME                           ID              SIZE      MODIFIED       
+llama3.1:8b-instruct-q4_K_M    46e0c10c039e    4.9 GB    10 seconds ago    
+qwen2.5:7b-instruct            845dbda0ea48    4.7 GB    29 seconds ago    
+}
+== qwen2.5:7b-instruct planning_eval prefilter=on
+}
+== qwen2.5:7b-instruct planning_paraphrase prefilter=on
+}
+== qwen2.5:7b-instruct planning_holdout prefilter=on
+}
+== qwen2.5:7b-instruct holdout prefilter=off
+}
+== llama3.1:8b-instruct-q4_K_M planning_eval prefilter=on
+}
+== llama3.1:8b-instruct-q4_K_M planning_paraphrase prefilter=on
+}
+== llama3.1:8b-instruct-q4_K_M planning_holdout prefilter=on
+}
+== llama3.1:8b-instruct-q4_K_M holdout prefilter=off
+}
+== e2e with llama (second model)
+proposal written: /root/ai-results/llama-amr-01.json (differential_drive_robot)
+canonical sha256: f59cdf8cd05f442a6eee2b7ab818bd88bd2ebf344706e223b9d4149c7329782f
+plan exit=0
+demo exit=0
+run: run-18e910f79192  verdict: PASS  level: HOST_TESTED  release_eligible: False  qnx_verified: False  elapsed: 0.17s
+passport: /root/genesis-rt/artifacts/runs/run-18e910f79192/passport.json
+gate: PASS (qnx_verified=False)
+Sat Nov  7 05:43:42 PM UTC 2026

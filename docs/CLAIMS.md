@@ -7,8 +7,8 @@ their own historical numbers.
 
 ## Test counts
 
-- Collected total: **1175** (`facts.TESTS_WITH_SDK`; with the SDK all run, 0 skips).
-- SDK-free (measured 7 Nov 2026): **1170 passed + 5 honest skips** (3 QNX-build + 1 SDK-only
+- Collected total: **1185** (`facts.TESTS_WITH_SDK`; with the SDK all run, 0 skips).
+- SDK-free (measured 7 Nov 2026): **1180 passed + 5 honest skips** (3 QNX-build + 1 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`).

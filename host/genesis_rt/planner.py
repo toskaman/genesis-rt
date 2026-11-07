@@ -88,7 +88,9 @@ _SPEED_RE = re.compile(r"(\d+(?:\.\d+)?)\s*m/s")
 # defaulted, so "5 km/h" never becomes an unasked-for 1.2 m/s machine.
 _WRONG_SPEED_RE = re.compile(
     r"(\d+(?:\.\d+)?)\s*(km/h|kph|mph|cm/s|mm/s|m/min|ft/s)\b")
-_WRONG_PERIOD_RE = re.compile(r"(\d+)\s*(?:seconds?|sec)\b")
+_WRONG_PERIOD_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:seconds?|sec|s|minutes?|min)\b")
+# A control rate in Hz is a frequency, not a period: refuse rather than convert.
+_HZ_RE = re.compile(r"(\d+(?:\.\d+)?)\s*hz\b")
 _PERIOD_WORDS = ("period", "cycle", "control")
 
 
@@ -120,6 +122,23 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
             "name exactly one machine in the request")
     kind = matched[0]
 
+    # Contradictory requirements (holdout v1, 7 Nov 2026): two different
+    # periods or two different speeds in one request are refused, never
+    # resolved by picking the first one.
+    periods = {int(x) for x in _PERIOD_RE.findall(text)}
+    speeds = {float(x) for x in _SPEED_RE.findall(text)}
+    if len(periods) > 1:
+        raise PlannerRejection(
+            f"contradictory periods {sorted(periods)} ms; state exactly one")
+    if len(speeds) > 1:
+        raise PlannerRejection(
+            f"contradictory speeds {sorted(speeds)} m/s; state exactly one")
+    hz = _HZ_RE.search(text)
+    if hz:
+        raise PlannerRejection(
+            f"{hz.group(1)} Hz is a rate, not a period; "
+            "state the control period in ms (1..1000)")
+
     period_ms = 10
     m = _PERIOD_RE.search(text)
     if m:
@@ -128,7 +147,7 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
         w = _WRONG_PERIOD_RE.search(text)
         if w and any(pw in text for pw in _PERIOD_WORDS):
             raise PlannerRejection(
-                f"period {w.group(1)} seconds is not milliseconds; "
+                f"period {w.group(0)} is not milliseconds; "
                 "state the control period in ms (1..1000)")
     if not 1 <= period_ms <= 1000:
         raise PlannerRejection(f"period {period_ms}ms out of range 1..1000")
