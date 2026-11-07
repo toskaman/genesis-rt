@@ -1,7 +1,7 @@
 # Devpost submission draft (fill in video URL, then paste)
 
 Category: **Developer Tooling & Host Tools**.
-Video: `<paste public YouTube URL, < 3:00>` — upload `docs/demo/genesis-rt-demo-w12.mp4` (154.664 s, voiced) per `docs/demo/PUBLICATION_HANDOFF_W12.md`.
+Video: `PENDING — FINAL VIDEO DEFERRED BY USER` (final video production: deferred by user; a historical cut exists — `docs/demo/genesis-rt-demo-w12.mp4` (154.664 s, voiced) see `docs/demo/PUBLICATION_HANDOFF_W12.md` — it is not declared final). Not submitted.
 Repo: https://github.com/toskaman/genesis-rt
 Codelab (bonus box): https://github.com/toskaman/genesis-rt/blob/main/docs/codelab/README.md
 
@@ -96,7 +96,7 @@ git clone https://github.com/toskaman/genesis-rt.git && cd genesis-rt
 pip install pytest pyyaml
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
-python -m pytest tests/ -q   # 1078 pass, 0 skip with the QNX SDK (6 Nov 2026, this box); SDK-less CI: 1073 passed + 5 honest skips (3 QNX-build + 1 SDK-only codelab + 1 real-build target op)
+python -m pytest tests/ -q   # 1140 pass, 0 skip with the QNX SDK (all collected tests run); SDK-less CI: 1135 passed + 5 honest skips (measured 7 Nov 2026) (3 QNX-build + 1 SDK-only codelab + 1 real-build target op)
 ```
 
 Open `ui/dashboard.html` and load the passport to inspect every verdict.

@@ -21,7 +21,22 @@ code { font-size:.8rem; }
 input[type=file] { margin:1rem 0; }
 .note { color:var(--mut); font-size:.85rem; }
 .banner { border:1px solid #30363d; padding:.6rem .8rem; margin:1rem 0; font-size:.9rem; }
-.tabs { display:flex; gap:.25rem; flex-wrap:wrap; margin:1rem 0; }
+.tabs { display:flex; gap:.25rem; flex-wrap:wrap; align-items:center; margin:1rem 0; row-gap:.5rem; }
+.tabs .tg { display:inline-flex; gap:.25rem; align-items:center; flex-wrap:wrap; }
+.tabs .grp { color:var(--mut); font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; margin:0 .2rem 0 .7rem; }
+.tabs .grp:first-child { margin-left:0; }
+:focus-visible { outline:2px solid #79c0ff; outline-offset:2px; }
+.skip { position:absolute; left:-999px; } .skip:focus { left:1rem; top:.5rem; background:#1f6feb; color:#fff; padding:.4rem .8rem; z-index:10; }
+.overview { border:1px solid #30363d; padding:1rem 1.2rem; margin:1rem 0; background:#0f141b; }
+.overview h2 { margin:.1rem 0 .4rem; font-size:1.35rem; }
+.overview .cta { display:flex; gap:.6rem; flex-wrap:wrap; margin:.8rem 0 .2rem; }
+.overview .cta button { padding:.5rem 1rem; font-size:.95rem; cursor:pointer; border:1px solid #30363d; background:#161b22; color:var(--fg); }
+.overview .cta button.primary { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+.proof { border-collapse:collapse; font-size:.85rem; margin:.6rem 0; max-width:100%; }
+.overview code { overflow-wrap:anywhere; word-break:break-word; }
+.proof th, .proof td { border:1px solid #30363d; padding:.3rem .6rem; text-align:left; }
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; scroll-behavior:auto !important; } }
+@media (max-width: 40rem) { body { margin:1rem auto; } .tabs .grp { flex-basis:100%; margin-left:0; } }
 .tabs button { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:.45rem .8rem; cursor:pointer; font-size:.9rem; }
 .tabs button[aria-selected="true"] { background:#1f6feb; border-color:#1f6feb; }
 .tabpage { display:none; } .tabpage.active { display:block; }
@@ -58,28 +73,57 @@ ol.phases li.pass { color:var(--ok); border-color:var(--ok); }
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <h1>GENESIS RT <small>Studio Live — specify → compile → run → break → prove</small></h1>
+<section class="overview" aria-labelledby="ov-h">
+<h2 id="ov-h">Build QNX-native software. Prove how it behaves.</h2>
+<p>A machine contract (typed IR) generates QNX 8.0 C code that runs under
+native message passing. A requirement change produces a different, correct
+behavior — and both revisions carry independently verifiable evidence.</p>
+<table class="proof" aria-label="Flagship native proof (archived QNX 8.0 campaigns)">
+<caption class="note" style="text-align:left">ARCHIVED native evidence (QNX 8.0, QEMU x86_64) — not a live run</caption>
+<thead><tr><th scope="col"></th><th scope="col">BEFORE</th><th scope="col">AFTER</th></tr></thead>
+<tbody>
+<tr><th scope="row">Contract <code>max_linear_speed_mps</code></th><td>1.2</td><td>1.6</td></tr>
+<tr><th scope="row">Probe 1.5 m/s</th><td><span class="fail">DENY</span> SPEED_OVER_LIMIT</td><td><span class="pass">ALLOW</span> OK</td></tr>
+<tr><th scope="row">Native matrix</th><td>16/16</td><td>16/16</td></tr>
+<tr><th scope="row">Pack</th><td><code>evidence/qnx8-x86_64-w11-before</code></td><td><code>evidence/qnx8-x86_64-w11-after</code></td></tr>
+</tbody></table>
+<p class="note">Both verdicts are correct under their own contract. Pairing the
+1.6 contract with the stale 1.2 binary is rejected. Verify offline:
+<code>python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before</code></p>
+<div class="cta">
+<button type="button" class="primary" data-go="judge">Explore verified demo</button>
+<button type="button" data-go="projects">Open workspace</button>
+</div>
+</section>
 <div id="live-status" role="status"><p class="note">Probing backend…</p></div>
 <p class="note">Projects, Designer, Pipeline and Evidence need the live backend
 (<code>PYTHONPATH=host python -m genesis_rt.cli serve</code>, then open
 <code>http://127.0.0.1:8077/</code>). Source, Twin, Lab, Passport, Diff
 and Run keep working on local files with no backend.</p>
-<div class="tabs" role="tablist">
-<button role="tab" aria-selected="false" data-tab="judge">Judge</button>
-<button role="tab" aria-selected="true" data-tab="projects">Projects</button>
-<button role="tab" aria-selected="false" data-tab="designer">Designer</button>
-<button role="tab" aria-selected="false" data-tab="source">Source</button>
-<button role="tab" aria-selected="false" data-tab="pipeline">Pipeline</button>
-<button role="tab" aria-selected="false" data-tab="target">Target</button>
-<button role="tab" aria-selected="false" data-tab="twin">Twin</button>
-<button role="tab" aria-selected="false" data-tab="lab">Lab</button>
-<button role="tab" aria-selected="false" data-tab="passport">Passport</button>
-<button role="tab" aria-selected="false" data-tab="diff">Diff</button>
-<button role="tab" aria-selected="false" data-tab="evidence">Evidence</button>
-<button role="tab" aria-selected="false" data-tab="run">Run</button>
-</div>
+<nav aria-label="Studio sections"><div class="tabs" role="tablist" aria-label="Studio sections">
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Guided demo</span>
+<button role="tab" aria-selected="false" aria-controls="tab-judge" id="tabbtn-judge" data-tab="judge">Judge tour</button></span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Build</span>
+<button role="tab" aria-selected="true" aria-controls="tab-projects" id="tabbtn-projects" data-tab="projects">Projects</button>
+<button role="tab" aria-selected="false" aria-controls="tab-designer" id="tabbtn-designer" data-tab="designer">Designer</button>
+<button role="tab" aria-selected="false" aria-controls="tab-source" id="tabbtn-source" data-tab="source">Source</button></span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Verify</span>
+<button role="tab" aria-selected="false" aria-controls="tab-pipeline" id="tabbtn-pipeline" data-tab="pipeline">Pipeline</button>
+<button role="tab" aria-selected="false" aria-controls="tab-target" id="tabbtn-target" data-tab="target">QNX Target</button>
+<button role="tab" aria-selected="false" aria-controls="tab-lab" id="tabbtn-lab" data-tab="lab">Fault Lab</button>
+<button role="tab" aria-selected="false" aria-controls="tab-run" id="tabbtn-run" data-tab="run">Run</button></span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Evidence</span>
+<button role="tab" aria-selected="false" aria-controls="tab-passport" id="tabbtn-passport" data-tab="passport">Passport</button>
+<button role="tab" aria-selected="false" aria-controls="tab-diff" id="tabbtn-diff" data-tab="diff">Before/After</button>
+<button role="tab" aria-selected="false" aria-controls="tab-evidence" id="tabbtn-evidence" data-tab="evidence">Evidence graph</button></span>
+<span class="tg" role="none"><span class="grp" aria-hidden="true">Explore</span>
+<button role="tab" aria-selected="false" aria-controls="tab-twin" id="tabbtn-twin" data-tab="twin">Digital Twin</button></span>
+</div></nav>
+<main id="main" tabindex="-1">
 
-<section class="tabpage" id="tab-judge" role="tabpanel">
+<section class="tabpage" id="tab-judge" role="tabpanel" aria-labelledby="tabbtn-judge">
 <h2>Judge Mode — guided tour</h2>
 <p class="note">Seven stages, each driving the real product below.
 LIVE runs against the backend now; ARCHIVED shows the committed
@@ -87,7 +131,7 @@ sample while the backend is offline.</p>
 <div id="judge-out"><p class="note">Loading…</p></div>
 </section>
 
-<section class="tabpage active" id="tab-projects" role="tabpanel">
+<section class="tabpage active" id="tab-projects" role="tabpanel" aria-labelledby="tabbtn-projects">
 <h2>Projects</h2>
 <div id="projects-out"><p class="note">Loading…</p></div>
 <h3>Create</h3>
@@ -106,7 +150,7 @@ sample while the backend is offline.</p>
 <div id="project-detail"></div>
 </section>
 
-<section class="tabpage" id="tab-designer" role="tabpanel">
+<section class="tabpage" id="tab-designer" role="tabpanel" aria-labelledby="tabbtn-designer">
 <h2>Machine designer</h2>
 <div class="row">
 <label for="des-example">example</label>
@@ -135,7 +179,7 @@ above is the single source of truth).</p></div>
 <div id="intent-out"><p class="note">No IR loaded.</p></div>
 </section>
 
-<section class="tabpage" id="tab-source" role="tabpanel">
+<section class="tabpage" id="tab-source" role="tabpanel" aria-labelledby="tabbtn-source">
 <h2>Generated source</h2>
 <input type="file" id="srcfiles" accept=".h,.c,.mk" multiple>
 <div id="source-out"><p class="note">Open generated files
@@ -143,7 +187,7 @@ above is the single source of truth).</p></div>
 …). Provenance headers are pinned against the loaded IR.</p></div>
 </section>
 
-<section class="tabpage" id="tab-pipeline" role="tabpanel">
+<section class="tabpage" id="tab-pipeline" role="tabpanel" aria-labelledby="tabbtn-pipeline">
 <h2>Pipeline</h2>
 <div class="row">
 <label for="pipe-example">example</label>
@@ -161,7 +205,7 @@ its verification scenarios.</p></div>
 <div id="pipe-history"><p class="note">Not loaded.</p></div>
 </section>
 
-<section class="tabpage" id="tab-target" role="tabpanel">
+<section class="tabpage" id="tab-target" role="tabpanel" aria-labelledby="tabbtn-target">
 <h2>QNX target runner</h2>
 <p class="note">Native campaign on the QEMU target: validate → build → stage →
 verify → measure. IR comes from the source picked in the Pipeline tab.</p>
@@ -197,13 +241,13 @@ regressions, not hardware guarantees.</p>
 <div id="ipc-out"><p class="note">Not loaded.</p></div>
 </section>
 
-<section class="tabpage" id="tab-twin" role="tabpanel">
+<section class="tabpage" id="tab-twin" role="tabpanel" aria-labelledby="tabbtn-twin">
 <h2>Digital twin replay</h2>
 <div id="twin-out"><p class="note">Load a passport in the Passport tab,
 then pick a scenario in the Lab tab to replay its trace here.</p></div>
 </section>
 
-<section class="tabpage" id="tab-lab" role="tabpanel">
+<section class="tabpage" id="tab-lab" role="tabpanel" aria-labelledby="tabbtn-lab">
 <h2>Failure lab</h2>
 <div id="lab-out"><p class="note">Load a passport in the Passport tab to
 list its scenarios, seeds and oracle checks.</p></div>
@@ -249,14 +293,14 @@ the C guard or the QNX target; tiers are never merged.</p>
 <div id="cx-replayout"><p class="note">No replay yet.</p></div>
 </section>
 
-<section class="tabpage" id="tab-passport" role="tabpanel">
+<section class="tabpage" id="tab-passport" role="tabpanel" aria-labelledby="tabbtn-passport">
 <h2>Proof passport</h2>
 <input type="file" id="ppfile" accept=".json">
 <div id="pp-out"><p class="note">Open a <code>passport.json</code>. The hash
 chain is re-verified live; a stored PASS is shown only when valid.</p></div>
 </section>
 
-<section class="tabpage" id="tab-diff" role="tabpanel">
+<section class="tabpage" id="tab-diff" role="tabpanel" aria-labelledby="tabbtn-diff">
 <h2>Broken vs fixed</h2>
 <p class="note">Load two passports (A = before, B = after). Both chains are
 re-verified; the delta table appears only when both are valid.</p>
@@ -266,7 +310,7 @@ re-verified; the delta table appears only when both are valid.</p>
 <div id="diff-out"><p class="note">No comparison yet.</p></div>
 </section>
 
-<section class="tabpage" id="tab-evidence" role="tabpanel">
+<section class="tabpage" id="tab-evidence" role="tabpanel" aria-labelledby="tabbtn-evidence">
 <h2>Evidence graph</h2>
 <p class="note">Requirement → IR → generated file → binary → process →
 scenario → oracle → trace → verdict, built live by the backend from a
@@ -335,7 +379,7 @@ closed with reasons; the verdict wording is backend-derived.</p>
 <div id="review-out"><p class="note">No brief yet.</p></div>
 </section>
 
-<section class="tabpage" id="tab-run" role="tabpanel">
+<section class="tabpage" id="tab-run" role="tabpanel" aria-labelledby="tabbtn-run">
 <h2>Run the pipeline</h2>
 <p class="note">Copy-paste on your machine (repo root). Outputs land in
 <code>artifacts/</code>; drop them into the tabs above.</p>
@@ -1726,13 +1770,31 @@ const Studio = { irSha: null, passport: null, scens: [], twinA: null, twinB: nul
                  impactPid: null, impactTo: null };
 function switchTab(name) {
   document.querySelectorAll('.tabs button').forEach(
-    (x) => x.setAttribute('aria-selected', x.dataset.tab === name ? 'true' : 'false'));
+    (x) => { const on = x.dataset.tab === name;
+             x.setAttribute('aria-selected', on ? 'true' : 'false');
+             x.tabIndex = on ? 0 : -1; });
   document.querySelectorAll('.tabpage').forEach(
     (p) => p.classList.toggle('active', p.id === 'tab-' + name));
   onTabSwitch(name);
 }
 document.querySelectorAll('.tabs button').forEach((b) => {
   b.addEventListener('click', () => { switchTab(b.dataset.tab); });
+  // WAI-ARIA tabs pattern: arrow/Home/End move between tabs.
+  b.addEventListener('keydown', (ev) => {
+    const all = Array.from(document.querySelectorAll('.tabs button'));
+    const i = all.indexOf(b); let j = -1;
+    if (ev.key === 'ArrowRight') j = (i + 1) % all.length;
+    else if (ev.key === 'ArrowLeft') j = (i - 1 + all.length) % all.length;
+    else if (ev.key === 'Home') j = 0; else if (ev.key === 'End') j = all.length - 1;
+    if (j < 0) return;
+    ev.preventDefault(); all[j].focus(); switchTab(all[j].dataset.tab);
+  });
+});
+document.querySelectorAll('.overview [data-go]').forEach((b) => {
+  b.addEventListener('click', () => {
+    switchTab(b.dataset.go);
+    const t = document.getElementById('tabbtn-' + b.dataset.go); if (t) t.focus();
+  });
 });
 function onTabSwitch(name) {
   try {
@@ -3710,5 +3772,6 @@ function liveBoot() {
 }
 liveBoot();
 </script>
+</main>
 </body>
 </html>

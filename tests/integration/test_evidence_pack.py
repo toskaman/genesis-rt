@@ -18,12 +18,16 @@ REPO = Path(__file__).resolve().parents[2]
 PACK = REPO / "evidence" / "qnx8-x86_64-verified-b22cea1"
 
 
-def _run_verify(pack_dir: Path) -> subprocess.CompletedProcess:
+def _run_verify(pack_dir: Path, *, isolated: bool = False
+                ) -> subprocess.CompletedProcess:
     import os
     env = {k: v for k, v in os.environ.items()
            if k not in ("PYTHONPATH", "PYTHONHOME")}
+    # isolated: -S skips site-packages (incl. editable-install .pth hooks),
+    # so the stdlib fallback is exercised however genesis_rt is installed.
+    flags = ["-S"] if isolated else []
     return subprocess.run(
-        [sys.executable, str(pack_dir / "verify.py"), str(pack_dir)],
+        [sys.executable, *flags, str(pack_dir / "verify.py"), str(pack_dir)],
         capture_output=True, text=True, timeout=120, env=env)
 
 
@@ -39,7 +43,7 @@ def test_pack_verifies_outside_checkout(tmp_path):
     """Stdlib fallback: the pack verifies with no repo import available."""
     clone = tmp_path / "pack"
     shutil.copytree(PACK, clone)
-    proc = _run_verify(clone)
+    proc = _run_verify(clone, isolated=True)
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "stdlib mirror" in proc.stdout
 

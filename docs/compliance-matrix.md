@@ -8,7 +8,7 @@ Source rules: https://qnx.devpost.com/rules (checked 5 Nov 2026: deadline Dec 15
 | Full source + assets + reproducible instructions | this repo; README quickstart; jury docs | `README.md`, `docs/jury/` |
 | QNX 8.0 target + toolchain stated | `qnx8_x86_64_qemu`, SDP 8.0 `qcc -Vgcc_ntox86_64` | IR, `docs/quickstart-qnx8-qemu.md` |
 | Genuine QNX evidence | native IPC C code, resource manager, build/run logs path | `target/qnx8/`, passports |
-| Demo video < 3 min, public YouTube | final voiced MP4 ready: `docs/demo/genesis-rt-demo-w12.mp4` (154.664 s, AAC, verbatim `subtitles-w12.srt`, validation report); only YouTube publication = owner handoff, still pending | `docs/demo/MEDIA_VALIDATION_W12.md`, `docs/demo/PUBLICATION_HANDOFF_W12.md` |
+| Demo video < 3 min, public YouTube | final voiced MP4 ready: `docs/demo/genesis-rt-demo-w12.mp4` (154.664 s, AAC, verbatim `subtitles-w12.srt`, validation report); **DEFERRED BY USER** (7 Nov 2026): final video production deferred; the w12 MP4 is a historical cut, not declared final; YouTube publication pending; full submission blocked on this item | `docs/demo/MEDIA_VALIDATION_W12.md`, `docs/demo/PUBLICATION_HANDOFF_W12.md` |
 | English | all submission materials in English | this repo |
 | One entry category | Developer Tooling & Host Tools | Devpost form |
 | Created/updated during entry period | repo created 4 Nov 2026, history public | git log |
