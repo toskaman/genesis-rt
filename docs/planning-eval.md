@@ -83,7 +83,7 @@ Checked on the dev box: no `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
 `AZURE_OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, or
 `GENESIS_AI_ENDPOINT` is set (presence only -- values never read);
 a local Ollama CLI exists but its server is down
-(`127.0.0.1:11464` refused). Starting it and pulling models would
+(`127.0.0.1:11434` refused). Starting it and pulling models would
 be unauthorized host changes for speculative product value, so it
 was not done.
 
