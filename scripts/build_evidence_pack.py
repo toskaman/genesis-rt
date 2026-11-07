@@ -129,11 +129,17 @@ def main(argv=None) -> int:
     wanted = (op_sanitized.get("artifacts") or {}).get("wanted", [])
     info_detail = next((c.get("detail", "") for c in checks
                         if c.get("detail", "").startswith("QNX")), "")
-    qnx_line = info_detail.splitlines()[0][:160] if info_detail else "?"
+    # The target_info transcript continues with a table on the same
+    # line; keep only the uname part ("QNX <host> <ver> <date> <arch>").
+    qnx_line = (info_detail.splitlines()[0].split("|")[0].strip()[:160]
+                if info_detail else "?")
     build_rec = json.loads((out / "qnx-build-record.json")
                            .read_text(encoding="utf-8"))
     qcc_raw = ((build_rec.get("environment") or {}).get("qcc_version") or "")
-    qcc_line = " ".join(qcc_raw.split())[:160] or "?"
+    # `qcc -V` lists every configured target; report the default one.
+    m = re.search(r"([\d.]+),(\S+)\s*\(default\)", qcc_raw)
+    qcc_line = (f"qcc {m.group(1)} ({m.group(2)}, default target)" if m
+                else " ".join(qcc_raw.split())[:160] or "?")
 
     readme = f"""# Native QNX evidence pack ({args.op})
 
