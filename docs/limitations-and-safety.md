@@ -11,8 +11,15 @@
    Passports always carry `qnx_verified` explicitly.
 4. **QEMU timing is relative.** Emulator measurements support regression
    comparison and reproducibility, not production timing guarantees.
-5. **uint32 millisecond clocks wrap** (~49.7 days). Long-running deployments
-   need wrap-safe arithmetic; the MVP documents the boundary instead.
+5. **uint32 millisecond clocks wrap** (~49.7 days) and are handled with
+   RFC 1982 serial-number arithmetic in both the C guard
+   (`target/qnx8/common/guard_policy.c`) and the host mirror
+   (`host/genesis_rt/guard_policy.py`): sequence and deadline deltas are
+   accepted iff `1 <= delta < 2^31`, so counters stay correct across the
+   2^32 wraparound (`tests/unit/test_guard_policy.py::test_seq_wraparound_accepted`,
+   `tests/unit/test_time_wrap.py`). Residual limits: values 2^31 apart are
+   ambiguous by construction, and the wrap path is host- and
+   conformance-tested only; no native vector crosses 2^32 on target yet.
 6. **NaN/Inf rejected, floats otherwise trusted** within bounds; no fixed-point
    or interval arithmetic in the MVP.
 7. **Supervisor recovery is bounded, not autonomous**: 3 RESPAWN attempts

@@ -43,3 +43,4 @@ qnx800/
 .env
 *.key
 *.pem
+node_modules/
