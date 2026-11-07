@@ -31,8 +31,7 @@ codelab text line by line.
 ## Open (owner or external input needed)
 
 Final video (deferred by owner); measured user benefit (interviews or a
-timed task); KVM/hardware timing; byte-reproducible qcc builds;
-screen-reader session; self-hosted native CI runner.
+timed task); KVM/hardware timing; screen-reader session; self-hosted native CI runner.
 
 ## Deliverable mapping
 

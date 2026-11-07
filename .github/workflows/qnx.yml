@@ -33,6 +33,11 @@ jobs:
         run: |
           ls -l /tmp/genesis-qnx-build/genesis_*
           sha256sum /tmp/genesis-qnx-build/genesis_* | tee /tmp/genesis-qnx-build/SHA256SUMS
+      - name: "Stage 5: rebuild published evidence-pack binaries bit-for-bit"
+        run: |
+          for p in evidence/qnx8-x86_64-w11-*/; do
+            PYTHONPATH=host python scripts/qnx_rebuild_check.py "$p"
+          done
       - name: "Native target campaign: NOT EXECUTED in this workflow"
         run: |
           echo "::notice title=QNX target campaign::NOT EXECUTED - this lane is build-only (no QEMU boot, no 16-step matrix, no passport). See docs/quickstart-qnx8-qemu.md."

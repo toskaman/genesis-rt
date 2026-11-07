@@ -85,6 +85,9 @@ Both verdicts are correct under their own contract. Pairing the 1.6
 contract with the stale 1.2-built binary is rejected by the gate. The AFTER
 campaign was re-executed from scratch on 7 Nov 2026 (op-24fecbf11df8, 16/16,
 `evidence/qnx8-x86_64-w11-after-rerun/`).
+Every published native binary (18 across the three packs) rebuilds
+bit-for-bit from its commit with `scripts/qnx_rebuild_check.py`; between BEFORE and AFTER exactly the three binaries that compile in the
+limits change and the other three are byte-identical.
 
 **AI, without AI theatre.** The optional LLM planner never writes the
 contract: the model extracts a structured intent, deterministic code checks
@@ -125,8 +128,7 @@ With an SDK: `python scripts/qnx_env_check.py`, then
 ## Limitations
 
 QEMU only (no real hardware), TCG timing is relative, simulation-only
-machines, no safety certification, no hardware attestation, `qcc` builds
-not byte-reproducible across runs (generated C is), the native CI lane is
+machines, no safety certification, no hardware attestation, the native CI lane is
 build-only (target campaigns run on the author's machine and ship as
 evidence packs), and no external user study yet. Full list:
 `docs/jury/KNOWN_LIMITATIONS.md`.
