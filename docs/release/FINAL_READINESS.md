@@ -9,7 +9,8 @@ Scope: software hardening only. **No video work was done** (see
 
 | Check | Command | Result |
 |---|---|---|
-| Full host suite | `python -m pytest tests/ -q` | **1135 passed, 5 skipped** (5 = QNX-SDK-gated, honest skips), 1140 collected |
+| Full suite, Windows + QNX SDK (owner box, Python 3.14) | `python -m pytest tests/ -q` | **1140 passed, 0 skipped** (305 s) |
+| Full host suite, SDK-free | `python -m pytest tests/ -q` | **1135 passed, 5 skipped** (5 = QNX-SDK-gated, honest skips), 1140 collected |
 | Browser E2E | `python -m pytest tests/e2e -q` | **21/21** (headless Chromium) |
 | UI + E2E after redesign | `python -m pytest tests/ui tests/e2e -q` | **80/80** |
 | BEFORE pack | `python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before` | exit 0, 34/34 digests, 15-link chain, matrix 16/16, 1000 samples |
@@ -24,8 +25,8 @@ Scope: software hardening only. **No video work was done** (see
 cloud workspace; the owner's machine shell was unavailable because
 hardware virtualization is off). Native claims rest on the committed,
 re-verified packs. The stale-build native negative control
-(op-ad562b34f8de) is local-only evidence on the owner's machine. The
-Windows run of the suite was not repeated in this pass.
+(op-ad562b34f8de) is local-only evidence on the owner's machine. A fresh
+QEMU target campaign was not run; the Windows + SDK host suite was.
 
 ## Defects found and fixed
 
