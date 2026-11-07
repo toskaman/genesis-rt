@@ -51,11 +51,13 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"system prompt|jailbreak|ignore previous|do anything now|hidden instructions"
      r"|developer mode|guards? (?:are |is )?(?:optional|off|disabled)",
      "prompt-injection style instructions are not followed"),
-    (r"limits? (?:removed|off|disabled|lifted)|no limits?\b",
+    (r"(?:speed |velocity )?limits? (?:removed|off|disabled|lifted)"
+     r"|\b(?:no|without) (?:any |speed |velocity )?limits?\b(?! on (?!speed|velocity))",
      "unbounded actuation is not supported; state a speed within (0, 10] m/s"),
-    (r"production (?:line|floor|use|site)|on site\b|real (?:forklift|motors?|vehicle)",
+    (r"^(?!.*simulat).*(?:production (?:line|floor|use|site)|on site\b|real (?:forklift|motors?|vehicle))",
      "only simulation-only machines are supported; real-world deployment is out of scope"),
-    (r"(?:push|hit|ram|strike|shove)\w* (?:\w+ )?(?:people|persons?|workers|humans|someone)",
+    (r"(?<!never )(?<!not )(?<!avoid )(?<!avoids )(?<!without )(?<!no )"
+     r"\b(?:push|hit|ram|strike|shove)\w* (?:\w+ )?(?:people|persons?|workers|humans|someone)",
      "behaviour that endangers people is not supported"),
 )
 

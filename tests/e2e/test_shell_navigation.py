@@ -14,6 +14,15 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 from test_a11y_axe import _launch, studio_url  # noqa: E402,F401
 
 
+
+def _nav_click(pg, tab):
+    """Click a Studio nav entry the way a user would: on narrow screens
+    the navigation sits behind the Menu button."""
+    toggle = pg.locator("#menu-toggle")
+    if toggle.count() and toggle.is_visible() and not pg.locator(f'button[data-tab="{tab}"]').is_visible():
+        toggle.click()
+    pg.locator(f'button[data-tab="{tab}"]').click()
+
 def _open(p, url, **kw):
     b = _launch(p)
     pg = b.new_page(**kw)
@@ -82,7 +91,7 @@ def test_browser_zoom_reflow(studio_url, zoom):
                               viewport={"width": 1280 // zoom, "height": 800 // zoom})
         bad = []
         for tab in ("overview", "judge", "designer", "target", "diff", "evidence"):
-            pg.click(f"#tabbtn-{tab}")
+            _nav_click(pg, tab)
             pg.wait_for_timeout(100)
             over = pg.evaluate("document.documentElement.scrollWidth - "
                                "document.documentElement.clientWidth")

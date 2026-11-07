@@ -92,6 +92,7 @@ _WRONG_PERIOD_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:seconds?|sec|s|minutes?|min
 # A control rate in Hz is a frequency, not a period: refuse rather than convert.
 _HZ_RE = re.compile(r"(\d+(?:\.\d+)?)\s*hz\b")
 _PERIOD_WORDS = ("period", "cycle", "control")
+_PERIOD_CTX = r"period|cycle|loop|control|tick|servo|update"
 
 
 class PlannerRejection(ValueError):
@@ -122,10 +123,14 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
             "name exactly one machine in the request")
     kind = matched[0]
 
-    # Contradictory requirements (holdout v1, 7 Nov 2026): two different
-    # periods or two different speeds in one request are refused, never
-    # resolved by picking the first one.
-    periods = {int(x) for x in _PERIOD_RE.findall(text)}
+    # Contradictory requirements (holdout v1, 7 Nov 2026). Only values tied
+    # to control-period words count ("10 ms control, logs every 100 ms" is
+    # fine); two different tied periods or two different speeds are refused.
+    tied, loose = set(), set()
+    for m in _PERIOD_RE.finditer(text):
+        ctx = text[max(0, m.start() - 12):m.end() + 12]
+        (tied if re.search(_PERIOD_CTX, ctx) else loose).add(int(m.group(1)))
+    periods = tied or loose
     speeds = {float(x) for x in _SPEED_RE.findall(text)}
     if len(periods) > 1:
         raise PlannerRejection(
@@ -134,15 +139,14 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
         raise PlannerRejection(
             f"contradictory speeds {sorted(speeds)} m/s; state exactly one")
     hz = _HZ_RE.search(text)
-    if hz:
+    if hz and not periods and re.search(_PERIOD_CTX, text):
         raise PlannerRejection(
             f"{hz.group(1)} Hz is a rate, not a period; "
             "state the control period in ms (1..1000)")
 
     period_ms = 10
-    m = _PERIOD_RE.search(text)
-    if m:
-        period_ms = int(m.group(1))
+    if periods:
+        period_ms = next(iter(periods))
     else:
         w = _WRONG_PERIOD_RE.search(text)
         if w and any(pw in text for pw in _PERIOD_WORDS):

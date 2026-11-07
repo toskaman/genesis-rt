@@ -157,7 +157,12 @@ main p, main li { max-width:78ch; }
 .flow li span { color:var(--mut); font-size:.9rem; }
 .tabpage > h2:first-child { margin-top:.25rem; margin-bottom:.35rem; }
 .page-intro { color:var(--mut); margin:0 0 1.1rem; }
+.cmd { background:var(--sunken); border:1px solid var(--border); border-radius:6px; padding:.6rem .8rem; overflow-x:auto; font-size:.8rem; margin:.4rem 0 1.5rem; max-width:100%; }
+select { min-width:8rem; }
+.menu-toggle { display:none; margin-left:auto; background:transparent; color:var(--fg); border:1px solid var(--control-border); border-radius:6px; padding:.3rem .7rem; cursor:pointer; }
 @media (max-width: 56rem) {
+  .menu-toggle { display:inline-block; }
+  .sidebar:not(.open) #side-nav, .sidebar:not(.open) .side-foot { display:none; }
   .app { grid-template-columns:1fr; }
   .sidebar { position:static; height:auto; border-right:0; border-bottom:1px solid var(--border); }
   .sidebar .tabs { flex-direction:row; flex-wrap:wrap; gap:.25rem .75rem; }
@@ -171,8 +176,9 @@ main p, main li { max-width:78ch; }
 <a class="skip" href="#main">Skip to content</a>
 <div class="app">
 <aside class="sidebar" aria-label="Application">
-<div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>GENESIS RT</span><span class="brand-sub">Studio</span></div>
-<nav aria-label="Studio sections"><div class="tabs" role="tablist" aria-orientation="vertical" aria-label="Studio sections">
+<div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>GENESIS RT</span><span class="brand-sub">Studio</span>
+<button type="button" class="menu-toggle" id="menu-toggle" aria-expanded="false" aria-controls="side-nav">Menu</button></div>
+<nav aria-label="Studio sections" id="side-nav"><div class="tabs" role="tablist" aria-orientation="vertical" aria-label="Studio sections">
 <span class="tg" role="none"><span class="grp" aria-hidden="true">Start</span>
 <button role="tab" aria-selected="true" aria-controls="tab-overview" id="tabbtn-overview" data-tab="overview">Overview</button>
 <button role="tab" aria-selected="false" aria-controls="tab-judge" id="tabbtn-judge" data-tab="judge">Guided demo</button></span>
@@ -230,7 +236,7 @@ its behavior, and inspect independently verifiable evidence.</p>
 <article class="proof-card">
 <h3>After <span class="mono">max_linear_speed_mps = 1.6</span></h3>
 <p class="probe">Probe 1.5 m/s → <span class="verdict v-allow">ALLOW</span> <span class="mono small">OK</span></p>
-<p class="meta">Native matrix <strong>16/16</strong> · <code>evidence/qnx8-x86_64-w11-after</code> · rerun <code>…-after-rerun</code></p>
+<p class="meta">Native matrix <strong>16/16</strong> · <code>evidence/qnx8-x86_64-w11-after</code><br>Re-executed from scratch: <code>…-w11-after-rerun</code></p>
 </article>
 <article class="proof-card proof-neg">
 <h3>Stale binary <span class="mono">1.6 contract + 1.2 build</span></h3>
@@ -239,8 +245,8 @@ its behavior, and inspect independently verifiable evidence.</p>
 </article>
 </div>
 <p class="note">Both decisions are correct under their own contract — that is the point.
-Verify offline, no QNX SDK needed:
-<code>python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before</code></p>
+Verify offline, no QNX SDK needed:</p>
+<pre class="cmd"><code>python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before</code></pre>
 
 <h2 class="section-h">How it works</h2>
 <ol class="flow">
@@ -356,6 +362,7 @@ verify → measure. IR comes from the source picked in the Pipeline tab.</p>
 <button class="act" id="top-run">Run on target</button>
 <button class="ghost" id="top-cancel" disabled>Cancel</button>
 </div>
+<p id="top-ready" class="note" role="status"></p>
 <div id="top-out"><p class="note">No target op yet.</p></div>
 <h3>History</h3>
 <div class="row"><button class="ghost" id="top-refresh">Refresh history</button></div>
@@ -1033,9 +1040,9 @@ function renderStatusHtml(online, env) {
   const qemu = (e.qemu && e.qemu.present) ? '<span class="pass">QEMU</span>'
                                           : '<span class="note">no QEMU</span>';
   return '<div class="banner">Backend <span class="pass">live</span> · ' + sdk +
-    ' · ' + qemu + ' <span class="note">(native build ' +
-    (e.sdk_present ? 'available' : 'unavailable — host pipeline only') +
-    '; target runs via the Target tab (needs SDK+QEMU))</span></div>';
+    ' · ' + qemu + '<br><span class="note">' +
+    (e.sdk_present && e.qemu && e.qemu.present ? 'native target runs available'
+      : 'host pipeline only — native runs need SDK + QEMU') + '</span></div>';
 }
 
 /* -- Judge Mode (pure core, node-tested) --
@@ -1975,6 +1982,20 @@ document.querySelectorAll('.tabs button').forEach((b) => {
     else document.documentElement.setAttribute('data-theme', v);
     try { localStorage.setItem('studio.theme', v); } catch (e) { /* storage blocked */ }
   });
+})();
+(function initMenu() {
+  const t = document.getElementById('menu-toggle');
+  if (!t || typeof t.closest !== 'function') return;  // node shim
+  const side = t.closest('.sidebar');
+  t.addEventListener('click', () => {
+    const open = !side.classList.contains('open');
+    side.classList.toggle('open', open);
+    t.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  // Choosing a page on a narrow screen closes the menu again.
+  document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
+    if (side.classList.contains('open')) { side.classList.remove('open'); t.setAttribute('aria-expanded', 'false'); }
+  }));
 })();
 if (typeof window !== 'undefined' && window.addEventListener) {
   window.addEventListener('popstate', () => {
@@ -3932,6 +3953,15 @@ async function refreshLive() {
     Live.online = true;
     Live.env = await api('/env');
     el('live-status').innerHTML = renderStatusHtml(true, Live.env);
+    const envx = (Live.env && Live.env.environment) || {};
+    const missing = [];
+    if (!envx.sdk_present) missing.push('QNX SDK');
+    if (!(envx.qemu && envx.qemu.present)) missing.push('QEMU');
+    const rd = el('top-ready');
+    if (rd) rd.innerHTML = missing.length
+      ? '<span class="tag tag-host">Not ready</span> ' + esc(missing.join(' and ')) +
+        ' not found on this machine — native runs will be refused; the Host pipeline still works.'
+      : '<span class="tag tag-native">Ready</span> QNX SDK and QEMU detected.';
     await loadExamples();
     await loadProjects();
     await refreshHistory();

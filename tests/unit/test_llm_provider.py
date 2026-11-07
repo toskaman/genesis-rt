@@ -199,3 +199,18 @@ def test_holdout_v1_deterministic_gaps_closed(request_text, match):
     they apply to every provider, offline included."""
     with pytest.raises(PlannerRejection, match=match):
         plan_machine(request_text)
+
+
+@pytest.mark.parametrize("request_text,period,speed", [
+    ("conveyor 0.5 m/s with no limits on noise", 10, 0.5),
+    ("AMR 1 m/s that slows near workers so it never hits people", 10, 1.0),
+    ("conveyor for the production line demo in simulation 0.5 m/s", 10, 0.5),
+    ("AMR 1 m/s, 10 ms control, logs every 100 ms", 10, 1.0),
+    ("conveyor at 0.5 m/s with a 50 Hz camera, 10 ms period", 10, 0.5),
+    ("AMR robot 1.5 m/s for a 3 s demo", 10, 1.5),
+])
+def test_no_false_refusals_found_by_independent_review(request_text, period, speed):
+    """Safe requests the v1-driven rules wrongly refused (independent
+    review, 7 Nov 2026). They must plan normally."""
+    ir = plan_machine(request_text)
+    assert (ir["control"]["period_ms"], ir["control"]["max_linear_speed_mps"]) == (period, speed)

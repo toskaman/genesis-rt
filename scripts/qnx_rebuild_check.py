@@ -20,6 +20,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -45,9 +46,14 @@ def main() -> int:
     pack = Path(sys.argv[1]).resolve()
     rec = json.loads((pack / "qnx-build-record.json").read_text(encoding="utf-8"))
     commit = json.loads((pack / "manifest.json").read_text(encoding="utf-8"))["commit"]
-    cmds = [ln for ln in rec["stdout"].splitlines() if ln.startswith("qcc ")]
+    cmds = [ln for ln in rec["stdout"].splitlines()
+            if re.match(r'^"?(?:[^"\s]*[\\/])?qcc(?:\.exe)?"?\s', ln, re.I)]
+    if not cmds:
+        print("FAIL: no qcc command found in qnx-build-record.json")
+        return 2
     qcc = _qcc()
     ok = True
+    rebuilt: set[str] = set()
     with tempfile.TemporaryDirectory(prefix="genesis-rebuild-") as tmp:
         wt = Path(tmp) / "src"
         subprocess.run(["git", "-C", str(REPO), "worktree", "add", "--detach",
@@ -62,12 +68,20 @@ def main() -> int:
             for cmd in cmds:
                 # Original absolute source root -> this worktree.
                 m = re.search(r"-I(\S+?)[\\/]include", cmd)
+                if m is None:
+                    print(f"FAIL: cannot locate source root in: {cmd[:120]}")
+                    return 2
                 old_root = m.group(1)
                 new = cmd.replace(old_root, str(wt / "target" / "qnx8"))
-                argv = [qcc] + new.split()[1:]
+                argv = [qcc] + shlex.split(new, posix=False)[1:]
+                argv = [a.strip('"') for a in argv]
                 subprocess.run(argv, check=True, cwd=build, capture_output=True)
-                name = new.split(" -o ")[1].split()[0]
+                name = argv[argv.index("-o") + 1]
+                rebuilt.add(name)
                 got = hashlib.sha256((build / name).read_bytes()).hexdigest()
+                if name not in rec["binaries"]:
+                    print(f"FAIL: rebuilt {name} has no published digest")
+                    return 2
                 want = rec["binaries"][name]["sha256"]
                 ok &= got == want
                 print(f"{name:<22} {'MATCH' if got == want else 'DIFF '} "
@@ -75,6 +89,10 @@ def main() -> int:
         finally:
             subprocess.run(["git", "-C", str(REPO), "worktree", "remove",
                             "--force", str(wt)], capture_output=True)
+    missing = set(rec["binaries"]) - rebuilt
+    if missing:
+        ok = False
+        print(f"FAIL: published but not rebuilt: {sorted(missing)}")
     print(f"commit {commit}: {'ALL BINARIES REPRODUCED' if ok else 'MISMATCH'}")
     return 0 if ok else 1
 

@@ -20,3 +20,14 @@ captures of pages opened without the saved preference render light.
 Not yet redesigned in depth: Machine designer layout (still a form over
 a JSON textarea), Target runner result hierarchy, Evidence graph
 search/filters, Digital twin controls. These are the next design items.
+
+## After the independent review (same day)
+
+| Reviewer finding | Fix |
+|---|---|
+| "Run on target" looks available with no SDK/QEMU | readiness line beside it (`Not ready: QNX SDK and QEMU not found …`); the button still explains on click (existing tested behaviour) |
+| Mobile: 14-link nav cloud above the content | collapsed behind a `Menu` button (`aria-expanded`), closes after choosing a page |
+| Sidebar status was a 5-line sentence | two short lines |
+| verify command wrapped inside prose; truncated "rerun" label | copyable code block; explicit "Re-executed from scratch" label |
+| empty selects ~40 px wide | `min-width: 8rem` |
+| Designer, Evidence graph still form dumps | **open** — next design item |

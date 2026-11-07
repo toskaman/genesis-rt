@@ -42,6 +42,15 @@ _BROWSER_CANDIDATES = [
 ]
 
 
+
+def _nav_click(pg, tab):
+    """Click a Studio nav entry the way a user would: on narrow screens
+    the navigation sits behind the Menu button."""
+    toggle = pg.locator("#menu-toggle")
+    if toggle.count() and toggle.is_visible() and not pg.locator(f'button[data-tab="{tab}"]').is_visible():
+        toggle.click()
+    pg.locator(f'button[data-tab="{tab}"]').click()
+
 def _launch(p):
     """Bundled Chromium, else a system Chrome/Edge (same policy as the
     other E2E files), else a visible skip."""
@@ -111,7 +120,7 @@ def test_axe_wcag22_no_serious_violations(studio_url, theme):
         pg.add_script_tag(content=axe)
         problems = []
         for tab in TABS:
-            pg.locator(f'button[data-tab="{tab}"]').click()
+            _nav_click(pg, tab)
             pg.wait_for_timeout(150)
             res = pg.evaluate(
                 """async (tags) => {
@@ -136,7 +145,7 @@ def test_reflow_320px_every_tab(studio_url):
         pg.wait_for_load_state("networkidle")
         bad = []
         for tab in TABS:
-            pg.locator(f'button[data-tab="{tab}"]').click()
+            _nav_click(pg, tab)
             pg.wait_for_timeout(100)
             over = pg.evaluate("document.documentElement.scrollWidth - "
                                "document.documentElement.clientWidth")
