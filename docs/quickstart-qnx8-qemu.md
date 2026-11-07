@@ -24,6 +24,23 @@
   (9 staged on target); on-target matrix 16/16 PASS
   (`qnx_verified: true`, replay valid).
 
+## 0b. Path map: Windows (author box) vs Linux
+
+Section 0 records the author's Windows box. On Linux the same steps use
+the SDP's own environment script; nothing in GENESIS RT is Windows-only.
+
+| What | Windows (author) | Linux (typical) |
+|---|---|---|
+| SDP root | `E:\qnx800` | `~/qnx800` |
+| Environment | auto-detected | `source ~/qnx800/qnxsdp-env.sh` (sets `QNX_HOST`, `QNX_TARGET`, puts `qcc` on PATH) |
+| QEMU | `E:\VMs\qemu\qemu-system-x86_64.exe` | `qemu-system-x86_64` from your distro, or `GENESIS_QEMU=/path/to/qemu-system-x86_64` |
+| QSTI image dir | `E:\qnx800\images\qemu\qemu` | `~/qnx800/images/qemu/qemu` |
+| Acceleration | `--accel tcg --cpu max` (works everywhere) or WHPX | `--accel kvm --cpu host` when `/dev/kvm` exists, else TCG |
+| Target password | `$env:GENESIS_TARGET_PASSWORD = '...'` | `export GENESIS_TARGET_PASSWORD=...` |
+
+The Linux column follows the official SDP layout; the author's
+verified native runs used the Windows column (TCG).
+
 ## 1. Get the SDK lawfully (your 10 minutes, cannot be automated)
 
 QNX downloads require a myQNX account; there is no legitimate unattended path.

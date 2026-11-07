@@ -1,0 +1,236 @@
+{
+  "build_set": {
+    "build_set_version": 1,
+    "entries": {
+      "genesis_cellcheck": {
+        "build_id": "5080932c56aaac7aa4a3a5a2070c794b809c77334257689ef574910672de4e7f",
+        "built_utc": "2026-11-05T19:09:18+00:00",
+        "cksum": 2493234439,
+        "generator_version": "0.1.0",
+        "ir_sha256": "73e52055d0173770bf904470f2fa565d95a198495ea386ad526366976776ff9b",
+        "machine_id": "cell-demo-01",
+        "machine_kind": "industrial_cell",
+        "schema_version": 1,
+        "sha256": "4b3836ec592c22d3c69440d8ab6fdf5a3130e49474d777416c55b168c8cc442b",
+        "size": 13584,
+        "source_binary": "genesis_cellcheck",
+        "source_passport_head": "75a9a0c7f6d410cec5ea33396b45dfb604eb9e19f7b30ccfb0abfb72749024c4",
+        "source_run_id": "run-cell-w10",
+        "staged_name": "genesis_cellcheck",
+        "toolchain": "cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.0,gcc_ntox86_64_cxx\n\t12.2.0,gcc_ntox86_64_gpp\n"
+      },
+      "genesis_guard_conv": {
+        "build_id": "1caf3f07cbf7bcc3b66c0c6b1b5942589a3c76d3a7ec349e0a4bee01b1f55b01",
+        "built_utc": "2026-11-05T19:09:16+00:00",
+        "cksum": 3266226327,
+        "generator_version": "0.1.0",
+        "ir_sha256": "abce9deabbfbd4a264e058e04a2e63dcb8bb3c38e48de31d50ef0397309ec6bd",
+        "machine_id": "conveyor-demo-01",
+        "machine_kind": "conveyor",
+        "schema_version": 1,
+        "sha256": "19f1274bd96e0d065fcb31814b87620610b2329105dc518e90dea133b14e43dc",
+        "size": 14360,
+        "source_binary": "genesis_guard",
+        "source_passport_head": "51d3a8c6f1ccaf3b4a3ef89571eda95959e1d78d8819fb46c49ee32a436808f9",
+        "source_run_id": "run-conv-w10",
+        "staged_name": "genesis_guard_conv",
+        "toolchain": "cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.0,gcc_ntox86_64_cxx\n\t12.2.0,gcc_ntox86_64_gpp\n"
+      },
+      "genesis_guard_v2": {
+        "build_id": "f26ca9a3303cd12e6e3cb441bcd96552ee1747aff85428c86a45410ba84a3001",
+        "built_utc": "2026-11-05T19:09:17+00:00",
+        "cksum": 612765606,
+        "generator_version": "0.1.0",
+        "ir_sha256": "5639d986d258062fcad450260723a04d9de2b4c5432ddef516e81bffefdbe70f",
+        "machine_id": "amr-demo-01",
+        "machine_kind": "differential_drive_robot",
+        "schema_version": 2,
+        "sha256": "3b9f72c81c2f9ff523d4deba0cf54f76adcff23b7ec2a22af6455642bfa8373a",
+        "size": 15136,
+        "source_binary": "genesis_guard",
+        "source_passport_head": "92769818685f4fb1f576092e9b03a70978b6136b132e1a473fd59b2a56929bc6",
+        "source_run_id": "run-amrv2-w10",
+        "staged_name": "genesis_guard_v2",
+        "toolchain": "cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.0,gcc_ntox86_64_cxx\n\t12.2.0,gcc_ntox86_64_gpp\n"
+      }
+    }
+  },
+  "checks": [
+    {
+      "detail": "QNX qnxqemu 8.0.0 2026/06/05-16:26:03EDT x86pc x86_64 | --- | name                                                                             | usr/lib/ssh/sshd-session                                                         | bin/bash                                                                         | proc/boot/pidin                                                                  | system/bin/head",
+      "name": "target_info",
+      "passed": true
+    },
+    {
+      "detail": "0 freshness=100ms | guard: seq=1 decision=ALLOW reason=OK state=1 | guard: seq=2 decision=DENY reason=SPEED_OVER_LIMIT state=1 | guard: seq=1 decision=DENY reason=STALE_SEQ state=1 | guard: seq=3 decision=DENY reason=OVERDUE_DEADLINE state=1 | guard: seq=4 decision=DENY reason=BAD_VERSION state=3 | guard: seq=5 decision=DENY reason=MALFORMED state=3 | guard: seq=6 decision=DENY reason=BAD_MAGIC state=3 | guard: seq=7 decision=DENY reason=BAD_SIZE state=3 | guard: seq=8 decision=DENY reason=BAD_TRANSITION state=3",
+      "name": "faultinject",
+      "passed": true
+    },
+    {
+      "detail": "---STATUS-BEFORE--- | state=1 allows=0 denies=0 last_reason=OK last_seq=0 dropped=0 fwd_ok=0 fwd_fail=0 (device unreachable) | FI_EXIT=0 | ---STATUS-AFTER--- | state=3 allows=1 denies=8 last_reason=BAD_TRANSITION last_seq=1 dropped=4 fwd_ok=0 fwd_fail=1 (device unreachable) | STATUS_CAT_EXIT=0",
+      "name": "status_live",
+      "passed": true
+    },
+    {
+      "detail": "want 1/2/3) | PASS nan_linear         decision=1 reason=11 state=3 (want 1/11/3) | PASS bad_magic          decision=1 reason=1 state=3 (want 1/1/3) | PASS short_frame        decision=1 reason=3 state=3 (want 1/3/3) | PASS locked_nominal     decision=1 reason=10 state=3 (want 1/10/3) | faultinject: ALL 9 CHECKS PASS | FI_CONV_EXIT=0 | ---GUARD-HEADERS--- | guard: machine=amr-demo-01 limits linear=1.600 angular=1.000 freshness=100ms | guard: machine=conveyor-demo-01 limits linear=2.000 angular=1.000 freshness=50ms",
+      "name": "limits_differ",
+      "passed": true
+    },
+    {
+      "detail": "sis_guard' chid=1 | guard: machine=amr-demo-01 limits linear=1.600 angular=1.000 freshness=100ms | guard: seq=1 decision=ALLOW reason=OK state=1 | guard: seq=2 decision=ALLOW reason=OK state=1 | guard: seq=3 decision=ALLOW reason=OK state=1 | guard: seq=4 decision=ALLOW reason=OK state=1 | APPLIES=83 | APPLY-SAMPLE=device: attached as 'genesis_device' (pose mode); awaiting guard-forwarded commands.|device: APPLY seq=1 v=0.640 w=0.000 from_pid=1445914 applied=1 x=0.000 theta=0.000| | NONGUARD=0 | GUARDPID=1445914",
+      "name": "device_chain",
+      "passed": true
+    },
+    {
+      "detail": "attached as 'genesis_device' (belt mode); awaiting guard-forwarded commands. | device: APPLY seq=1 v=0.640 w=0.000 from_pid=1703962 applied=1 belt_pos=0.000 belt_jammed=0 | device: APPLY seq=2 v=0.640 w=0.000 from_pid=1703962 applied=1 belt_pos=0.032 belt_jammed=0 | APPLIES=82 | APPLY-SAMPLE=device: attached as 'genesis_device' (belt mode); awaiting guard-forwarded commands.|device: APPLY seq=1 v=0.640 w=0.000 from_pid=1703962 applied=1 belt_pos=0.000 belt_jammed=0| | NONGUARD=0 | BELT=82 | GUARDPID=1703962",
+      "name": "conv_chain",
+      "passed": true
+    },
+    {
+      "detail": "---ESTOP-PROBE--- | PROBE linear=0.500 estop=1 decision=DENY reason=ESTOP state=3 | ---STATUS-ESTOP--- | state=3 allows=0 denies=1 last_reason=ESTOP last_seq=0 dropped=0 fwd_ok=0 fwd_fail=0 (device unreachable) | STATUS_EXIT=0",
+      "name": "estop_target",
+      "passed": true
+    },
+    {
+      "detail": "5.728 | SAMPLE 219.355 | SAMPLE 224.549 | SAMPLE 267.184 | SAMPLE 291.510 | SAMPLE 205.351 | SAMPLE 226.140 | SAMPLE 395.161 | SAMPLE 461.111 | SAMPLE 295.225 | SAMPLE 340.216 | SAMPLE 303.118 | SAMPLE 404.658 | SAMPLE 235.467 | SAMPLE 314.046 | SAMPLE 211.605 | SAMPLE 243.577 | SAMPLE 321.511 | SAMPLE 175.465 | SAMPLE 318.044 | SAMPLE 321.008 | SAMPLE 316.795 | SAMPLE 410.957 | SAMPLE 282.715 | SAMPLE 294.592 | SAMPLE 419.438 | SAMPLE 347.549 | SAMPLE 302.833 | SAMPLE 242.916 | SAMPLE 246.139 | SAMPLE 237.048 | SAMPLE 353.557 | PERF_DONE n=200 | BENCH_EXIT=0",
+      "name": "target_perf",
+      "passed": true
+    },
+    {
+      "detail": "61 | 0",
+      "name": "controller_flow",
+      "passed": true
+    },
+    {
+      "detail": "4 | 1 | ---SUP-LOG--- | supervisor: starting 3 children | supervisor: started ./genesis_guard pid=2215963 | supervisor: started ./genesis_controller pid=2215965 | supervisor: started ./genesis_device pid=2215967 | supervisor: RESPAWN ./genesis_device deaths=1 backoff=1s status=15 | supervisor: started ./genesis_device pid=2236447",
+      "name": "supervisor_respawn",
+      "passed": true
+    },
+    {
+      "detail": "0 | 1",
+      "name": "supervisor_giveup",
+      "passed": true
+    },
+    {
+      "detail": "son=2 state=3 (want 1/2/3) | PASS nan_linear         decision=1 reason=11 state=3 (want 1/11/3) | PASS bad_magic          decision=1 reason=1 state=3 (want 1/1/3) | PASS short_frame        decision=1 reason=3 state=3 (want 1/3/3) | PASS locked_nominal     decision=1 reason=10 state=3 (want 1/10/3) | faultinject: ALL 9 CHECKS PASS | FI_V2_EXIT=0 | ---V2-LIMIT--- | PROBE linear=1.500 estop=0 decision=DENY reason=SPEED_OVER_LIMIT state=1 | ---V2-ESTOP--- | PROBE linear=0.500 estop=1 decision=DENY reason=ESTOP state=3",
+      "name": "v2_transitions",
+      "passed": true
+    },
+    {
+      "detail": "BEFORE=81 | GBEFORE=82 | AFTER=82 | GAFTER=82 | NONGUARD=0 | CALIVE=0 | GALIVE=1",
+      "name": "controller_crash",
+      "passed": true
+    },
+    {
+      "detail": "BEFORE=81 | GBEFORE=82 | AFTER=82 | GAFTER=144 | NONGUARD=0 | DALIVE=0 | CALIVE=1 | GALIVE=1",
+      "name": "device_crash",
+      "passed": true
+    },
+    {
+      "detail": "BEFORE=81 | AFTER=82 | NONGUARD=0 | ALIVE=0 | ---CTRL-GC-TAIL--- | controller: seq=79 decision=ALLOW reason=0 state=1 | controller: seq=80 decision=ALLOW reason=0 state=1 | controller: seq=81 decision=ALLOW reason=0 state=1 | controller: seq=82 decision=ALLOW reason=0 state=1 | controller: MsgSend failed: Bad file descriptor",
+      "name": "guard_crash",
+      "passed": true
+    },
+    {
+      "detail": "want 0 got 0) | CELLCHECK deny_enroute     PASS (want 0 got 0) | CELLCHECK deny_stale       PASS (want 0 got 0) | CELLCHECK deny_no_presence PASS (want 0 got 0) | CELLCHECK deny_jam         PASS (want 0 got 0) | CELLCHECK deny_estop       PASS (want 0 got 0) | CELLCHECK deny_complete    PASS (want 0 got 0) | CELLCHECK deny_safe        PASS (want 0 got 0) | CELLCHECK policy_station   PASS (station_x=6) | CELLCHECK policy_ticks     PASS (ticks=50) | CELLCHECK policy_ids       PASS | CELL_POLICY: PASS 12/12 | CELL_EXIT=0",
+      "name": "cell_policy",
+      "passed": true
+    }
+  ],
+  "finished_utc": "2026-11-07T14:13:54+00:00",
+  "ir": {
+    "ir_sha256": "fb2dbb3de8a19546d29be71b55e9f89bc37241627339430d11fea40c319e4d5c",
+    "linear_limit_mps": 1.6,
+    "machine_id": "amr-demo-01",
+    "machine_kind": "differential_drive_robot"
+  },
+  "matrix": [
+    "target_info",
+    "faultinject",
+    "status_live",
+    "limits_differ",
+    "device_chain",
+    "conv_chain",
+    "estop_target",
+    "target_perf",
+    "controller_flow",
+    "supervisor_respawn",
+    "supervisor_giveup",
+    "v2_transitions",
+    "controller_crash",
+    "device_crash",
+    "guard_crash",
+    "cell_policy"
+  ],
+  "note": "executed on QNX 8.0 QEMU target over SSH; transcripts beside record",
+  "provenance_error": null,
+  "provenance_version": 2,
+  "stage_manifest": {
+    "errors": null,
+    "path": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\op-24fecbf11df8\\stage-manifest.json"
+  },
+  "staged": {
+    "genesis_cellcheck": {
+      "cksum": 2493234439,
+      "size": 13584
+    },
+    "genesis_controller": {
+      "cksum": 3192789865,
+      "size": 13992
+    },
+    "genesis_device": {
+      "cksum": 821448259,
+      "size": 14248
+    },
+    "genesis_faultinject": {
+      "cksum": 2454607476,
+      "size": 18048
+    },
+    "genesis_guard": {
+      "cksum": 3872636062,
+      "size": 14432
+    },
+    "genesis_guard_conv": {
+      "cksum": 3266226327,
+      "size": 14360
+    },
+    "genesis_guard_v2": {
+      "cksum": 612765606,
+      "size": 15136
+    },
+    "genesis_status": {
+      "cksum": 2106263109,
+      "size": 15144
+    },
+    "genesis_supervisor": {
+      "cksum": 3075822595,
+      "size": 14296
+    }
+  },
+  "started_utc": "2026-11-07T14:10:51+00:00",
+  "status": "ok",
+  "target": {
+    "platform": "qnx8_x86_64_qemu",
+    "uname": "QNX qnxqemu 8.0.0 2026/06/05-16:26:03EDT x86pc x86_64"
+  },
+  "transcripts": {
+    "cell_policy": "dc93bdbb71a32f1c443a3e632adec31c20165de009f5123e7c33f5219a18001c",
+    "controller_crash": "427e0803803a015e72879e167180006bbcc12290dcc9335237b83506d32e2508",
+    "controller_flow": "659d40f72761ac4aa8b466a9501d0d8da7c534246aa98a36b4610437a613bee7",
+    "conv_chain": "54573fddf2163d10982354ed79335bd6ed023bc0af0fac6ad67e6f2867bc110a",
+    "device_chain": "f6bce655d0bf18c43fa4bb1cc1eec3a861cbddba4dce6a0e5339b1697fe0de83",
+    "device_crash": "b34862b3cd0b243441d68683d64fa476798649c946056e39942d798a3279a2dd",
+    "estop_target": "dc45314c6bf3a66ce2c5d7ed296a481dd9c5b01c1f4074ce002944007bf079d3",
+    "faultinject": "bd9ead34a63a3e0c8f6e1743eccc5af4120dc9b809863d4499252d7e3984d375",
+    "guard_crash": "f4d2a3da4fc2370d0868be9164a605e5991dea41f292c1905585be7ce44c9a4d",
+    "limits_differ": "eae793dd7ee9ce0fcc1a6710d277d34a9894139e903670bdb698ddc0a23246db",
+    "status_live": "c47a39b9535a217bb5bf7442d78955b801a8847ffc612587401467cc79b1e87c",
+    "supervisor_giveup": "1b5ba9008f88e705e1f512111b0c0f1df627ed8bfd896ed787d6e9e7ffc67b55",
+    "supervisor_respawn": "b0e99bc0bb46b4a33eb8ff59a2540d80831c76990c8dae70ce71ad61c9d846a6",
+    "target_info": "e691bf3a8286d8431634cc4e68f95ebeebdacffbceaa2107e5f3fa43312e554a",
+    "target_perf": "9e932d8b848e91a21697f55de316a57af19d0ce435d1d36bbc3fa5dbb95aa566",
+    "v2_transitions": "17d238e55840ee97edf3b8f02f1c226d65fda7eb27fdc10611cf826f61ee673c"
+  },
+  "user": "qnxuser",
+  "verified_on_target": true
+}

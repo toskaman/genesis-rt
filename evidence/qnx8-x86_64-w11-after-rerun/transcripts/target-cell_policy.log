@@ -1,0 +1,17 @@
+$ cd /tmp/genesis; test -x ./genesis_cellcheck || { echo MISSING_CELLCHECK; exit 3; }; ./genesis_cellcheck selftest; echo CELL_EXIT=$?
+CELLCHECK allow_nominal    PASS (want 1 got 1)
+CELLCHECK deny_predock     PASS (want 0 got 0)
+CELLCHECK deny_enroute     PASS (want 0 got 0)
+CELLCHECK deny_stale       PASS (want 0 got 0)
+CELLCHECK deny_no_presence PASS (want 0 got 0)
+CELLCHECK deny_jam         PASS (want 0 got 0)
+CELLCHECK deny_estop       PASS (want 0 got 0)
+CELLCHECK deny_complete    PASS (want 0 got 0)
+CELLCHECK deny_safe        PASS (want 0 got 0)
+CELLCHECK policy_station   PASS (station_x=6)
+CELLCHECK policy_ticks     PASS (ticks=50)
+CELLCHECK policy_ids       PASS
+CELL_POLICY: PASS 12/12
+CELL_EXIT=0
+
+[exit=0]

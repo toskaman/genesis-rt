@@ -31,7 +31,8 @@ def _cmd_validate(args: argparse.Namespace) -> int:
 def _cmd_plan(args: argparse.Namespace) -> int:
     from .ir import canonical_json
     from .planning import plan_machine
-    ir = plan_machine(args.request, machine_id=args.machine_id)
+    ir = plan_machine(args.request, machine_id=args.machine_id,
+                      provider=getattr(args, "provider", "offline"))
     out = args.out or f"{args.machine_id}.json"
     Path(out).write_text(json.dumps(ir, indent=2) + "\n", encoding="utf-8")
     print(f"proposal written: {out} ({ir['machine']['kind']})")
@@ -473,6 +474,8 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("ir"); v.set_defaults(func=_cmd_validate)
     pl = sub.add_parser("plan", help="draft a validated IR proposal from a short request")
     pl.add_argument("request"); pl.add_argument("--machine-id", default="machine-01")
+    pl.add_argument("--provider", choices=["offline", "llm"], default="offline",
+                    help="offline (default, deterministic) or llm (opt-in, env-configured)")
     pl.add_argument("--out", default=None); pl.set_defaults(func=_cmd_plan)
     g = sub.add_parser("generate", help="deterministically generate QNX C build files")
     g.add_argument("ir"); g.add_argument("--out", default="generated")

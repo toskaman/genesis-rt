@@ -191,3 +191,34 @@ Commit `37acc81` carried this file truncated (sections after
 the personas never reached git). The F9 reaudit above
 rewrites the missing analysis (§§4–9) from scratch; nothing
 is presented as recovered original text.
+## 9. Re-check, 7 Nov 2026 (TITAN wave 2)
+
+Fresh look at public vendor pages for QNX-specific test/verification
+support. Same grading rules; nothing below was trialled.
+
+| Vendor / tool | What the public page shows | Grade |
+|---|---|---|
+| Parasoft C/C++test — QNX Momentics plug-in | Static analysis from QNX makefiles; unit tests cross-compiled, **run on a remote QNX system**, results collected; memory-monitoring template. Page names QNX GCC 5.x, no QNX 8 statement, no coverage statement ([docs](https://docs.parasoft.com/display/CPPDESKE1043/QNX+Momentics+Plug-in)) | [vendor-doc] |
+| VectorCAST | "QNX Neutrino" in the sample RTOS table and a "QNX 7" RSP note (2022); QNX 8 not stated on that page ([supported environments](https://www.vector.com/en/product/vectorcast/vectorcast-supported-environments-integrations/)) | [vendor-doc] |
+| LDRA tool suite | Announced QNX Neutrino + Momentics support with requirements traceability for regulated work (2011 press) ([embedded.com](https://www.embedded.com/?p=4231099)) | [vendor-doc], dated |
+| Simulink Embedded Coder | A community (not MathWorks-official) QNX target package, last version 1.2.0 from 2014 ([File Exchange](https://www.mathworks.com/matlabcentral/fileexchange/42290-qnx-target-support-package-for-embedded-coder)); MathWorks separately markets Simulink Real-Time on QNX Neutrino for RCP/HIL | [vendor-doc] |
+| Ansys SCADE Suite | Qualified code generator (KCG) for DO-178C-class work ([Ansys](https://www.ansys.com/fr-fr/products/embedded-software/ansys-scade-suite)) | [vendor-doc] |
+| QNX Momentics / SDP 8.0 | Vendor IDE, debugging, profiling ([QNX](https://www.qnx.com/content/qnx/en/products/tools/qnx-momentics.html)) | [vendor-doc] |
+| SLSA / in-toto | General build-provenance attestation framework, not embedded-runtime behaviour ([SLSA](https://slsa.dev/spec/v1.2/distributing-provenance)) | [vendor-doc] |
+
+**What this changes.** Established tools already run tests on QNX
+targets (Parasoft) and offer certified traceability (LDRA, VectorCAST)
+and qualified codegen (SCADE). GENESIS RT should **not** claim to be the
+first to test on QNX. The defensible wedge stays narrow and specific
+[assessment]: *one contract revision → generated QNX binary → native
+behaviour → hash-linked passport that a third party can replay offline,
+with a fail-closed gate that rejects a stale binary for a new contract*.
+None of the pages above describe that contract-to-binary-to-behaviour
+binding as a product feature; that is an observation about their public
+pages, not proof they lack it.
+
+**Positioning consequence.** Pitch GENESIS RT as a *change-verification
+and evidence layer* that complements Momentics and the certified test
+suites (it could consume their results as passport links), not as a
+replacement. Certification, coverage and qualified codegen remain their
+territory.
