@@ -323,6 +323,10 @@ class LLMProvider:
     name = "llm"
 
     def __init__(self) -> None:
+        # Counts every model call (incremented once per _chat, the
+        # single transport choke point) so eval harnesses report
+        # consults directly instead of inferring them from latency.
+        self.consults = 0
         self.endpoint = os.environ.get("GENESIS_AI_ENDPOINT", "").rstrip("/")
         self.model = os.environ.get("GENESIS_AI_MODEL", "")
         self._key = os.environ.get("GENESIS_AI_API_KEY", "")
@@ -334,6 +338,7 @@ class LLMProvider:
             raise PlannerRejection("GENESIS_AI_ENDPOINT must be an http(s) URL")
 
     def _chat(self, request: str) -> Any:
+        self.consults += 1
         body = json.dumps({
             "model": self.model,
             "temperature": 0,

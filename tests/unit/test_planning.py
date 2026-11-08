@@ -840,3 +840,41 @@ def test_llm_intent_cannot_smuggle_or_bypass():
 def json_dumps(ir):
     import json
     return json.dumps(ir)
+
+
+def test_llm_provider_counts_model_consults(monkeypatch):
+    """Omega3 INT (jury attack): every model call is directly
+    counted on the provider, so v7 can report consults instead
+    of inferring them from latency. The deterministic
+    short-circuit path counts zero."""
+    import urllib.request
+    from genesis_rt.planning import LLMProvider
+    monkeypatch.setenv("GENESIS_AI_ENDPOINT", "http://127.0.0.1:9/v1")
+    monkeypatch.setenv("GENESIS_AI_MODEL", "test-model")
+    prov = LLMProvider()
+    assert prov.consults == 0
+    # Offline-acceptable request: short-circuit, model untouched.
+    ir = prov.propose_raw("conveyor belt, 30 ms, 1.0 m/s", "m")
+    assert prov.consults == 0
+    assert ir["machine"]["kind"] == "conveyor"
+    # Unknown-kind request: exactly one counted consult (stubbed
+    # transport returns a valid conveyor intent).
+    body = json.dumps({"choices": [{"message": {"content": json.dumps(
+        {"kind": "conveyor", "period_ms": 30,
+         "refusal": None})}}]}).encode()
+
+    class _FakeResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self, n=-1):
+            return body
+
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        lambda req, timeout: _FakeResp())
+    ir = prov.propose_raw("warehouse unit with timing 30 ms", "m")
+    assert prov.consults == 1
+    assert ir["machine"]["kind"] == "conveyor"

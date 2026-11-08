@@ -16,5 +16,5 @@ Full matrix: `docs/compliance-matrix.md`. This page states the entry facts.
   QNX non-commercial (Education) terms used for target runs.
 - **Availability:** public repository, QEMU-only target needs, retained
   through the judging period (ends 29 Jan 2027).
-- **Language:** English throughout. **Video:** pending, will be <3:00, public
+- **Language:** English throughout the jury/submission materials (working logs such as `docs/PROGRESS.md` may carry owner shorthand). **Video:** pending, will be <3:00, public
   YouTube, assembled only from genuine recorded runs.
