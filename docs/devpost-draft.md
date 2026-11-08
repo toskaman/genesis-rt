@@ -1,5 +1,13 @@
 # Devpost submission draft (prepared, NOT submitted)
 
+> Omega3 P1d note (8 Nov 2026): the AI paragraph below
+> predates the v6 blind holdout and the deterministic
+> fixes. Current AI disclosure: `docs/submission/DEVPOST_FINAL_DRAFT.md`
+> ("AI disclosure") + `docs/audits/OMEGA3_AI_EVALUATION.md`
+> (v6: 46/72 per provider, 26 unsafe accepts, 0 false
+> rejects; v4/v5 postfix 36/36 regression-only; v7
+> required). This working draft is kept for history.
+
 Category: **Developer Tooling & Host Tools**.
 Video: `PENDING — FINAL VIDEO DEFERRED BY USER`. Final video production:
 deferred by user. A historical cut exists (`docs/demo/genesis-rt-demo-w12.mp4`,
