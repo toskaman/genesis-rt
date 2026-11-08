@@ -1,0 +1,9 @@
+$ cd /tmp/genesis; slay genesis_guard 2>/dev/null; sudo -n slay genesis_status 2>/dev/null; rm -f guard.log; ./genesis_guard > guard.log 2>&1 & sleep 2; sudo -n ./genesis_status > status-root.log 2>&1 & sleep 2; echo ---STATUS-BEFORE---; cat /dev/genesis/status; ./genesis_faultinject > fi-status.log 2>&1; echo FI_EXIT=$?; echo ---STATUS-AFTER---; cat /dev/genesis/status; echo STATUS_CAT_EXIT=$?; slay genesis_guard; sudo -n slay genesis_status
+---STATUS-BEFORE---
+state=1 allows=0 denies=0 last_reason=OK last_seq=0 dropped=0 fwd_ok=0 fwd_fail=0 (device unreachable)
+FI_EXIT=0
+---STATUS-AFTER---
+state=3 allows=1 denies=8 last_reason=BAD_TRANSITION last_seq=1 dropped=4 fwd_ok=0 fwd_fail=1 (device unreachable)
+STATUS_CAT_EXIT=0
+
+[exit=1]

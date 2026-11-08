@@ -1,0 +1,51 @@
+{
+  "created_utc": "2026-11-08T13:08:25+00:00",
+  "dest": "/tmp/genesis",
+  "files": {
+    "genesis_cellcheck": {
+      "cksum": 2493234439,
+      "sha256": "4b3836ec592c22d3c69440d8ab6fdf5a3130e49474d777416c55b168c8cc442b",
+      "size": 13584
+    },
+    "genesis_controller": {
+      "cksum": 3067882736,
+      "sha256": "061c8c63c3c4be92d1be7921bdec8fe24290fdd0daaf4b1c368a13c9244ee2ae",
+      "size": 14016
+    },
+    "genesis_device": {
+      "cksum": 467410765,
+      "sha256": "f7fb1d0d94f9151a216c32c844f20da00062c4adde0eedc38ec15d841ea72f2f",
+      "size": 14280
+    },
+    "genesis_faultinject": {
+      "cksum": 937130464,
+      "sha256": "d59cc8ce02b56175fbab4c613f22f825ddb3e47a51077d59176dad05154177e2",
+      "size": 18152
+    },
+    "genesis_guard": {
+      "cksum": 2780590242,
+      "sha256": "bc8c4d8491ab82d35a71d99591d7d96afaad5095611afa8e985e381d1d56522c",
+      "size": 14592
+    },
+    "genesis_guard_conv": {
+      "cksum": 1382050487,
+      "sha256": "82455e46410d46275e869aeded5f2fa39267c62614fcde109464742fc93a0f57",
+      "size": 14592
+    },
+    "genesis_guard_v2": {
+      "cksum": 1949530894,
+      "sha256": "adb275b6f27a0d84abbcf9e332d58e43d6eca8b2cd2cda6969e309b296284e09",
+      "size": 19464
+    },
+    "genesis_status": {
+      "cksum": 2106263109,
+      "sha256": "cd97edad966dc001b9cfb8d4d98f01a209da2e7c44ec93ebbaeb64023b99ac35",
+      "size": 15144
+    },
+    "genesis_supervisor": {
+      "cksum": 4105815744,
+      "sha256": "bb8508a2360cdaff85e671a24e92d36d0b57dc303cba68b469db78b8e697fb4e",
+      "size": 14328
+    }
+  }
+}

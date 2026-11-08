@@ -1,0 +1,54 @@
+{
+  "binaries": {
+    "genesis_controller": {
+      "cksum": 3067882736,
+      "sha256": "061c8c63c3c4be92d1be7921bdec8fe24290fdd0daaf4b1c368a13c9244ee2ae",
+      "size": 14016
+    },
+    "genesis_device": {
+      "cksum": 467410765,
+      "sha256": "f7fb1d0d94f9151a216c32c844f20da00062c4adde0eedc38ec15d841ea72f2f",
+      "size": 14280
+    },
+    "genesis_faultinject": {
+      "cksum": 1370478881,
+      "sha256": "f65aeafbb8e1cbfe8043ebc927da02f1fe532d1ac06608a63e1f642aa8e465e2",
+      "size": 18152
+    },
+    "genesis_guard": {
+      "cksum": 1949530894,
+      "sha256": "adb275b6f27a0d84abbcf9e332d58e43d6eca8b2cd2cda6969e309b296284e09",
+      "size": 19464
+    },
+    "genesis_status": {
+      "cksum": 2106263109,
+      "sha256": "cd97edad966dc001b9cfb8d4d98f01a209da2e7c44ec93ebbaeb64023b99ac35",
+      "size": 15144
+    },
+    "genesis_supervisor": {
+      "cksum": 4105815744,
+      "sha256": "bb8508a2360cdaff85e671a24e92d36d0b57dc303cba68b469db78b8e697fb4e",
+      "size": 14328
+    }
+  },
+  "built_utc": "2026-11-08T13:28:50+00:00",
+  "environment": {
+    "qcc": "E:/qnx800/host/win64/x86_64/usr/bin\\qcc.EXE",
+    "qcc_version": "cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.0,gcc_ntox86_64_cxx\n\t12.2.0,gcc_ntox86_64_gpp\n",
+    "qemu": {
+      "path": "E:\\VMs\\qemu\\qemu-system-x86_64.exe",
+      "present": true,
+      "version": "QEMU emulator version 11.1.0 (v11.1.0-12130-ge470268ff4)"
+    },
+    "qnx_host": "E:/qnx800/host/win64/x86_64",
+    "qnx_target": "E:/qnx800/target/qnx",
+    "sdk_present": true
+  },
+  "note": "compile-only; on-target execution is recorded separately",
+  "reason": null,
+  "returncode": 0,
+  "status": "ok",
+  "stderr": "",
+  "stdout": "qcc -Vgcc_ntox86_64 -O2 -Wall -Wextra -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/include -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common -I. -lm -DGENESIS_MACHINE_V2 -o genesis_guard C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common/guard_policy.c C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/guard/genesis_guard.c ./genesis_machine_gen.c\nqcc -Vgcc_ntox86_64 -O2 -Wall -Wextra -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/include -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common -I. -lm -o genesis_controller C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common/guard_policy.c C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/controller/genesis_controller.c\nqcc -Vgcc_ntox86_64 -O2 -Wall -Wextra -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/include -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common -I. -lm -o genesis_device C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common/device_model.c C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/device/genesis_device.c\nqcc -Vgcc_ntox86_64 -O2 -Wall -Wextra -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/include -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common -I. -lm -o genesis_status C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common/guard_policy.c C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/status/genesis_status.c\nqcc -Vgcc_ntox86_64 -O2 -Wall -Wextra -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/include -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common -I. -lm -o genesis_supervisor C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/supervisor/genesis_supervisor.c\nqcc -Vgcc_ntox86_64 -O2 -Wall -Wextra -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/include -IC:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common -I. -lm -o genesis_faultinject C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/common/guard_policy.c C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8/faultinject/genesis_faultinject.c\n",
+  "verified_on_target": false
+}

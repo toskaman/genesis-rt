@@ -1,0 +1,5 @@
+$ cd /tmp/genesis; rm -f guard.log ctrl.log; ./genesis_guard > guard.log 2>&1 & sleep 2; ./genesis_controller 100 > ctrl.log 2>&1 & sleep 6; slay genesis_controller; slay genesis_guard; grep -c ALLOW guard.log; grep -c DENY guard.log || true
+61
+0
+
+[exit=0]

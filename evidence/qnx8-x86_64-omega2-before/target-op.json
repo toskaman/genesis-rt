@@ -1,0 +1,195 @@
+{
+  "op_id": "op-d91bd4133590",
+  "workflow": "full",
+  "state": "COMPLETED",
+  "reason": "all steps done",
+  "steps": [
+    {
+      "name": "validate",
+      "state": "done",
+      "detail": "IR valid (machine=amr-demo-01, normalized)"
+    },
+    {
+      "name": "env",
+      "state": "done",
+      "detail": "SDK present (qcc=cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.0,gcc_ntox86_64_cxx\n\t12.2.0,gcc_ntox86_64_gpp\n, qemu=True)"
+    },
+    {
+      "name": "generate",
+      "state": "done",
+      "detail": "2 files, ir 356dc135f27f"
+    },
+    {
+      "name": "build",
+      "state": "done",
+      "detail": "build ok, 6 binaries"
+    },
+    {
+      "name": "probe_image",
+      "state": "done",
+      "detail": "image probed"
+    },
+    {
+      "name": "qemu_boot",
+      "state": "done",
+      "detail": "QEMU pid 34096 alive"
+    },
+    {
+      "name": "wait_ssh",
+      "state": "done",
+      "detail": "ssh banner on port 2222"
+    },
+    {
+      "name": "qemu_put",
+      "state": "done",
+      "detail": "9 files staged + manifest (staging cleaned)"
+    },
+    {
+      "name": "qemu_verify",
+      "state": "done",
+      "detail": "target matrix PASS (see target/)"
+    },
+    {
+      "name": "qemu_perf",
+      "state": "done",
+      "detail": "perf done (see perf/)"
+    },
+    {
+      "name": "qemu_stop",
+      "state": "done",
+      "detail": "QEMU pid 34096 stopped"
+    },
+    {
+      "name": "seal",
+      "state": "done",
+      "detail": "sealed PASS (qnx_verified=True, 8 scenarios)"
+    },
+    {
+      "name": "replay",
+      "state": "done",
+      "detail": "replay matches (PASS, qnx_verified=True)"
+    }
+  ],
+  "params": {
+    "ir": {
+      "schema_version": 1,
+      "machine": {
+        "id": "amr-demo-01",
+        "kind": "differential_drive_robot",
+        "execution_target": "qnx8_x86_64_qemu",
+        "simulation_only": true
+      },
+      "actuators": [
+        {
+          "id": "left-motor",
+          "type": "velocity_command"
+        },
+        {
+          "id": "right-motor",
+          "type": "velocity_command"
+        }
+      ],
+      "sensors": [
+        {
+          "id": "odometry",
+          "type": "odometry",
+          "freshness_limit_ms": 100
+        },
+        {
+          "id": "proximity",
+          "type": "distance_m",
+          "freshness_limit_ms": 100
+        }
+      ],
+      "control": {
+        "period_ms": 10,
+        "max_linear_speed_mps": 1.2,
+        "max_angular_speed_radps": 1.0,
+        "guarded_state_transitions": true
+      },
+      "safety_contracts": [
+        {
+          "name": "simulator-watchdog",
+          "if": "simulator_disconnected",
+          "then": "command_virtual_stop"
+        },
+        {
+          "name": "speed-limit",
+          "if": "speed_exceeds_limit",
+          "then": "reject_command"
+        },
+        {
+          "name": "stale-proximity-stop",
+          "if": "proximity_is_stale",
+          "then": "command_virtual_stop"
+        }
+      ],
+      "verification": {
+        "scenarios": [
+          "corrupted_message",
+          "delayed_command",
+          "dropped_message",
+          "nominal_navigation",
+          "planner_process_crash",
+          "simulator_disconnect",
+          "speed_command_over_limit",
+          "stale_proximity_150ms"
+        ]
+      }
+    },
+    "image_dir": "E:\\qnx800\\images\\qemu\\qemu",
+    "ssh_port": 2222,
+    "accel": "tcg",
+    "cpu": "max",
+    "memory": "4G",
+    "user": "qnxuser",
+    "samples": 1000,
+    "extra_src": [
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\campaign-omega2\\stage\\genesis_guard_v2",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\campaign-omega2\\stage\\genesis_guard_conv",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\campaign-omega2\\stage\\genesis_cellcheck"
+    ],
+    "build_set": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\campaign-omega2\\build-set.json"
+  },
+  "artifacts": {
+    "machine_id": "amr-demo-01",
+    "sdk_present": true,
+    "qemu_present": true,
+    "gen_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\gen",
+    "gen_manifest": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\gen-manifest.json",
+    "ir_sha256": "356dc135f27f4586e1131fe1e43eac0b054dc7f2fb1f1ba7506fd4d5667ce34d",
+    "qnx_build_record": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\qnx-build-record.json",
+    "binaries": [
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\gen\\genesis_controller",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\gen\\genesis_device",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\gen\\genesis_faultinject",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\gen\\genesis_guard",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\gen\\genesis_status",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\gen\\genesis_supervisor"
+    ],
+    "qemu_pid": 34096,
+    "stage_manifest": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\stage-manifest.json",
+    "target_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\target",
+    "perf_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\perf",
+    "passport": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-d91bd4133590\\passport.json",
+    "verdict": "PASS",
+    "wanted": [
+      "corrupted_message",
+      "delayed_command",
+      "dropped_message",
+      "nominal_navigation",
+      "planner_process_crash",
+      "simulator_disconnect",
+      "speed_command_over_limit",
+      "stale_proximity_150ms"
+    ],
+    "qnx_verified": true,
+    "replay": {
+      "verdict": "PASS",
+      "qnx_verified": true
+    }
+  },
+  "created": 1794143275.5067468,
+  "updated": 1794143506.8194988,
+  "owner_pid": 37972
+}
