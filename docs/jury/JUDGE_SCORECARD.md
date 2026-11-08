@@ -4,9 +4,24 @@
 > Current scores are in the first table; everything below the line is
 > historical and kept for traceability.
 
-## Current internal assessment — 7 Nov 2026 (Ascension)
+## Current internal assessment — 8 Nov 2026 (Omega2)
 
-| Criterion | Self (before review) | Independent agent | **Current** | Evidence | Remaining gap |
+| Criterion | 7 Nov | **Now** | New Omega2 evidence | Remaining gap |
+|---|---|---|---|---|
+| Technological Implementation | 9 | **9.5** | 4th native pack on current source (BEFORE/AFTER 16/16 ×2, v2 machine end-to-end first time, 14/16 STALE-as-designed); campaign lock + atomic staging; supervisor-passed pid + set-restart handshake with native proof; 5 native bugs found natively and fixed red-then-green; H9/M6/H8 trust fixes; 1293-test suite green (SDK: 1291+2; SDK-free 1287+6) | no native CI runner; TCG-only timing; one build host; cross-SDP reproducibility unverified |
+| Design | 7.5 | **8** | Studio honesty pass (shared-core passport classifier, terminal phase banner, runner hint); E2E 29+2 green incl. axe clean × 2 themes; 48 control names verified | designer/graph/runner still form-heavy (scoped fixes, no full redesign); no screen-reader session |
+| Potential Impact | 5 | **5** | pilot kit ready, zero invitations sent — unchanged | `HUMAN USER BENEFIT NOT YET MEASURED` |
+| Innovation & AI Creativity | 8 | **8.5** | v4 rerun identical (no regression); v5 second frozen set (agent-authored, frozen-before-run) measured 24/36 × 3 identical, 0 false rejects; r14-class fix confirmed on fresh phrasings (2/2 deterministic) | 12 v5 unsafe-accept classes open; 72 cases still small and same-author; model refusal reasons unreliable |
+
+Total **31.5 / 40** (7 Nov: 29.5). Internal assessment, not official
+judging. No criterion is claimed at 10/10. Final video DEFERRED BY
+OWNER; submission pending the video.
+
+---
+
+## Historical assessment — 7 Nov 2026 (Ascension)
+
+| Criterion | Self (before review) | Independent agent | **Then** | Evidence | Remaining gap |
 |---|---|---|---|---|---|
 | Technological Implementation | 9.5 | 8.5 | **9** | real QNX IPC, resmgr, supervisor; 3 native packs 16/16; 18/18 published binaries rebuild bit-for-bit (`docs/ascension/QNX_REPRODUCIBILITY.md`); rebuild checker hardened after the review (no vacuous pass) | no native CI runner; one build host; TCG-only timing |
 | Design | 8.5 | 7 | **7.5** | application shell, Overview, breadcrumbs, deep links/history, mobile menu, page intros, target-readiness line, ≥ 3:1 control borders, axe clean on 13 pages × 2 themes, 320 px + zoom tests | Machine designer, Evidence graph and Target runner still form-heavy; no screen-reader session |
@@ -37,11 +52,14 @@ verifiable evidence or a named weakness.
 - **Best Use of QNX-specific Technologies:** message passing,
   resmgr, RT scheduling experiments, supervision, crash containment —
   see `WHY_QNX.md` + `TECHNICAL_EVIDENCE.md`.
-- **Best Codelab/Tutorial:** `docs/codelab/README.md` — every command
-  verified live 2026-11-05, Win+Linux, troubleshooting, cleanup,
-  limitations, final Devpost URL inside. Companion
-  `docs/codelab/ADVANCED-QNX.md` covers guards, supervision,
-  provenance and replay (CI-harnessed).
+- **Best Codelab/Tutorial:** `docs/codelab/README.md` — every host
+  command re-executed 2026-11-08 on `omega2` (target transcript
+  from the 2026-11-05 live run), PowerShell variants for every
+  step, troubleshooting, cleanup, limitations, final Devpost URL
+  inside. Companions `docs/codelab/ADVANCED-QNX.md` (guards,
+  supervision, provenance, replay — CI-harnessed) and
+  `docs/codelab/EXTERNAL-BUILD.md` (15-min stale-binary lab for
+  existing builds — CI-harnessed).
 
 (Rules allow one general + one bonus prize per project; both tracks
 are prepared without assuming they combine.)
