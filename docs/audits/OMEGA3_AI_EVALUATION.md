@@ -1,8 +1,8 @@
 # Omega3 AI evaluation (8 Nov 2026)
 
 Date: 2026-11-08. Branch `titan-omega3`. Blind set frozen `a8f2d48`,
-§5.3 fixes `c6085f2`, hardening-2 + this report uncommitted at
-writing (commit SHA recorded at commit time).
+§5.3 fixes `c6085f2`, hardening-2 + v6/v4v5 measurements + this
+report `70b7bab`.
 
 Owner-only actions: none. No paid APIs used (local Ollama only).
 
