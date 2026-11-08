@@ -429,3 +429,17 @@ def test_quick_tier_doc_matches_code():
     assert "QUICK_PAIRED_PILOT" in pilot
     assert "NEVER equivalent" in pilot
     assert "--quick" in pilot
+
+
+def test_security_model_get_inventory_count_current():
+    """Omega3 P1c §8.2: the prose GET-route count in the local
+    security model equals the audited inventory list (it drifted
+    31 vs 36 once; the pin test only guards the list)."""
+    model = _read("docs/local-security-model.md")
+    m = re.search(r"matches_audit`, (\d+)\s+routes", model)
+    assert m is not None, "GET count claim missing from security model"
+    posture = _read("tests/integration/test_rebinding_posture.py")
+    lst = re.search(r"AUDITED_GET_ROUTES = \[(.*?)\]", posture, re.S)
+    assert lst is not None
+    n = len(re.findall(r'"([^"]+)"', lst.group(1)))
+    assert int(m.group(1)) == n, (m.group(1), n)
