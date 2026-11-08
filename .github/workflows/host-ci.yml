@@ -21,7 +21,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test deps
-        run: pip install pytest pyyaml fastapi httpx uvicorn playwright jsonschema cryptography
+        run: pip install -r requirements.lock
+      - name: Lint (ruff bug classes)
+        run: |
+          pip install "ruff==0.17.4"
+          python -m ruff check host/ tests/ bench/ scripts/ --select F401,F841,F541,B017
       - name: Install Chromium for browser E2E
         run: python -m playwright install --with-deps chromium
       - name: Install axe-core for the automated WCAG 2.2 scan

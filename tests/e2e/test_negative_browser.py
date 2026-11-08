@@ -135,7 +135,7 @@ def _shot(pg, tmp_path, name):
 
 
 def _pick_example(pg, want: str = "") -> str:
-    """Pipeline tab: select an example, wait for its scenarios."""
+    """Pipeline page: select an example, wait for its scenarios."""
     pg.locator('button[data-tab="pipeline"]').click()
     pg.wait_for_function(
         "() => document.querySelectorAll('#pipe-example option').length > 1",
@@ -154,7 +154,7 @@ def _job_id(pg) -> str:
 
 
 def _pick_slowest_example(pg) -> str:
-    """Pipeline tab: select the example with the most scenarios.
+    """Pipeline page: select the example with the most scenarios.
 
     Cancel tests race the job to completion; the widest scenario set
     maximizes the cancellation window on fast runners.
@@ -448,7 +448,7 @@ def test_target_run_without_source_shows_guidance(page):
     page.locator("#top-run").click()
     page.wait_for_function(
         "() => document.querySelector('#top-out').innerText"
-        ".includes('Pick an example or project in the Pipeline tab')",
+        ".includes('Pick an example or project on the pipeline page')",
         timeout=10_000)
 
 

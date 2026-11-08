@@ -6,13 +6,11 @@ Every negative case must raise SignatureError â€” never a silent
 pass, never a partial trust verdict.
 """
 import base64
-import json
 
 import pytest
 
 pytest.importorskip("cryptography", reason="cryptography not installed")
 
-from genesis_rt import signing  # noqa: E402
 from genesis_rt.signing import (PURPOSE_EVIDENCE_PACK, SignatureError,  # noqa: E402
                                 generate_keypair, sign_manifest,
                                 verify_envelope)

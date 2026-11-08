@@ -32,10 +32,10 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-`.[dev]` is `pytest, pyyaml, fastapi, uvicorn, httpx, jsonschema`
-(see `pyproject.toml`). The API server needs the `fastapi` /
-`uvicorn` pair (`genesis-rt serve` fails with an actionable
-message without them).
+`.[dev]` is `pytest, pyyaml, fastapi, uvicorn, httpx, jsonschema,
+cryptography` (see `pyproject.toml`). The API server needs the
+`fastapi` / `uvicorn` pair (`genesis-rt serve` fails with an
+actionable message without them).
 
 Real-browser E2E needs the documented-optional extra plus a browser
 (same as CI):
@@ -43,6 +43,12 @@ Real-browser E2E needs the documented-optional extra plus a browser
 ```sh
 pip install -e ".[e2e]"
 python -m playwright install chromium
+```
+
+The native target loop needs SSH support (`scripts/qnx_target.py`):
+
+```sh
+pip install -e ".[qnx]"
 ```
 
 Without `.[e2e]`, `tests/e2e` collects zero tests and the E2E-count
@@ -54,8 +60,11 @@ consistency check skips instead of failing.
 python -m pytest tests/unit -q          # fast host subset
 python scripts/run_verified_demo.py     # end-to-end host pipeline
 python scripts/replay.py artifacts/runs/*/passport.json
-PYTHONPATH=host python -m genesis_rt.cli check-env   # QNX probe
+genesis-rt check-env                    # QNX probe
 ```
+
+(No install? Prefix `genesis-rt ...` with
+`PYTHONPATH=host python -m genesis_rt.cli` instead — same commands.)
 
 `check-env` reports what it finds (SDK toolchain, QEMU) and marks
 missing pieces `blocked`. A green unit subset + a verified demo
@@ -64,7 +73,7 @@ passport means the install is good.
 ## Run
 
 ```sh
-PYTHONPATH=host python -m genesis_rt.cli serve   # Studio API
+genesis-rt serve   # Studio API
 ```
 
 Then open http://127.0.0.1:8077/ (`--port` overrides the default

@@ -155,6 +155,27 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     return 0 if summary["verdict"] == "PASS" else 1
 
 
+def _cmd_external_check(args: argparse.Namespace) -> int:
+    from .external import check_workspace, render_text
+    report = check_workspace(args.manifest, args.workspace)
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        print(render_text(report), end="")
+    return 0 if report["verdict"] == "CONSISTENT" else 2
+
+
+def _cmd_external_write_manifest(args: argparse.Namespace) -> int:
+    from .external import write_manifest
+    manifest = write_manifest(args.workspace, args.project,
+                              args.toolchain, args.only or None)
+    text = json.dumps(manifest, indent=1, sort_keys=True) + "\n"
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+    print(text, end="")
+    return 0
+
+
 def _cmd_compare(args: argparse.Namespace) -> int:
     from .compare import compare_runs, render_text
     comp = compare_runs(args.run_a, args.run_b)
@@ -497,6 +518,23 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--perf-record", default=None,
                    help="qnx-perf-record.json from scripts/qnx_target.py perf")
     d.set_defaults(func=_cmd_demo)
+    ec = sub.add_parser("external-check",
+                        help="digest-consistency of an external build dir vs a manifest")
+    ec.add_argument("manifest", help="external manifest JSON (schema v1)")
+    ec.add_argument("--workspace", required=True,
+                    help="directory holding the built binaries")
+    ec.add_argument("--json", action="store_true")
+    ec.set_defaults(func=_cmd_external_check)
+    ewm = sub.add_parser("external-write-manifest",
+                         help="hash a build dir into an external manifest")
+    ewm.add_argument("--workspace", required=True)
+    ewm.add_argument("--project", required=True)
+    ewm.add_argument("--toolchain", required=True,
+                     help="free-text toolchain id (recorded, not verified)")
+    ewm.add_argument("--only", nargs="*", default=None,
+                     help="cover only these files (default: all)")
+    ewm.add_argument("--out", default=None)
+    ewm.set_defaults(func=_cmd_external_write_manifest)
     cmp = sub.add_parser("compare", help="diff two pipeline run directories")
     cmp.add_argument("run_a"); cmp.add_argument("run_b")
     cmp.add_argument("--json", action="store_true"); cmp.set_defaults(func=_cmd_compare)

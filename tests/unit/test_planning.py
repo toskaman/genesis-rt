@@ -356,6 +356,19 @@ def test_coordinated_speeds_are_contradictory():
         propose("belt speed 0.5 or 0.9 m/s")
 
 
+def test_values_screened_before_kind_gating():
+    """Wave 10 jury D: a contradictory request refuses on its values even
+    with no machine word, so it can never exit as "unknown machine
+    kind" and reach the model (which would resurrect it by guessing)."""
+    from genesis_rt.planner import PlannerRejection, propose
+    with pytest.raises(PlannerRejection, match="contradictory periods"):
+        propose("cycle 10 ms but 90 ms at night")
+    with pytest.raises(PlannerRejection, match="not a period"):
+        propose("control rate 5 Hz for the process")
+    with pytest.raises(PlannerRejection, match="out of range"):
+        propose("spin it at 25 m/s for the demo")
+
+
 def test_contrastive_periods_are_contradictory():
     """Titan v3: 'period 25 ms but 60 ms' was accepted (only
     and/or/comma/slash coordinated). Distractor words between the

@@ -352,7 +352,7 @@ its verification scenarios.</p></div>
 <section class="tabpage" id="tab-target" role="tabpanel" aria-labelledby="tabbtn-target">
 <h2>QNX target runner</h2>
 <p class="note">Native campaign on the QEMU target: validate → build → stage →
-verify → measure. IR comes from the source picked in the Pipeline tab.</p>
+verify → measure. IR comes from the source picked on the pipeline page.</p>
 <div class="row">
 <label for="top-workflow">workflow</label>
 <select id="top-workflow" aria-label="target workflow">
@@ -361,7 +361,7 @@ verify → measure. IR comes from the source picked in the Pipeline tab.</p>
 <option value="verify-only">verify-only</option>
 </select>
 <label for="top-image">image dir</label>
-<input type="text" id="top-image" placeholder="…/qemu (needed for QEMU steps)">
+<input type="text" id="top-image" size="30" placeholder="…/qemu (needed for QEMU steps)">
 <button class="act" id="top-run" aria-describedby="top-ready">Run on target</button>
 <button class="ghost" id="top-cancel" disabled>Cancel</button>
 </div>
@@ -389,7 +389,7 @@ regressions, not hardware guarantees.</p>
 <section class="tabpage" id="tab-twin" role="tabpanel" aria-labelledby="tabbtn-twin">
 <h2>Digital twin replay</h2>
 <div id="twin-out"><p class="note">Load a passport in the Passport tab,
-then pick a scenario in the Lab tab to replay its trace here.</p></div>
+then pick a scenario on the Fault lab page to replay its trace here.</p></div>
 </section>
 
 <section class="tabpage" id="tab-lab" role="tabpanel" aria-labelledby="tabbtn-lab">
@@ -443,7 +443,10 @@ the C guard or the QNX target; tiers are never merged.</p>
 <p class="page-intro">Open a <code>passport.json</code> to re-verify its hash chain in your browser and read every verdict with its evidence.</p>
 <input type="file" id="ppfile" aria-label="Passport JSON file" accept=".json">
 <div id="pp-out"><p class="note">Open a <code>passport.json</code>. The hash
-chain is re-verified live; a stored PASS is shown only when valid.</p></div>
+chain is re-verified live; a stored PASS is shown only when valid.</p>
+<p class="note">Try one from the repo checkout:
+<code>evidence/qnx8-x86_64-w11-after/passport.json</code> (or the
+<code>-before</code> / <code>-after-rerun</code> pack).</p></div>
 </section>
 
 <section class="tabpage" id="tab-diff" role="tabpanel" aria-labelledby="tabbtn-diff">
@@ -2976,7 +2979,7 @@ async function designerSaveAs() {
   } catch (e) { el('designer-err').innerHTML = errHtml('save-as failed', e); }
 }
 
-/* -- Pipeline tab ---------------- */
+/* -- Pipeline page ---------------- */
 function renderScenarioChecks(scenarios) {
   if (!scenarios || !scenarios.length) {
     return '<p class="note">No scenarios for this source.</p>';
@@ -3197,7 +3200,7 @@ async function finishTargetOp(opId) {
 }
 async function targetRun() {
   if (!Live.pipeSource) {
-    el('top-out').innerHTML = '<p class="fail">Pick an example or project in the Pipeline tab first.</p>';
+    el('top-out').innerHTML = '<p class="fail">Pick an example or project on the pipeline page first.</p>';
     return;
   }
   const workflow = el('top-workflow').value || 'full';
@@ -3210,7 +3213,7 @@ async function targetRun() {
   try {
     const env = await api('/env');
     if (!env.environment || !env.environment.sdk_present) {
-      el('top-out').innerHTML = '<div class="banner"><span class="fail">Native target unavailable: QNX SDK not installed.</span> Host verification in the Pipeline tab still works.</div>';
+      el('top-out').innerHTML = '<div class="banner"><span class="fail">Native target unavailable: QNX SDK not installed.</span> Host verification on the pipeline page still works.</div>';
       return;
     }
     let ir;
@@ -3809,7 +3812,7 @@ async function judgeRunJob(scenarios, label) {
   storeSet('studio.job', job.job_id);
   switchTab('pipeline');
   openJob(job.job_id);
-  return label + ' started live: ' + job.job_id + ' (watch the Pipeline tab).';
+  return label + ' started live: ' + job.job_id + ' (watch the pipeline page).';
 }
 async function judgeAction(action) {
   try {

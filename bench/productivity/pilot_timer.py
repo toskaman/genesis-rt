@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import random
 import sys
 import time
 from pathlib import Path
@@ -103,13 +104,44 @@ def run_task(team: str, lane: str, task: str, read=input, clock=time.monotonic,
     return row
 
 
-def main() -> int:
+def plan_session(team: str, seed: int | None = None) -> dict:
+    """Randomize which lane the team runs first (counterbalancing).
+
+    Pure function of (team, seed): the same seed replays the same
+    order. The plan ships next to the JSONL rows; pairing validation
+    is order-agnostic, but the recorded order proves the lanes were
+    counterbalanced instead of always genesis-first.
+    """
+    rng = random.Random(seed)
+    order = list(LANES)
+    rng.shuffle(order)
+    return {"protocol": PROTOCOL, "type": "session-plan", "team": team,
+            "lane_order": order, "seed": seed}
+
+
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--team", required=True, help="anonymous id, e.g. OWNER or T1")
-    ap.add_argument("--lane", required=True, choices=LANES)
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--lane", choices=LANES,
+                    help="lane to time (not needed with --plan)")
+    ap.add_argument("--out", help="JSONL rows file (not needed with --plan)")
     ap.add_argument("--tasks", nargs="*", default=list(TASKS), choices=TASKS)
-    a = ap.parse_args()
+    ap.add_argument("--plan", action="store_true",
+                    help="print the randomized lane order for --team and exit")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="plan RNG seed (replays the same order)")
+    ap.add_argument("--plan-out", default=None,
+                    help="write the session plan JSON here (else stdout)")
+    a = ap.parse_args(argv)
+    if a.plan:
+        plan = plan_session(a.team, a.seed)
+        text = json.dumps(plan, indent=2, sort_keys=True)
+        if a.plan_out:
+            Path(a.plan_out).write_text(text + "\n", encoding="utf-8")
+        print(text)
+        return 0
+    if not a.lane or not a.out:
+        ap.error("--lane and --out are required (unless --plan)")
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     for task in a.tasks:

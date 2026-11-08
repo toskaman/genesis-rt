@@ -4,9 +4,13 @@
  * genesis_device: SIMULATED actuator/sensor endpoint.
  * Receives ONLY guard-forwarded validated commands (GENESIS_FWD_MAGIC)
  * over native message passing, integrates virtual pose, and serves
- * state queries. The controller never talks to this process (no-bypass
- * is enforced by construction and audited: every applied command logs
- * its sender pid). No physical motor support by design (simulation).
+ * state queries. No-bypass is enforced by first-sender pid pinning
+ * (Wave 10 jury A): the first valid forward pins its sender pid and
+ * later forwards from any other pid get EPERM. Residual TOCTOU: an
+ * attacker already on the target that wins the first-forward race
+ * pins itself; the supervisor start order (guard first) makes that
+ * a non-issue in the shipped system, and every apply still logs
+ * its sender pid for audit. No physical motor support by design.
  */
 #include <stdio.h>
 #include <string.h>
@@ -47,6 +51,7 @@ int main(int argc, char **argv) {
     fflush(stdout);
 
     uint8_t buf[64];
+    pid_t fwd_pid = 0; /* pinned by the first valid forward */
     for (;;) {
         struct _msg_info info;
         memset(buf, 0, sizeof buf);
@@ -64,6 +69,18 @@ int main(int argc, char **argv) {
         if (msglen == sizeof(genesis_fwd_t) &&
             ((genesis_fwd_t *)buf)->magic == GENESIS_FWD_MAGIC &&
             ((genesis_fwd_t *)buf)->version == GENESIS_FWD_VERSION) {
+            if (fwd_pid == 0) {
+                fwd_pid = info.pid;
+                printf("device: forward channel pinned to pid=%d\n",
+                       fwd_pid);
+                fflush(stdout);
+            }
+            if (info.pid != fwd_pid) {
+                fprintf(stderr, "device: REJECT fwd from_pid=%d (pinned=%d)\n",
+                        info.pid, fwd_pid);
+                MsgError(rcvid, EPERM);
+                continue;
+            }
             genesis_fwd_t *fwd = (genesis_fwd_t *)buf;
             genesis_fwd_ack_t ack;
             memset(&ack, 0, sizeof ack);

@@ -1,7 +1,6 @@
 # Copyright 2026 GENESIS RT contributors
 # SPDX-License-Identifier: Apache-2.0
 """Fault-lab tests: cell scenarios pass; oracles catch sabotage."""
-import pytest
 
 from genesis_rt import faultlab
 from genesis_rt.faultlab import FaultWindow

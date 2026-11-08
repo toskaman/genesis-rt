@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 from .codegen import canonical_json
-from .evidence import load_passport, verify_chain
+from .evidence import verify_chain
 
 BUILD_SET_VERSION = 1
 

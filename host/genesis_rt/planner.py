@@ -110,29 +110,10 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
     if len(text) > 2000:
         raise PlannerRejection("request too long; keep it under 2000 characters")
 
-    matched: list[str] = []
-    words = set(re.findall(r"[a-z0-9]+", text))
-    # Compound noun first: one adjacent "robot arm" / "robotic arm"
-    # names a single manipulator, not a mobile robot plus an arm.
-    # Two robot-family mentions ("robot arm and robot") stay ambiguous.
-    if (re.search(r"\brobot(?:s|ic)?[\s-]+arms?\b", text)
-            and len(re.findall(r"\brobot(?:s|ic|ics)?\b", text)) == 1):
-        words.discard("robot")
-        words.discard("robots")
-    for hints, candidate in _KIND_HINTS:
-        # Whole-word match: "robotic arm" must not fire the "robot" hint,
-        # and "alarm" must not fire "arm".
-        if any(h in words for h in hints):
-            matched.append(candidate)
-    if not matched:
-        raise PlannerRejection(
-            "unknown machine kind; mention one of: robot/rover/AMR, conveyor/belt, arm/gripper")
-    if len(matched) > 1:
-        raise PlannerRejection(
-            f"ambiguous machine kind ({', '.join(sorted(matched))}); "
-            "name exactly one machine in the request")
-    kind = matched[0]
-
+    # Value screening runs BEFORE kind matching (Wave 10 jury D):
+    # a contradictory / wrong-unit / out-of-range request refuses here,
+    # so it can never exit as "unknown machine kind" and reach the
+    # model, which would otherwise resurrect it by guessing a kind.
     # Contradictory requirements (holdout v1, 7 Nov 2026). Only values tied
     # to control-period words count ("10 ms control, logs every 100 ms" is
     # fine); two different tied periods or two different speeds are refused.
@@ -198,6 +179,29 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
                 "state speeds in m/s within (0, 10]")
     if not 0.0 < max_linear <= 10.0:
         raise PlannerRejection(f"max speed {max_linear} m/s out of range (0, 10]")
+
+    matched: list[str] = []
+    words = set(re.findall(r"[a-z0-9]+", text))
+    # Compound noun first: one adjacent "robot arm" / "robotic arm"
+    # names a single manipulator, not a mobile robot plus an arm.
+    # Two robot-family mentions ("robot arm and robot") stay ambiguous.
+    if (re.search(r"\brobot(?:s|ic)?[\s-]+arms?\b", text)
+            and len(re.findall(r"\brobot(?:s|ic|ics)?\b", text)) == 1):
+        words.discard("robot")
+        words.discard("robots")
+    for hints, candidate in _KIND_HINTS:
+        # Whole-word match: "robotic arm" must not fire the "robot" hint,
+        # and "alarm" must not fire "arm".
+        if any(h in words for h in hints):
+            matched.append(candidate)
+    if not matched:
+        raise PlannerRejection(
+            "unknown machine kind; mention one of: robot/rover/AMR, conveyor/belt, arm/gripper")
+    if len(matched) > 1:
+        raise PlannerRejection(
+            f"ambiguous machine kind ({', '.join(sorted(matched))}); "
+            "name exactly one machine in the request")
+    kind = matched[0]
 
     preset = _PRESETS[kind]
     proposal = {

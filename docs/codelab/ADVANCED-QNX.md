@@ -20,6 +20,14 @@ provenance header, passport anatomy, independent replay and
 tamper-evidence, the native `qcc` build, and on-target IPC,
 supervision, telemetry, and latency measurement.
 
+- [Lab 1 — Guard policy microscope](#lab-1--guard-policy-microscope-host-no-sdk) (host, no SDK)
+- [Lab 2 — Deterministic codegen](#lab-2--deterministic-codegen-and-provenance-host-no-sdk) (host, no SDK)
+- [Lab 3 — Passport anatomy](#lab-3--passport-anatomy-host-no-sdk) (host, no SDK)
+- [Lab 4 — Independent replay](#lab-4--independent-replay-and-tamper-evidence-host-no-sdk) (host, no SDK)
+- [Lab 5 — Native build anatomy](#lab-5--native-build-anatomy-host-needs-sdp-80) (host, needs SDP 8.0)
+- [Lab 6 — On target](#lab-6--on-target-ipc-supervision-telemetry-latency) (needs QEMU target)
+- [Acceptance checklist — Labs 5–6](#acceptance-checklist--labs-56-manual-needs-sdk--target)
+
 ## Lab 1 — Guard policy microscope (host, no SDK)
 
 Build the host vector harness (same `guard_policy.c` that ships
@@ -353,6 +361,27 @@ the pidfile.
 > not literals. QNX 8.0.0 QEMU x86_64, TCG+cpu max,
 > 2026-11-05.
 
+## Acceptance checklist — Labs 5–6 (manual, needs SDK + target)
+
+Labs 1–4 are executed by CI (`sh-harness`); Labs 5–6 need an
+SDP and a live target, so confirm them by hand. Tick every box
+before calling the codelab done — shapes, not literals:
+
+- [ ] Lab 5: `make.log` shows `qcc -Vgcc_ntox86_64`, zero
+  `warning` lines, and all 6 `genesis_*` binaries exist.
+- [ ] Lab 6.1: two distinct PIDs, both in `RECEIVE` state.
+- [ ] Lab 6.2: `faultinject: ALL 9 CHECKS PASS`, `FI_EXIT=0`,
+  and `/dev/genesis/status` shows the `state=3` latch with
+  1 allow against 8 denies.
+- [ ] Lab 6.3: `PERF_DONE n=200` with `BENCH_EXIT=0` (SAMPLE
+  values vary; the shape `SAMPLE <µs>` × 200 is what matters).
+- [ ] Lab 6.4: `grep -c RESPAWN` ≥ 1 after killing the device;
+  `grep -c GIVE_UP` = 1 after 4 guard kills.
+- [ ] Lab 6.5: guard log count frozen (`GAFTER` = `GBEFORE`),
+  `CALIVE=0`, `GALIVE=1` after SIGKILLing the controller.
+- [ ] Lab 6.6: no `genesis_*` left in `pidin`, scratch
+  `lab-*.log` removed, QEMU stopped from the host.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -382,6 +411,15 @@ rm -rf $CODELAB_TMP/lab-a $CODELAB_TMP/lab-b $CODELAB_TMP/demo.json $CODELAB_TMP
 Same as the base codelab: simulation only, prototype
 not certified, QEMU timing is regression aid only (see
 `docs/jury/KNOWN_LIMITATIONS.md`, which governs).
+
+## Takeaway
+
+A measured guard policy, byte-identical codegen, a passport
+you replayed and tampered with, a native `qcc` build, and
+on-target IPC, supervision, and containment you watched
+happen. Same loop as the base codelab — specify → compile →
+run → break → prove — now with the inside of every step
+visible.
 
 > Final URL for the Devpost bonus box:
 > `https://github.com/toskaman/genesis-rt/blob/main/docs/codelab/ADVANCED-QNX.md`

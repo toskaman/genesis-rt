@@ -10,17 +10,15 @@ never labelled as QNX results.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable
 
 from . import guard_policy as gp
 from .ir import CELL_SCENARIO_IDS, SCENARIO_IDS, guard_limits
 from .simulator import (
     CELL_AT_STATION,
-    CELL_COMPLETE,
     CELL_ENROUTE,
     CELL_IDLE,
-    CELL_SAFE,
     BeltConfig,
     BeltSim,
     CellConfig,
@@ -137,7 +135,6 @@ def run_scenario(ir: dict[str, Any], scenario: str,
     allows = denies = 0
     deny_reasons: dict[str, int] = {}
     stop_latched_at: int | None = None
-    motion_during_gap = 0.0
 
     t = 0
     try:

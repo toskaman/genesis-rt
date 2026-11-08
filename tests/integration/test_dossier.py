@@ -551,7 +551,7 @@ def test_dossier_embeds_runner_job(tmp_path):
     assert "ci-42" in report and "ffffffffffff" in report
     assert "runner-job.json" in report
     manifest = json.loads(files[f"dossier-{OP}/manifest.json"])
-    assert f"runner-job.json" in manifest["files"]
+    assert "runner-job.json" in manifest["files"]
 
 
 def test_dossier_without_job_says_local(tmp_path):

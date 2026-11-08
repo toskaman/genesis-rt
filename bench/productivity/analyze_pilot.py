@@ -141,8 +141,16 @@ def load_rows(path: Path) -> list[dict]:
                 f"line {line}: participant rows require consent=true; "
                 "unconsented data must not be recorded")
         abandoned = _bool(row, "abandoned", line)
+        notes = row.get("notes", "")
+        if not isinstance(notes, str):
+            raise ValueError(f"line {line}: notes must be a string")
+        protocol = row.get("protocol")
+        if protocol is not None and protocol != PROTOCOL:
+            raise ValueError(
+                f"line {line}: protocol {protocol!r} is not {PROTOCOL}")
         rows.append({
             "team": team, "task": task, "lane": lane,
+            "protocol": protocol,
             "started_utc": started.isoformat(),
             "finished_utc": finished.isoformat(),
             "duration_min": _num(row, "duration_min", line),
@@ -158,6 +166,7 @@ def load_rows(path: Path) -> list[dict]:
             "abandoned": abandoned,
             "operator_kind": kind,
             "consent": consent,
+            "notes": notes,
         })
         if rows[-1]["confidence"] > 5.0:
             raise ValueError(f"line {line}: confidence must be 1..5")
@@ -268,19 +277,55 @@ def analyze(rows: list[dict]) -> dict:
     }
 
 
+CSV_COLUMNS = ("protocol", "team", "task", "lane", "started_utc",
+               "finished_utc", "duration_min", "abandoned",
+               "interruptions_min", "commands_run", "manual_steps",
+               "fault_found", "fault_id", "evidence", "reviewer_min",
+               "reviewer_pass", "confidence", "operator_kind", "consent",
+               "notes")
+
+
+def _csv_cell(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    text = str(value)
+    if any(c in text for c in (",", '"', "\n", "\r")):
+        text = '"' + text.replace('"', '""') + '"'
+    return text
+
+
+def rows_to_csv(rows: list[dict]) -> str:
+    """Validated rows as CSV (same data as the JSONL, spreadsheet-safe).
+
+    Only call with rows that passed load_rows: export never cleans or
+    imputes, it only re-serializes.
+    """
+    lines = [",".join(CSV_COLUMNS)]
+    for row in rows:
+        lines.append(",".join(_csv_cell(row.get(col)) for col in CSV_COLUMNS))
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Aggregate pilot JSONL rows.")
     ap.add_argument("input", help="anonymized rows (.jsonl)")
     ap.add_argument("--out", default=None, help="write aggregate JSON here")
+    ap.add_argument("--to-csv", default=None,
+                    help="also write the validated rows as CSV here")
     args = ap.parse_args(argv)
     try:
-        result = analyze(load_rows(Path(args.input)))
+        rows = load_rows(Path(args.input))
+        result = analyze(rows)
     except (OSError, ValueError) as exc:
         print(f"pilot analysis refused: {exc}", file=sys.stderr)
         return 1
     text = json.dumps(result, indent=2, sort_keys=True)
     if args.out:
         Path(args.out).write_text(text + "\n", encoding="utf-8")
+    if args.to_csv:
+        Path(args.to_csv).write_text(rows_to_csv(rows), encoding="utf-8")
     print(text)
     return 0
 

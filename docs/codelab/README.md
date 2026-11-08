@@ -13,6 +13,10 @@
 > provenance, replay, native build, on-target IPC deep-dive —
 > every command executed, host blocks enforced by
 > `tests/integration/test_codelab_advanced.py`).
+> Only have 15 minutes, or an existing build to seal?
+> [`EXTERNAL-BUILD.md`](EXTERNAL-BUILD.md) teaches stale-binary
+> detection for your own QNX build (host + SDK blocks enforced by
+> `tests/integration/test_codelab_external.py`).
 
 ## Goal
 

@@ -6,11 +6,9 @@ import pytest
 from genesis_rt.simulator import (
     CELL_AT_STATION,
     CELL_COMPLETE,
-    CELL_ENROUTE,
     CELL_IDLE,
     CELL_SAFE,
     CELL_TRANSFERRING,
-    CellConfig,
     CellSim,
     cell_transfer_allowed,
 )

@@ -233,3 +233,17 @@ def test_no_false_refusals_found_by_independent_review(request_text, period, spe
     review, 7 Nov 2026). They must plan normally."""
     ir = plan_machine(request_text)
     assert (ir["control"]["period_ms"], ir["control"]["max_linear_speed_mps"]) == (period, speed)
+
+
+def test_contradictory_no_kind_never_reaches_model(llm_env):
+    """Wave 10 jury D: value screening precedes kind gating, so a
+    contradictory request with no machine word refuses before the
+    model could resurrect it by guessing a kind (v4-r14 class)."""
+    calls = []
+    intent = {"kind": "conveyor", "period_ms": 25,
+              "max_linear_speed_mps": None, "refusal": None}
+    srv, _ = llm_env(lambda b: (calls.append(1) or 200, _chat(intent)))
+    with pytest.raises(PlannerRejection, match="contradictory periods"):
+        plan_machine("cycle 10 ms but 90 ms at night", provider="llm")
+    srv.shutdown()
+    assert calls == []

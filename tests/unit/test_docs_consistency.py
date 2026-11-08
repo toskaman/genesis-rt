@@ -123,8 +123,14 @@ def test_pilot_kit_covers_wave10_checklist():
     for token in ("## 9. Technical invitation",
                   "zero invitations sent so far",
                   "## 10. Reviewer checklist",
-                  "## 6. Privacy guidance + anonymization protocol"):
+                  "## 6. Privacy guidance + anonymization protocol",
+                  "pilot-onboarding.md",
+                  "--plan"):
         assert token in text, token
+    onboarding = _read("docs/business/pilot-onboarding.md")
+    for token in ("Recording procedure", "lane order", "anonymization",
+                  "consent"):
+        assert token in onboarding, token
 
 
 def test_adversarial_count_matches_collected():

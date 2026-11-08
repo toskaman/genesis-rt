@@ -5,10 +5,13 @@ complete package a team needs to run a fair before/after evaluation.
 No participants, testimonials, or savings figures exist — anything
 added later must cite its dated raw data.
 
-Companion files: `pilot-consent.md` (consent + confidentiality),
+Companion files: `pilot-onboarding.md` (5-min start + recording
+procedure), `pilot-consent.md` (consent + confidentiality),
 `buyer-interview.md` (30-min interview guide),
-`decision-maker-survey.md` (post-pilot survey), and
-`bench/productivity/analyze_pilot.py` (results aggregation).
+`decision-maker-survey.md` (post-pilot survey),
+`bench/productivity/pilot_timer.py` (session timer + lane-order
+randomization), and `bench/productivity/analyze_pilot.py` (results
+aggregation + CSV export).
 
 ## 1. What the pilot measures
 
@@ -47,8 +50,11 @@ performed by a human in each lane:
    tight-limit IR, apply the provided fix, confirm green.
 
 Reference lane = the team's current practice (their editors,
-scripts, CI). Genesis lane = this repo's CLI/Studio. Task order
-is randomized per operator (coin flip: genesis-first or ref-first).
+scripts, CI). Genesis lane = this repo's CLI/Studio. Lane order
+is randomized per operator (`pilot_timer.py --team T1 --plan
+--seed <n> --plan-out session-T1.json`; the seed replays the
+order — a coin flip is an acceptable substitute, noted in the
+session file).
 
 ## 3. Baseline measurement template (reference lane)
 

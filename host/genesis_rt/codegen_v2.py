@@ -107,7 +107,6 @@ def _build_mapping(v2: dict[str, Any]) -> dict[str, str]:
 
     commands = [c["id"] for c in v2["commands"]]
     cmd_syms = _c_syms(commands, "CMD", "command")
-    cmd_of = dict(zip(commands, cmd_syms))
 
     faults = _ordered_unique(f["fault"] for f in v2["fault_responses"])
     fault_syms = _c_syms(faults, "FAULT", "fault")
@@ -120,10 +119,8 @@ def _build_mapping(v2: dict[str, Any]) -> dict[str, str]:
 
     actuators = [a["id"] for a in v2["actuators"]]
     act_syms = _c_syms(actuators, "ACT", "actuator")
-    act_of = dict(zip(actuators, act_syms))
     sensors = [s["id"] for s in v2["sensors"]]
     sens_syms = _c_syms(sensors, "SENS", "sensor")
-    sens_of = dict(zip(sensors, sens_syms))
     telemetries = [t["id"] for t in v2["telemetry"]]
     tm_syms = _c_syms(telemetries, "TM", "telemetry")
 

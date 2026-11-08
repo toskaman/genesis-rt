@@ -119,7 +119,7 @@ from .explorer import (ExplorerInputError, ExplorerUnsupported, explore,
 from .impact import analyze_impact, release_status
 from .jobs import JobConflict, JobManager, JobNotFound, JobOverloaded
 from .target import TargetBusy, TargetOpError, TargetRunner, valid_op_id
-from .orchestrator import MAX_RUN_ID_LEN, valid_run_id as _valid_run_id
+from .orchestrator import valid_run_id as _valid_run_id
 from .twin import TwinChainError, TwinInputError, TwinTooLarge, track_from_passport
 
 # Studio Live: committed example files openable as projects (allowlist;

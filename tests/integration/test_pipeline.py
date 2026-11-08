@@ -1,7 +1,6 @@
 # Copyright 2026 GENESIS RT contributors
 # SPDX-License-Identifier: Apache-2.0
 """Integration tests: full pipeline + planner + CLI surface."""
-import json
 import subprocess
 import sys
 

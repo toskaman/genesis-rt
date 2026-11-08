@@ -171,6 +171,21 @@ Final-code confirmation reruns (v1/v2, both models, code pinned in
 `evals/results/2026-11-08-finalcode-2models/RUNME.md`): qwen 98/98 +
 30/30, llama 98/98 + 30/30, 0 accepted-should-refuse.
 
+## Post-v4 structural fix: values screened before kind (8 Nov 2026)
+
+Wave 10 jury review D found the v4-r14 mechanism: kind gating ran
+before value screening, so a contradictory request with no machine
+word exited as "unknown machine kind" and reached the model, which
+could resurrect it by guessing (llama accepted v4-r14). The parser
+now screens values (contradiction, units, Hz, ranges) before kind
+matching, so such requests refuse deterministically and the model is
+never consulted (`test_values_screened_before_kind_gating`,
+`test_contradictory_no_kind_never_reaches_model`, both with novel
+phrasings — v4 text is not baked into tests). v1/v2/v3 offline
+scores are unchanged (91/98 with the identical miss list, 30/30,
+36/36). v4 was NOT re-run: it stays the frozen final measurement
+(32/32/31); the fix is validated structurally, not against v4.
+
 ## Standing limitations (8 Nov 2026)
 
 - v1 is development-contaminated and v2/v3 are development-touched;

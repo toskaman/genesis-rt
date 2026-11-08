@@ -242,3 +242,26 @@ def test_timer_row_passes_analyzer(pt, ap, tmp_path):
     loaded = ap.load_rows(_write(tmp_path, [row]))
     assert loaded[0]["team"] == "T9"
     assert ap.analyze(loaded)["sample_status"] == ap.INCOMPLETE_PAIRED_DATA
+
+
+def test_session_plan_covers_both_lanes_and_replays(pt):
+    plan = pt.plan_session("T1", seed=7)
+    assert sorted(plan["lane_order"]) == ["genesis", "reference"]
+    assert plan["team"] == "T1" and plan["seed"] == 7
+    assert pt.plan_session("T1", seed=7) == plan
+    orders = {tuple(pt.plan_session("T%d" % i, seed=i)["lane_order"])
+              for i in range(20)}
+    assert len(orders) == 2  # both orders occur: real counterbalancing
+
+
+def test_csv_export_reserializes_validated_rows(ap, tmp_path):
+    rows = [_row("T1", "validate", "genesis", notes='a, "quoted" note'),
+            _row("T1", "validate", "reference", fault_id=None)]
+    text = ap.rows_to_csv(ap.load_rows(_write(tmp_path, rows)))
+    lines = text.splitlines()
+    assert lines[0].split(",")[:4] == ["protocol", "team", "task", "lane"]
+    assert len(lines) == 3
+    assert '"a, ""quoted"" note"' in lines[1]
+    import csv
+    parsed = list(csv.reader(lines))
+    assert parsed[2][parsed[0].index("fault_id")] == ""

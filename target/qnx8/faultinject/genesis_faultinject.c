@@ -35,10 +35,22 @@ static uint64_t now_ms(void) {
 
 static int failures = 0;
 
+/* One-shot 2 s guard-call timeout, re-armed before every MsgSend so a
+ * hung guard fails loudly instead of wedging the verifier (same
+ * pattern as the controller; Wave 10 jury A). */
+static int arm_ipc_timeout(void) {
+    struct sigevent ev;
+    uint64_t to = 2000000000ULL;
+    memset(&ev, 0, sizeof ev);
+    ev.sigev_notify = SIGEV_UNBLOCK;
+    return TimerTimeout(CLOCK_MONOTONIC, _NTO_TIMEOUT_SEND | _NTO_TIMEOUT_REPLY,
+                        &ev, &to, NULL);
+}
 static void check_n(int coid, const char *name, genesis_cmd_t *cmd, size_t send_len,
                     uint32_t want_decision, uint32_t want_reason, uint32_t want_state) {
     genesis_reply_t reply;
     memset(&reply, 0xFF, sizeof reply); /* short replies must not read as ALLOW */
+    arm_ipc_timeout();
     if (MsgSend(coid, cmd, send_len, &reply, sizeof reply) != 0) {
         printf("FAIL %-18s MsgSend error\n", name);
         failures++;
@@ -93,6 +105,7 @@ static int run_probe(int coid, const char *arg) {
     cmd.estop_engaged = (uint8_t)estop;
     genesis_reply_t reply;
     memset(&reply, 0xFF, sizeof reply);
+    arm_ipc_timeout();
     if (MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply) != 0) {
         printf("PROBE MsgSend error\n");
         return 2;
@@ -132,6 +145,7 @@ static int run_state_probe(int coid, const char *arg) {
     cmd.estop_engaged = 0;
     genesis_reply_t reply;
     memset(&reply, 0xFF, sizeof reply);
+    arm_ipc_timeout();
     if (MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply) != 0) {
         printf("PROBE MsgSend error\n");
         return 2;
@@ -185,6 +199,7 @@ static int run_bench(int coid, const char *arg) {
         if (trace)
             printf("TRACE SEND seq=%u t=%llu\n", cmd.seq,
                    (unsigned long long)t0);
+        arm_ipc_timeout();
         int rc = MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply);
         uint64_t t1 = now_ns();
         uint64_t dt = t1 - t0;
