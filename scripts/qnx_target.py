@@ -68,12 +68,19 @@ class TargetLock:
 
     The lock file holds ``{"owner": ..., "pid": ...}``. Creation is atomic
     (O_EXCL); a lock whose pid is dead is reclaimed as stale. Only the
-    owning pid may release. Guarantees §14: no two incompatible native
-    campaigns (put/verify/perf/sched) run concurrently.
+    owning pid may release. Guarantees §14: no two target-touching
+    invocations (boot/run/stop/put/verify/perf/sched/identity/probe)
+    run concurrently — a rival either waits for release or fails
+    loudly with TargetBusy, never interleaves. Only probe-image
+    (local) and wait-ssh (TCP wait) run unlocked by design.
+    ``GENESIS_TARGET_LOCK`` overrides the lock path (tests, ops).
     """
 
     def __init__(self, path: Path | None = None, owner: str = "") -> None:
-        self.path = Path(path) if path else DEFAULT_TARGET_LOCK
+        if path is None:
+            path = Path(os.environ.get("GENESIS_TARGET_LOCK",
+                                       str(DEFAULT_TARGET_LOCK)))
+        self.path = Path(path)
         self.owner = owner or f"pid={os.getpid()}"
 
     @staticmethod
@@ -109,8 +116,13 @@ class TargetLock:
         try:
             self.path.unlink()
         except OSError:
-            pass
-        fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            pass  # lost the race; the open below refuses us
+        try:
+            fd = os.open(str(self.path),
+                         os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            raise TargetBusy("lost the stale-lock race; retry the "
+                             "command")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 fh.write(payload)
@@ -148,9 +160,24 @@ def _with_target_lock(func):
             with TargetLock(owner=f"{func.__name__} pid={os.getpid()}"):
                 return func(args)
         except TargetBusy as exc:
-            print(f"target: {exc}; one native campaign at a time")
+            print(f"target: {exc}; one native campaign at a time "
+                  f"(see `lock-status`)")
             return 2
     return wrapper
+
+
+def _stage_entries(files: list[Path]) -> dict:
+    """Per-file sha256 + POSIX cksum + size, keyed by basename."""
+    entries = {}
+    for src in files:
+        blob = Path(src).read_bytes()
+        crc, size = provenance.cksum_posix(blob)
+        entries[Path(src).name] = {
+            "sha256": hashlib.sha256(blob).hexdigest(),
+            "cksum": crc,
+            "size": size,
+        }
+    return entries
 
 
 def write_stage_manifest(path: str | Path, dest: str,
@@ -161,16 +188,8 @@ def write_stage_manifest(path: str | Path, dest: str,
     an interrupted staging never leaves a manifest claiming more than
     reached the target.
     """
-    entries = {}
-    for src in files:
-        blob = Path(src).read_bytes()
-        crc, size = provenance.cksum_posix(blob)
-        entries[Path(src).name] = {
-            "sha256": hashlib.sha256(blob).hexdigest(),
-            "cksum": crc,
-            "size": size,
-        }
-    manifest = {"dest": dest, "created_utc": _utcnow(), "files": entries}
+    manifest = {"dest": dest, "created_utc": _utcnow(),
+                "files": _stage_entries(files)}
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(out.suffix + ".tmp")
@@ -331,6 +350,7 @@ def _qmp_screendump(port: int, path: Path) -> str:
         sock.close()
 
 
+@_with_target_lock
 def cmd_boot(args: argparse.Namespace) -> int:
     qemu = probe_qemu()
     if not qemu["present"]:
@@ -487,6 +507,7 @@ def _wait_pid_gone(pid: int, budget_s: float) -> bool:
     return _pid_is_gone(pid)
 
 
+@_with_target_lock
 def cmd_stop(args: argparse.Namespace) -> int:
     """Stop the QEMU instance recorded in output/qemu.pid (bounded, verified).
 
@@ -572,6 +593,10 @@ def _ssh_client(port: int, user: str, password: str, timeout: int = 30,
             return client
         except Exception as exc:  # noqa: BLE001
             last = exc
+            try:
+                client.close()
+            except Exception:
+                pass  # M8: never leak a half-open transport on retry
             print(f"ssh: attempt {attempt}/{retries} failed: "
                   f"{type(exc).__name__}: {exc}")
             if attempt >= retries:
@@ -603,6 +628,7 @@ def cmd_wait_ssh(args: argparse.Namespace) -> int:
     return 1
 
 
+@_with_target_lock
 def cmd_run(args: argparse.Namespace) -> int:
     import os
     password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
@@ -1605,15 +1631,30 @@ def cmd_put(args: argparse.Namespace) -> int:
             sftp.chmod(dst, 0o755)
             print(f"put: {src} -> {dst}")
         if getattr(args, "manifest_out", None):
+            staged, staged_err = _fetch_staged(client, args.dest)
+            if staged is None:
+                print(f"put: REFUSED — cannot read back staging: "
+                      f"{staged_err}; no manifest written")
+                return 2
+            errors = check_staged_against_manifest(
+                staged, {"files": _stage_entries(
+                    [Path(s) for s in args.src])})
+            if errors:
+                print("put: REFUSED — target staging differs from "
+                      "local bytes; no manifest written:")
+                for err in errors:
+                    print(f"put:   {err}")
+                return 2
             manifest = write_stage_manifest(
                 args.manifest_out, args.dest, [Path(s) for s in args.src])
-            print(f"put: manifest ({len(manifest['files'])} files) -> "
-                  f"{args.manifest_out}")
+            print(f"put: manifest ({len(manifest['files'])} files, "
+                  f"read-back verified) -> {args.manifest_out}")
         return 0
     finally:
         client.close()
 
 
+@_with_target_lock
 def cmd_identity(args: argparse.Namespace) -> int:
     """Inspect target identity: uname + staged-binary cksum inventory."""
     import os
@@ -1641,6 +1682,54 @@ def cmd_identity(args: argparse.Namespace) -> int:
     return 0 if uname else 1
 
 
+@_with_target_lock
+def cmd_probe(args: argparse.Namespace) -> int:
+    """Non-destructive auth probe: connect + fixed `uname -a`, nothing else.
+
+    THE command for "is the target reachable / are my credentials
+    right". Unlike `run`, the remote command is fixed and read-only,
+    so retry loops can never re-execute a destructive string (the
+    8-Nov campaign wipe came from a retried `run 'rm -rf ...'`).
+    """
+    import os
+    password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
+    try:
+        client = _ssh_client(args.ssh_port, args.user, password)
+    except Exception as exc:
+        print(f"ssh: connect/auth failed: {type(exc).__name__}: {exc}")
+        return 2
+    try:
+        uname, err = _fetch_uname(client)
+    finally:
+        client.close()
+    if uname:
+        print(f"probe: auth OK: {uname}")
+        return 0
+    print(f"probe: authenticated but uname failed: {err}")
+    return 1
+
+
+def cmd_lock_status(args: argparse.Namespace) -> int:
+    """Inspect the campaign lock without acquiring it (never blocks)."""
+    path = Path(os.environ.get("GENESIS_TARGET_LOCK",
+                               str(DEFAULT_TARGET_LOCK)))
+    info: dict = {"path": str(path), "held": False, "owner": None,
+                  "pid": None, "pid_alive": False}
+    try:
+        holder = json.loads(path.read_text(encoding="utf-8"))
+        pid = int(holder.get("pid", -1))
+    except (OSError, ValueError):
+        print(json.dumps(info, indent=2, sort_keys=True))
+        return 0
+    info.update(held=True, owner=holder.get("owner"),
+                pid=pid, pid_alive=TargetLock._pid_alive(pid))
+    if pid > 0 and not info["pid_alive"]:
+        info["note"] = ("stale (holder dead); next command reclaims it "
+                        "automatically")
+    print(json.dumps(info, indent=2, sort_keys=True))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="QNX QSTI image probe + QEMU boot")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -1664,7 +1753,10 @@ def main() -> int:
     st = sub.add_parser("stop", help="stop the QEMU instance in output/qemu.pid")
     st.add_argument("image_dir")
     st.set_defaults(func=cmd_stop)
-    r = sub.add_parser("run", help="run commands on target over SSH (paramiko)")
+    r = sub.add_parser("run", help="run commands on target over SSH "
+                                     "(paramiko; serialized by the "
+                                     "campaign lock; retries re-execute — "
+                                     "use `probe` for auth checks)")
     r.add_argument("--ssh-port", type=int, default=2222)
     r.add_argument("--user", default="root")
     r.add_argument("--password", default=None,
@@ -1693,6 +1785,16 @@ def main() -> int:
     i.add_argument("--dest", default="/tmp/genesis")
     i.add_argument("--out", default=None)
     i.set_defaults(func=cmd_identity)
+    pb = sub.add_parser("probe", help="non-destructive auth probe "
+                                      "(connect + fixed uname -a)")
+    pb.add_argument("--ssh-port", type=int, default=2222)
+    pb.add_argument("--user", default="qnxuser")
+    pb.add_argument("--password", default=None,
+                    help="prefer GENESIS_TARGET_PASSWORD env var")
+    pb.set_defaults(func=cmd_probe)
+    ls = sub.add_parser("lock-status", help="inspect the campaign lock "
+                                            "without acquiring it")
+    ls.set_defaults(func=cmd_lock_status)
     v = sub.add_parser("verify", help="run the on-target verification matrix over SSH")
     v.add_argument("--ssh-port", type=int, default=2222)
     v.add_argument("--user", default="qnxuser")

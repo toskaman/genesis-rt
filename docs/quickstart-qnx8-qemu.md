@@ -133,6 +133,14 @@ the output dir; boot markers are reported as seen/not-seen, never assumed.
 Scripted path (needs `paramiko` + SSH reachable, e.g. `--ssh-port 2222`
 at boot; password via `GENESIS_TARGET_PASSWORD`, never on the command line):
 
+> One campaign at a time: every SSH/QEMU-touching command takes the
+> campaign lock (`artifacts/.target.lock`, `GENESIS_TARGET_LOCK`
+> overrides the path) and a rival fails loudly with exit 2 instead
+> of interleaving — use `lock-status` to see the holder. For auth
+> checks use `probe` (fixed read-only `uname -a`); `run` re-executes
+> its command string on SSH retry, so never probe credentials with a
+> destructive `run`.
+
 ```sh
 python scripts/qnx_target.py put /tmp/genesis-qnx/genesis_* --dest /tmp/genesis
 python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json
