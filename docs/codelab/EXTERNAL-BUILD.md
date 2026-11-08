@@ -25,12 +25,17 @@ the one GENESIS capability that drops onto an existing build.
 - For step 5 only: QNX SDP 8.0 with `qcc` on PATH
   (`source ~/qnx800/qnxsdp-env.sh`). Steps 1–4 need no SDK.
 - Shells: Linux/macOS use `sh`; Windows uses PowerShell or Git `sh`.
-  Run host commands from the repo root.
+  Run host commands from the repo root, in ONE session per shell:
+  the `PYTHONPATH`/`CODELAB_TMP` exports below do not survive a
+  new terminal.
 - The `sh` steps below use `$CODELAB_TMP` as a scratch directory (the
-  test harness provides it). Running by hand? Export it first:
-  `export CODELAB_TMP=/tmp/codelab-ext && mkdir -p $CODELAB_TMP`
-  (Linux/macOS/Git `sh`) or `$env:CODELAB_TMP="$env:TEMP\codelab-ext"`
-  (PowerShell).
+  test harness provides it, with `PYTHONPATH` preset). Running by
+  hand? Export both first:
+  `export CODELAB_TMP=/tmp/codelab-ext PYTHONPATH=host &&
+  mkdir -p $CODELAB_TMP` (Linux/macOS/Git `sh`). The PowerShell
+  blocks use `$env:TEMP` directly and set `$env:PYTHONPATH='host'`
+  inline in step 2 (it persists for later steps in the same
+  session).
 
 ## Step 1 — Build one real binary (3 min, no SDK)
 
@@ -49,6 +54,8 @@ printf 'LIMITS 1.2 1.0 100\n47454E31 1 1 1 0 50 5.0 0.0 1 0 1 0 1\n' \
 ```powershell
 gcc -O1 -Wall -Wextra -Itarget/qnx8/include -Itarget/qnx8/common `
   -o $env:TEMP/guard_vector target/qnx8/common/guard_policy.c target/qnx8/host_tests/guard_vector.c
+'LIMITS 1.2 1.0 100', '47454E31 1 1 1 0 50 5.0 0.0 1 0 1 0 1' | & $env:TEMP/guard_vector.exe
+# expect: DENY SPEED_OVER_LIMIT 1
 ```
 
 This is your "existing project's build output": one directory, one
@@ -147,8 +154,27 @@ python -m genesis_rt.cli external-check $CODELAB_TMP/sdk-manifest.json \
   --workspace $CODELAB_TMP/sdk-out | grep -q 'verdict: CONSISTENT'
 ```
 
-Verified 8 Nov 2026 on Windows (qcc 12.2.0, 6/6 MATCH, then a planted
-1-byte tamper detected as STALE naming `genesis_guard`).
+Windows (PowerShell, adjust the SDK path to your install —
+same session as step 2 so `$env:PYTHONPATH` persists):
+
+```powershell
+$env:PYTHONPATH='host'
+python -m genesis_rt.cli generate examples/amr-demo/machine-ir.json --out $env:TEMP/sdk-build
+cmd /c "call E:\qnx800\qnxsdp-env.bat >NUL 2>&1 && make -C $env:TEMP/sdk-build -f genesis_build_gen.mk qnx"
+New-Item -ItemType Directory -Force -Path $env:TEMP/sdk-out | Out-Null
+Copy-Item $env:TEMP/sdk-build/genesis_guard, $env:TEMP/sdk-build/genesis_controller, `
+  $env:TEMP/sdk-build/genesis_device, $env:TEMP/sdk-build/genesis_status, `
+  $env:TEMP/sdk-build/genesis_supervisor, $env:TEMP/sdk-build/genesis_faultinject $env:TEMP/sdk-out/
+python -m genesis_rt.cli external-write-manifest --workspace $env:TEMP/sdk-out `
+  --project codelab-qcc --toolchain "qcc 12.2.0 gcc_ntox86_64 (recorded, not verified)" `
+  --out $env:TEMP/sdk-manifest.json
+python -m genesis_rt.cli external-check $env:TEMP/sdk-manifest.json --workspace $env:TEMP/sdk-out
+# expect: 6 MATCH lines, verdict: CONSISTENT
+```
+
+Verified 8 Nov 2026 on Windows (qcc 12.2.0, 6/6 MATCH both
+shells, then a planted 1-byte tamper detected as STALE naming
+`genesis_guard`).
 
 ## Troubleshooting
 
@@ -158,18 +184,19 @@ Verified 8 Nov 2026 on Windows (qcc 12.2.0, 6/6 MATCH, then a planted
 | `workspace has no files to cover` | Empty `--workspace` | Point at the directory holding the binaries |
 | `test_claims[i] verdict must be pass/fail` | Hand-written claim typo | Claims take only `pass`/`fail` (and stay unverified) |
 | CONSISTENT after a rebuild | You re-manifested after rebuilding | Manifest once per release candidate; check copies, not the fresh build |
-| `qcc: not found` | SDK env not sourced | `source ~/qnx800/qnxsdp-env.sh` in the same shell |
+| `qcc: not found` | SDK env not sourced | `source ~/qnx800/qnxsdp-env.sh` in the same shell (Linux) or `cmd /c "call E:\qnx800\qnxsdp-env.bat ... && make ..."` (Windows) |
 
 ## Cleanup
 
 ```sh
 rm -rf $CODELAB_TMP/build-out $CODELAB_TMP/manifest.json \
-  $CODELAB_TMP/guard_vector $CODELAB_TMP/sdk-build $CODELAB_TMP/sdk-out
+  $CODELAB_TMP/guard_vector $CODELAB_TMP/sdk-build $CODELAB_TMP/sdk-out \
+  $CODELAB_TMP/sdk-manifest.json
 ```
 
 ```powershell
 Remove-Item -Recurse -Force $env:TEMP/build-out, $env:TEMP/manifest.json, `
-  $env:TEMP/guard_vector.exe
+  $env:TEMP/guard_vector.exe, $env:TEMP/sdk-build, $env:TEMP/sdk-out, $env:TEMP/sdk-manifest.json
 ```
 
 ## Safety and scope limitations

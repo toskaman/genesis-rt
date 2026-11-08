@@ -2,8 +2,10 @@
 
 > Authored during the hackathon entry period. Follows the bonus-prize shape
 > (task on/for QNX 8.0); usable with or without the GENESIS entry itself.
-> Every command below was executed against commit `db32221` on 2026-11-05
-> (Windows 11 host + QNX 8.0 QEMU target); expected outputs are real.
+> Every host command below (steps 1–4, 6) was re-executed on 2026-11-08
+> on `omega2` @ `b5a278f` (Windows 11 + QNX SDP 8.0); the step 5
+> target transcript is from the 2026-11-05 live run on `db32221`.
+> Expected outputs are real.
 >
 > Final URL for the Devpost bonus box:
 > `https://github.com/toskaman/genesis-rt/blob/main/docs/codelab/README.md`
@@ -99,9 +101,24 @@ generated: .../lab-build (schema v1)
   genesis_config_gen.h  sha256:cd74fc72635d736c...
 ```
 
-Re-run into a second directory and `diff -r` (Linux) or
-`Compare-Object (Get-Content ...)` (PowerShell): byte-identical output.
-Deterministic generation is what makes the evidence reproducible.
+Re-run into a second directory and compare — no output (sh) or
+`True` (PowerShell) means byte-identical. Deterministic generation
+is what makes the evidence reproducible.
+
+```sh
+PYTHONPATH=host python -m genesis_rt.cli generate my-robot.json --out lab-build2
+cmp lab-build/genesis_config_gen.h lab-build2/genesis_config_gen.h && echo IDENTICAL
+```
+
+(Compare the config header only: the `.mk` embeds `GENESIS_SRC`
+relative to `--out`, so its bytes legitimately differ across
+directory names — see `ADVANCED-QNX.md` Lab 2.)
+
+```powershell
+$env:PYTHONPATH='host'; python -m genesis_rt.cli generate my-robot.json --out lab-build2
+(Get-FileHash lab-build/genesis_config_gen.h).Hash -eq (Get-FileHash lab-build2/genesis_config_gen.h).Hash
+# expect: True
+```
 
 ## Step 3 — See the guard think (10 min, no SDK)
 
@@ -236,6 +253,15 @@ PYTHONPATH=host python scripts/run_verified_demo.py
 # honest: host-only evidence is labeled as such)
 ```
 
+```powershell
+$env:PYTHONPATH='host'; python scripts/run_verified_demo.py
+# expect: "verdict": "PASS", "qnx_verified": false
+```
+
+(The two scripts also work without `PYTHONPATH`: they add `host/`
+to `sys.path` themselves. `python -m genesis_rt.cli ...` always
+needs it.)
+
 Compare: same scenario IDs, same oracles, host mirror vs your target
 log from step 5. Then tamper-check the chain — flip one byte in a copy
 of the passport and re-run the replay verifier:
@@ -243,6 +269,12 @@ of the passport and re-run the replay verifier:
 ```sh
 PYTHONPATH=host python scripts/replay.py artifacts/runs/<run-id>/passport.json
 # expect: chain: valid ... gate: PASS (qnx_verified=False)
+```
+
+```powershell
+python scripts/replay.py artifacts/runs/<run-id>/passport.json
+# expect: chain: valid ... gate: PASS (qnx_verified=False)
+# (replay.py needs no PYTHONPATH; use the run_id the demo printed)
 ```
 
 Going further (the automated version of step 5): `python
@@ -275,6 +307,11 @@ slay genesis_device; sudo -n slay genesis_status
 rm -f /tmp/genesis/codelab-*.log /tmp/genesis/*.log
 # on the host:
 rm -rf lab-build lab-build2 my-robot.json
+```
+
+```powershell
+# on the host:
+Remove-Item -Recurse -Force lab-build, lab-build2, my-robot.json
 ```
 
 ## Safety and scope limitations

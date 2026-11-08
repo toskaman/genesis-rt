@@ -1,18 +1,21 @@
 # Advanced QNX codelab: message passing, guards, supervision, provenance
 
 > Companion to the base codelab (`README.md`, do its steps 1–3
-> first). Every host command below was executed against commit
-> `88fc772` on 2026-11-05; every target command was executed live
-> on QNX 8.0.0 QEMU the same day (transcripts in Lab 6).
+> first). Labs 1–4 host commands run in CI on every push
+> (`sh-harness`); the PowerShell variants and Lab 5 were
+> re-executed by hand on 2026-11-08 on `omega2` @ `b5a278f`
+> (Windows 11 + QNX SDP 8.0). Every target command was executed
+> live on QNX 8.0.0 QEMU on 2026-11-05 (transcripts in Lab 6).
 > Fenced `sh-harness` blocks are executed by
 > `tests/integration/test_codelab_advanced.py` — if they rot, CI
 > fails. `sh-harness-sdk` needs an SDP 8.0; `sh-target` runs on
 > the target over SSH (read Lab 6 setup first).
 >
 > Setup (host, repo root): `export CODELAB_TMP=/tmp/qlab-adv &&
-> mkdir -p $CODELAB_TMP`. Windows: run the `sh` blocks in the QNX
-> SDP shell or git-bash (PowerShell variants where `printf` is
-> used). No physical hardware is involved anywhere below.
+> mkdir -p $CODELAB_TMP`. Windows: run the `sh` blocks in
+> git-bash (each block carries its own `PYTHONPATH=host`
+> prefix — keep it); Labs 1 and 5 also give native PowerShell
+> variants. No physical hardware is involved anywhere below.
 
 You will learn, by running: the guard policy (including its
 wraparound-safe clock arithmetic), deterministic codegen and its
@@ -189,6 +192,17 @@ test $(grep -c "warning" $CODELAB_TMP/make.log) -eq 0
 ls $CODELAB_TMP/lab-a/genesis_controller $CODELAB_TMP/lab-a/genesis_device $CODELAB_TMP/lab-a/genesis_faultinject $CODELAB_TMP/lab-a/genesis_guard $CODELAB_TMP/lab-a/genesis_status $CODELAB_TMP/lab-a/genesis_supervisor
 ```
 
+Windows (PowerShell, adjust the SDK path; same commands as the
+base codelab's step 4, executed 2026-11-08):
+
+```powershell
+$env:PYTHONPATH='host'
+python -m genesis_rt.cli generate examples/amr-demo/machine-ir.json --out lab-a
+cmd /c "call E:\qnx800\qnxsdp-env.bat >NUL 2>&1 && make -C lab-a -f genesis_build_gen.mk qnx"
+ls lab-a/genesis_*
+# expect: 6 genesis_* binaries, zero warnings in the build log
+```
+
 Expect 6 `genesis_*` binaries, `-O2 -Wall -Wextra`, zero
 warnings. Note what links what: guard+faultinject share
 `guard_policy.c` (the exact file from Lab 1), the device
@@ -204,9 +218,12 @@ dir to your install):
 ```sh-target
 python scripts/qnx_target.py boot E:/qnx800/images/qemu/qemu --accel tcg --cpu max --ssh-port 2222
 python scripts/qnx_target.py wait-ssh --ssh-port 2222 --wait 300
-export GENESIS_TARGET_PASSWORD=qnxuser
+export GENESIS_TARGET_PASSWORD=<your-target-password>
 python scripts/qnx_target.py put $CODELAB_TMP/lab-a/genesis_* --user qnxuser
 ```
+
+(Never pass the password on the command line: only one SSH
+session at a time, and the env var keeps it out of logs.)
 
 > `boot` is a terminating smoke check (it stops its QEMU at
 > `--timeout`); for the live VM start QEMU detached with the
