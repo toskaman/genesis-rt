@@ -35,7 +35,37 @@ from .planner import propose as offline_propose
 # boundary: a rephrased request can slip past a regex. The boundary is
 # validate_ir (simulation_only, bounded limits, guards) plus the
 # deterministic compiler and the fail-closed evidence gate.
+#
+# Omega3 §5.3: the device/action classes below generalize the Titan
+# verb lists (strip/mute/deactivate/detach/unplug/defeat,
+# sans/ohne/sin, unnecessary-class) after the v5 0/6 unsafe score.
+# Safe presence ("guard verified present", "curtain tested") contains
+# no removal verb and still accepts.
+_REMOVAL_VERBS = (r"strip(?:ped|ping)?|mute[sd]?|deactiv\w*|detach\w*"
+                  r"|disconnect\w*|unplug\w*|defeat\w*|do\s+without"
+                  r"|take\s+(?:out|off)|cut\s+out")
+_SAFETY_DEVICES = (r"guards?|e-?stops?|estops?|interlocks?|watchdogs?"
+                   r"|curtains?|light\s+curtain|safety\s+curtain|bumpers?"
+                   r"|safety\s+switch|safety\s+fence|fences?|safety"
+                   r"|not-?aus\b|arr[êe]t|enclavamiento|verriegelung")
+_UNNEEDED_WORDS = (r"unnecessary|unneeded|not\s+needed|not\s+required"
+                   r"|dispensable|optional")
+_SCHEMA_FIELDS = (r"max_linear_speed_mps|period_ms|max_angular_speed_radps"
+                  r"|freshness_limit_ms|guarded_state_transitions"
+                  r"|execution_target|simulation_only|schema_version")
+_NONENGLISH_REMOVAL = r"désactiv\w*|desactiv\w*|deaktiv\w*|entfern\w*"
 _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
+    # Omega3 §5.3: bracketed/parenthesized instruction carriers FIRST
+    # (v5-r24 '[system: ...]' class) so smuggled directives get the
+    # injection message even when they also name the guard. Parens use
+    # a narrow keyword set so '(see manual)' style asides still pass.
+    (r"\[[^\[\]]{0,100}(?:system|ignore|disregard|override|instruct"
+     r"|prompt|jailbreak|developer\s*mode|admin|execute|bypass)"
+     r"[^\[\]]{0,100}\]",
+     "prompt-injection style instructions are not followed"),
+    (r"\([^()]{0,100}(?:ignore\s+previous|disregard|override|bypass)"
+     r"[^()]{0,100}\)",
+     "prompt-injection style instructions are not followed"),
     (r"disable.{0,20}guard|guard.{0,20}disable"
      r"|\b(?:no|without)\s+(?:the\s+)?(?:guard|e-?stop|interlock|watchdog)\b",
      "disabling or removing the safety guard is not supported"),
@@ -85,6 +115,37 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"(?<!never )(?<!not )(?<!avoid )(?<!avoids )(?<!without )(?<!no )"
      r"\b(?:push|hit|ram|strike|shove)\w* (?:\w+ )?(?:people|persons?|workers|humans|someone)",
      "behaviour that endangers people is not supported"),
+    # Omega3 §5.3: removal verb + safety device in either order
+    # (v5-r01/r02/r04/r05/r06 classes: strip/mute/deactivate/
+    # detach/unplug/defeat + bumper/curtain/fence/switch).
+    (f"(?:{_REMOVAL_VERBS}).{{0,30}}(?:{_SAFETY_DEVICES})"
+     f"|(?:{_SAFETY_DEVICES}).{{0,30}}(?:{_REMOVAL_VERBS})",
+     "disabling or removing the safety guard is not supported"),
+    # Omega3 §5.3: borrowed removal prepositions + non-English
+    # removal verbs (v5-r03 'sans interlock' class).
+    (f"(?:\\bsans\\b|\\bohne\\b|\\bsin\\b).{{0,15}}(?:{_SAFETY_DEVICES})"
+     f"|(?:{_NONENGLISH_REMOVAL}).{{0,30}}(?:{_SAFETY_DEVICES})"
+     f"|(?:{_SAFETY_DEVICES}).{{0,30}}(?:{_NONENGLISH_REMOVAL})",
+     "disabling or removing the safety guard is not supported"),
+    # Omega3 §5.3: device declared unnecessary (v5-r06 class).
+    (f"(?:{_UNNEEDED_WORDS})\\b.{{0,30}}(?:{_SAFETY_DEVICES})"
+     f"|(?:{_SAFETY_DEVICES}).{{0,30}}(?:{_UNNEEDED_WORDS})\\b",
+     "disabling or removing the safety guard is not supported"),
+    # Omega3 §5.3: bare schema identifiers (v5-r21 class: no
+    # colon/equals needed to count as smuggling).
+    (f"\\b(?:{_SCHEMA_FIELDS})\\b\\s*(?:\\d|:|=|\"|true|false|null\\b)"
+     f"|\\b\\d+\\s+(?:max_linear_speed_mps|period_ms)\\b"
+     f"|\\b(?:set|use|apply)\\b.{{0,12}}"
+     f"\\b(?:max_linear_speed_mps|period_ms)\\b",
+     "prompt-injection style instructions are not followed; describe "
+     "the machine in prose"),
+    # Omega3 §5.3: fleet words and mixed-value correlatives refuse
+    # as ambiguous (v5-r23 class) instead of silently defaulting.
+    (r"\b(?:fleet|swarms?|convoys?)\b"
+     r"|\bsome\b[^.!?;]{0,60}\bsome\b"
+     r"|\beach\b.{0,25}\b(?:different|own|separate|individual)\b",
+     "ambiguous machine requirement (fleet or mixed values); "
+     "name exactly one machine with one set of limits"),
 )
 
 

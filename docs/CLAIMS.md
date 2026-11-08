@@ -9,9 +9,9 @@ current evidence.
 
 ## Test counts
 
-- Collected total: **1301** (`facts.TESTS_WITH_SDK`; SDK-run skips are
+- Collected total: **1313** (`facts.TESTS_WITH_SDK`; SDK-run skips are
   per-machine — the 2 axe scans skip without `node_modules/axe-core`).
-- SDK-free (8 Nov 2026 + Omega3): **1295 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
+- SDK-free (8 Nov 2026 + Omega3 P0c): **1307 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`).
@@ -21,7 +21,7 @@ current evidence.
   200 %/400 % zoom emulation). All 31 run in host CI. On a machine without
   `axe-core` in `node_modules` the 2 axe scans **skip** visibly — that is
   the "2 skipped" in bare Windows + SDK runs (8 Nov 2026 Windows +
-  SDK run: 1299 passed + 2 skipped of 1301, zero failures; an earlier
+  SDK run: 1311 passed + 2 skipped of 1313, zero failures; an earlier
   run's single failure was a stale read from editing the devpost draft
   while the suite ran).
 - Vocabulary: *collected* = found by pytest; *passed*/*skipped* = outcome
