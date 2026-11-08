@@ -712,8 +712,8 @@ TARGET_MATRIX = [
      " slay genesis_guard_conv 2>/dev/null; slay genesis_controller 2>/dev/null;"
      " slay genesis_device 2>/dev/null; sudo -n slay genesis_status 2>/dev/null; sleep 1;"
      " rm -f device.log guard-dc.log ctrl-dc.log;"
-     " ./genesis_device > device.log 2>&1 &"
-     " ./genesis_guard > guard-dc.log 2>&1 & GUARDPID=$!; sleep 2;"
+     " ./genesis_guard > guard-dc.log 2>&1 & GUARDPID=$!;"
+     " ./genesis_device --guard-pid $GUARDPID > device.log 2>&1 & sleep 2;"
      " sudo -n ./genesis_status /tmp/genesis-status-node > status-dc.log 2>&1 & sleep 1;"
      " ./genesis_controller 50 > ctrl-dc.log 2>&1 & sleep 4;"
      " echo ---CHAIN-STATUS---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
@@ -731,8 +731,8 @@ TARGET_MATRIX = [
      " slay genesis_device 2>/dev/null; sudo -n slay genesis_status 2>/dev/null; sleep 1;"
      " rm -f device-conv.log guard-cc.log ctrl-cc.log;"
      " test -x ./genesis_guard_conv || { echo MISSING_CONV_GUARD; exit 3; };"
-     " ./genesis_device belt > device-conv.log 2>&1 &"
-     " ./genesis_guard_conv > guard-cc.log 2>&1 & GUARDPID=$!; sleep 2;"
+     " ./genesis_guard_conv > guard-cc.log 2>&1 & GUARDPID=$!;"
+     " ./genesis_device belt --guard-pid $GUARDPID > device-conv.log 2>&1 & sleep 2;"
      " sudo -n ./genesis_status /tmp/genesis-status-node > status-cc.log 2>&1 & sleep 1;"
      " ./genesis_controller 50 > ctrl-cc.log 2>&1 & sleep 4;"
      " echo ---CHAIN-STATUS---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
@@ -748,10 +748,13 @@ TARGET_MATRIX = [
      "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
      " sudo -n slay genesis_status 2>/dev/null; sleep 1;"
      " rm -f guard-estop.log;"
-     " ./genesis_guard > guard-estop.log 2>&1 & sleep 2;"
+     " ./genesis_guard > guard-estop.log 2>&1 & GPID=$!; sleep 2;"
      " sudo -n ./genesis_status /tmp/genesis-status-node > status-estop.log 2>&1 & sleep 1;"
      " echo ---ESTOP-PROBE---; ./genesis_faultinject probe estop;"
      " echo ---STATUS-ESTOP---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
+     " echo ---OPERATOR-RESET---; kill -s USR1 $GPID; sleep 1;"
+     " grep 'operator reset armed' guard-estop.log;"
+     " echo ---RESET-PROBE---; ./genesis_faultinject probe 0.4 2;"
      " slay genesis_guard; sudo -n slay genesis_status"),
     ("target_perf",
      "cd /tmp/genesis; slay genesis_guard 2>/dev/null; sleep 1;"
@@ -772,6 +775,11 @@ TARGET_MATRIX = [
      " slay genesis_device; sleep 6;"
      " pidin -F %n 2>/dev/null | grep -c genesis;"
      " grep -c RESPAWN sup.log;"
+     " echo PRE_APPLIES=$(grep -c APPLY sup-device.log);"
+     " slay genesis_guard; sleep 10;"
+     " echo REBIND_COUNT=$(grep -c REBIND sup.log);"
+     " echo POST_APPLIES=$(grep -c APPLY sup-device.log);"
+     " echo SETTLED=$(pidin -F %n 2>/dev/null | grep -c genesis);"
      " echo ---SUP-LOG---; cat sup.log;"
      " slay genesis_supervisor; slay genesis_guard;"
      " slay genesis_controller; slay genesis_device"),
@@ -833,8 +841,8 @@ TARGET_MATRIX = [
      " slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
      " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1;"
      " rm -f device-ccx.log guard-ccx.log ctrl-ccx.log;"
-     " ./genesis_device > device-ccx.log 2>&1 &"
-     " ./genesis_guard > guard-ccx.log 2>&1 & GPID=$!; sleep 2;"
+     " ./genesis_guard > guard-ccx.log 2>&1 & GPID=$!;"
+     " ./genesis_device --guard-pid $GPID > device-ccx.log 2>&1 & sleep 2;"
      " ./genesis_controller 50 > ctrl-ccx.log 2>&1 & sleep 4;"
      " echo BEFORE=$(grep -c APPLY device-ccx.log);"
      " echo GBEFORE=$(grep -c decision guard-ccx.log);"
@@ -855,8 +863,8 @@ TARGET_MATRIX = [
      " slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
      " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1;"
      " rm -f device-dcx.log guard-dcx.log ctrl-dcx.log;"
-     " ./genesis_device > device-dcx.log 2>&1 &"
-     " ./genesis_guard > guard-dcx.log 2>&1 & GPID=$!; sleep 2;"
+     " ./genesis_guard > guard-dcx.log 2>&1 & GPID=$!;"
+     " ./genesis_device --guard-pid $GPID > device-dcx.log 2>&1 & sleep 2;"
      " ./genesis_controller 50 > ctrl-dcx.log 2>&1 & sleep 4;"
      " echo BEFORE=$(grep -c APPLY device-dcx.log);"
      " echo GBEFORE=$(grep -c decision guard-dcx.log);"
@@ -878,8 +886,8 @@ TARGET_MATRIX = [
      " slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
      " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1;"
      " rm -f device-gc.log guard-gc.log ctrl-gc.log;"
-     " ./genesis_device > device-gc.log 2>&1 &"
-     " ./genesis_guard > guard-gc.log 2>&1 & GPID=$!; sleep 2;"
+     " ./genesis_guard > guard-gc.log 2>&1 & GPID=$!;"
+     " ./genesis_device --guard-pid $GPID > device-gc.log 2>&1 & sleep 2;"
      " ./genesis_controller 50 > ctrl-gc.log 2>&1 & sleep 4;"
      " echo BEFORE=$(grep -c APPLY device-gc.log);"
      " slay -9 genesis_guard; sleep 3;"
@@ -1069,12 +1077,19 @@ def _matrix_check(name: str, body: str, status: int,
               and _num(r"NONGUARD=(\d+)", int, -1) == 0)
     elif name == "estop_target":
         # Guard-level estop observed natively: the probe verdict plus
-        # the latched safe-stop state in live telemetry.
+        # the latched safe-stop state in live telemetry, then the
+        # operator-reset wire (SIGUSR1 arms the one-shot latch and a
+        # fresh-seq nominal probe ALLOWs out of SAFE_STOP).
+        reset_tail = body.split("---RESET-PROBE---", 1)
+        reset_ok = (len(reset_tail) == 2
+                    and "decision=ALLOW reason=OK" in reset_tail[1])
         ok = ("STATUS_EXIT=0" in body
               and "decision=DENY reason=ESTOP" in body
               and "estop=1" in body
               and "state=3 " in body
-              and "last_reason=ESTOP" in body)
+              and "last_reason=ESTOP" in body
+              and "operator reset armed (SIGUSR1)" in body
+              and reset_ok)
     elif name == "target_perf":
         # Bench shape only (no timing thresholds: informational tier).
         # Full distributions come from `perf --samples N`.
@@ -1092,6 +1107,16 @@ def _matrix_check(name: str, body: str, status: int,
         digits = [line.strip() for line in body.splitlines() if line.strip().isdigit()]
         # set back to 4 after respawn, >=1 RESPAWN marker in sup.log
         ok = len(digits) >= 2 and digits[0] == "4" and int(digits[1]) >= 1
+        # guard kill then rebinds the device (REBIND>=1), the set
+        # settles back to 4, and fresh applies land afterwards.
+        m_pre = re.search(r"PRE_APPLIES=(\d+)", body)
+        m_post = re.search(r"POST_APPLIES=(\d+)", body)
+        m_rebind = re.search(r"REBIND_COUNT=(\d+)", body)
+        m_settled = re.search(r"SETTLED=(\d+)", body)
+        ok = ok and all((m_pre, m_post, m_rebind, m_settled)) \
+            and int(m_rebind.group(1)) >= 1 \
+            and m_settled.group(1) == "4" \
+            and int(m_post.group(1)) > int(m_pre.group(1))
     elif name == "supervisor_giveup":
         digits = [line.strip() for line in body.splitlines() if line.strip().isdigit()]
         # set halted (0 genesis processes), >=1 GIVE_UP marker in sup2.log

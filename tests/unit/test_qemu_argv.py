@@ -170,7 +170,11 @@ def test_estop_target_parser_accepts_and_rejects(qt):
             "PROBE linear=0.500 estop=1 decision=DENY reason=ESTOP state=3\n"
             "---STATUS-ESTOP---\n"
             "state=3 last_reason=ESTOP allows=0 denies=1\n"
-            "STATUS_EXIT=0\n")
+            "STATUS_EXIT=0\n"
+            "---OPERATOR-RESET---\n"
+            "guard: operator reset armed (SIGUSR1)\n"
+            "---RESET-PROBE---\n"
+            "PROBE linear=0.400 estop=0 decision=ALLOW reason=OK state=1\n")
     assert qt._matrix_check("estop_target", good, 0)["passed"] is True
     assert qt._matrix_check("estop_target", good.replace(
         "reason=ESTOP", "reason=OK"), 0)["passed"] is False
@@ -178,3 +182,30 @@ def test_estop_target_parser_accepts_and_rejects(qt):
         "state=3 ", "state=1 "), 0)["passed"] is False  # latch missing
     assert qt._matrix_check("estop_target", good.replace(
         "STATUS_EXIT=0", "STATUS_EXIT=1"), 0)["passed"] is False
+    no_reset = good.split("---OPERATOR-RESET---")[0]
+    assert qt._matrix_check("estop_target", no_reset, 0)["passed"] is False
+    stuck = good.replace("---RESET-PROBE---\n"
+                         "PROBE linear=0.400 estop=0 decision=ALLOW "
+                         "reason=OK state=1",
+                         "---RESET-PROBE---\n"
+                         "PROBE linear=0.400 estop=0 decision=DENY "
+                         "reason=BAD_TRANSITION state=3")
+    assert qt._matrix_check("estop_target", stuck, 0)["passed"] is False
+
+
+def test_respawn_parser_requires_rebind_and_resumed_chain(qt):
+    good = ("4\n"
+            "1\n"
+            "PRE_APPLIES=61\n"
+            "REBIND_COUNT=1\n"
+            "POST_APPLIES=83\n"
+            "SETTLED=4\n")
+    assert qt._matrix_check("supervisor_respawn", good, 0)["passed"] is True
+    assert qt._matrix_check("supervisor_respawn", good.replace(
+        "REBIND_COUNT=1", "REBIND_COUNT=0"), 0)["passed"] is False
+    assert qt._matrix_check("supervisor_respawn", good.replace(
+        "POST_APPLIES=83", "POST_APPLIES=61"), 0)["passed"] is False
+    assert qt._matrix_check("supervisor_respawn", good.replace(
+        "SETTLED=4", "SETTLED=3"), 0)["passed"] is False
+    assert qt._matrix_check("supervisor_respawn", "3\n1\n", 0)["passed"] \
+        is False

@@ -129,7 +129,7 @@ python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before
 python evidence/qnx8-x86_64-w11-after/verify.py evidence/qnx8-x86_64-w11-after
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve   # Studio at http://127.0.0.1:8077/
-python -m pytest tests/ -q   # 1273 collected; SDK run outcome is per-machine (the 2 axe scans skip without node_modules/axe-core); SDK-less CI: 1267 passed + 6 honest skips (Omega2; 8 Nov 2026 base) (3 QNX-build + 2 SDK-only codelab + 1 real-build target op)
+python -m pytest tests/ -q   # 1275 collected; SDK run outcome is per-machine (the 2 axe scans skip without node_modules/axe-core); SDK-less CI: 1269 passed + 6 honest skips (Omega2; 8 Nov 2026 base) (3 QNX-build + 2 SDK-only codelab + 1 real-build target op)
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then

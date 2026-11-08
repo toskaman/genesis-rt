@@ -10,6 +10,13 @@
  * QNX High Availability Manager (HAM) integration is an optional
  * deployment step documented in docs/; this supervisor owns the
  * application-level safe-stop semantics HAM cannot express.
+ * Device binding (Omega2 §3.2): the device is spawned with the
+ * guard pid (--guard-pid), pre-pinning its forward channel with no
+ * first-sender race. A guard respawn therefore restarts the device
+ * as a set (REBIND, no death counted: halt_one reaps the old pid
+ * so the main loop never sees it). Controller/device deaths
+ * respawn independently; the device keeps its pin because its
+ * guard did not change.
  */
 #include <stdio.h>
 #include <string.h>
@@ -43,7 +50,15 @@ static pid_t g_pids[NCHILD] = {-1, -1, -1};
 static unsigned g_deaths[NCHILD] = {0, 0, 0};
 
 static int spawn_child(int idx) {
-    char *const argv[] = {(char *)kChildren[idx], NULL};
+    char *plain[] = {(char *)kChildren[idx], NULL};
+    char pidbuf[32];
+    char *device[] = {(char *)kChildren[2], (char *)"--guard-pid",
+                      pidbuf, NULL};
+    char **argv = plain;
+    if (idx == 2 && g_pids[0] > 0) {
+        snprintf(pidbuf, sizeof pidbuf, "%d", (int)g_pids[0]);
+        argv = device;
+    }
     pid_t pid = -1;
     posix_spawn_file_actions_t fa;
     int rc = posix_spawn_file_actions_init(&fa);
@@ -71,6 +86,28 @@ static int find_child(pid_t pid) {
         if (g_pids[i] == pid)
             return i;
     return -1;
+}
+
+/* Stop one child synchronously for supervisor-directed restarts.
+ * SIGTERM, bounded wait, SIGKILL, reap: the reaped pid never
+ * reaches the main wait() loop, so no death is counted. A stale
+ * g_pids entry can only name a process dead for milliseconds
+ * (wait() would otherwise have reaped it), so pid reuse between
+ * death and this kill is not a practical hazard; ESRCH is harmless. */
+static void halt_one(int idx) {
+    pid_t pid = g_pids[idx];
+    if (pid <= 0)
+        return;
+    g_pids[idx] = -1;
+    kill(pid, SIGTERM);
+    for (int i = 0; i < 3; i++) {
+        if (waitpid(pid, NULL, WNOHANG) == pid)
+            return;
+        sleep(1);
+    }
+    kill(pid, SIGKILL);
+    while (waitpid(pid, NULL, 0) < 0 && errno == EINTR)
+        ;
 }
 
 /* Stop every survivor, then report failure loudly. No orphaned set. */
@@ -128,6 +165,20 @@ int main(void) {
         if (spawn_child(idx) != 0) {
             halt_set();
             return 1;
+        }
+        if (idx == 0) {
+            /* New guard pid: the device pre-pin is stale. Restart
+             * the device as a set (REBIND, not RESPAWN: no death
+             * counted, old pid reaped above the main loop). */
+            halt_one(2);
+            if (spawn_child(2) != 0) {
+                halt_set();
+                return 1;
+            }
+            fprintf(stderr, "supervisor: REBIND ./genesis_device to "
+                            "guard pid=%d (guard respawn)\n",
+                    (int)g_pids[0]);
+            fflush(stderr);
         }
     }
     return 0;

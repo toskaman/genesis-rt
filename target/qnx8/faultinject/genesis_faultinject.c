@@ -50,7 +50,11 @@ static void check_n(int coid, const char *name, genesis_cmd_t *cmd, size_t send_
                     uint32_t want_decision, uint32_t want_reason, uint32_t want_state) {
     genesis_reply_t reply;
     memset(&reply, 0xFF, sizeof reply); /* short replies must not read as ALLOW */
-    arm_ipc_timeout();
+    if (arm_ipc_timeout() != 0) {
+        printf("FAIL %-18s TimerTimeout error\n", name);
+        failures++;
+        return;
+    }
     if (MsgSend(coid, cmd, send_len, &reply, sizeof reply) != 0) {
         printf("FAIL %-18s MsgSend error\n", name);
         failures++;
@@ -76,7 +80,7 @@ static void check(int coid, const char *name, genesis_cmd_t *cmd,
  * arrives (whatever the verdict -- the caller asserts it), 2 on
  * usage/IPC errors. Used by the two-machine proof and the estop
  * target proof. */
-static int run_probe(int coid, const char *arg) {
+static int run_probe(int coid, const char *arg, uint32_t seq) {
     char *end = NULL;
     double v = 0.5;
     int estop = 0;
@@ -94,7 +98,7 @@ static int run_probe(int coid, const char *arg) {
     cmd.magic = GENESIS_PROTOCOL_MAGIC;
     cmd.version = GENESIS_PROTOCOL_VERSION;
     cmd.req_state = GENESIS_ST_NOMINAL;
-    cmd.seq = 1;
+    cmd.seq = seq;
     uint64_t now = now_ms();
     cmd.now_ms = (uint32_t)now;
     cmd.deadline_ms = (uint32_t)now + 30u;
@@ -105,7 +109,10 @@ static int run_probe(int coid, const char *arg) {
     cmd.estop_engaged = (uint8_t)estop;
     genesis_reply_t reply;
     memset(&reply, 0xFF, sizeof reply);
-    arm_ipc_timeout();
+    if (arm_ipc_timeout() != 0) {
+        printf("PROBE TimerTimeout error\n");
+        return 2;
+    }
     if (MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply) != 0) {
         printf("PROBE MsgSend error\n");
         return 2;
@@ -145,7 +152,10 @@ static int run_state_probe(int coid, const char *arg) {
     cmd.estop_engaged = 0;
     genesis_reply_t reply;
     memset(&reply, 0xFF, sizeof reply);
-    arm_ipc_timeout();
+    if (arm_ipc_timeout() != 0) {
+        printf("PROBE TimerTimeout error\n");
+        return 2;
+    }
     if (MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply) != 0) {
         printf("PROBE MsgSend error\n");
         return 2;
@@ -199,7 +209,10 @@ static int run_bench(int coid, const char *arg) {
         if (trace)
             printf("TRACE SEND seq=%u t=%llu\n", cmd.seq,
                    (unsigned long long)t0);
-        arm_ipc_timeout();
+        if (arm_ipc_timeout() != 0) {
+            printf("BENCH TimerTimeout error at trip %ld\n", i);
+            return 2;
+        }
         int rc = MsgSend(coid, &cmd, sizeof cmd, &reply, sizeof reply);
         uint64_t t1 = now_ns();
         uint64_t dt = t1 - t0;
@@ -225,11 +238,21 @@ int main(int argc, char **argv) {
     if (argc > 1 && strcmp(argv[1], "probe") == 0) {
         if (argc == 4 && strcmp(argv[2], "state") == 0)
             return run_state_probe(coid, argv[3]);
-        if (argc != 3) {
-            printf("PROBE usage: genesis_faultinject probe <linear_mps|estop|state n>\n");
+        if (argc != 3 && argc != 4) {
+            printf("PROBE usage: genesis_faultinject probe <linear_mps|estop> [seq]\n");
             return 2;
         }
-        return run_probe(coid, argv[2]);
+        uint32_t pseq = 1;
+        if (argc == 4) {
+            char *send = NULL;
+            unsigned long pv = strtoul(argv[3], &send, 10);
+            if (send == argv[3] || *send != '\0' || pv == 0 || pv > 0xFFFFFFFFUL) {
+                printf("PROBE usage: seq must be 1..4294967295\n");
+                return 2;
+            }
+            pseq = (uint32_t)pv;
+        }
+        return run_probe(coid, argv[2], pseq);
     }
     if (argc > 1 && strcmp(argv[1], "bench") == 0) {
         if (argc != 3) {
