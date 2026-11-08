@@ -1,6 +1,5 @@
-# Normalize line endings: LF in repo, native on checkout.
-* text=auto eol=lf
-# Windows batch files would need CRLF; none in this repo (PowerShell/readme only).
-*.ps1 text eol=crlf
-# Digest-pinned evidence packs: store/check out byte-verbatim, never convert.
-evidence/** -text
+# Eval datasets are digest-pinned measurement instruments: their bytes
+# must be identical on every platform, so force LF (a CRLF v3 broke
+# Linux CI on 8 Nov 2026 while Windows stayed green).
+/evals/*.json text eol=lf
+/evals/results/** text eol=lf
