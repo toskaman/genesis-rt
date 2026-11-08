@@ -915,3 +915,9 @@
   pointing at docs/audits/CAMPAIGN_2026-11-08.md. The
   5-Nov table is kept as a dated record; frozen audits
   (WAVE7_BASELINE.md, entries above) untouched.
+
+## 2026-11-08 -- Omega2 merged (PR #11 -> main @ 9098564)
+
+- 21 commits: P0 native correctness, 4th evidence pack (BEFORE/AFTER 16/16 x2 + STALE 14/16), H9/M6/H8 trust fixes, P1a Studio, P1b AI (v4 rerun identical + v5 24/36 x3 frozen-before-run), P1c codelab, scorecard 31.5/40, 7 audits.
+- Suite 1291+2 (SDK) / 1287+6 (SDK-free), E2E 29+2, main CI green (42491599766). Verdict SOFTWARE_READY_WITH_LIMITATIONS; video DEFERRED_BY_OWNER; human benefit unmeasured.
+
