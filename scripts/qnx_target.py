@@ -32,6 +32,7 @@ sys.path.insert(0, str(REPO_ROOT / "host"))
 
 from genesis_rt import buildset, codegen, native_oracle, provenance  # noqa: E402
 from genesis_rt.ir import load_ir_file  # noqa: E402
+from genesis_rt.ir_v2 import load_ir_v2_file  # noqa: E402
 from genesis_rt.build_adapter import probe_qemu  # noqa: E402
 
 BOOT_MARKERS = ("QNX", "Neutrino", "qnx", "login:", "Welcome")
@@ -753,7 +754,8 @@ TARGET_MATRIX = [
      " echo ---ESTOP-PROBE---; ./genesis_faultinject probe estop;"
      " echo ---STATUS-ESTOP---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
      " echo ---OPERATOR-RESET---; kill -s USR1 $GPID; sleep 1;"
-     " echo ---RESET-PROBE---; ./genesis_faultinject probe 0.4 2;"
+     " echo ---RESET-PROBE---; ./genesis_faultinject probe state 0 2;"
+     " ./genesis_faultinject probe 0.4 3;"
      " grep 'operator reset armed' guard-estop.log;"
      " slay genesis_guard; sudo -n slay genesis_status"),
     ("target_perf",
@@ -803,15 +805,17 @@ TARGET_MATRIX = [
      # v2 ALLOWs state 3 where v1 DENYs it (B). Suite/limit/estop pin
      # F-on-v2-binary, A and D natively.
      "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
-     " slay genesis_guard_v2 2>/dev/null; sleep 1;"
+     " slay genesis_guard_v1 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
+     " sleep 1;"
      " test -x ./genesis_guard_v2 || { echo MISSING_V2_GUARD; exit 3; };"
      " cmp -s ./genesis_guard ./genesis_guard_v2 && echo SAME_BIN || echo DIFF_BIN;"
-     " ./genesis_guard > guard-v1s2.log 2>&1 & sleep 2;"
+     " V1BIN=./genesis_guard; test -x ./genesis_guard_v1 && V1BIN=./genesis_guard_v1;"
+     " $V1BIN > guard-v1s2.log 2>&1 & sleep 2;"
      " echo ---V1-STATE2---; ./genesis_faultinject probe state 2;"
-     " slay genesis_guard 2>/dev/null; sleep 1;"
-     " ./genesis_guard > guard-v1s3.log 2>&1 & sleep 2;"
+     " slay genesis_guard 2>/dev/null; slay genesis_guard_v1 2>/dev/null; sleep 1;"
+     " $V1BIN > guard-v1s3.log 2>&1 & sleep 2;"
      " echo ---V1-STATE3---; ./genesis_faultinject probe state 3;"
-     " slay genesis_guard 2>/dev/null; sleep 1;"
+     " slay genesis_guard 2>/dev/null; slay genesis_guard_v1 2>/dev/null; sleep 1;"
      " ./genesis_guard_v2 > guard-v2s2.log 2>&1 & sleep 2;"
      " echo ---V2-STATE2---; ./genesis_faultinject probe state 2;"
      " slay genesis_guard_v2 2>/dev/null; slay genesis_guard 2>/dev/null; sleep 1;"
@@ -1079,17 +1083,24 @@ def _matrix_check(name: str, body: str, status: int,
         # Guard-level estop observed natively: the probe verdict plus
         # the latched safe-stop state in live telemetry, then the
         # operator-reset wire (SIGUSR1 arms the one-shot latch and a
-        # fresh-seq nominal probe ALLOWs out of SAFE_STOP).
+        # fresh-seq nominal probe ALLOWs out of SAFE_STOP). v2 has no
+        # safe_stop->running edge, so the reset must first take the
+        # declared safe_stop->init transition (state=0 ALLOW).
         reset_tail = body.split("---RESET-PROBE---", 1)
         reset_ok = (len(reset_tail) == 2
                     and "decision=ALLOW reason=OK" in reset_tail[1])
+        v2_reset_ok = (
+            reset_ok and "PROBE state=0 decision=ALLOW reason=OK"
+            in reset_tail[1])
+        want_v2 = (bound is not None
+                   and bound.get("schema_version") == 2)
         ok = ("STATUS_EXIT=0" in body
               and "decision=DENY reason=ESTOP" in body
               and "estop=1" in body
               and "state=3 " in body
               and "last_reason=ESTOP" in body
               and "operator reset armed (SIGUSR1)" in body
-              and reset_ok)
+              and (v2_reset_ok if want_v2 else reset_ok))
     elif name == "target_perf":
         # Bench shape only (no timing thresholds: informational tier).
         # Full distributions come from `perf --samples N`.
@@ -1137,7 +1148,14 @@ def _matrix_check(name: str, body: str, status: int,
         idx = [body.find(t) for t in tags]
         ordered = all(a != -1 and a < b for a, b in zip(idx, idx[1:]))
         secs = [body[i:j] for i, j in zip(idx, idx[1:] + [len(body)])]
-        ok = (ordered and "DIFF_BIN" in body and "SAME_BIN" not in body
+        # v1 ops stage v1+v2 (DIFF_BIN); v2 ops stage v2 twice with
+        # the v1 guard aside (SAME_BIN) since slot-1 itself is v2.
+        want_v2 = (bound is not None
+                   and bound.get("schema_version") == 2)
+        bins_ok = (("SAME_BIN" in body and "DIFF_BIN" not in body)
+                   if want_v2 else
+                   ("DIFF_BIN" in body and "SAME_BIN" not in body))
+        ok = (ordered and bins_ok
               and "MISSING_V2_GUARD" not in body and "FI_V2_EXIT=0" in body
               and secs[4].count("PASS ") >= 9
               and all(w in s for w, s in zip(wants, secs)))
@@ -1281,10 +1299,22 @@ def _ir_binding(ir_path: str | None) -> dict | None:
     if not ir_path:
         return None
     # Same loader as the pipeline (validate+normalize): the digest must
-    # match the codegen manifest, not the raw file bytes.
-    data = load_ir_file(ir_path)
+    # match the codegen manifest, not the raw file bytes. v2 IRs carry
+    # extra top-level keys the v1 loader rejects, so dispatch on the
+    # declared schema version exactly like `genesis-rt generate`.
+    version = None
+    if Path(ir_path).suffix.lower() not in (".yaml", ".yml"):
+        try:
+            raw = json.loads(Path(ir_path).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raw = None
+        if isinstance(raw, dict):
+            version = raw.get("schema_version")
+    data = (load_ir_v2_file(ir_path) if version == 2
+            else load_ir_file(ir_path))
     return {"machine_id": data["machine"]["id"],
             "machine_kind": data["machine"]["kind"],
+            "schema_version": version or data.get("schema_version") or 1,
             "ir_sha256": codegen.ir_sha256(data),
             "linear_limit_mps": float(
                 data["control"]["max_linear_speed_mps"])}

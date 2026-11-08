@@ -144,6 +144,24 @@ def load_build_set(path: str | Path) -> dict[str, Any]:
     return data
 
 
+def _is_primary_alias(entry: dict[str, Any],
+                      primary_binaries: dict[str, Any]) -> bool:
+    """True when the entry is byte-identical to the primary binary it
+    names: the same build staged under a second name (v2 ops stage
+    the v2 guard as slot-1 AND genesis_guard_v2). Same IR alone is
+    not enough; the bytes must match, so foreign binaries claimed
+    under the primary IR are still refused."""
+    src = entry.get("source_binary")
+    prim = primary_binaries.get(src) if isinstance(src, str) else None
+    if not isinstance(prim, dict):
+        return False
+    if entry.get("sha256") and prim.get("sha256"):
+        return entry["sha256"] == prim["sha256"]
+    return (entry.get("cksum") == prim.get("cksum")
+            and entry.get("size") == prim.get("size")
+            and entry.get("cksum") is not None)
+
+
 def check_build_set(*, staged: Any, primary_binaries: Any,
                     primary_ir_sha256: Any, primary_build_id: str | None,
                     build_set: Any, matrix: Any) -> list[str]:
@@ -210,7 +228,8 @@ def check_build_set(*, staged: Any, primary_binaries: Any,
                 if key in rule and e.get(key) != rule[key]:
                     reasons.append(f"{name}: wrong origin: {key}={e.get(key)!r} "
                                    f"(this matrix needs {rule[key]!r})")
-            if (rule.get("machine_kind") and e.get("ir_sha256") == primary_ir_sha256):
+            if (rule.get("machine_kind") and e.get("ir_sha256") == primary_ir_sha256
+                    and not _is_primary_alias(e, prim)):
                 reasons.append(f"{name}: built from the primary IR, not a "
                                f"{rule['machine_kind']} IR")
     steps = set(matrix or [])

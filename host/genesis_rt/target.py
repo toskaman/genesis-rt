@@ -595,10 +595,19 @@ def _step_env(ctx: dict[str, Any]) -> tuple[bool, str]:
 
 def _step_generate(ctx: dict[str, Any]) -> tuple[bool, str]:
     from .codegen import generate
+    from .codegen_v2 import generate_v2
+    from .projects import validate_any
     out = Path(ctx["work_dir"]) / "gen"
     genesis_src = Path(__file__).resolve().parent.parent.parent / "target" / "qnx8"
     try:
-        manifest = generate(ctx["params"]["ir"], out, genesis_src=str(genesis_src))
+        version, valid = validate_any(ctx["params"]["ir"])
+    except Exception as exc:
+        return False, f"invalid IR at generate: {exc}"
+    # Mirror the CLI dispatch: v2 IRs need the machine module + V2
+    # define, which v1 codegen silently drops (native 8-Nov finding).
+    generate_fn = generate_v2 if version == 2 else generate
+    try:
+        manifest = generate_fn(valid, out, genesis_src=str(genesis_src))
     except Exception as exc:
         return False, f"codegen failed: {exc}"
     files = manifest.get("files", [])

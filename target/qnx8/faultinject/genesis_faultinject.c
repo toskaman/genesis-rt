@@ -130,9 +130,9 @@ static int run_probe(int coid, const char *arg, uint32_t seq) {
  * identical magnitude, only the requested state varies. Exit 0 when a
  * reply arrives (whatever the verdict -- the caller asserts it), 2 on
  * usage/IPC errors. */
-static int run_state_probe(int coid, const char *arg) {
+static int run_state_probe(int coid, const char *arg, uint32_t seq) {
     if (!(arg[0] >= '0' && arg[0] <= '3' && arg[1] == '\0')) {
-        printf("PROBE usage: genesis_faultinject probe state <0..3>\n");
+        printf("PROBE usage: genesis_faultinject probe state <0..3> [seq]\n");
         return 2;
     }
     float v = FI_CRUISE;
@@ -141,7 +141,7 @@ static int run_state_probe(int coid, const char *arg) {
     cmd.magic = GENESIS_PROTOCOL_MAGIC;
     cmd.version = GENESIS_PROTOCOL_VERSION;
     cmd.req_state = (uint8_t)(arg[0] - '0');
-    cmd.seq = 1;
+    cmd.seq = seq;
     uint64_t now = now_ms();
     cmd.now_ms = (uint32_t)now;
     cmd.deadline_ms = (uint32_t)now + 30u;
@@ -236,8 +236,19 @@ int main(int argc, char **argv) {
         return 2;
     }
     if (argc > 1 && strcmp(argv[1], "probe") == 0) {
-        if (argc == 4 && strcmp(argv[2], "state") == 0)
-            return run_state_probe(coid, argv[3]);
+        if ((argc == 4 || argc == 5) && strcmp(argv[2], "state") == 0) {
+            uint32_t sseq = 1;
+            if (argc == 5) {
+                char *send = NULL;
+                unsigned long pv = strtoul(argv[4], &send, 10);
+                if (send == argv[4] || *send != '\0' || pv == 0 || pv > 0xFFFFFFFFUL) {
+                    printf("PROBE usage: seq must be 1..4294967295\n");
+                    return 2;
+                }
+                sseq = (uint32_t)pv;
+            }
+            return run_state_probe(coid, argv[3], sseq);
+        }
         if (argc != 3 && argc != 4) {
             printf("PROBE usage: genesis_faultinject probe <linear_mps|estop> [seq]\n");
             return 2;
