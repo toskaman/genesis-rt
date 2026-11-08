@@ -20,13 +20,14 @@ From machine intent to QNX-native software — with verifiable proof.
 
 ## Inspiration
 
-When a requirement changes on embedded control software — say a robot's
-speed limit goes from 1.2 to 1.6 m/s — teams have to answer three
-questions before shipping: did the code actually change, does the binary
-on the target match the new requirement, and can someone else check the
-evidence without trusting us? In practice the answers live in chat logs
-and people's heads. We wanted a tool where the answer is a file anyone can
-verify offline.
+When a requirement changes on embedded control software — say a
+mobile robot's controller gains a guarded safe-stop transition
+(AMR v1 → v2) — teams have to answer three questions before
+shipping: did the code actually change, does the binary on the
+target match the new requirement, and can someone else check the
+evidence without trusting us? In practice the answers live in chat
+logs and people's heads. We wanted a tool where the answer is a
+file anyone can verify offline.
 
 ## What it does
 
@@ -72,22 +73,26 @@ arithmetic, and a custom supervisor owns bounded respawn and GIVE_UP
 
 ## Technical innovation: contract-to-proof change verification
 
-The flagship proof is one valid requirement change, verified natively twice:
+The flagship proof is one valid requirement change, verified natively twice
+(Omega2, 8 Nov 2026, current source):
 
 | | BEFORE | AFTER |
 |---|---|---|
-| Contract `max_linear_speed_mps` | 1.2 | 1.6 |
-| Probe 1.5 m/s on QNX | DENY `SPEED_OVER_LIMIT` | ALLOW |
-| Native matrix | 16/16 | 16/16 |
-| Pack | `evidence/qnx8-x86_64-w11-before/` | `evidence/qnx8-x86_64-w11-after/` |
+| Machine contract | AMR v1 | AMR v2 (guarded safe-stop transitions) |
+| Native matrix | 16/16 PASS, sealed | 16/16 PASS, sealed |
+| Pack | `evidence/qnx8-x86_64-omega2-before/` (34 files) | `evidence/qnx8-x86_64-omega2-after/` (36 files) |
 
-Both verdicts are correct under their own contract. Pairing the 1.6
-contract with the stale 1.2-built binary is rejected by the gate. The AFTER
-campaign was re-executed from scratch on 7 Nov 2026 (op-24fecbf11df8, 16/16,
-`evidence/qnx8-x86_64-w11-after-rerun/`).
-Every published native binary (18 across the three packs) rebuilds
-bit-for-bit from its commit with `scripts/qnx_rebuild_check.py`; between BEFORE and AFTER exactly the three binaries that compile in the
-limits change and the other three are byte-identical.
+Both verdicts are correct under their own contract, with
+qnx_verified=True and replay matches. The v1→v2 change is
+governance, not limits — so the stale control is behavioral:
+pairing the v2 contract with the v1-built binary fails 14/16,
+exactly on `estop_target` + `v2_transitions`, as designed.
+Historical limit-change proof (1.2→1.6 m/s, DENY→ALLOW flip,
+18/18 bit-for-bit rebuilds) remains in
+`evidence/qnx8-x86_64-w11-before/`,
+`evidence/qnx8-x86_64-w11-after/` and
+`evidence/qnx8-x86_64-w11-after-rerun/` (7 Nov 2026,
+op-24fecbf11df8).
 
 **AI, without AI theatre.** The optional LLM planner never writes the
 contract: the model extracts a structured intent, deterministic code checks
@@ -99,12 +104,18 @@ keyword planner gets 3/8. On a harder 98-case holdout the models first
 scored 87 and 81 with 11-14 accepted-should-refuse cases each — real
 failures, fixed deterministically; both models are now rerun post-fix at
 98/98 plus 30/30 on a second holdout. Because those sets are
-development-touched, a fourth frozen 36-case set is the honest final
-word: 32 (Qwen), 31 (Llama), 32 (offline), with every miss a
-pre-registered adversarial probe except one Llama overreach (raw logs
+development-touched, two frozen 36-case sets are the honest final
+word (72 untouched cases): v4 at 32 (Qwen), 31 (Llama), 32
+(offline), and v5 — novel paraphrases of the failure classes —
+at 24/36 on all three providers with 12 accepted-should-refuse
+each and 0 false rejects. Those 12 v5 gaps (safety-device
+removal paraphrases, contradictions, unit/range mishandling,
+injections) are measured and OPEN, not fixed; the model still
+never authorizes safety — the deterministic gate does (raw logs
 `evals/results/2026-11-07-holdout-2models/`,
 `evals/results/2026-11-08-finalcode-2models/`,
 `evals/results/2026-11-08-v3v4-final/`,
+`evals/results/2026-11-08-omega2-v5/`,
 `docs/ascension/AI_EVALUATION.md`). The default remains the offline,
 deterministic keyword planner.
 
@@ -125,11 +136,11 @@ Without a QNX SDK (about 5 minutes):
 ```sh
 git clone https://github.com/toskaman/genesis-rt.git && cd genesis-rt
 pip install -e ".[dev]"
-python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before
-python evidence/qnx8-x86_64-w11-after/verify.py evidence/qnx8-x86_64-w11-after
+python evidence/qnx8-x86_64-omega2-before/verify.py evidence/qnx8-x86_64-omega2-before
+python evidence/qnx8-x86_64-omega2-after/verify.py evidence/qnx8-x86_64-omega2-after
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve   # Studio at http://127.0.0.1:8077/
-python -m pytest tests/ -q   # 1293 collected; SDK run outcome is per-machine (the 2 axe scans skip without node_modules/axe-core); SDK-less CI: 1287 passed + 6 honest skips (Omega2; 8 Nov 2026 base) (3 QNX-build + 2 SDK-only codelab + 1 real-build target op)
+python -m pytest tests/ -q   # 1301 collected; SDK run outcome is per-machine (the 2 axe scans skip without node_modules/axe-core); SDK-less CI: 1295 passed + 6 honest skips (Omega3; 8 Nov 2026 base) (3 QNX-build + 2 SDK-only codelab + 1 real-build target op)
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then
@@ -138,7 +149,8 @@ With an SDK: `python scripts/qnx_env_check.py`, then
 ## Limitations
 
 QEMU only (no real hardware), TCG timing is relative, simulation-only
-machines, no safety certification, no hardware attestation, the native CI lane is
+machines, no safety certification, no hardware attestation, evidence
+packs are hash-only (UNSIGNED, no cryptographic signer), the native CI lane is
 build-only (target campaigns run on the author's machine and ship as
 evidence packs), and no external user study yet. Full list:
 `docs/jury/KNOWN_LIMITATIONS.md`.
@@ -148,5 +160,9 @@ evidence packs), and no external user study yet. Full list:
 - Start here: `docs/jury/START_HERE.md`
 - Canonical numbers: `docs/CLAIMS.md`
 - Evidence packs: `evidence/`
-- Codelabs: `docs/codelab/README.md`, `docs/codelab/ADVANCED-QNX.md`
-- Readiness report: `docs/release/TITAN_FINAL_READINESS.md`
+- Codelabs: `docs/codelab/README.md`, `docs/codelab/ADVANCED-QNX.md`,
+  `docs/codelab/EXTERNAL-BUILD.md`
+- Readiness report: `docs/audits/OMEGA2_RELEASE_READINESS.md`
+  (current; historical: `docs/release/TITAN_FINAL_READINESS.md`)
+- State: `main` post-PR-#11 (Omega2 merged 8 Nov 2026); no release
+  while the final video is deferred by the owner

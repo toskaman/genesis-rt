@@ -26,12 +26,25 @@ Machine-readable core:
 }
 ```
 
-## Wave-1 audit (8 agents, read-only, 9 Nov 2026)
+## Wave-1 audit (8 agents, read-only, 8 Nov 2026)
 
-Complete: recon, native-sec (F1–F8), adversarial (H1–H9, M1–M11),
-ux-a11y, ai-pilot (A1–A13, B1–B9), commercial (sched/codelab/
-competitive/BYOQNX-PASS), critic (G1–G16 challenges), synthesis.
-Full evidence in the session workflow record; key ledger:
+> Correction 8 Nov 2026 (Omega3 §4.2): this section was headed
+> "9 Nov 2026" in error — the file was committed 8 Nov 12:44
+> +0100, so no 9 Nov execution record can exist. Date corrected
+> to the audit day. Coverage is also downgraded: recon and
+> ai-pilot returned partial results and critic/synthesis never
+> produced their reports (no workflow record was preserved),
+> so several finding series (notably ai-pilot B1–B9) have no
+> committed definitions and are unrecoverable. The original
+> "Complete:" line is replaced by "Partial:" below; git history
+> preserves the original wording.
+
+Partial: recon (partial), native-sec (F1–F8), adversarial
+(H1–H9, M1–M11), ux-a11y, ai-pilot (A1–A13, B1–B9 — partial,
+definitions uncommitted), commercial (sched/codelab/
+competitive/BYOQNX-PASS), critic (G1–G16 challenges, no
+report), synthesis (no report).
+Session ledger (workflow record not preserved); key entries:
 
 - Counts Corroborated two ways (collect + pins + CI tally).
 - CAMPAIGN 16/16 + 9/9 hashes corroborated from artifacts.

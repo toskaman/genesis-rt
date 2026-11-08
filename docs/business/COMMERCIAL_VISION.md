@@ -28,9 +28,12 @@ passport (full host suite green — run `pytest -o addopts=""` for the current c
 
 ## 2. What a team gets on day one (measured, not promised)
 
-- A new engineer goes from contract to a running native QNX IPC chain
-  in ~45 minutes following `docs/codelab/README.md` (every command
-  verified 2026-11-05; Windows + Linux variants).
+- The author goes from contract to a running native QNX IPC chain
+  in ~45 minutes of hands-on time following `docs/codelab/README.md`
+  (author-operated, every command re-executed 2026-11-08;
+  Windows + Linux variants). No new user has been timed:
+  new-user onboarding is unmeasured, and independent pilot
+  results do not exist yet — see the evidence ladder in §13.
 - 8 fault scenarios per machine run identically on host (Python mirror)
   and as conformance vectors against the shipped C policy — the guard
   you test is the guard you ship.
@@ -127,7 +130,7 @@ roadmap, pricing hypotheses, pilot-partner criteria, PMF risks.
 
 ## 7. Adoption obstacles (honest)
 
-- **Prototype maturity:** a 1293-test host suite (Omega2 SDK-free: 1287 passed + 6 honest skips; with the SDK the 6 SDK-gated tests also run) and a 16-step matrix are strong
+- **Prototype maturity:** a 1301-test host suite (Omega3 SDK-free: 1295 passed + 6 honest skips; with the SDK the 6 SDK-gated tests also run) and a 16-step matrix are strong
   for a hackathon, thin for production. Needs hardening sprints,
   fuzzing depth, and long-session robustness.
 - **QNX licensing:** see §9 — customers need their own commercial QNX
@@ -204,14 +207,31 @@ Timed overlay (each gate must pass before the next starts):
 > that proves what happened, replayable offline by any reviewer.
 > Change a limit, recompile, and the target behavior changes the same
 > day — with the before/after evidence side by side. It's Apache-2.0,
-> it runs on your QNX license, and the 45-minute codelab takes your
-> new hire from zero to a running IPC chain. The prototype is QEMU-only
-> and uncertified — we're here to harden it with two pilot teams, not
-> to oversell it."
+> it runs on your QNX license, and the 45-minute codelab takes an
+> engineer from zero to a running IPC chain (author-timed; no new
+> hire has been timed yet). The prototype is QEMU-only and
+> uncertified — we're here to harden it with two pilot teams,
+> not to oversell it."
 
 ## 12. What success looks like in 12 months
 
 A QNX engineer at a pilot customer says *"I wish I had this tool"* —
 then opens a passport from last quarter's campaign, replays it, and
 trusts the verdict. Everything else is commentary.
+
+## 13. Evidence ladder (what each timing claim actually rests on)
+
+1. **Author-operated execution** — the author runs the codelab or
+   pilot tasks hands-on and times them (codelab ~45 min,
+   8 Nov 2026; pilot dry run ~40 min/lane expert floor).
+   Grounded, but n=1 and biased: the author knows every step.
+2. **Reproducible machine benchmark** — `bench/productivity/`
+   counts commands/steps/faults deterministically. A property
+   of the tool, not of users.
+3. **New-user onboarding** — UNMEASURED. No first-contact user
+   has ever been timed on the codelab or the pilot.
+4. **Independent pilot results** — NONE YET. Zero invitations
+   sent; `HUMAN USER BENEFIT NOT YET MEASURED` governs.
+
+Never present level 1 or 2 as level 3 or 4.
 

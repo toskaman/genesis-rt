@@ -33,7 +33,13 @@ certification credit.
 ## 2. Representative task set (90–120 min per lane)
 
 Same tasks as `bench/productivity/` (methodology + REPORT.json),
-performed by a human in each lane:
+performed by a human in each lane. Budget basis (8 Nov 2026
+expert dry run, genesis lane): machine time ≈ 6 s/lane
+(negligible); expert-operator floor ~40 min/lane excluding the
+reviewer loop; the 90–120 min covers first-contact onboarding,
+learning, template recording and the ~10–15 min reviewer
+checklist (§10). The reviewer's minutes are recorded
+separately (`reviewer_check`), never folded into operator time.
 
 1. `validate` — accept/reject 3 machine contracts (1 has an
    unknown key, 1 violates a limit).
