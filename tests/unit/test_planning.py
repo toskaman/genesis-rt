@@ -197,7 +197,8 @@ EVAL_DATASET_DIGESTS = {
     "planning_holdout_v3.json":  # TOUCHED 8 Nov 2026: measured once
         # frozen (offline 30/36), then used to derive fixes. Verification
         # only; planning_holdout_v4.json is the frozen final set.
-        # LF bytes (.gitattributes); the CRLF variant broke Linux CI.
+        # LF bytes (repo normalizes via * text=auto eol=lf; hash the
+        # committed blob, never the pre-commit working file).
         "5a52e26e036a61b889c056fce35d27f9690072f757d25702126eeb24eaff2d69",
     "planning_holdout_v4.json":  # FROZEN 8 Nov 2026: final independent
         # measurement set. Measure once per provider; never tune.
