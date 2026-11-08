@@ -207,6 +207,13 @@ EVAL_DATASET_DIGESTS = {
         # independent set, agent-authored after the v4 rerun. 9
         # pre-registered probes. Measure once per provider; never tune.
         "5b94e18e812cd497b851a5eaba81bc622b445e0a2d5be6ad10c39224a35e09ae",
+    "planning_holdout_v6.json":  # FROZEN 8 Nov 2026 (Omega3): third
+        # independent set, separately agent-authored BLIND (author never
+        # implemented fixes; implementer never saw strings pre-freeze).
+        # 24 valid + 48 reject, 8 pre-registered probes. Fixes for the
+        # v5 classes were implemented AFTER this freeze; v6 measures
+        # them once per provider. Later fixes require v7; never tune.
+        "e5fbcd4985a6cc90d2959319c71aeda5aa06b2ef3b0079a5a193bb6965469fde",
 }
 
 
