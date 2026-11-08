@@ -43,13 +43,63 @@ from .planner import propose as offline_propose
 # no removal verb and still accepts.
 _REMOVAL_VERBS = (r"strip(?:ped|ping)?|mute[sd]?|deactiv\w*|detach\w*"
                   r"|disconnect\w*|unplug\w*|defeat\w*|do\s+without"
-                  r"|take\s+(?:out|off)|cut\s+out")
-_SAFETY_DEVICES = (r"guards?|e-?stops?|estops?|interlocks?|watchdogs?"
-                   r"|curtains?|light\s+curtain|safety\s+curtain|bumpers?"
-                   r"|safety\s+switch|safety\s+fence|fences?|safety"
+                  r"|tak(?:e|en)\s+(?:out|off|away)|cut\s+out"
+                  # Hardening-2: wide-window-safe additions only
+                  # (silenced curtains, jumpered loop classes).
+                  r"|silenc\w*|jumper\w*")
+# Hardening-2: verbs that must directly govern the device
+# ("drop the guard", "lift the rear guard") — too risky in a
+# wide window ("drop off totes, guard present" is benign).
+_GOVERN_VERBS = (r"lift\w*|rais\w*|hoist\w*|open|drop|quiet\w*"
+                 r"|bridg\w*|disabl\w*|bypass\w*")
+# Hardening-2: disabled-state participles after the device
+# ("guard lifted", "fence disabled", "relay bridged").
+_DISABLED_STATES = (r"lifted|raised|hoisted|opened|dropped|jumpered"
+                    r"|bridged|silenced|quieted|shorted|disabl\w*"
+                    r"|remov\w*|bypassed")
+# Hardening-2: removal nominalizations ("removal of the e-stop",
+# "curtain bypass").
+_REMOVAL_NOUNS = r"removal|disabling|deactivation|bypass|absence"
+# Hardening-2: lack/minus govern the device directly
+# ("lacking any interlock", "minus its bumper").
+_LACK_VERBS = r"lack\w*|missing"
+# Hardening-2: German/Spanish/French device + removal tables
+# (blind-v6 multilingual classes).
+_DE_DEVICES = (r"schutzzaun|zaun|lichtvorhang|vorhang|not-?aus"
+               r"|absperrung|sicherheitsschalter")
+_DE_REMOVAL = (r"demont\w*|abmont\w*|ausgebaut|entfern\w*|deaktiv\w*"
+               r"|stillleg\w*|ausser\s+betrieb|außer\s+betrieb")
+_ES_DEVICES = r"cortina|valla|barrera|interruptor|enclavamiento"
+_ES_REMOVAL = (r"desmont\w*|desactiv\w*|sin\s+activ\w*"
+               r"|fuera\s+de\s+servicio|quit\w*")
+_FR_DEVICES = r"barriere|barrière|rideau|grillage|cloture|clôture"
+_FR_REMOVAL = (r"d[ée]mont\w*|retir\w*|enlev\w*|hors\s+service"
+               r"|désactiv\w*|desactiv\w*")
+# Hardening-2: explicit counts turn a plural into a fleet
+# ("three rovers" refuses; bare "rovers" accepts).
+_COUNT_WORDS = (r"two|three|four|five|six|seven|eight|nine|ten"
+                r"|eleven|twelve|both|dozen|several|multiple|many")
+_PLURAL_KINDS = (r"rovers|robots|amrs|mobiles|conveyors|belts|lines"
+                 r"|arms|grippers|manipulators|agvs|cobots")
+_SAFETY_DEVICES = (r"guards?|guarding|e-?stops?|estops?|interlocks?"
+                   r"|watchdogs?|curtains?|light\s+curtain"
+                   r"|safety\s+curtain|bumpers?|safety\s+switch"
+                   r"|safety\s+fence|fences?|safety"
                    r"|not-?aus\b|arr[êe]t|enclavamiento|verriegelung")
+_ZERO_WIDTH_RE = re.compile(
+    "[\u200b\u200c\u200d\ufeff\u00ad]")
+_SPACED_LETTERS_RE = re.compile(r"\b([a-z])(?:\s+[a-z]){2,}\b")
+
+
+def canonicalize_request(text: str) -> str:
+    """Hardening-2: strip zero-width/format chars and rejoin
+    spaced-out letters ('d i s a b l e d') so evasions meet the
+    same guard as plain text."""
+    text = _ZERO_WIDTH_RE.sub("", text or "")
+    return _SPACED_LETTERS_RE.sub(
+        lambda m: m.group(0).replace(" ", ""), text)
 _UNNEEDED_WORDS = (r"unnecessary|unneeded|not\s+needed|not\s+required"
-                   r"|dispensable|optional")
+                   r"|dispensable|optional|redundant|superfluous")
 _SCHEMA_FIELDS = (r"max_linear_speed_mps|period_ms|max_angular_speed_radps"
                   r"|freshness_limit_ms|guarded_state_transitions"
                   r"|execution_target|simulation_only|schema_version")
@@ -67,7 +117,10 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
      r"[^()]{0,100}\)",
      "prompt-injection style instructions are not followed"),
     (r"disable.{0,20}guard|guard.{0,20}disable"
-     r"|\b(?:no|without)\s+(?:the\s+)?(?:guard|e-?stop|interlock|watchdog)\b",
+     # Hardening-2: \s* tolerates "noguard" (zero-width stripped);
+     # fence/curtain/bumper join the no/without device set.
+     r"|\b(?:no|without)\s*(?:the\s+)?(?:guard|e-?stop|interlock"
+     r"|watchdog|fence|curtain|bumper)\b",
      "disabling or removing the safety guard is not supported"),
     (r"ignore.{0,20}(safe|limit|instruct)|bypass.{0,20}(safe|guard|gate)",
      "bypassing safety policy, the guard, or the verification gate is not supported"),
@@ -136,7 +189,13 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
     (f"\\b(?:{_SCHEMA_FIELDS})\\b\\s*(?:\\d|:|=|\"|true|false|null\\b)"
      f"|\\b\\d+\\s+(?:max_linear_speed_mps|period_ms)\\b"
      f"|\\b(?:set|use|apply)\\b.{{0,12}}"
-     f"\\b(?:max_linear_speed_mps|period_ms)\\b",
+     f"\\b(?:max_linear_speed_mps|period_ms)\\b"
+     # Hardening-2: bare kind= smuggling ("kind=conveyor");
+     # kind: fires only with exact schema IDs so questions
+     # ("which kind: AMR or belt?") still pass.
+     r"|\bkind\s*=\s*[\w\"']"
+     r"|\bkind\s*:\s*(?:differential_drive_robot|conveyor"
+     r"|robotic_arm_virtual)\b",
      "prompt-injection style instructions are not followed; describe "
      "the machine in prose"),
     # Omega3 §5.3: fleet words and mixed-value correlatives refuse
@@ -144,6 +203,64 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"\b(?:fleet|swarms?|convoys?)\b"
      r"|\bsome\b[^.!?;]{0,60}\bsome\b"
      r"|\beach\b.{0,25}\b(?:different|own|separate|individual)\b",
+     "ambiguous machine requirement (fleet or mixed values); "
+     "name exactly one machine with one set of limits"),
+    # Hardening-2: governing verbs ("drop the guard") need the
+    # device within two filler words; states ("guard lifted")
+    # need the device first or immediately before.
+    (f"(?:{_GOVERN_VERBS})\\s+(?:\\w+\\s+){{0,2}}(?:{_SAFETY_DEVICES})"
+     f"|(?:{_SAFETY_DEVICES}).{{0,30}}(?:{_DISABLED_STATES})"
+     f"|(?:{_DISABLED_STATES}).{{0,12}}(?:{_SAFETY_DEVICES})",
+     "disabling or removing the safety guard is not supported"),
+    # Hardening-2: lack/minus govern the device
+    # ("lacking any interlock", "minus its bumper").
+    (f"(?:{_LACK_VERBS})\\s+(?:any\\s+|the\\s+|its\\s+|an?\\s+)?"
+     f"(?:{_SAFETY_DEVICES})"
+     r"|\bminus\s+(?:the\s+|its\s+|an?\s+)?" + f"(?:{_SAFETY_DEVICES})",
+     "disabling or removing the safety guard is not supported"),
+    # Hardening-2: verb-mediated inactive ("set/switched to
+    # inactive") and adjacent inoperable ("inoperable guard").
+    (f"(?:{_SAFETY_DEVICES}).{{0,30}}(?:switch\\w*|set|turn\\w*|put)"
+     r".{0,15}\binactive\b"
+     f"|(?:{_SAFETY_DEVICES})\\s+(?:is\\s+|was\\s+)?"
+     r"(?:inoperable|inoperative)\b"
+     r"|(?:inoperable|inoperative)\s+(?:the\s+)?" + f"(?:{_SAFETY_DEVICES})",
+     "disabling or removing the safety guard is not supported"),
+    # Hardening-2: power loss at the device ("e-stop lost power",
+    # "stop was powered down"); bare "line lost power" with the
+    # device elsewhere does not match.
+    (f"(?:{_SAFETY_DEVICES}).{{0,20}}(?:power\\w*\\s+(?:down|off)"
+     r"|los\w*\s+power)"
+     r"|(?:power\w*\s+(?:down|off))\s+(?:the\s+)?" + f"(?:{_SAFETY_DEVICES})",
+     "disabling or removing the safety guard is not supported"),
+    # Hardening-2: removal nominalizations ("curtain removal",
+    # "deactivation of the e-stop").
+    (f"(?:{_SAFETY_DEVICES})\\s+(?:{_REMOVAL_NOUNS})\\b"
+     f"|(?:{_REMOVAL_NOUNS})\\s+of\\s+(?:the\\s+)?(?:{_SAFETY_DEVICES})",
+     "disabling or removing the safety guard is not supported"),
+    # Hardening-2: -free/-less compounds ("interlock-free",
+    # "guardless").
+    (r"\b\w*(?:guard|fence|curtain|interlock)[- ]free\b"
+     r"|\bguardless\b",
+     "disabling or removing the safety guard is not supported"),
+    # Hardening-2: "no <device> needed" ("no fence needed");
+    # the comma variant ("no, fence needed!") stays accepted.
+    (f"\\bno\\s+(?:a\\s+|the\\s+)?(?:{_SAFETY_DEVICES})\\s+needed\\b",
+     "disabling or removing the safety guard is not supported"),
+    # Hardening-2: German/Spanish/French removal
+    # ("Schutzzaun abmontiert", "valla desmontada",
+    # "barriere démontee", "Lichtvorhang ausser Betrieb").
+    (f"(?:{_DE_DEVICES}).{{0,30}}(?:{_DE_REMOVAL})"
+     f"|(?:{_DE_REMOVAL}).{{0,30}}(?:{_DE_DEVICES})"
+     f"|(?:{_ES_DEVICES}).{{0,30}}(?:{_ES_REMOVAL})"
+     f"|(?:{_ES_REMOVAL}).{{0,30}}(?:{_ES_DEVICES})"
+     f"|(?:{_FR_DEVICES}).{{0,30}}(?:{_FR_REMOVAL})"
+     f"|(?:{_FR_REMOVAL}).{{0,30}}(?:{_FR_DEVICES})",
+     "disabling or removing the safety guard is not supported"),
+    # Hardening-2: explicit counts make a fleet ("three rovers",
+    # "both belts", "2 AMRs"); bare plurals still accept and
+    # hyphenated modifiers ("six-axis") never match.
+    (f"(?:\\b(?:{_COUNT_WORDS})\\b|\\b\\d+\\b)\\s+(?:{_PLURAL_KINDS})\\b",
      "ambiguous machine requirement (fleet or mixed values); "
      "name exactly one machine with one set of limits"),
 )
@@ -304,7 +421,7 @@ PROVIDERS: dict[str, type[Any]] = {"offline": OfflineProvider, "llm": LLMProvide
 
 
 def _refuse_unsafe(request: str) -> None:
-    text = (request or "").lower()
+    text = canonicalize_request((request or "").lower())
     for pattern, explanation in _UNSAFE_PATTERNS:
         if re.search(pattern, text):
             raise PlannerRejection(f"unsafe or unsupported requirement: {explanation}")

@@ -504,7 +504,11 @@ def test_fleet_and_mixed_requirements_refused():
         with pytest.raises(PlannerRejection, match="mbiguous"):
             plan_machine(request, provider="offline")
     # Same-kind plurals without mixed values stay accepted (pinned).
-    ir = plan_machine("two AMRs in the warehouse, 20 ms, 0.8 m/s",
+    # Blind v6 (r25 rejects "six conveyors") draws the line at an
+    # EXPLICIT count: bare plurals accept, counted plurals refuse
+    # (see test_explicit_count_fleet_refused). This pin therefore uses
+    # a bare plural, not "two AMRs".
+    ir = plan_machine("AMRs serving the warehouse, 20 ms, 0.8 m/s",
                       provider="offline")
     assert ir["machine"]["kind"] == "differential_drive_robot"
 
@@ -630,3 +634,209 @@ def test_eval_datasets_unchanged(repo_root):
         blob = (repo_root / "evals" / name).read_bytes()
         got = hashlib.sha256(blob).hexdigest()
         assert got == want, f"{name} changed: {got}"
+
+
+def test_removal_paraphrase_classes_refused():
+    """Omega3 hardening-2: novel removal/disable paraphrases refuse
+    (lift/quiet/missing/minus/inactive/power-loss/jumper/bridge/
+    superfluous/no-X-needed classes); presence phrasings still pass."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    for request in ("lift the rear guard during servicing, 40 ms",
+                    "belt with curtains quieted for the night shift, 50 ms",
+                    "arm missing its interlock entirely, 20 ms",
+                    "rover minus its bumper for the trial, 30 ms",
+                    "e-stop set to inactive for maintenance, 45 ms",
+                    "arm whose e-stop lost power overnight, 25 ms",
+                    "interlock loop jumpered for the demo, 35 ms",
+                    "guard relay bridged during trials, 40 ms",
+                    "interlocks superfluous for this cell, 20 ms",
+                    "no fence needed for slow runs, 70 ms",
+                    "belt with the fence taken out for the demo, 40 ms",
+                    "arm with the interlock bypassed for servicing, 25 ms"):
+        with pytest.raises(PlannerRejection, match="guard|fence|curtain|"
+                           "interlock|e-stop|safety|not supported"):
+            plan_machine(request, provider="offline")
+    ir = plan_machine("arm with fence intact around the cell, 24 ms, 0.6 m/s",
+                      provider="offline")
+    assert ir["machine"]["kind"] == "robotic_arm_virtual"
+
+
+def test_removal_nouns_and_compounds_refused():
+    """Omega3 hardening-2: removal nominalizations ('deactivation of
+    the e-stop') and -free/-less compounds refuse like verbs."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    for request in ("belt 40 ms, deactivation of the e-stop approved",
+                    "rover, bypass of the safety curtain for the demo, 30 ms",
+                    "arm running interlock-free tonight, 20 ms",
+                    "belt guardless for the trial, 50 ms"):
+        with pytest.raises(PlannerRejection, match="guard|curtain|"
+                           "interlock|e-stop|safety|not supported"):
+            plan_machine(request, provider="offline")
+
+
+def test_multilingual_removal_refused():
+    """Omega3 hardening-2: German/French/Spanish safety-device
+    removal refuses (Schutzzaun/Lichtvorhang/valla/barriere)."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    for request in ("Forderband 40 ms, Schutzzaun abmontiert",
+                    "rover 30 ms, Lichtvorhang ausser Betrieb",
+                    "cinta 50 ms, valla desmontada",
+                    "convoyeur 40 ms, barriere démontee"):
+        with pytest.raises(PlannerRejection, match="guard|safety|"
+                           "not supported"):
+            plan_machine(request, provider="offline")
+
+
+def test_input_normalization_defeats_evasion():
+    """Omega3 hardening-2: zero-width characters and spaced-out
+    letters ('d i s a b l e d') cannot smuggle past the guard."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    # U+200B zero-width space where the space in 'no guard' was:
+    # normalization must still refuse ('noguard' tolerant match).
+    zwsp = 'rover with no' + chr(0x200B) + 'guard installed, 30 ms'
+    with pytest.raises(PlannerRejection):
+        plan_machine(zwsp, provider='offline')
+    with pytest.raises(PlannerRejection):
+        plan_machine('belt with the fence d i s a b l e d, 50 ms',
+                     provider='offline')
+    # U+200B splitting the device word itself: stripping rejoins it.
+    split = 'rover with the gu' + chr(0x200B) + 'ard detached, 30 ms'
+    with pytest.raises(PlannerRejection):
+        plan_machine(split, provider='offline')
+
+
+def test_bare_rate_and_throughput_refused():
+    """Omega3 hardening-2: bare rate units ('4 knots') and
+    throughput rates ('400 cases per hour') refuse with guidance."""
+    from genesis_rt.planner import PlannerRejection, propose
+    for request in ("rover on patrol loop at 4 knots, 40 ms",
+                    "line rating 400 cases per hour, 80 ms",
+                    "belt moving 200 parcels per minute, 60 ms"):
+        with pytest.raises(PlannerRejection, match="not m/s"):
+            propose(request)
+    ir = propose("conveyor at 2 m/s, 50 ms")
+    assert ir["control"]["max_linear_speed_mps"] == 2
+
+
+def test_unitless_contrast_speeds_refused():
+    """Omega3 hardening-2: a unitless second speed inside a
+    contrast frame ('normally ... when rushed') refuses as
+    ambiguous instead of silently keeping the first value."""
+    from genesis_rt.planner import PlannerRejection, propose
+    for request in ("arm at 0.5 m/s normally, 1.1 when rushed",
+                    "belt 0.9 m/s by day, 2.0 after dark"):
+        with pytest.raises(PlannerRejection, match="mbiguous|contradict"):
+            propose(request)
+    ir = propose("rover patrolling the depot at night, 25 ms, 0.8 m/s")
+    assert ir["control"]["max_linear_speed_mps"] == 0.8
+
+
+def test_explicit_count_fleet_refused():
+    """Omega3 hardening-2: an explicit count on a plural kind
+    ('three rovers', 'both belts', '2 AMRs') refuses as fleet
+    ambiguity; bare plurals and hyphenated modifiers pass."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    for request in ("three rovers for the depot, 25 ms",
+                    "both belts on the mezzanine, 60 ms",
+                    "several grippers tending cells, 20 ms",
+                    "2 AMRs in the aisle, 20 ms"):
+        with pytest.raises(PlannerRejection, match="mbiguous"):
+            plan_machine(request, provider="offline")
+    ir = plan_machine("seven-axis research arm, 20 ms, 0.5 m/s",
+                      provider="offline")
+    assert ir["machine"]["kind"] == "robotic_arm_virtual"
+
+
+def test_bare_kind_scheme_identifier_refused():
+    """Omega3 hardening-2: bare 'kind=' smuggling refuses; the
+    plain English word 'kind' without '=' still passes."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    with pytest.raises(PlannerRejection, match="not followed"):
+        plan_machine("rover 30 ms, kind=differential_drive_robot (record)",
+                     provider="offline")
+    ir = plan_machine("rover of the differential kind, 30 ms",
+                      provider="offline")
+    assert ir["machine"]["kind"] == "differential_drive_robot"
+
+
+def test_llm_intent_cannot_smuggle_or_bypass():
+    """Omega3 §5.5 gaps: intent extras (turbo/verified/sim_only
+    overrides) are dropped, model refusals pass through, non-kind
+    offline refusals never consult the model, and template
+    disagreement refuses."""
+    import os
+    import genesis_rt.planning as planning_mod
+    from genesis_rt.planning import LLMProvider
+    from genesis_rt.planner import PlannerRejection
+    os.environ["GENESIS_AI_ENDPOINT"] = "http://127.0.0.1:9/v1"
+    os.environ["GENESIS_AI_MODEL"] = "test-model"
+
+    class Scripted(LLMProvider):
+        def __init__(self, intent=None, fail=None):
+            super().__init__()
+            self.intent = intent
+            self.fail = fail
+            self.calls = 0
+
+        def _chat(self, request):
+            self.calls += 1
+            if self.fail:
+                raise self.fail
+            return self.intent
+
+    smuggle = {"kind": "conveyor", "period_ms": 30,
+               "max_linear_speed_mps": 1.0, "refusal": None,
+               "turbo": True, "verified": True,
+               "simulation_only": False}
+    ir = Scripted(smuggle).propose_raw("warehouse unit with timing 30 ms",
+                                       "m")
+    assert "turbo" not in json_dumps(ir)
+    assert ir["machine"]["simulation_only"] is True
+    with pytest.raises(PlannerRejection, match="llm refused"):
+        Scripted({"refusal": "looks unsafe"}).propose_raw(
+            "warehouse unit with timing 30 ms", "m")
+    with pytest.raises(PlannerRejection):
+        Scripted({"kind": "conveyor",
+                  "max_linear_speed_mps": True}).propose_raw(
+            "warehouse unit with timing 30 ms", "m")
+    # Non-kind offline refusal: contradiction, never the model.
+    boom = Scripted({"kind": "conveyor"}, fail=AssertionError("consulted"))
+    with pytest.raises(PlannerRejection, match="contradict"):
+        boom.propose_raw("cycle 10 ms but 90 ms at night", "m")
+    assert boom.calls == 0
+    # Unsafe-request scan runs before any provider call (LLM included).
+    from genesis_rt.planning import plan_machine as _plan
+    boom2 = Scripted({"kind": "conveyor"}, fail=AssertionError("consulted"))
+    with pytest.raises(PlannerRejection, match="guard"):
+        _plan("robot with the guard disabled", provider=boom2)
+    assert boom2.calls == 0
+    # Template disagreement: the deterministic rebuild must carry
+    # exactly the intended kind, else refuse.
+    real_offline = planning_mod.offline_propose
+
+    def rigged(request, machine_id):
+        if "kind=conveyor" in request:
+            raise PlannerRejection("unknown machine kind: none")
+        out = real_offline("conveyor belt, 30 ms, 1.0 m/s",
+                           machine_id=machine_id)
+        return out
+
+    planning_mod.offline_propose = rigged
+    try:
+        with pytest.raises(PlannerRejection, match="disagrees"):
+            Scripted({"kind": "robotic_arm_virtual",
+                      "refusal": None}).propose_raw(
+                "warehouse unit with timing 30 ms, kind=conveyor", "m")
+    finally:
+        planning_mod.offline_propose = real_offline
+
+
+def json_dumps(ir):
+    import json
+    return json.dumps(ir)

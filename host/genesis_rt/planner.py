@@ -98,7 +98,23 @@ _WRONG_SPEED_RE = re.compile(
     r"(?:\d+(?:\.\d+)?)\s*(?:km/h|kph|mph|cm/s|mm/s|m/min|ft/s)\b"
     r"|(?:\d+(?:\.\d+)?)\s*(?:feet|foot|ft|inches?|yards?|miles?|knots?)"
     r"\s*(?:per|/)\s*(?:minute|min|second|sec|hour|h|ms)\b"
-    r"|(?:\d+(?:\.\d+)?)\s*per\s*(?:minute|min|second|sec|hour)s?\b")
+    r"|(?:\d+(?:\.\d+)?)\s*per\s*(?:minute|min|second|sec|hour)s?\b"
+    # Hardening-2: bare rate units ("3 knots" is nautical mph, not
+    # m/s) and throughput rates ("400 totes per hour" states no
+    # speed). The time-word anchor keeps "10 ms period" safe.
+    r"|(?:\d+(?:\.\d+)?)\s*knots?\b"
+    r"|(?:\d+(?:\.\d+)?)\s*[a-z]+\s+per\s+"
+    r"(?:minute|min|second|sec|hour|h)\b")
+# Hardening-2: a unitless decimal inside a contrast frame next to a
+# stated speed ("0.4 m/s normally, 1.4 when hurried") is a second
+# speed without a unit — ambiguous, never last-wins. Versions
+# ("v2.0") are excluded by the lookbehind; plain integers stay a
+# documented residual.
+_BARE_DECIMAL_RE = re.compile(r"(?<![\w.])\d+\.\d+(?!\s*(?:ms|m/s)\b)")
+_SPEED_CONTRAST_RE = re.compile(
+    r"\b(?:normally|usually|hurr\w*|rush\w*|surge|boost"
+    r"|eco(?:\s*mode)?|night|days?|dayshift|otherwise|instead"
+    r"|but|while|whereas|weekend|dark)\b")
 _WRONG_PERIOD_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:seconds?|sec|s|minutes?|min)\b")
 # A control rate in Hz is a frequency, not a period: refuse rather than convert.
 _HZ_RE = re.compile(r"(\d+(?:\.\d+)?)\s*hz\b")
@@ -163,6 +179,13 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
             "state exactly one")
     periods = tied or loose
     speeds = {float(x) for x in _SPEED_RE.findall(text)}
+    # Hardening-2: a unitless decimal in a contrast frame
+    # ("0.5 m/s normally, 1.1 when rushed") is an ambiguous second
+    # speed — refuse rather than silently keep the first value.
+    if _BARE_DECIMAL_RE.search(text) and _SPEED_CONTRAST_RE.search(text):
+        raise PlannerRejection(
+            "ambiguous speed requirement (a second value without a "
+            "unit); state exactly one speed in m/s")
     # Coordinated values ("20 ms and 50 ms", "period 20 and 50 ms") name
     # two periods for one machine even when only one sits next to a
     # period word (the ±12-char tied/loose window misses the other).
