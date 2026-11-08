@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "guard: WARNING: SIGUSR1 handler not installed; "
                         "SAFE_STOP latch is terminal this run\n");
     else
-        printf("guard: operator reset armed via SIGUSR1\n");
+        printf("guard: reset handler installed (SIGUSR1)\n");
     fflush(stdout);
     for (;;) {
         union {

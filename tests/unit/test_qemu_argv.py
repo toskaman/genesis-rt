@@ -166,7 +166,8 @@ def test_suffixless_disk_pins_raw(qt, tmp_path):
 
 
 def test_estop_target_parser_accepts_and_rejects(qt):
-    good = ("---ESTOP-PROBE---\n"
+    good = ("guard: reset handler installed (SIGUSR1)\n"
+            "---ESTOP-PROBE---\n"
             "PROBE linear=0.500 estop=1 decision=DENY reason=ESTOP state=3\n"
             "---STATUS-ESTOP---\n"
             "state=3 last_reason=ESTOP allows=0 denies=1\n"
@@ -191,6 +192,29 @@ def test_estop_target_parser_accepts_and_rejects(qt):
                          "PROBE linear=0.400 estop=0 decision=DENY "
                          "reason=BAD_TRANSITION state=3")
     assert qt._matrix_check("estop_target", stuck, 0)["passed"] is False
+
+
+def test_reset_armed_wire_has_single_source_site(qt, repo_root):
+    """The parser greps ONE consumption message; startup must not collide.
+
+    Native 8-Nov finding: the install-OK banner also contained
+    "operator reset armed", so the grep matched before any signal was
+    consumed. Exactly one site may print it, in (SIGUSR1) form.
+    """
+    src = (repo_root / "target" / "qnx8" / "guard"
+           / "genesis_guard.c").read_text(encoding="utf-8")
+    hits = [line for line in src.splitlines()
+            if "operator reset armed" in line]
+    assert len(hits) == 1
+    assert "(SIGUSR1)" in hits[0]
+
+
+def test_estop_command_greps_reset_after_reset_probe(qt):
+    """The arming print fires on the NEXT received message, so the log
+    grep must run after (not before) the RESET-PROBE that consumes it."""
+    cmd = dict(qt.TARGET_MATRIX)["estop_target"]
+    assert cmd.index("grep 'operator reset armed'") > cmd.index(
+        "---RESET-PROBE---")
 
 
 def test_respawn_parser_requires_rebind_and_resumed_chain(qt):

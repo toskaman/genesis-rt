@@ -753,8 +753,8 @@ TARGET_MATRIX = [
      " echo ---ESTOP-PROBE---; ./genesis_faultinject probe estop;"
      " echo ---STATUS-ESTOP---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
      " echo ---OPERATOR-RESET---; kill -s USR1 $GPID; sleep 1;"
-     " grep 'operator reset armed' guard-estop.log;"
      " echo ---RESET-PROBE---; ./genesis_faultinject probe 0.4 2;"
+     " grep 'operator reset armed' guard-estop.log;"
      " slay genesis_guard; sudo -n slay genesis_status"),
     ("target_perf",
      "cd /tmp/genesis; slay genesis_guard 2>/dev/null; sleep 1;"
