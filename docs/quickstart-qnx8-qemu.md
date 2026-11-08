@@ -101,6 +101,33 @@ for the host: KVM on Linux, WHPX/TCG on Windows (`--accel`), user-mode
 networking by default. The console transcript + exact command line land in
 the output dir; boot markers are reported as seen/not-seen, never assumed.
 
+> `boot` is a **terminating smoke check**: when `--timeout` expires it
+> stops the QEMU it started (exit 0 still means the markers were seen).
+> For the live target in §5, start QEMU **detached** with the recorded
+> command line from `<out>/qemu-cmdline.txt` — same flags, own console
+> log — then continue with `wait-ssh` below:
+>
+> Windows (PowerShell, stdout/stderr need separate files):
+>
+> ```powershell
+> $line = (Get-Content <out>/qemu-cmdline.txt -Raw).Trim()
+> $exe, $args = $line.Split(' ', 2)
+> Start-Process $exe $args -RedirectStandardOutput <out>/qemu-console-live.log `
+>   -RedirectStandardError <out>/qemu-err-live.log -WindowStyle Hidden
+> ```
+>
+> Linux/macOS:
+>
+> ```sh
+> $(cat <out>/qemu-cmdline.txt) > <out>/qemu-console-live.log 2>&1 &
+> ```
+>
+> Wait for the `login:` marker in the live log before any SSH step:
+> the forwarded port accepts TCP as soon as QEMU starts, long before
+> the guest sshd is up, so `wait-ssh` alone cannot tell boot from ready.
+> Stop the VM afterwards with `python scripts/qnx_target.py stop
+> <image-dir>` (pidfile-aware, refuses non-QEMU pids).
+
 ## 5. Run genesis on target
 
 Scripted path (needs `paramiko` + SSH reachable, e.g. `--ssh-port 2222`

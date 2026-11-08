@@ -208,6 +208,13 @@ export GENESIS_TARGET_PASSWORD=qnxuser
 python scripts/qnx_target.py put $CODELAB_TMP/lab-a/genesis_* --user qnxuser
 ```
 
+> `boot` is a terminating smoke check (it stops its QEMU at
+> `--timeout`); for the live VM start QEMU detached with the
+> recorded `<out>/qemu-cmdline.txt` and wait for the `login:`
+> marker before `wait-ssh` — full recipe in
+> `docs/quickstart-qnx8-qemu.md` §4. The port accepts TCP long
+> before the guest sshd is up.
+
 Then SSH (`ssh qnxuser@localhost -p 2222`) and run each
 section below. Outputs are from the author's live run on
 2026-11-05 (see note at the end of the lab).

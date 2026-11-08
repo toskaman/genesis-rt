@@ -140,7 +140,20 @@ def _confined(root: Path, name: str) -> Path:
     Absolute paths, drive letters, and `..` escapes are refused before
     any read: a hostile manifest must not make the checker hash (or
     report on) files outside the workspace.
+
+    The backslash / drive-letter / absolute-spelling rejects are
+    lexical on purpose: on POSIX ``..\\x`` is a harmless literal
+    filename and ``C:/x`` resolves inside the workspace, so a
+    resolve-only check would pass names that escape on Windows.
+    Manifests travel across platforms; the guard must not depend
+    on the checker's OS.
     """
+    if ("\\" in name or name.startswith("/") or name.startswith("~")
+            or re.match(r"^[A-Za-z]:", name)):
+        raise ExternalManifestError(
+            f"binary {name!r} escapes the workspace; manifest names "
+            "must be relative paths inside it (no backslashes, drive "
+            "letters, or absolute spellings)")
     candidate = (root / name).resolve()
     if root.resolve() not in candidate.parents and candidate != root.resolve():
         raise ExternalManifestError(
