@@ -49,7 +49,19 @@ int main(int argc, char **argv) {
     /* Cruise at 40% of the machine's own limit: nominal on every machine,
      * over-limit on none. Never a magic constant. */
     float cruise_mps = (float)(0.4 * GENESIS_MAX_LINEAR_MPS);
-    int coid = name_open(GENESIS_ATTACH_NAME, 0);
+    /* Supervisor spawns the set back-to-back: the guard may not have
+     * attached yet. Retry briefly instead of dying and consuming a
+     * supervisor restart (Omega2 F4); a truly absent guard still
+     * fails loudly after ~5 s. */
+    int coid = -1;
+    for (int attempt = 0; attempt < 5 && coid < 0; attempt++) {
+        coid = name_open(GENESIS_ATTACH_NAME, 0);
+        if (coid < 0) {
+            fprintf(stderr, "controller: guard not attached yet "
+                            "(attempt %d/5), retrying\n", attempt + 1);
+            sleep(1);
+        }
+    }
     if (coid < 0) {
         fprintf(stderr, "controller: name_open failed: %s\n", strerror(errno));
         return 1;

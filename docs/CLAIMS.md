@@ -7,18 +7,21 @@ their own historical numbers.
 
 ## Test counts
 
-- Collected total: **1192** (`facts.TESTS_WITH_SDK`; with the SDK all run, 0 skips).
-- SDK-free (measured 7 Nov 2026): **1187 passed + 5 honest skips** (3 QNX-build + 1 SDK-only
+- Collected total: **1293** (`facts.TESTS_WITH_SDK`; SDK-run skips are
+  per-machine — the 2 axe scans skip without `node_modules/axe-core`).
+- SDK-free (8 Nov 2026 + Omega2): **1287 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`).
-- Real-browser E2E: **30** collected from `tests/e2e/` (`facts.E2E_BROWSER_TESTS`):
-  21 judge-journey + negative-path tests, 3 axe-core WCAG 2.2 / 320 px
+- Real-browser E2E: **31** collected from `tests/e2e/` (`facts.E2E_BROWSER_TESTS`):
+  22 judge-journey + negative-path tests, 3 axe-core WCAG 2.2 / 320 px
   reflow tests, 6 application-shell tests (routing, history, keyboard,
-  200 %/400 % zoom emulation). All 30 run in host CI. On a machine without
+  200 %/400 % zoom emulation). All 31 run in host CI. On a machine without
   `axe-core` in `node_modules` the 2 axe scans **skip** visibly — that is
-  the "2 skipped" in the Windows + SDK runs (e.g. 1164 passed + 2 skipped
-  of 1166 on 7 Nov 2026).
+  the "2 skipped" in bare Windows + SDK runs (8 Nov 2026 Windows +
+  SDK run: 1291 passed + 2 skipped of 1293, zero failures; an earlier
+  run's single failure was a stale read from editing the devpost draft
+  while the suite ran).
 - Vocabulary: *collected* = found by pytest; *passed*/*skipped* = outcome
   of one run on one machine. A collected total is never reported as a
   pass count.
@@ -42,6 +45,8 @@ Verify: `python -m pytest tests/ -q`
 
 - `evidence/qnx8-x86_64-w11-before/` — BEFORE passport + transcripts.
 - `evidence/qnx8-x86_64-w11-after/` — AFTER passport + transcripts.
+- `evidence/qnx8-x86_64-w11-after-rerun/` — fresh 7 Nov 2026 rerun
+  (op-24fecbf11df8), 16/16, third binary set for the 18/18 rebuild.
 - `evidence/w11-before-after/` — comparison manifest (links only).
 - Each pack: 34 files, 15-link passport chain, stdlib `verify.py`
   (no SDK needed). Legacy `evidence/qnx8-x86_64-verified-b22cea1/`
@@ -88,6 +93,7 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
 
 - https://github.com/toskaman/genesis-rt/blob/main/docs/codelab/README.md
 - https://github.com/toskaman/genesis-rt/blob/main/docs/codelab/ADVANCED-QNX.md
+- https://github.com/toskaman/genesis-rt/blob/main/docs/codelab/EXTERNAL-BUILD.md
 
 ## Known limitations (current)
 

@@ -49,6 +49,16 @@ def test_missing_payload_is_400(client):
     assert client.post("/runs", json={}).status_code == 400
 
 
+def test_oversize_body_rejected_before_parse(client, monkeypatch):
+    """Titan F2: Content-Length over the ceiling is 413 without parsing."""
+    monkeypatch.setattr(api_mod, "MAX_BODY_BYTES", 64)
+    big = {"ir": {"pad": "x" * 4096}}
+    r = client.post("/runs", json=big)
+    assert r.status_code == 413
+    assert "too large" in r.text
+    assert client.post("/runs", json={}).status_code == 400
+
+
 def test_v2_ir_upload_runs_pipeline(client, repo_root):
     """A schema v2 upload validates, runs, and records schema_version 2."""
     from pathlib import Path as _Path

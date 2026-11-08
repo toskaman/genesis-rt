@@ -123,8 +123,14 @@ def test_pilot_kit_covers_wave10_checklist():
     for token in ("## 9. Technical invitation",
                   "zero invitations sent so far",
                   "## 10. Reviewer checklist",
-                  "## 6. Privacy guidance + anonymization protocol"):
+                  "## 6. Privacy guidance + anonymization protocol",
+                  "pilot-onboarding.md",
+                  "--plan"):
         assert token in text, token
+    onboarding = _read("docs/business/pilot-onboarding.md")
+    for token in ("Recording procedure", "lane order", "anonymization",
+                  "consent"):
+        assert token in onboarding, token
 
 
 def test_adversarial_count_matches_collected():
@@ -155,12 +161,16 @@ def test_docs_match_facts_source_of_truth():
 def test_devpost_counts_match_facts():
     from genesis_rt import facts
     text = _read("docs/devpost-draft.md")
-    m = re.search(r"# (\d+) pass, 0 skip .*SDK-less CI: (\d+) passed \+ "
+    # Collected totals are never reported as pass counts (CLAIMS.md):
+    # the devpost line states the collected total, the per-machine SDK
+    # caveat, and the measured SDK-less outcome.
+    m = re.search(r"# (\d+) collected; .*SDK-less CI: (\d+) passed \+ "
                   r"(\d+) honest skips", text)
     assert m is not None, "devpost count line missing"
     assert (m.group(1), m.group(2), m.group(3)) == \
         (str(facts.TESTS_WITH_SDK), str(facts.TESTS_SDK_FREE_PASSED),
          str(facts.TESTS_SDK_FREE_SKIPS)), m.groups()
+    assert f"# {facts.TESTS_WITH_SDK} pass, 0 skip" not in text
 
 
 def test_limitations_e2e_wording_current():
@@ -300,3 +310,16 @@ def test_claims_e2e_count_matches_facts():
     m = re.search(r"Real-browser E2E: \*\*(\d+)\*\* collected", _read("docs/CLAIMS.md"))
     assert m is not None
     assert int(m.group(1)) == facts.E2E_BROWSER_TESTS
+
+
+def test_sched_speedup_claim_withdrawn():
+    """Omega2 §4: the 5-Nov RT-priority speedup did not replicate on
+    8 Nov; current-facing docs must carry the inconclusive reading,
+    never the ~45%/~65% generalization (frozen audits exempt)."""
+    for rel in ("docs/jury/WHY_QNX.md",
+                "docs/jury/TECHNICAL_EVIDENCE.md",
+                "docs/perf-baseline.md"):
+        text = _read(rel)
+        assert "45%" not in text, rel
+        assert "65%" not in text, rel
+        assert "no general" in text, rel

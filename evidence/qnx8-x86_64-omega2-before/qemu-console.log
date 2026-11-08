@@ -1,0 +1,79 @@
+c[?7l[2J[0mSeaBIOS (version rel-1.17.0-0-gb52ca86e094d-prebuilt.qemu.org)
+
+
+iPXE (http://ipxe.org) 00:03.0 CA00 PCI2.10 PnP PMM+BEFD1E30+BEF31E30 CA00
+Press Ctrl-B to configure iPXE (PCI 00:03.0)...
+                                                                               
+
+
+Booting from ROM..
+non UEFI or UEFI+CSM boot
+ACPI table not found (0x4746434d)
+System behaves poorly without PCID support.
+overriding mask for controller 2, vector_base 0
+Startup complete
+Unable to start "uname" (2)
+slog2_api: cannot connect to slogger2 server...errno=No such file or directory
+qh: context: default:all=prefix/loc/~tid,~slog=notice,slog2=info,stderr=warning,~stdout=notice-notice
+qh: context: qh:slog2=info,stderr=warning
+qh: context: slm:slog2=info,stderr=warning
+qh: slogger2 does not appear to be running.  Registration will be attempted when it is running.
+qh: Waiting for /dev/slog2
+qh: slog2 config: 'high:pages=4,min_sev=warning,low:pages=8,default:pages=1' (defaults)
+slm: [COMMAND] startup 'all'
+slm: Component 'slog2': Mark active
+slm: Set state of component 'slog2' to 'starting'
+slm: Component 'pci-server': Mark active
+slm: Component 'pci-server-patchup': Mark active
+slm: Component 'devb': Mark active
+slm: Component 'root-fs': Mark active
+slm: Component 'random': Mark active
+slm: Component 'fsevmgr': Mark active
+slm: Component 'devc': Mark active
+slm: Component 'pipe': Mark active
+slm: Component 'dumper': Mark active
+slm: Component 'devc-pty': Mark active
+slm: Component 'io-sock': Mark active
+slm: Component 'network-init': Mark active
+slm: Component 'ssh': Mark active
+slm: Component 'qconn': Mark active
+slm: Component 'console': Mark active
+slm: Component 'mqueue': Mark active
+slm: Component 'post_start': Mark active
+slm: Component 'iousb': Mark active
+slm: Component 'set-host': Mark active
+slm: Component 'ca-trust-init': Mark active
+slm: Component 'pam': Mark active
+slm: Component 'apk_start': Mark active
+slm: [START] Component 'slog2'
+slm: Component 'slog2': Spawned process with pid 20483
+slm: Set state of component 'slog2' to 'waiting'
+slm: [WAITFOR] Component 'slog2'
+slm: Component 'slog2': Retry waitfor action
+Path=0 - Intel 82371SB
+ target=0 lun=0     Direct-Access(0) -          QEMU HARDDISK    Rev: 2.5+
+Path=1 - Intel 82371SB
+ target=0 lun=0            CD-ROM(5) - QEMU     QEMU DVD-ROM     Rev: 2.5+
+---> Mounting file systems
+---> Starting io-hid
+Not updating in init mode when /etc/ca-certificates/extracted already exists.
+---> Starting Screen...
+    5.76s real     0.26s user     0.00s system
+Unable to access /dev/screen/
+   15.03s real     0.04s user     0.00s system
+---> waitfor /dev/screen (full_startup.sh) FAILED!
+---> /dev/screen check failed! NOT STARTING Full Screen Window Manager!!! ...
+---> calling first_startup_checks.sh
+Fontconfig warning: using without calling FcInit()
+screen_create_context: No such file or directory
+---> /dev/screen check failed! NOT STARTING Demolauncher!!! ...
+---> Configuring PAM
+login: Unable to access /dev/screen/
+   15.02s real     0.05s user     0.00s system
+---> waitfor /dev/screen/ failed.
+/system/etc/startup/post_startup.sh[62]: cannot create /dev/screen/command: No such file or directory
+---> Error Screen not available.  Sensor framework will not be started.
+
+To exit QEMU, type <ctrl>a x
+
+[?7hProcess count:28

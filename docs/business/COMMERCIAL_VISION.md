@@ -45,6 +45,12 @@ passport (full host suite green — run `pytest -o addopts=""` for the current c
   with identical semantic summaries. Reference workflows are
   synthetic and labeled;
   no human labor savings are estimated, no pilot claimed.
+- Existing QNX projects get stale-binary detection without rewriting
+  anything: `external-write-manifest` hashes a build directory,
+  `external-check` reports per-binary MATCH/MISMATCH/ABSENT
+  (`examples/external-demo/README.md`, verified 8 Nov 2026 on real
+  qcc output). Imported test verdicts are counted as UNVERIFIED_CLAIM
+  only — they never gate anything and never grant eligibility.
 
 ## 3. Use cases
 
@@ -121,9 +127,9 @@ roadmap, pricing hypotheses, pilot-partner criteria, PMF risks.
 
 ## 7. Adoption obstacles (honest)
 
-- **Prototype maturity:** a 1192-test host suite (7 Nov 2026 SDK-free: 1187 passed + 5 honest skips; with the SDK the 5 SDK-gated tests also run) and a 16-step matrix are strong
+- **Prototype maturity:** a 1293-test host suite (Omega2 SDK-free: 1287 passed + 6 honest skips; with the SDK the 6 SDK-gated tests also run) and a 16-step matrix are strong
   for a hackathon, thin for production. Needs hardening sprints,
-  fuzzing depth (§13), and long-session robustness (§15).
+  fuzzing depth, and long-session robustness.
 - **QNX licensing:** see §9 — customers need their own commercial QNX
   terms; GENESIS RT cannot bundle the OS or toolchain.
 - **No certification story:** the evidence chain helps *prepare*
@@ -176,6 +182,19 @@ retention at scale (retention policy ships; petabyte scale does not).
    target-runner reference deployment, vocabulary extension packs.
 4. **Partner:** QNX partner ecosystem engagement for toolchain/BSP
    coverage and HAM/adaptive-partition features.
+
+Timed overlay (each gate must pass before the next starts):
+
+- **Days 1–30:** hardening sprint (fuzzing depth, long-session
+  robustness) + first pilot-invitation round. Success = suite green
+  on a second host class + one team running the kit.
+- **Days 31–60:** pilot execution + measured review-prep time.
+  Success = `PAIRED_PILOT_LIMITED` or better with published
+  anonymized numbers (never generalized).
+- **Days 61–90:** packaging (target-runner reference deployment,
+  one vocabulary extension pack) + partner conversations.
+  Success = a second pilot team signed or a scoped hardening
+  contract.
 
 ## 11. The pitch (60 seconds, for a QNX engineering lead)
 

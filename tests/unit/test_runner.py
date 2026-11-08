@@ -364,3 +364,53 @@ def test_join_missing_record_times_out_with_clear_reason(cfg, monkeypatch):
     rec = status(cfg, "job-ghost")
     assert rec["status"] == "TIMEOUT"
     assert "record unreadable" in rec["reason"]
+
+
+def _seed_record(cfg, file_id, **over):
+    rec = {"job_id": file_id, "status": "RUNNING",
+           "operation": "native_build", "revision": "0" * 40}
+    rec.update(over)
+    (cfg.jobs_dir / f"job-{file_id}.json").write_text(json.dumps(rec),
+                                                      encoding="utf-8")
+
+
+def test_submit_traversal_job_id_rejected_not_replayed(cfg, head, tmp_path):
+    """Titan P1: a traversal job_id must be rejected, never served a
+    planted record from outside jobs_dir as a forged duplicate."""
+    forged = {"job_id": "x/../../forged", "status": "COMPLETED",
+              "qnx_verified": True}
+    # jobs/job-x/../../forged.json resolves here: outside jobs_dir.
+    (tmp_path / "forged.json").write_text(json.dumps(forged),
+                                          encoding="utf-8")
+    body = _job(head, job_id="x/../../forged")
+    raw = json.dumps(body).encode("utf-8")
+    with pytest.raises(RunnerError):
+        submit(raw, sign_body(raw, TOKEN), config=cfg, token=TOKEN)
+    assert list((tmp_path / "jobs").glob("*.json")) == []
+
+
+def test_store_paths_confined_to_jobs_dir(cfg):
+    store = runner.JobStore(cfg.jobs_dir)
+    for bad in ("../x", "x/../../y", "a/b", "..", "x.json/.tmp"):
+        with pytest.raises(RunnerError):
+            store.get(bad)
+    with pytest.raises(RunnerError):
+        store.put({"job_id": "../evil", "status": "RUNNING"})
+
+
+def test_cancel_traversal_job_id_rejected(cfg):
+    with pytest.raises(RunnerError):
+        cancel(cfg, "x/../../y")
+
+
+def test_cancel_restamps_record_to_lookup_id(cfg):
+    """Titan P1: cancel() must write back to the looked-up id, so a
+    planted record cannot redirect the write elsewhere."""
+    _seed_record(cfg, "job-x", job_id="job-y")
+    rec = cancel(cfg, "job-x")
+    assert rec["job_id"] == "job-x"
+    assert rec["status"] == "CANCELLED"
+    assert not (cfg.jobs_dir / "job-job-y.json").exists()
+    back = json.loads((cfg.jobs_dir / "job-job-x.json").read_text(
+        encoding="utf-8"))
+    assert back["job_id"] == "job-x"

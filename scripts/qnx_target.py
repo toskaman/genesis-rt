@@ -32,6 +32,7 @@ sys.path.insert(0, str(REPO_ROOT / "host"))
 
 from genesis_rt import buildset, codegen, native_oracle, provenance  # noqa: E402
 from genesis_rt.ir import load_ir_file  # noqa: E402
+from genesis_rt.ir_v2 import load_ir_v2_file  # noqa: E402
 from genesis_rt.build_adapter import probe_qemu  # noqa: E402
 
 BOOT_MARKERS = ("QNX", "Neutrino", "qnx", "login:", "Welcome")
@@ -68,12 +69,19 @@ class TargetLock:
 
     The lock file holds ``{"owner": ..., "pid": ...}``. Creation is atomic
     (O_EXCL); a lock whose pid is dead is reclaimed as stale. Only the
-    owning pid may release. Guarantees §14: no two incompatible native
-    campaigns (put/verify/perf/sched) run concurrently.
+    owning pid may release. Guarantees §14: no two target-touching
+    invocations (boot/run/stop/put/verify/perf/sched/identity/probe)
+    run concurrently — a rival either waits for release or fails
+    loudly with TargetBusy, never interleaves. Only probe-image
+    (local) and wait-ssh (TCP wait) run unlocked by design.
+    ``GENESIS_TARGET_LOCK`` overrides the lock path (tests, ops).
     """
 
     def __init__(self, path: Path | None = None, owner: str = "") -> None:
-        self.path = Path(path) if path else DEFAULT_TARGET_LOCK
+        if path is None:
+            path = Path(os.environ.get("GENESIS_TARGET_LOCK",
+                                       str(DEFAULT_TARGET_LOCK)))
+        self.path = Path(path)
         self.owner = owner or f"pid={os.getpid()}"
 
     @staticmethod
@@ -109,8 +117,13 @@ class TargetLock:
         try:
             self.path.unlink()
         except OSError:
-            pass
-        fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            pass  # lost the race; the open below refuses us
+        try:
+            fd = os.open(str(self.path),
+                         os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            raise TargetBusy("lost the stale-lock race; retry the "
+                             "command")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 fh.write(payload)
@@ -148,9 +161,24 @@ def _with_target_lock(func):
             with TargetLock(owner=f"{func.__name__} pid={os.getpid()}"):
                 return func(args)
         except TargetBusy as exc:
-            print(f"target: {exc}; one native campaign at a time")
+            print(f"target: {exc}; one native campaign at a time "
+                  f"(see `lock-status`)")
             return 2
     return wrapper
+
+
+def _stage_entries(files: list[Path]) -> dict:
+    """Per-file sha256 + POSIX cksum + size, keyed by basename."""
+    entries = {}
+    for src in files:
+        blob = Path(src).read_bytes()
+        crc, size = provenance.cksum_posix(blob)
+        entries[Path(src).name] = {
+            "sha256": hashlib.sha256(blob).hexdigest(),
+            "cksum": crc,
+            "size": size,
+        }
+    return entries
 
 
 def write_stage_manifest(path: str | Path, dest: str,
@@ -161,16 +189,8 @@ def write_stage_manifest(path: str | Path, dest: str,
     an interrupted staging never leaves a manifest claiming more than
     reached the target.
     """
-    entries = {}
-    for src in files:
-        blob = Path(src).read_bytes()
-        crc, size = provenance.cksum_posix(blob)
-        entries[Path(src).name] = {
-            "sha256": hashlib.sha256(blob).hexdigest(),
-            "cksum": crc,
-            "size": size,
-        }
-    manifest = {"dest": dest, "created_utc": _utcnow(), "files": entries}
+    manifest = {"dest": dest, "created_utc": _utcnow(),
+                "files": _stage_entries(files)}
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(out.suffix + ".tmp")
@@ -331,6 +351,7 @@ def _qmp_screendump(port: int, path: Path) -> str:
         sock.close()
 
 
+@_with_target_lock
 def cmd_boot(args: argparse.Namespace) -> int:
     qemu = probe_qemu()
     if not qemu["present"]:
@@ -487,6 +508,7 @@ def _wait_pid_gone(pid: int, budget_s: float) -> bool:
     return _pid_is_gone(pid)
 
 
+@_with_target_lock
 def cmd_stop(args: argparse.Namespace) -> int:
     """Stop the QEMU instance recorded in output/qemu.pid (bounded, verified).
 
@@ -560,6 +582,9 @@ def _ssh_client(port: int, user: str, password: str, timeout: int = 30,
     cooled_down = False
     for attempt in range(1, retries + 1):
         client = paramiko.SSHClient()
+        # Titan F6: AutoAdd is scoped to loopback only (connect() pins
+        # 127.0.0.1 below). Any off-loopback use MUST switch to a pinned
+        # known_hosts policy first.
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
             client.connect("127.0.0.1", port=port, username=user,
@@ -569,6 +594,10 @@ def _ssh_client(port: int, user: str, password: str, timeout: int = 30,
             return client
         except Exception as exc:  # noqa: BLE001
             last = exc
+            try:
+                client.close()
+            except Exception:
+                pass  # M8: never leak a half-open transport on retry
             print(f"ssh: attempt {attempt}/{retries} failed: "
                   f"{type(exc).__name__}: {exc}")
             if attempt >= retries:
@@ -600,6 +629,7 @@ def cmd_wait_ssh(args: argparse.Namespace) -> int:
     return 1
 
 
+@_with_target_lock
 def cmd_run(args: argparse.Namespace) -> int:
     import os
     password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
@@ -683,8 +713,8 @@ TARGET_MATRIX = [
      " slay genesis_guard_conv 2>/dev/null; slay genesis_controller 2>/dev/null;"
      " slay genesis_device 2>/dev/null; sudo -n slay genesis_status 2>/dev/null; sleep 1;"
      " rm -f device.log guard-dc.log ctrl-dc.log;"
-     " ./genesis_device > device.log 2>&1 &"
-     " ./genesis_guard > guard-dc.log 2>&1 & GUARDPID=$!; sleep 2;"
+     " ./genesis_guard > guard-dc.log 2>&1 & GUARDPID=$!;"
+     " ./genesis_device --guard-pid $GUARDPID > device.log 2>&1 & sleep 2;"
      " sudo -n ./genesis_status /tmp/genesis-status-node > status-dc.log 2>&1 & sleep 1;"
      " ./genesis_controller 50 > ctrl-dc.log 2>&1 & sleep 4;"
      " echo ---CHAIN-STATUS---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
@@ -702,8 +732,8 @@ TARGET_MATRIX = [
      " slay genesis_device 2>/dev/null; sudo -n slay genesis_status 2>/dev/null; sleep 1;"
      " rm -f device-conv.log guard-cc.log ctrl-cc.log;"
      " test -x ./genesis_guard_conv || { echo MISSING_CONV_GUARD; exit 3; };"
-     " ./genesis_device belt > device-conv.log 2>&1 &"
-     " ./genesis_guard_conv > guard-cc.log 2>&1 & GUARDPID=$!; sleep 2;"
+     " ./genesis_guard_conv > guard-cc.log 2>&1 & GUARDPID=$!;"
+     " ./genesis_device belt --guard-pid $GUARDPID > device-conv.log 2>&1 & sleep 2;"
      " sudo -n ./genesis_status /tmp/genesis-status-node > status-cc.log 2>&1 & sleep 1;"
      " ./genesis_controller 50 > ctrl-cc.log 2>&1 & sleep 4;"
      " echo ---CHAIN-STATUS---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
@@ -719,10 +749,14 @@ TARGET_MATRIX = [
      "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
      " sudo -n slay genesis_status 2>/dev/null; sleep 1;"
      " rm -f guard-estop.log;"
-     " ./genesis_guard > guard-estop.log 2>&1 & sleep 2;"
+     " ./genesis_guard > guard-estop.log 2>&1 & GPID=$!; sleep 2;"
      " sudo -n ./genesis_status /tmp/genesis-status-node > status-estop.log 2>&1 & sleep 1;"
      " echo ---ESTOP-PROBE---; ./genesis_faultinject probe estop;"
      " echo ---STATUS-ESTOP---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?;"
+     " echo ---OPERATOR-RESET---; kill -s USR1 $GPID; sleep 1;"
+     " echo ---RESET-PROBE---; ./genesis_faultinject probe state 0 2;"
+     " ./genesis_faultinject probe 0.4 3;"
+     " grep 'operator reset armed' guard-estop.log;"
      " slay genesis_guard; sudo -n slay genesis_status"),
     ("target_perf",
      "cd /tmp/genesis; slay genesis_guard 2>/dev/null; sleep 1;"
@@ -743,6 +777,11 @@ TARGET_MATRIX = [
      " slay genesis_device; sleep 6;"
      " pidin -F %n 2>/dev/null | grep -c genesis;"
      " grep -c RESPAWN sup.log;"
+     " echo PRE_APPLIES=$(grep -c APPLY sup-device.log);"
+     " slay genesis_guard; sleep 10;"
+     " echo REBIND_COUNT=$(grep -c REBIND sup.log);"
+     " echo POST_APPLIES=$(grep -c APPLY sup-device.log);"
+     " echo SETTLED=$(pidin -F %n 2>/dev/null | grep -c genesis);"
      " echo ---SUP-LOG---; cat sup.log;"
      " slay genesis_supervisor; slay genesis_guard;"
      " slay genesis_controller; slay genesis_device"),
@@ -766,15 +805,17 @@ TARGET_MATRIX = [
      # v2 ALLOWs state 3 where v1 DENYs it (B). Suite/limit/estop pin
      # F-on-v2-binary, A and D natively.
      "cd /tmp/genesis; slay genesis_guard 2>/dev/null;"
-     " slay genesis_guard_v2 2>/dev/null; sleep 1;"
+     " slay genesis_guard_v1 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
+     " sleep 1;"
      " test -x ./genesis_guard_v2 || { echo MISSING_V2_GUARD; exit 3; };"
      " cmp -s ./genesis_guard ./genesis_guard_v2 && echo SAME_BIN || echo DIFF_BIN;"
-     " ./genesis_guard > guard-v1s2.log 2>&1 & sleep 2;"
+     " V1BIN=./genesis_guard; test -x ./genesis_guard_v1 && V1BIN=./genesis_guard_v1;"
+     " $V1BIN > guard-v1s2.log 2>&1 & sleep 2;"
      " echo ---V1-STATE2---; ./genesis_faultinject probe state 2;"
-     " slay genesis_guard 2>/dev/null; sleep 1;"
-     " ./genesis_guard > guard-v1s3.log 2>&1 & sleep 2;"
+     " slay genesis_guard 2>/dev/null; slay genesis_guard_v1 2>/dev/null; sleep 1;"
+     " $V1BIN > guard-v1s3.log 2>&1 & sleep 2;"
      " echo ---V1-STATE3---; ./genesis_faultinject probe state 3;"
-     " slay genesis_guard 2>/dev/null; sleep 1;"
+     " slay genesis_guard 2>/dev/null; slay genesis_guard_v1 2>/dev/null; sleep 1;"
      " ./genesis_guard_v2 > guard-v2s2.log 2>&1 & sleep 2;"
      " echo ---V2-STATE2---; ./genesis_faultinject probe state 2;"
      " slay genesis_guard_v2 2>/dev/null; slay genesis_guard 2>/dev/null; sleep 1;"
@@ -804,8 +845,8 @@ TARGET_MATRIX = [
      " slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
      " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1;"
      " rm -f device-ccx.log guard-ccx.log ctrl-ccx.log;"
-     " ./genesis_device > device-ccx.log 2>&1 &"
-     " ./genesis_guard > guard-ccx.log 2>&1 & GPID=$!; sleep 2;"
+     " ./genesis_guard > guard-ccx.log 2>&1 & GPID=$!;"
+     " ./genesis_device --guard-pid $GPID > device-ccx.log 2>&1 & sleep 2;"
      " ./genesis_controller 50 > ctrl-ccx.log 2>&1 & sleep 4;"
      " echo BEFORE=$(grep -c APPLY device-ccx.log);"
      " echo GBEFORE=$(grep -c decision guard-ccx.log);"
@@ -826,8 +867,8 @@ TARGET_MATRIX = [
      " slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
      " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1;"
      " rm -f device-dcx.log guard-dcx.log ctrl-dcx.log;"
-     " ./genesis_device > device-dcx.log 2>&1 &"
-     " ./genesis_guard > guard-dcx.log 2>&1 & GPID=$!; sleep 2;"
+     " ./genesis_guard > guard-dcx.log 2>&1 & GPID=$!;"
+     " ./genesis_device --guard-pid $GPID > device-dcx.log 2>&1 & sleep 2;"
      " ./genesis_controller 50 > ctrl-dcx.log 2>&1 & sleep 4;"
      " echo BEFORE=$(grep -c APPLY device-dcx.log);"
      " echo GBEFORE=$(grep -c decision guard-dcx.log);"
@@ -849,8 +890,8 @@ TARGET_MATRIX = [
      " slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null;"
      " slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1;"
      " rm -f device-gc.log guard-gc.log ctrl-gc.log;"
-     " ./genesis_device > device-gc.log 2>&1 &"
-     " ./genesis_guard > guard-gc.log 2>&1 & GPID=$!; sleep 2;"
+     " ./genesis_guard > guard-gc.log 2>&1 & GPID=$!;"
+     " ./genesis_device --guard-pid $GPID > device-gc.log 2>&1 & sleep 2;"
      " ./genesis_controller 50 > ctrl-gc.log 2>&1 & sleep 4;"
      " echo BEFORE=$(grep -c APPLY device-gc.log);"
      " slay -9 genesis_guard; sleep 3;"
@@ -1040,12 +1081,26 @@ def _matrix_check(name: str, body: str, status: int,
               and _num(r"NONGUARD=(\d+)", int, -1) == 0)
     elif name == "estop_target":
         # Guard-level estop observed natively: the probe verdict plus
-        # the latched safe-stop state in live telemetry.
+        # the latched safe-stop state in live telemetry, then the
+        # operator-reset wire (SIGUSR1 arms the one-shot latch and a
+        # fresh-seq nominal probe ALLOWs out of SAFE_STOP). v2 has no
+        # safe_stop->running edge, so the reset must first take the
+        # declared safe_stop->init transition (state=0 ALLOW).
+        reset_tail = body.split("---RESET-PROBE---", 1)
+        reset_ok = (len(reset_tail) == 2
+                    and "decision=ALLOW reason=OK" in reset_tail[1])
+        v2_reset_ok = (
+            reset_ok and "PROBE state=0 decision=ALLOW reason=OK"
+            in reset_tail[1])
+        want_v2 = (bound is not None
+                   and bound.get("schema_version") == 2)
         ok = ("STATUS_EXIT=0" in body
               and "decision=DENY reason=ESTOP" in body
               and "estop=1" in body
               and "state=3 " in body
-              and "last_reason=ESTOP" in body)
+              and "last_reason=ESTOP" in body
+              and "operator reset armed (SIGUSR1)" in body
+              and (v2_reset_ok if want_v2 else reset_ok))
     elif name == "target_perf":
         # Bench shape only (no timing thresholds: informational tier).
         # Full distributions come from `perf --samples N`.
@@ -1063,6 +1118,16 @@ def _matrix_check(name: str, body: str, status: int,
         digits = [line.strip() for line in body.splitlines() if line.strip().isdigit()]
         # set back to 4 after respawn, >=1 RESPAWN marker in sup.log
         ok = len(digits) >= 2 and digits[0] == "4" and int(digits[1]) >= 1
+        # guard kill then rebinds the device (REBIND>=1), the set
+        # settles back to 4, and fresh applies land afterwards.
+        m_pre = re.search(r"PRE_APPLIES=(\d+)", body)
+        m_post = re.search(r"POST_APPLIES=(\d+)", body)
+        m_rebind = re.search(r"REBIND_COUNT=(\d+)", body)
+        m_settled = re.search(r"SETTLED=(\d+)", body)
+        ok = ok and all((m_pre, m_post, m_rebind, m_settled)) \
+            and int(m_rebind.group(1)) >= 1 \
+            and m_settled.group(1) == "4" \
+            and int(m_post.group(1)) > int(m_pre.group(1))
     elif name == "supervisor_giveup":
         digits = [line.strip() for line in body.splitlines() if line.strip().isdigit()]
         # set halted (0 genesis processes), >=1 GIVE_UP marker in sup2.log
@@ -1083,7 +1148,14 @@ def _matrix_check(name: str, body: str, status: int,
         idx = [body.find(t) for t in tags]
         ordered = all(a != -1 and a < b for a, b in zip(idx, idx[1:]))
         secs = [body[i:j] for i, j in zip(idx, idx[1:] + [len(body)])]
-        ok = (ordered and "DIFF_BIN" in body and "SAME_BIN" not in body
+        # v1 ops stage v1+v2 (DIFF_BIN); v2 ops stage v2 twice with
+        # the v1 guard aside (SAME_BIN) since slot-1 itself is v2.
+        want_v2 = (bound is not None
+                   and bound.get("schema_version") == 2)
+        bins_ok = (("SAME_BIN" in body and "DIFF_BIN" not in body)
+                   if want_v2 else
+                   ("DIFF_BIN" in body and "SAME_BIN" not in body))
+        ok = (ordered and bins_ok
               and "MISSING_V2_GUARD" not in body and "FI_V2_EXIT=0" in body
               and secs[4].count("PASS ") >= 9
               and all(w in s for w, s in zip(wants, secs)))
@@ -1221,16 +1293,36 @@ def _fetch_staged(client, dest: str = "/tmp/genesis") -> tuple[dict | None, str 
     return staged, None
 
 
+def _verify_exit_code(all_ok: bool, fatal_errors: list) -> int:
+    """Exit status for `verify`: 0 only when the matrix passed AND
+    provenance is intact. Fatal errors (unknown identity, unreadable
+    staging, unloadable build-set) fail the run even with a green
+    matrix; absent --ir/--build-set only cap the tier (soft)."""
+    return 0 if (all_ok and not fatal_errors) else 1
+
+
 def _ir_binding(ir_path: str | None) -> dict | None:
     """{machine_id, ir_sha256} the operator binds this run to, or None
     when unattested (the gate then caps the tier — never silently)."""
     if not ir_path:
         return None
     # Same loader as the pipeline (validate+normalize): the digest must
-    # match the codegen manifest, not the raw file bytes.
-    data = load_ir_file(ir_path)
+    # match the codegen manifest, not the raw file bytes. v2 IRs carry
+    # extra top-level keys the v1 loader rejects, so dispatch on the
+    # declared schema version exactly like `genesis-rt generate`.
+    version = None
+    if Path(ir_path).suffix.lower() not in (".yaml", ".yml"):
+        try:
+            raw = json.loads(Path(ir_path).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raw = None
+        if isinstance(raw, dict):
+            version = raw.get("schema_version")
+    data = (load_ir_v2_file(ir_path) if version == 2
+            else load_ir_file(ir_path))
     return {"machine_id": data["machine"]["id"],
             "machine_kind": data["machine"]["kind"],
+            "schema_version": version or data.get("schema_version") or 1,
             "ir_sha256": codegen.ir_sha256(data),
             "linear_limit_mps": float(
                 data["control"]["max_linear_speed_mps"])}
@@ -1497,6 +1589,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     all_ok = True
     started = _utcnow()
     prov_errors: list[str] = []
+    fatal_errors: list[str] = []
     try:
         for name, command in TARGET_MATRIX:
             if name == "limits_differ":
@@ -1521,15 +1614,18 @@ def cmd_verify(args: argparse.Namespace) -> int:
         uname, uname_err = _fetch_uname(client)
         if uname_err:
             prov_errors.append(uname_err)
+            fatal_errors.append(uname_err)
         staged, staged_err = _fetch_staged(client)
         if staged_err:
             prov_errors.append(staged_err)
+            fatal_errors.append(staged_err)
         manifest_errors: list[str] = []
         if manifest is not None and not staged_err:
             manifest_errors = check_staged_against_manifest(staged, manifest)
             for problem in manifest_errors:
                 print(f"verify: STALE/MISMATCHED — {problem}")
                 prov_errors.append(problem)
+                fatal_errors.append(problem)
             if manifest_errors:
                 all_ok = False  # wrong binary ran: never a PASS
     finally:
@@ -1537,6 +1633,10 @@ def cmd_verify(args: argparse.Namespace) -> int:
     finished = _utcnow()
     if bs_err:
         prov_errors.append(bs_err)
+        if getattr(args, "build_set", None):
+            # Explicitly requested provenance that cannot load fails
+            # the run; an absent --build-set only caps the tier.
+            fatal_errors.append(bs_err)
     transcripts = {}
     for name, _command in TARGET_MATRIX:
         log = out_dir / f"target-{name}.log"
@@ -1572,7 +1672,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     if prov_errors:
         print(f"provenance: {'BOUND' if verified else 'UNBOUND'} "
               f"({'; '.join(prov_errors)})")
-    return 0 if all_ok else 1
+    return _verify_exit_code(all_ok, fatal_errors)
 
 
 @_with_target_lock
@@ -1602,15 +1702,30 @@ def cmd_put(args: argparse.Namespace) -> int:
             sftp.chmod(dst, 0o755)
             print(f"put: {src} -> {dst}")
         if getattr(args, "manifest_out", None):
+            staged, staged_err = _fetch_staged(client, args.dest)
+            if staged is None:
+                print(f"put: REFUSED — cannot read back staging: "
+                      f"{staged_err}; no manifest written")
+                return 2
+            errors = check_staged_against_manifest(
+                staged, {"files": _stage_entries(
+                    [Path(s) for s in args.src])})
+            if errors:
+                print("put: REFUSED — target staging differs from "
+                      "local bytes; no manifest written:")
+                for err in errors:
+                    print(f"put:   {err}")
+                return 2
             manifest = write_stage_manifest(
                 args.manifest_out, args.dest, [Path(s) for s in args.src])
-            print(f"put: manifest ({len(manifest['files'])} files) -> "
-                  f"{args.manifest_out}")
+            print(f"put: manifest ({len(manifest['files'])} files, "
+                  f"read-back verified) -> {args.manifest_out}")
         return 0
     finally:
         client.close()
 
 
+@_with_target_lock
 def cmd_identity(args: argparse.Namespace) -> int:
     """Inspect target identity: uname + staged-binary cksum inventory."""
     import os
@@ -1638,6 +1753,54 @@ def cmd_identity(args: argparse.Namespace) -> int:
     return 0 if uname else 1
 
 
+@_with_target_lock
+def cmd_probe(args: argparse.Namespace) -> int:
+    """Non-destructive auth probe: connect + fixed `uname -a`, nothing else.
+
+    THE command for "is the target reachable / are my credentials
+    right". Unlike `run`, the remote command is fixed and read-only,
+    so retry loops can never re-execute a destructive string (the
+    8-Nov campaign wipe came from a retried `run 'rm -rf ...'`).
+    """
+    import os
+    password = os.environ.get("GENESIS_TARGET_PASSWORD", args.password or "")
+    try:
+        client = _ssh_client(args.ssh_port, args.user, password)
+    except Exception as exc:
+        print(f"ssh: connect/auth failed: {type(exc).__name__}: {exc}")
+        return 2
+    try:
+        uname, err = _fetch_uname(client)
+    finally:
+        client.close()
+    if uname:
+        print(f"probe: auth OK: {uname}")
+        return 0
+    print(f"probe: authenticated but uname failed: {err}")
+    return 1
+
+
+def cmd_lock_status(args: argparse.Namespace) -> int:
+    """Inspect the campaign lock without acquiring it (never blocks)."""
+    path = Path(os.environ.get("GENESIS_TARGET_LOCK",
+                               str(DEFAULT_TARGET_LOCK)))
+    info: dict = {"path": str(path), "held": False, "owner": None,
+                  "pid": None, "pid_alive": False}
+    try:
+        holder = json.loads(path.read_text(encoding="utf-8"))
+        pid = int(holder.get("pid", -1))
+    except (OSError, ValueError):
+        print(json.dumps(info, indent=2, sort_keys=True))
+        return 0
+    info.update(held=True, owner=holder.get("owner"),
+                pid=pid, pid_alive=TargetLock._pid_alive(pid))
+    if pid > 0 and not info["pid_alive"]:
+        info["note"] = ("stale (holder dead); next command reclaims it "
+                        "automatically")
+    print(json.dumps(info, indent=2, sort_keys=True))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="QNX QSTI image probe + QEMU boot")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -1661,7 +1824,10 @@ def main() -> int:
     st = sub.add_parser("stop", help="stop the QEMU instance in output/qemu.pid")
     st.add_argument("image_dir")
     st.set_defaults(func=cmd_stop)
-    r = sub.add_parser("run", help="run commands on target over SSH (paramiko)")
+    r = sub.add_parser("run", help="run commands on target over SSH "
+                                     "(paramiko; serialized by the "
+                                     "campaign lock; retries re-execute — "
+                                     "use `probe` for auth checks)")
     r.add_argument("--ssh-port", type=int, default=2222)
     r.add_argument("--user", default="root")
     r.add_argument("--password", default=None,
@@ -1690,6 +1856,16 @@ def main() -> int:
     i.add_argument("--dest", default="/tmp/genesis")
     i.add_argument("--out", default=None)
     i.set_defaults(func=cmd_identity)
+    pb = sub.add_parser("probe", help="non-destructive auth probe "
+                                      "(connect + fixed uname -a)")
+    pb.add_argument("--ssh-port", type=int, default=2222)
+    pb.add_argument("--user", default="qnxuser")
+    pb.add_argument("--password", default=None,
+                    help="prefer GENESIS_TARGET_PASSWORD env var")
+    pb.set_defaults(func=cmd_probe)
+    ls = sub.add_parser("lock-status", help="inspect the campaign lock "
+                                            "without acquiring it")
+    ls.set_defaults(func=cmd_lock_status)
     v = sub.add_parser("verify", help="run the on-target verification matrix over SSH")
     v.add_argument("--ssh-port", type=int, default=2222)
     v.add_argument("--user", default="qnxuser")

@@ -5,10 +5,13 @@ complete package a team needs to run a fair before/after evaluation.
 No participants, testimonials, or savings figures exist — anything
 added later must cite its dated raw data.
 
-Companion files: `pilot-consent.md` (consent + confidentiality),
+Companion files: `pilot-onboarding.md` (5-min start + recording
+procedure), `pilot-consent.md` (consent + confidentiality),
 `buyer-interview.md` (30-min interview guide),
-`decision-maker-survey.md` (post-pilot survey), and
-`bench/productivity/analyze_pilot.py` (results aggregation).
+`decision-maker-survey.md` (post-pilot survey),
+`bench/productivity/pilot_timer.py` (session timer + lane-order
+randomization), and `bench/productivity/analyze_pilot.py` (results
+aggregation + CSV export).
 
 ## 1. What the pilot measures
 
@@ -47,8 +50,11 @@ performed by a human in each lane:
    tight-limit IR, apply the provided fix, confirm green.
 
 Reference lane = the team's current practice (their editors,
-scripts, CI). Genesis lane = this repo's CLI/Studio. Task order
-is randomized per operator (coin flip: genesis-first or ref-first).
+scripts, CI). Genesis lane = this repo's CLI/Studio. Lane order
+is randomized per operator (`pilot_timer.py --team T1 --plan
+--seed <n> --plan-out session-T1.json`; the seed replays the
+order — a coin flip is an acceptable substitute, noted in the
+session file).
 
 ## 3. Baseline measurement template (reference lane)
 
@@ -80,6 +86,30 @@ passport_sha256: <first 16 hex>
 gate_verdict:    <PASS/FAIL>   level: <…>   qnx_verified: <true/false>
 replay_result:   <PASS/FAIL + command used>
 ```
+
+## 4.1 Machine record format (v2) + validity ladder
+
+`bench/productivity/pilot_timer.py` converts §§3–4 answers into one
+JSON line per (team, task, lane) for `analyze_pilot.py`. Required
+machine fields beyond §§3–4: `team` (anonymous id; `OWNER*` =
+owner-operated), `operator_kind` (owner/participant),
+`started_utc`/`finished_utc` (ISO with timezone, ordered),
+`abandoned` (true = attempted but not finished; counted separately,
+never a completion), `consent` (participant rows require true —
+declining records nothing).
+
+A comparison is valid only over **paired** tasks: the same team
+completing the same task in **both** lanes. The analyzer reports:
+
+- `NO_HUMAN_DATA` — no rows at all (current state: no pilot run yet).
+- `OWNER_ONLY_EXPLORATORY` — owner rows only; never independent proof.
+- `INCOMPLETE_PAIRED_DATA` — participants exist but nothing is paired
+  (e.g. two teams that each ran one lane).
+- `PAIRED_PILOT_LIMITED` — some paired tasks, below the bar.
+- `INDEPENDENT_PILOT_COMPLETE` — ≥2 participant teams with all six
+  tasks paired.
+- `generalization: INSUFFICIENT_FOR_GENERALIZATION` — always: a pilot
+  sizes a future study, it never generalizes.
 
 ## 5. Feedback survey (5 min, after both lanes)
 

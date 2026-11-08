@@ -4,9 +4,17 @@
  * genesis_device: SIMULATED actuator/sensor endpoint.
  * Receives ONLY guard-forwarded validated commands (GENESIS_FWD_MAGIC)
  * over native message passing, integrates virtual pose, and serves
- * state queries. The controller never talks to this process (no-bypass
- * is enforced by construction and audited: every applied command logs
- * its sender pid). No physical motor support by design (simulation).
+ * state queries. No-bypass is enforced by sender pid pinning: the
+ * supervisor (or matrix step) passes the guard pid via --guard-pid
+ * and the channel is pre-pinned before the first receive, closing
+ * the first-forward race entirely (Omega2 §3.2). Without the flag
+ * the legacy first-sender pin applies (loudly logged) for manual
+ * runs. Residuals: pid reuse after guard death (supervisor
+ * restarts the device alongside the guard, shrinking the window
+ * to the death-to-rebind gap); a manually started device paired
+ * with an independently restarted guard desyncs loudly (REJECT
+ * lines) until the pair is restarted together. Every apply logs
+ * its sender pid for audit. No physical motor support by design.
  */
 #include <stdio.h>
 #include <string.h>
@@ -15,6 +23,7 @@
 
 #ifdef __QNXNTO__
 #include <errno.h>
+#include <stdlib.h>
 #include <sys/dispatch.h>
 #include <sys/neutrino.h>
 #include <time.h>
@@ -27,10 +36,20 @@ static uint64_t mono_ms(void) {
 }
 
 int main(int argc, char **argv) {
-    int belt_mode = argc > 1 && strcmp(argv[1], "belt") == 0;
-    if (argc > 1 && !belt_mode) {
-        fprintf(stderr, "device: usage: genesis_device [belt]\n");
-        return 2;
+    int belt_mode = 0;
+    pid_t expect_pid = 0;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "belt") == 0) {
+            belt_mode = 1;
+        } else if (strcmp(argv[i], "--guard-pid") == 0 && i + 1 < argc) {
+            long v = strtol(argv[++i], NULL, 10);
+            if (v > 0)
+                expect_pid = (pid_t)v;
+        } else {
+            fprintf(stderr, "device: usage: "
+                            "genesis_device [belt] [--guard-pid N]\n");
+            return 2;
+        }
     }
     name_attach_t *attach =
         name_attach(NULL, GENESIS_DEVICE_ATTACH_NAME, NAME_FLAG_ATTACH_GLOBAL);
@@ -47,6 +66,12 @@ int main(int argc, char **argv) {
     fflush(stdout);
 
     uint8_t buf[64];
+    pid_t fwd_pid = expect_pid; /* pre-pinned, or first valid forward */
+    if (fwd_pid > 0) {
+        printf("device: forward channel pre-pinned to pid=%d "
+               "(supervisor-established, no race window)\n", fwd_pid);
+        fflush(stdout);
+    }
     for (;;) {
         struct _msg_info info;
         memset(buf, 0, sizeof buf);
@@ -64,6 +89,19 @@ int main(int argc, char **argv) {
         if (msglen == sizeof(genesis_fwd_t) &&
             ((genesis_fwd_t *)buf)->magic == GENESIS_FWD_MAGIC &&
             ((genesis_fwd_t *)buf)->version == GENESIS_FWD_VERSION) {
+            if (fwd_pid == 0) {
+                fwd_pid = info.pid;
+                printf("device: forward channel pinned to pid=%d "
+                       "(first-sender fallback, no --guard-pid)\n",
+                       fwd_pid);
+                fflush(stdout);
+            }
+            if (info.pid != fwd_pid) {
+                fprintf(stderr, "device: REJECT fwd from_pid=%d (pinned=%d)\n",
+                        info.pid, fwd_pid);
+                MsgError(rcvid, EPERM);
+                continue;
+            }
             genesis_fwd_t *fwd = (genesis_fwd_t *)buf;
             genesis_fwd_ack_t ack;
             memset(&ack, 0, sizeof ack);

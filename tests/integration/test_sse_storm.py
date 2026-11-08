@@ -9,7 +9,6 @@ must leave no stray worker threads behind.
 """
 from __future__ import annotations
 
-import json
 import threading
 import time
 

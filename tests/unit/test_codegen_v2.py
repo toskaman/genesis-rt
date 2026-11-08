@@ -2,12 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit tests: v2 machine-specific C generation (snapshot + differentiation)."""
 import copy
-import json
 
 import pytest
 
 from genesis_rt.codegen_v2 import c_ident, generate_v2
-from genesis_rt.ir import canonical_json
+from genesis_rt.ir import IRValidationError, canonical_json
 from genesis_rt.ir_v2 import load_ir_v2_file, validate_v2
 
 SNAP_DIR = "tests/snapshots/codegen_v2"
@@ -103,7 +102,6 @@ def test_c_ident_collision_fails_loud(amr_v2, tmp_path):
 
 
 def test_v2_makefile_links_machine_module(amr_v2, tmp_path):
-    from genesis_rt import codegen as codegen_v1
     generate_v2(amr_v2, tmp_path / "v2")
     mk = (tmp_path / "v2" / "genesis_build_gen.mk").read_text(encoding="utf-8")
     assert "./genesis_machine_gen.c" in mk
@@ -131,7 +129,7 @@ def test_c_ident_shape():
 
 
 def test_rejects_unvalidated_input(tmp_path):
-    with pytest.raises(Exception):
+    with pytest.raises(IRValidationError, match="missing required key"):
         generate_v2({"schema_version": 2}, tmp_path)
 
 

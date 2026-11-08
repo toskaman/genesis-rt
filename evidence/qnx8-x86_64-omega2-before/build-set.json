@@ -1,0 +1,56 @@
+{
+  "build_set_version": 1,
+  "entries": {
+    "genesis_cellcheck": {
+      "build_id": "484a1105f483359c2c8c9e679b19c19373ed683ea094b77286e187326b5b54d3",
+      "built_utc": "2026-11-08T13:05:02+00:00",
+      "cksum": 2493234439,
+      "generator_version": "0.1.0",
+      "ir_sha256": "73e52055d0173770bf904470f2fa565d95a198495ea386ad526366976776ff9b",
+      "machine_id": "cell-demo-01",
+      "machine_kind": "industrial_cell",
+      "schema_version": 1,
+      "sha256": "4b3836ec592c22d3c69440d8ab6fdf5a3130e49474d777416c55b168c8cc442b",
+      "size": 13584,
+      "source_binary": "genesis_cellcheck",
+      "source_passport_head": "8d2fd9a197698bb2d7947132617486ec48a12c7431a94ceabe30be2368afc2c2",
+      "source_run_id": "op-ca0ca1d8edd6",
+      "staged_name": "genesis_cellcheck",
+      "toolchain": "cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.0,gcc_ntox86_64_cxx\n\t12.2.0,gcc_ntox86_64_gpp\n"
+    },
+    "genesis_guard_conv": {
+      "build_id": "0e36413550502e1e24b42bc43c8fa9891a2a5777f6c8f357fea17cc56112bf7f",
+      "built_utc": "2026-11-08T13:04:47+00:00",
+      "cksum": 1382050487,
+      "generator_version": "0.1.0",
+      "ir_sha256": "abce9deabbfbd4a264e058e04a2e63dcb8bb3c38e48de31d50ef0397309ec6bd",
+      "machine_id": "conveyor-demo-01",
+      "machine_kind": "conveyor",
+      "schema_version": 1,
+      "sha256": "82455e46410d46275e869aeded5f2fa39267c62614fcde109464742fc93a0f57",
+      "size": 14592,
+      "source_binary": "genesis_guard",
+      "source_passport_head": "cceaa0d8a3d633a14a6fb6030fed3c558826337f35b338c1cd1cf1bbec05c5a1",
+      "source_run_id": "op-8c770693e16f",
+      "staged_name": "genesis_guard_conv",
+      "toolchain": "cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.0,gcc_ntox86_64_cxx\n\t12.2.0,gcc_ntox86_64_gpp\n"
+    },
+    "genesis_guard_v2": {
+      "build_id": "c38954bf74a1c336a023946eb10eeed420f72dd8dd90842b172cf9f2e8a62f4e",
+      "built_utc": "2026-11-08T13:07:28+00:00",
+      "cksum": 1949530894,
+      "generator_version": "0.1.0",
+      "ir_sha256": "5639d986d258062fcad450260723a04d9de2b4c5432ddef516e81bffefdbe70f",
+      "machine_id": "amr-demo-01",
+      "machine_kind": "differential_drive_robot",
+      "schema_version": 2,
+      "sha256": "adb275b6f27a0d84abbcf9e332d58e43d6eca8b2cd2cda6969e309b296284e09",
+      "size": 19464,
+      "source_binary": "genesis_guard",
+      "source_passport_head": "a78f1cfdd7ca9ee36ae4a1a98b56c1274f8c47c496f2fa40013cf9b055aec688",
+      "source_run_id": "op-8ac1391676d6",
+      "staged_name": "genesis_guard_v2",
+      "toolchain": "cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.0,gcc_ntox86_64_cxx\n\t12.2.0,gcc_ntox86_64_gpp\n"
+    }
+  }
+}

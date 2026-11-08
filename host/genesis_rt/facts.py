@@ -8,16 +8,18 @@ historical reports keep their own dated numbers.
 """
 from .provenance import EXPECTED_TARGET_CHECKS, TARGET_PLATFORM
 
-# TESTS_WITH_SDK is the collected total: with the QNX SDK every test runs
-# (0 skips). Guarded by test_total_count_matches_collected.
-TESTS_WITH_SDK = 1192
-TESTS_SDK_FREE_PASSED = 1187
-TESTS_MEASURED_ON = "2026-11-07 TITAN wave (SDK-free, Linux, Python 3.13)"
-TESTS_SDK_FREE_SKIPS = 5
+# TESTS_WITH_SDK is the collected total. Skips are environment-dependent,
+# never zero by assumption: SDK-only tests skip without the SDK, and the
+# 2 axe-core scans skip without node_modules/axe-core. Guarded by
+# test_total_count_matches_collected.
+TESTS_WITH_SDK = 1293
+TESTS_SDK_FREE_PASSED = 1287
+TESTS_MEASURED_ON = "2026-11-08 TITAN Ascension (SDK-free, Linux, Python 3.12)"
+TESTS_SDK_FREE_SKIPS = 6
 ADVERSARIAL_TESTS = 24
 PLANNING_EVAL_CASES = 28
 QCC_VERSION = "12.2.0"
-E2E_BROWSER_TESTS = 30
+E2E_BROWSER_TESTS = 31
 VIDEO_FILE = "docs/demo/genesis-rt-demo-w12.mp4"
 VIDEO_DURATION_S = 154.664
 PACK_BEFORE = "evidence/qnx8-x86_64-w11-before"

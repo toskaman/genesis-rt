@@ -19,6 +19,8 @@ artifacts/target-*/
 artifacts/perf-*/
 artifacts/qemu-boot/
 artifacts/qemu-boot-*/
+artifacts/campaign-*/
+artifacts/.target.lock
 artifacts/gen-*/
 artifacts/stage/
 artifacts/studio/

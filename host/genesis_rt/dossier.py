@@ -58,6 +58,11 @@ def _lf(data: bytes) -> bytes:
     return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
 
 
+_SECRET_VALUE_RE = re.compile(
+    r"(?i)\b(password|passwd|secret|api[_-]?key|auth[_-]?token|token|"
+    r"bearer)\b\s*[:=]\s*\S+")
+
+
 def _redact(obj: Any, path: str, redacted: list[str]) -> Any:
     if isinstance(obj, dict):
         out: dict[str, Any] = {}
@@ -72,6 +77,44 @@ def _redact(obj: Any, path: str, redacted: list[str]) -> Any:
     if isinstance(obj, list):
         return [_redact(v, f"{path}[{i}]", redacted)
                 for i, v in enumerate(obj)]
+    if isinstance(obj, str):
+        # Titan F4: secrets also hide in values ("token=abc", pasted
+        # URLs like "?api_key=SEK"). Scrub the value, keep the shape.
+        scrubbed = _SECRET_VALUE_RE.sub(
+            lambda m: m.group(0).split("=" if "=" in m.group(0)
+                                       else ":", 1)[0] + "=***REDACTED***",
+            obj)
+        if scrubbed != obj and path not in redacted:
+            redacted.append(path)
+        return scrubbed
+    return obj
+
+
+def _normalize_paths(obj: Any) -> Any:
+    """Collapse the operator home prefix to ~ in plain values (H8).
+
+    The dossier is portable evidence: absolute home paths would leak
+    the OS username into every shared ZIP. Only full-value prefixes
+    collapse (exact, case-insensitive on Windows); non-home absolute
+    paths stay intact as environment documentation. Sealed evidence
+    bytes are never rewritten, only these redacted display copies.
+    """
+    if isinstance(obj, dict):
+        return {key: _normalize_paths(val) for key, val in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_paths(val) for val in obj]
+    if isinstance(obj, str):
+        try:
+            home = str(Path.home())
+        except (OSError, RuntimeError):
+            return obj
+        low, hlow = obj.lower(), home.lower()
+        if low == hlow:
+            return "~"
+        if low.startswith(hlow) and len(obj) > len(home) \
+                and obj[len(home)] in ("/", "\\"):
+            return "~" + obj[len(home):].replace("\\", "/")
+        return obj
     return obj
 
 
@@ -119,11 +162,13 @@ def collect_op_files(ops_dir: Path, op_id: str,
             raise DossierError(413, "dossier size cap exceeded (25 MiB)")
         files[arcname] = data
 
-    clean_rec = _redact(rec, "", redacted)
+    clean_rec = _normalize_paths(_redact(rec, "", redacted))
     _add("target-op.json", _lf(json.dumps(clean_rec, indent=1)
                                .encode("utf-8")))
     if isinstance(job_record, dict) and job_record.get("job_id"):
-        _add("runner-job.json", _lf(json.dumps(job_record, indent=1,
+        clean_job = _normalize_paths(_redact(job_record, "runner-job",
+                                             redacted))
+        _add("runner-job.json", _lf(json.dumps(clean_job, indent=1,
                                                sort_keys=True, default=str)
                                     .encode("utf-8")))
     ev_p = ops_dir / f"{op_id}.events.jsonl"
@@ -251,13 +296,15 @@ def assess_op(op_id: str, rec: dict[str, Any],
         "verdict": verdict,
         "state": state,
         "gate": gate,
-        # Old passports predate level/release_eligible; fall back to
-        # the legacy tier key and to the gate itself.
+        # Old passports predate level; fall back to the legacy tier
+        # key for display. release_eligible has NO fallback: the
+        # modern seal always writes it, so an absent field
+        # (truncated/forged/ancient) reads closed, never open (M6).
         "gate_level": str(gate_body.get("level")
                           or gate_body.get("tier")
                           or ("not sealed" if not gate_body else "?")),
-        "release_eligible": bool(gate_body.get(
-            "release_eligible", gate == "PASS")) and not chain_errors,
+        "release_eligible": bool(gate_body.get("release_eligible",
+                                               False)) and not chain_errors,
         "qnx_verified": qnx_verified,
         "machine": _machine_name(ir),
         "ir_digest": str(((rec.get("artifacts") or {}).get("ir_sha256")

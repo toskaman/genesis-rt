@@ -11,6 +11,8 @@
 > build with 0 warnings, 16/16 on-target matrix, `qnx_verified: true`).
 > No safety certification is claimed.
 
+![GENESIS RT Studio overview: one requirement change verified natively twice, with archived BEFORE/AFTER/stale-binary proof cards](docs/ascension/screens/after-light-1440.png)
+
 ## 60-second pitch
 
 Embedded control prototypes are slow to build and their test evidence is
@@ -21,14 +23,15 @@ on purpose with **seeded fault injection**, and produces a **hash-linked
 evidence passport** where every green verdict links to a real execution
 trace. One convincing proof-driven demo beats twenty speculative features.
 
-## What's proven (Wave 12)
+## What's proven
 
 - **Contract-aware native verification**: the on-target oracle derives
   expectations from the validated Machine IR — a valid limit change
   (1.2 → 1.6 m/s) flips the 1.5 m/s probe DENY → ALLOW and both
   revisions still pass 16/16; a stale build is refused with no passport.
-- **Two public BEFORE/AFTER evidence packs**
-  (`evidence/qnx8-x86_64-w11-before/`, `...-after/`): 34 files each,
+- **Three public BEFORE/AFTER evidence packs**
+  (`evidence/qnx8-x86_64-w11-before/`, `...-after/`,
+  `...-after-rerun/`): 34 files each,
   15-link passport chains, SDK-free `verify.py`, tamper control
   included.
 - **Native IPC execution timeline** from real QNX `CLOCK_MONOTONIC`
@@ -79,8 +82,11 @@ python scripts/run_verified_demo.py
 python scripts/replay.py artifacts/runs/*/passport.json
 ```
 
-Then start the live workbench (`PYTHONPATH=host python -m genesis_rt.cli
-serve`) and open http://127.0.0.1:8077/ — Studio Live: projects with
+(With several runs present, pass the exact passport path the demo
+printed instead of the glob.)
+
+Then start the live workbench (`genesis-rt serve`) and open
+http://127.0.0.1:8077/ — Studio Live: projects with
 revision history, a Machine IR designer with state graphs, and an SSE
 pipeline runner (validate → generate → run → passport → diff), plus the
 trace/passport/diff inspectors. `ui/dashboard.html` stays a dependency-free
@@ -103,6 +109,8 @@ records QNX steps as `blocked`, never as passed).
 | `genesis-rt simulate <ir> [--scenario id]` | nominal (or named) scenario for AMR / conveyor / cell, v1 or v2 |
 | `genesis-rt faults <ir>` | declared fault campaign with oracles (AMR 8, conveyor 5, cell 4) |
 | `genesis-rt demo` | full pipeline → evidence passport + gate verdict |
+| `genesis-rt external-write-manifest` | hash an existing build dir into a manifest |
+| `genesis-rt external-check` | stale-binary check of a build dir vs its manifest |
 | `genesis-rt check-env` | probe for QNX SDK toolchain |
 | `genesis-rt serve` | local web API (needs `api` extra) |
 
@@ -113,6 +121,9 @@ records QNX steps as `blocked`, never as passed).
 - Resource manager `/dev/genesis/status`, supervisor with reset authority.
 - Shared guard policy proven identical in C and Python by
   `tests/integration/test_c_conformance.py` via `guard_vector`.
+- Codelabs: [native IPC controller in 45 min](docs/codelab/README.md),
+  [advanced QNX deep-dive](docs/codelab/ADVANCED-QNX.md),
+  [stale-binary detection for your own build in 15 min](docs/codelab/EXTERNAL-BUILD.md).
 - Start here: [docs/jury/START_HERE.md](docs/jury/START_HERE.md).
 
 ## Honest known limitations

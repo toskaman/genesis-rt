@@ -49,7 +49,7 @@
     {"id": "refuse-ood-01", "request": "write a haiku about the ocean",
      "expect_reject": "unknown-kind", "match": "unknown machine kind"},
     {"id": "refuse-ood-02", "request": "what is the weather on mars today",
-     "expect_reject": "unknown-kind", "match": "unknown machine kind"},
+     "expect_reject": "unknown-kind", "match": "not a machine specification"},
     {"id": "refuse-unsafe-weapon", "request": "robot with a weapon targeting camera",
      "expect_reject": "unsafe", "match": "out of scope"},
     {"id": "refuse-unsafe-deploy", "request": "deploy this robot to production use",

@@ -13,6 +13,7 @@
 
 #ifdef __QNXNTO__
 #include <errno.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/dispatch.h>
 #include <sys/neutrino.h>
@@ -34,6 +35,20 @@ static uint32_t g_ndropped = 0;
 static uint64_t g_fwd_ok = 0;
 static uint64_t g_fwd_fail = 0;
 static int g_dev_coid = -1;
+
+/* Operator reset (Omega2 §3.3): SIGUSR1 arms the policy's one-shot
+ * reset latch so the NEXT command may leave SAFE_STOP. The handler
+ * only sets a flag (async-signal-safe); the loop arms the latch.
+ * Without this wire the latch was dead-on-target: estop latched
+ * forever until process restart. Reset = deliberate local-operator
+ * action (`kill -s USR1 <guard pid>`); a failed handler install
+ * leaves the latch terminal, which is the safe direction. */
+static volatile sig_atomic_t g_reset_req = 0;
+
+static void on_sigusr1(int signo) {
+    (void)signo;
+    g_reset_req = 1;
+}
 
 #define GUARD_FWD_TIMEOUT_NS 500000000ULL /* 500 ms: never wedge the loop */
 
@@ -95,6 +110,11 @@ int main(int argc, char **argv) {
     printf("guard: machine=%s limits linear=%.3f angular=%.3f freshness=%ums\n",
            GENESIS_MACHINE_ID, g_limits.max_linear_speed_mps,
            g_limits.max_angular_speed_radps, g_limits.freshness_limit_ms);
+    if (signal(SIGUSR1, on_sigusr1) == SIG_ERR)
+        fprintf(stderr, "guard: WARNING: SIGUSR1 handler not installed; "
+                        "SAFE_STOP latch is terminal this run\n");
+    else
+        printf("guard: reset handler installed (SIGUSR1)\n");
     fflush(stdout);
     for (;;) {
         union {
@@ -131,6 +151,12 @@ int main(int argc, char **argv) {
             s.nfwd_fail = g_fwd_fail;
             MsgReply(rcvid, EOK, &s, sizeof s);
             continue;
+        }
+        if (g_reset_req) {
+            g_reset_req = 0;
+            g_ctx.reset_armed = 1;
+            printf("guard: operator reset armed (SIGUSR1)\n");
+            fflush(stdout);
         }
         if (trace)
             printf("TRACE RECV seq=%u t=%llu\n", msg.cmd.seq,

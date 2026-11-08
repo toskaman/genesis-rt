@@ -1,0 +1,336 @@
+{
+  "op_id": "op-6840da0e9f69",
+  "workflow": "full",
+  "state": "COMPLETED",
+  "reason": "all steps done",
+  "steps": [
+    {
+      "name": "validate",
+      "state": "done",
+      "detail": "IR valid (machine=amr-demo-01, normalized)"
+    },
+    {
+      "name": "env",
+      "state": "done",
+      "detail": "SDK present (qcc=cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.0,gcc_ntox86_64_cxx\n\t12.2.0,gcc_ntox86_64_gpp\n, qemu=True)"
+    },
+    {
+      "name": "generate",
+      "state": "done",
+      "detail": "4 files, ir 5639d986d258"
+    },
+    {
+      "name": "build",
+      "state": "done",
+      "detail": "build ok, 6 binaries"
+    },
+    {
+      "name": "probe_image",
+      "state": "done",
+      "detail": "image probed"
+    },
+    {
+      "name": "qemu_boot",
+      "state": "done",
+      "detail": "QEMU pid 20248 alive"
+    },
+    {
+      "name": "wait_ssh",
+      "state": "done",
+      "detail": "ssh banner on port 2222"
+    },
+    {
+      "name": "qemu_put",
+      "state": "done",
+      "detail": "10 files staged + manifest (staging cleaned)"
+    },
+    {
+      "name": "qemu_verify",
+      "state": "done",
+      "detail": "target matrix PASS (see target/)"
+    },
+    {
+      "name": "qemu_perf",
+      "state": "done",
+      "detail": "perf done (see perf/)"
+    },
+    {
+      "name": "qemu_stop",
+      "state": "done",
+      "detail": "QEMU pid 20248 stopped"
+    },
+    {
+      "name": "seal",
+      "state": "done",
+      "detail": "sealed PASS (qnx_verified=True, 8 scenarios)"
+    },
+    {
+      "name": "replay",
+      "state": "done",
+      "detail": "replay matches (PASS, qnx_verified=True)"
+    }
+  ],
+  "params": {
+    "ir": {
+      "schema_version": 2,
+      "machine": {
+        "id": "amr-demo-01",
+        "kind": "differential_drive_robot",
+        "profile": "amr-showcase",
+        "execution_target": "qnx8_x86_64_qemu",
+        "arch": "x86_64",
+        "simulation_only": true
+      },
+      "actuators": [
+        {
+          "id": "left-motor",
+          "type": "velocity_command",
+          "unit": "mps",
+          "bounds": {
+            "min": -1.2,
+            "max": 1.2
+          },
+          "rate_limit": 3.0,
+          "fault_response": "safe_stop"
+        },
+        {
+          "id": "right-motor",
+          "type": "velocity_command",
+          "unit": "mps",
+          "bounds": {
+            "min": -1.2,
+            "max": 1.2
+          },
+          "rate_limit": 3.0,
+          "fault_response": "safe_stop"
+        }
+      ],
+      "sensors": [
+        {
+          "id": "proximity",
+          "type": "distance_m",
+          "unit": "m",
+          "freshness_limit_ms": 100,
+          "range": {
+            "min": 0.0,
+            "max": 10.0
+          }
+        },
+        {
+          "id": "odometry",
+          "type": "odometry",
+          "unit": "m_rad",
+          "freshness_limit_ms": 100
+        }
+      ],
+      "control": {
+        "period_ms": 10,
+        "deadline_ms": 10,
+        "max_linear_speed_mps": 1.2,
+        "max_angular_speed_radps": 1.0,
+        "scheduling": {
+          "policy": "periodic",
+          "priority": 10
+        },
+        "guarded_state_transitions": true
+      },
+      "states": [
+        {
+          "id": "init",
+          "safe": false,
+          "initial": true
+        },
+        {
+          "id": "running",
+          "safe": false,
+          "initial": false
+        },
+        {
+          "id": "safe_stop",
+          "safe": true,
+          "initial": false
+        }
+      ],
+      "transitions": [
+        {
+          "from": "init",
+          "to": "running",
+          "event": "start"
+        },
+        {
+          "from": "running",
+          "to": "safe_stop",
+          "event": "fault_detected"
+        },
+        {
+          "from": "running",
+          "to": "safe_stop",
+          "event": "estop"
+        },
+        {
+          "from": "safe_stop",
+          "to": "init",
+          "event": "reset"
+        }
+      ],
+      "commands": [
+        {
+          "id": "left-motor-cmd",
+          "actuator": "left-motor",
+          "deadline_ms": 10,
+          "fields": [
+            {
+              "name": "velocity",
+              "unit": "mps",
+              "min": -1.2,
+              "max": 1.2
+            }
+          ]
+        },
+        {
+          "id": "right-motor-cmd",
+          "actuator": "right-motor",
+          "deadline_ms": 10,
+          "fields": [
+            {
+              "name": "velocity",
+              "unit": "mps",
+              "min": -1.2,
+              "max": 1.2
+            }
+          ]
+        }
+      ],
+      "telemetry": [
+        {
+          "id": "proximity-tm",
+          "source": "proximity",
+          "rate_hz": 10
+        },
+        {
+          "id": "odometry-tm",
+          "source": "odometry",
+          "rate_hz": 100
+        }
+      ],
+      "safety_contracts": [
+        {
+          "name": "stale-proximity-stop",
+          "if": "proximity_is_stale",
+          "then": "command_virtual_stop"
+        },
+        {
+          "name": "speed-limit",
+          "if": "speed_exceeds_limit",
+          "then": "reject_command"
+        },
+        {
+          "name": "simulator-watchdog",
+          "if": "simulator_disconnected",
+          "then": "command_virtual_stop"
+        }
+      ],
+      "fault_responses": [
+        {
+          "fault": "stale_sensor",
+          "enter_state": "safe_stop",
+          "action": "command_virtual_stop"
+        },
+        {
+          "fault": "command_rejected",
+          "enter_state": "safe_stop",
+          "action": "reject_command"
+        },
+        {
+          "fault": "simulator_disconnect",
+          "enter_state": "safe_stop",
+          "action": "command_virtual_stop"
+        }
+      ],
+      "verification": {
+        "scenarios": [
+          "nominal_navigation",
+          "speed_command_over_limit",
+          "stale_proximity_150ms",
+          "planner_process_crash",
+          "delayed_command",
+          "dropped_message",
+          "corrupted_message",
+          "simulator_disconnect"
+        ],
+        "requirements": [
+          {
+            "id": "REQ-AMR-01",
+            "claim": "Over-limit speed commands are rejected by the guard.",
+            "scenario": "speed_command_over_limit"
+          },
+          {
+            "id": "REQ-AMR-02",
+            "claim": "Stale proximity latches a virtual stop until reset.",
+            "scenario": "stale_proximity_150ms"
+          }
+        ]
+      },
+      "simulation": {
+        "dt_ms": 10,
+        "duration_ms": 10000,
+        "seed": 0
+      }
+    },
+    "image_dir": "E:\\qnx800\\images\\qemu\\qemu",
+    "ssh_port": 2222,
+    "accel": "tcg",
+    "cpu": "max",
+    "memory": "4G",
+    "user": "qnxuser",
+    "samples": 1000,
+    "extra_src": [
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\campaign-omega2\\stage\\genesis_guard_v2",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\campaign-omega2\\stage\\genesis_guard_conv",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\campaign-omega2\\stage\\genesis_cellcheck",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\campaign-omega2\\stage\\genesis_guard_v1"
+    ],
+    "build_set": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\campaign-omega2\\build-set-after.json"
+  },
+  "artifacts": {
+    "machine_id": "amr-demo-01",
+    "sdk_present": true,
+    "qemu_present": true,
+    "gen_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\gen",
+    "gen_manifest": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\gen-manifest.json",
+    "ir_sha256": "5639d986d258062fcad450260723a04d9de2b4c5432ddef516e81bffefdbe70f",
+    "qnx_build_record": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\qnx-build-record.json",
+    "binaries": [
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\gen\\genesis_controller",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\gen\\genesis_device",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\gen\\genesis_faultinject",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\gen\\genesis_guard",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\gen\\genesis_status",
+      "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\gen\\genesis_supervisor"
+    ],
+    "qemu_pid": 20248,
+    "stage_manifest": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\stage-manifest.json",
+    "target_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\target",
+    "perf_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\perf",
+    "passport": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\target-ops\\op-6840da0e9f69\\passport.json",
+    "verdict": "PASS",
+    "wanted": [
+      "nominal_navigation",
+      "speed_command_over_limit",
+      "stale_proximity_150ms",
+      "planner_process_crash",
+      "delayed_command",
+      "dropped_message",
+      "corrupted_message",
+      "simulator_disconnect"
+    ],
+    "qnx_verified": true,
+    "replay": {
+      "verdict": "PASS",
+      "qnx_verified": true
+    }
+  },
+  "created": 1794144529.293257,
+  "updated": 1794144755.6816125,
+  "owner_pid": 14788
+}

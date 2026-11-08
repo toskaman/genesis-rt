@@ -269,3 +269,37 @@ def test_build_set_script_refuses_bad_spec(tmp_path):
     r = _run("build_set.py", "create", "-o", str(tmp_path / "x.json"),
              "--entry", "nonsense")
     assert r.returncode != 0
+
+
+def _alias_v2_to_primary(ev):
+    prim = ev["build"]["binaries"]["genesis_guard"]
+    e = _entries(ev)["genesis_guard_v2"]
+    e["ir_sha256"] = ev["manifest"]["ir_sha256"]
+    e["sha256"] = prim["sha256"]
+    e["cksum"] = prim["cksum"]
+    e["size"] = prim["size"]
+    ev["target"]["staged"]["genesis_guard_v2"] = {
+        "cksum": prim["cksum"], "size": prim["size"]}
+
+
+def test_primary_build_alias_allowed(bound_evidence, amr_ir):
+    # v2 ops stage the v2 guard twice (slot-1 + genesis_guard_v2):
+    # same IR, byte-identical to the primary binary. That is an
+    # alias, not attribution fraud, so no refusal is earned.
+    _alias_v2_to_primary(bound_evidence)
+    r = _reasons(bound_evidence, amr_ir)
+    assert not any("built from the primary IR" in x for x in r)
+    assert r == []
+
+
+def test_same_ir_different_bytes_still_rejected(bound_evidence, amr_ir):
+    # The fraud shape the rule exists for: primary IR claimed for
+    # foreign bytes. The alias exception must not swallow it.
+    _alias_v2_to_primary(bound_evidence)
+    e = _entries(bound_evidence)["genesis_guard_v2"]
+    e["sha256"] = "ff" * 32
+    e["cksum"] = 424242
+    bound_evidence["target"]["staged"]["genesis_guard_v2"] = {
+        "cksum": 424242, "size": e["size"]}
+    r = _reasons(bound_evidence, amr_ir)
+    assert any("built from the primary IR" in x for x in r)

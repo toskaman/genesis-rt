@@ -27,7 +27,7 @@ from typing import Any
 from . import evidence as _evidence
 from .codegen import generate as _generate
 from .codegen import ir_sha256 as _ir_sha256
-from .ir import IRValidationError, guard_limits
+from .ir import guard_limits
 from .projects import ir_diff, validate_any
 
 

@@ -1,0 +1,22 @@
+$ cd /tmp/genesis; slay genesis_supervisor 2>/dev/null; slay genesis_guard 2>/dev/null; slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; rm -f sup.log sup-*.log; sleep 1; ./genesis_supervisor > sup.log 2>&1 & sleep 4; slay genesis_device; sleep 6; pidin -F %n 2>/dev/null | grep -c genesis; grep -c RESPAWN sup.log; echo PRE_APPLIES=$(grep -c APPLY sup-device.log); slay genesis_guard; sleep 10; echo REBIND_COUNT=$(grep -c REBIND sup.log); echo POST_APPLIES=$(grep -c APPLY sup-device.log); echo SETTLED=$(pidin -F %n 2>/dev/null | grep -c genesis); echo ---SUP-LOG---; cat sup.log; slay genesis_supervisor; slay genesis_guard; slay genesis_controller; slay genesis_device
+4
+1
+PRE_APPLIES=915
+REBIND_COUNT=1
+POST_APPLIES=1624
+SETTLED=4
+---SUP-LOG---
+supervisor: starting 3 children
+supervisor: started ./genesis_guard pid=2252829
+supervisor: started ./genesis_controller pid=2252830
+supervisor: started ./genesis_device pid=2252831
+supervisor: RESPAWN ./genesis_device deaths=1 backoff=1s status=15
+supervisor: started ./genesis_device pid=2273311
+supervisor: RESPAWN ./genesis_guard deaths=1 backoff=1s status=15
+supervisor: started ./genesis_guard pid=2326557
+supervisor: started ./genesis_device pid=2330655
+supervisor: REBIND ./genesis_device to guard pid=2326557 (guard respawn)
+supervisor: RESPAWN ./genesis_controller deaths=1 backoff=1s status=256
+supervisor: started ./genesis_controller pid=2334750
+
+[exit=1]

@@ -1,6 +1,6 @@
 {
  "name": "planning-holdout-v1",
- "description": "Holdout written 7 Nov 2026 BEFORE any model was run on it; not to be tuned against. Valid cases expect kind/period/speed (planner defaults 10 ms / 1.2 m/s when unstated). Reject cases pass on any refusal; 'category' groups results.",
+ "description": "Holdout written 7 Nov 2026 BEFORE any model was run on it. CONTAMINATED 2026-11-07: fixes in 59b2134 were derived from model failures on this set; regression use only, never a fresh holdout (see docs/ascension/AI_EVALUATION.md). Valid cases expect kind/period/speed (planner defaults 10 ms / 1.2 m/s when unstated). Reject cases pass on any refusal; 'category' groups results.",
  "cases": [
   {
    "id": "h-para-01",

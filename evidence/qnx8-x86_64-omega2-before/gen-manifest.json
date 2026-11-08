@@ -1,0 +1,14 @@
+{
+  "files": {
+    "genesis_build_gen.mk": "554fd375bee61cd402f2768887d96770e034f0b33110798ce9908d61c4ff1f3b",
+    "genesis_config_gen.h": "cd74fc72635d736c16bd189a0fa5713e840ebb8fa7b90d39055b76d77111f1f4"
+  },
+  "generator_version": "0.1.0",
+  "genesis_src": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8",
+  "ir_sha256": "356dc135f27f4586e1131fe1e43eac0b054dc7f2fb1f1ba7506fd4d5667ce34d",
+  "template_version": "1.0",
+  "templates": {
+    "genesis_build_gen.mk.tmpl": "194bb470e3b84eaa214b1a39e0515205ecec3915e5078d173ede09afd827e5f2",
+    "genesis_config_gen.h.tmpl": "1f57435c5144060cdce0b6cb5434941bc0b8182b782e63d7df407bf08c64002e"
+  }
+}

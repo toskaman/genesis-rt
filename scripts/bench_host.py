@@ -26,7 +26,7 @@ sys.path.insert(0, str(REPO_ROOT / "host"))
 
 from genesis_rt import build_adapter, codegen, faultlab  # noqa: E402
 from genesis_rt import guard_policy as gp  # noqa: E402
-from genesis_rt.ir import guard_limits, load_ir_file  # noqa: E402
+from genesis_rt.ir import load_ir_file  # noqa: E402
 
 
 def _percentile(samples: list[float], pct: float) -> float:

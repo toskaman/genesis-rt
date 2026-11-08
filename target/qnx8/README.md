@@ -8,10 +8,10 @@ host compilers verify the shared logic without pretending to test IPC.
 |---|---|---|
 | `genesis_guard` | policy-enforcing command server (real sender `msglen`, stats endpoint) | `name_attach`, `MsgReceive`+`_msg_info`, `MsgReply` |
 | `genesis_controller` | periodic client, never bypasses guard (2 s guard-call timeout) | `name_open`, `MsgSend`, `TimerTimeout`, `clock_nanosleep` |
-| `genesis_device` | SIMULATED actuator/sensor endpoint (MVP: holds state, no guard→device forwarding yet) | none (virtual state only) |
+| `genesis_device` | SIMULATED actuator/sensor endpoint (applies guard forwards; first-sender pid pinning rejects other senders with EPERM) | `name_attach`, `MsgReceive`, `MsgReply`, `MsgError` |
 | `genesis_status` | live `/dev/genesis/status` (per-read IPC stats query) | resource manager (`resmgr_attach`), `MsgSend` |
 | `genesis_supervisor` | spawn + bounded RESPAWN (×3, backoff) + GIVE_UP halt | `posix_spawn`, `wait` |
-| `genesis_faultinject` | on-target guard verification client (9 checks) | `name_open`, `MsgSend` |
+| `genesis_faultinject` | on-target guard verification client (9 checks, 2 s `TimerTimeout` per send) | `name_open`, `MsgSend`, `TimerTimeout` |
 
 Protocol: `include/genesis_ipc.h` (magic `GEN1`, version 1, fixed frames,
 monotonic sequence IDs, deadlines).

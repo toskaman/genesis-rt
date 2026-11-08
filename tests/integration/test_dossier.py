@@ -35,7 +35,9 @@ def _ir(machine="TestCell"):
             "verification": {"scenarios": ["nominal"]}}
 
 
-def _passport(op_id, gate="PASS"):
+def _passport(op_id, gate="PASS", release_eligible="auto"):
+    # "auto" mirrors the modern seal (eligible iff gate PASS); None
+    # omits the field (pre-field shape); an explicit bool is honored.
     pp = build_passport(
         op_id, _ir(),
         {"ir_sha256": "abc123", "sources": ["gen.c"]},
@@ -46,7 +48,12 @@ def _passport(op_id, gate="PASS"):
         qnx_target={"checks": [{"name": "c1", "passed": True,
                                 "detail": "ok"}]},
         qnx_perf={"raw_samples_us": [1.0, 2.0], "method": "target_clock"})
-    return attach_verdict(pp, {"verdict": gate, "tier": "QNX_EXECUTED"})
+    verdict = {"verdict": gate, "tier": "QNX_EXECUTED"}
+    if release_eligible == "auto":
+        verdict["release_eligible"] = gate == "PASS"
+    elif release_eligible is not None:
+        verdict["release_eligible"] = release_eligible
+    return attach_verdict(pp, verdict)
 
 
 OP2 = "op-ddddeeeeffff"
@@ -57,7 +64,8 @@ def _write_op(ops_dir: Path, op_id: str = OP, state: str = "COMPLETED",
               gate: str = "PASS", machine: str = "TestCell",
               params: dict | None = None,
               tamper_passport: bool = False,
-              ir_digest: str = "abc123") -> Path:
+              ir_digest: str = "abc123",
+              release_eligible="auto") -> Path:
     ops_dir.mkdir(parents=True, exist_ok=True)
     rec = {"op_id": op_id, "workflow": "full", "state": state,
            "params": params or {},
@@ -72,7 +80,7 @@ def _write_op(ops_dir: Path, op_id: str = OP, state: str = "COMPLETED",
     (work / "perf").mkdir(parents=True)
     ir = _ir(machine)
     (work / "ir.json").write_text(json.dumps(ir), encoding="utf-8")
-    pp = _passport(op_id, gate)
+    pp = _passport(op_id, gate, release_eligible)
     if tamper_passport:
         pp["chain"][1]["body"]["ir_sha256"] = "EVIL"
     (work / "passport.json").write_text(json.dumps(pp), encoding="utf-8")
@@ -175,6 +183,23 @@ def test_dossier_redacts_secrets(tmp_path):
     assert "params.api_token" in manifest["redacted_keys"]
 
 
+def test_dossier_redacts_secret_values_and_runner_job(tmp_path):
+    """Titan F4: secrets inside string values and runner-job.json."""
+    ops = _write_op(tmp_path / "ops", params={
+        "note": "token=tokval-9z9 see ?api_key=SEKKEY-8y8", "cmd": "plain"})
+    blob = dos_mod.build_dossier_zip(
+        ops, OP, job_record={"job_id": "job-1", "status": "COMPLETED",
+                             "note": "password=hunter3"})
+    files = _unzip(blob)
+    bundled = files[f"dossier-{OP}/target-op.json"].decode("utf-8")
+    assert "tokval-9z9" not in bundled and "SEKKEY-8y8" not in bundled
+    assert "token=***REDACTED***" in bundled
+    assert "plain" in bundled
+    runjob = files[f"dossier-{OP}/runner-job.json"].decode("utf-8")
+    assert "hunter3" not in runjob
+    assert "password=***REDACTED***" in runjob
+
+
 def test_dossier_size_cap_413(tmp_path):
     ops = _write_op(tmp_path / "ops")
     (ops / OP / "target" / "big.log").write_bytes(b"x" * (26 * 1024 * 1024))
@@ -232,6 +257,50 @@ def test_assess_pass_op(tmp_path):
     assert a["missing_evidence"] == [] and a["chain_errors"] == []
     assert a["why"] == ["all gates green: COMPLETED + gate PASS + "
                         "QNX-verified + clean replay"]
+
+
+def test_assess_passport_without_eligibility_field_is_closed(tmp_path):
+    # M6: a gate PASS verdict that does not explicitly say
+    # release_eligible (truncated/forged/ancient) must not read as
+    # eligible. Modern seal always writes the field; absence is a
+    # fail-closed signal, not a legacy PASS.
+    # The stock fixture seals a valid chain whose gate verdict lacks
+    # release_eligible (pre-field shape): gate PASS must still read
+    # closed.
+    ops = _write_op(tmp_path / "ops", release_eligible=None)
+    files, rec, _red = dos_mod.collect_op_files(ops, OP)
+    a = dos_mod.assess_op(OP, rec, files)
+    assert a["chain_errors"] == []
+    assert a["release_eligible"] is False
+
+
+def test_normalize_paths_hides_home_dir():
+    # H8: the portable dossier must not leak the operator's OS
+    # username via absolute home paths. Home collapses to ~;
+    # non-home absolutes (environment documentation) stay intact.
+    from pathlib import Path as P
+    home = str(P.home())
+    obj = {"src": home + "/repo/a.bin", "n": 3,
+           "deep": [{"p": home + "\\repo\\b.bin"}, "E:/qnx800/x"]}
+    out = dos_mod._normalize_paths(obj)
+    assert out["src"] == "~/repo/a.bin"
+    assert out["n"] == 3
+    assert out["deep"][0]["p"] == "~/repo/b.bin"
+    assert out["deep"][1] == "E:/qnx800/x"
+
+
+def test_bundled_op_record_has_no_home_leak(tmp_path):
+    from pathlib import Path as P
+    home = P.home()
+    ops = _write_op(tmp_path / "ops",
+                    params={"extra_src": [str(home / "repo" / "g")],
+                            "image_dir": "E:/qnx800/images/qemu/qemu"})
+    files, rec, _red = dos_mod.collect_op_files(ops, OP)
+    bundled = files["target-op.json"].decode("utf-8")
+    assert str(home) not in bundled
+    assert home.name not in bundled
+    assert "~/repo/g" in bundled
+    assert "E:/qnx800/images/qemu/qemu" in bundled
 
 
 def test_assess_failed_op_explains_why(tmp_path):
@@ -534,7 +603,7 @@ def test_dossier_embeds_runner_job(tmp_path):
     assert "ci-42" in report and "ffffffffffff" in report
     assert "runner-job.json" in report
     manifest = json.loads(files[f"dossier-{OP}/manifest.json"])
-    assert f"runner-job.json" in manifest["files"]
+    assert "runner-job.json" in manifest["files"]
 
 
 def test_dossier_without_job_says_local(tmp_path):

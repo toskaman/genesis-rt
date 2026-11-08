@@ -1,24 +1,35 @@
 # Advanced QNX codelab: message passing, guards, supervision, provenance
 
 > Companion to the base codelab (`README.md`, do its steps 1–3
-> first). Every host command below was executed against commit
-> `88fc772` on 2026-11-05; every target command was executed live
-> on QNX 8.0.0 QEMU the same day (transcripts in Lab 6).
+> first). Labs 1–4 host commands run in CI on every push
+> (`sh-harness`); the PowerShell variants and Lab 5 were
+> re-executed by hand on 2026-11-08 on `omega2` @ `b5a278f`
+> (Windows 11 + QNX SDP 8.0). Every target command was executed
+> live on QNX 8.0.0 QEMU on 2026-11-05 (transcripts in Lab 6).
 > Fenced `sh-harness` blocks are executed by
 > `tests/integration/test_codelab_advanced.py` — if they rot, CI
 > fails. `sh-harness-sdk` needs an SDP 8.0; `sh-target` runs on
 > the target over SSH (read Lab 6 setup first).
 >
 > Setup (host, repo root): `export CODELAB_TMP=/tmp/qlab-adv &&
-> mkdir -p $CODELAB_TMP`. Windows: run the `sh` blocks in the QNX
-> SDP shell or git-bash (PowerShell variants where `printf` is
-> used). No physical hardware is involved anywhere below.
+> mkdir -p $CODELAB_TMP`. Windows: run the `sh` blocks in
+> git-bash (each block carries its own `PYTHONPATH=host`
+> prefix — keep it); Labs 1 and 5 also give native PowerShell
+> variants. No physical hardware is involved anywhere below.
 
 You will learn, by running: the guard policy (including its
 wraparound-safe clock arithmetic), deterministic codegen and its
 provenance header, passport anatomy, independent replay and
 tamper-evidence, the native `qcc` build, and on-target IPC,
 supervision, telemetry, and latency measurement.
+
+- [Lab 1 — Guard policy microscope](#lab-1--guard-policy-microscope-host-no-sdk) (host, no SDK)
+- [Lab 2 — Deterministic codegen](#lab-2--deterministic-codegen-and-provenance-host-no-sdk) (host, no SDK)
+- [Lab 3 — Passport anatomy](#lab-3--passport-anatomy-host-no-sdk) (host, no SDK)
+- [Lab 4 — Independent replay](#lab-4--independent-replay-and-tamper-evidence-host-no-sdk) (host, no SDK)
+- [Lab 5 — Native build anatomy](#lab-5--native-build-anatomy-host-needs-sdp-80) (host, needs SDP 8.0)
+- [Lab 6 — On target](#lab-6--on-target-ipc-supervision-telemetry-latency) (needs QEMU target)
+- [Acceptance checklist — Labs 5–6](#acceptance-checklist--labs-56-manual-needs-sdk--target)
 
 ## Lab 1 — Guard policy microscope (host, no SDK)
 
@@ -181,6 +192,17 @@ test $(grep -c "warning" $CODELAB_TMP/make.log) -eq 0
 ls $CODELAB_TMP/lab-a/genesis_controller $CODELAB_TMP/lab-a/genesis_device $CODELAB_TMP/lab-a/genesis_faultinject $CODELAB_TMP/lab-a/genesis_guard $CODELAB_TMP/lab-a/genesis_status $CODELAB_TMP/lab-a/genesis_supervisor
 ```
 
+Windows (PowerShell, adjust the SDK path; same commands as the
+base codelab's step 4, executed 2026-11-08):
+
+```powershell
+$env:PYTHONPATH='host'
+python -m genesis_rt.cli generate examples/amr-demo/machine-ir.json --out lab-a
+cmd /c "call E:\qnx800\qnxsdp-env.bat >NUL 2>&1 && make -C lab-a -f genesis_build_gen.mk qnx"
+ls lab-a/genesis_*
+# expect: 6 genesis_* binaries, zero warnings in the build log
+```
+
 Expect 6 `genesis_*` binaries, `-O2 -Wall -Wextra`, zero
 warnings. Note what links what: guard+faultinject share
 `guard_policy.c` (the exact file from Lab 1), the device
@@ -196,9 +218,19 @@ dir to your install):
 ```sh-target
 python scripts/qnx_target.py boot E:/qnx800/images/qemu/qemu --accel tcg --cpu max --ssh-port 2222
 python scripts/qnx_target.py wait-ssh --ssh-port 2222 --wait 300
-export GENESIS_TARGET_PASSWORD=qnxuser
+export GENESIS_TARGET_PASSWORD=<your-target-password>
 python scripts/qnx_target.py put $CODELAB_TMP/lab-a/genesis_* --user qnxuser
 ```
+
+(Never pass the password on the command line: only one SSH
+session at a time, and the env var keeps it out of logs.)
+
+> `boot` is a terminating smoke check (it stops its QEMU at
+> `--timeout`); for the live VM start QEMU detached with the
+> recorded `<out>/qemu-cmdline.txt` and wait for the `login:`
+> marker before `wait-ssh` — full recipe in
+> `docs/quickstart-qnx8-qemu.md` §4. The port accepts TCP long
+> before the guest sshd is up.
 
 Then SSH (`ssh qnxuser@localhost -p 2222`) and run each
 section below. Outputs are from the author's live run on
@@ -353,6 +385,27 @@ the pidfile.
 > not literals. QNX 8.0.0 QEMU x86_64, TCG+cpu max,
 > 2026-11-05.
 
+## Acceptance checklist — Labs 5–6 (manual, needs SDK + target)
+
+Labs 1–4 are executed by CI (`sh-harness`); Labs 5–6 need an
+SDP and a live target, so confirm them by hand. Tick every box
+before calling the codelab done — shapes, not literals:
+
+- [ ] Lab 5: `make.log` shows `qcc -Vgcc_ntox86_64`, zero
+  `warning` lines, and all 6 `genesis_*` binaries exist.
+- [ ] Lab 6.1: two distinct PIDs, both in `RECEIVE` state.
+- [ ] Lab 6.2: `faultinject: ALL 9 CHECKS PASS`, `FI_EXIT=0`,
+  and `/dev/genesis/status` shows the `state=3` latch with
+  1 allow against 8 denies.
+- [ ] Lab 6.3: `PERF_DONE n=200` with `BENCH_EXIT=0` (SAMPLE
+  values vary; the shape `SAMPLE <µs>` × 200 is what matters).
+- [ ] Lab 6.4: `grep -c RESPAWN` ≥ 1 after killing the device;
+  `grep -c GIVE_UP` = 1 after 4 guard kills.
+- [ ] Lab 6.5: guard log count frozen (`GAFTER` = `GBEFORE`),
+  `CALIVE=0`, `GALIVE=1` after SIGKILLing the controller.
+- [ ] Lab 6.6: no `genesis_*` left in `pidin`, scratch
+  `lab-*.log` removed, QEMU stopped from the host.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -382,6 +435,15 @@ rm -rf $CODELAB_TMP/lab-a $CODELAB_TMP/lab-b $CODELAB_TMP/demo.json $CODELAB_TMP
 Same as the base codelab: simulation only, prototype
 not certified, QEMU timing is regression aid only (see
 `docs/jury/KNOWN_LIMITATIONS.md`, which governs).
+
+## Takeaway
+
+A measured guard policy, byte-identical codegen, a passport
+you replayed and tampered with, a native `qcc` build, and
+on-target IPC, supervision, and containment you watched
+happen. Same loop as the base codelab — specify → compile →
+run → break → prove — now with the inside of every step
+visible.
 
 > Final URL for the Devpost bonus box:
 > `https://github.com/toskaman/genesis-rt/blob/main/docs/codelab/ADVANCED-QNX.md`

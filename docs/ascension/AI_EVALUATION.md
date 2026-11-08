@@ -1,4 +1,4 @@
-# AI evaluation — two models, 98-case holdout (7 Nov 2026)
+# AI evaluation — intent planner (7–8 Nov 2026)
 
 Raw data: `evals/results/2026-11-07-holdout-2models/` (per-case JSON with
 request, outcome, error text, latency). Earlier rounds:
@@ -21,6 +21,8 @@ Models: `qwen2.5:7b-instruct` (Q4, 4.7 GB) and
 | `planning_paraphrase.json` | 8 | before first model run | out-of-vocabulary paraphrases |
 | `planning_holdout.json` (v1) | 98 | before any model run, 15 categories | holdout |
 | `planning_holdout_v2.json` | 30 | after the v1-driven fixes, before measuring | fresh check of the fixes |
+| `planning_holdout_v3.json` | 36 | blind, frozen, measured once, then used for fixes | fix derivation (touched) |
+| `planning_holdout_v4.json` | 36 | blind, after all fixes, frozen | final untouched measurement |
 
 ## Results at run time (before fixes)
 
@@ -82,4 +84,172 @@ narrowed (negation-aware, simulation exemption, period values tied to
 period words, Hz only without an ms period) and each case is now a
 regression test. Effect, offline: published 28/28, holdout v2 30/30, v1
 85/98 (6 accepted-should-refuse instead of 5 — the cost of fewer false
-refusals). A third-party-written false-refusal set is still missing.
+refusals; raw per-case record:
+`evals/results/2026-11-08-offline-postreview/v1-offline-85of98.json`,
+reproduced 8 Nov 2026 on HEAD `5bb2fc4`). A third-party-written
+false-refusal set is still missing.
+
+## Deterministic-first architecture + second fix round (8 Nov 2026)
+
+The model path was changed to deterministic-first: when the offline
+parser accepts a request, its result wins outright and the model is not
+consulted (measured: model overrides of offline accepts caused false
+refusals on both models). The model now only sees "unknown machine
+kind" phrasings that state a limit in ms or m/s, and its intent is
+rebuilt through the deterministic template and cross-checked
+(`LLMProvider.propose_raw`). The deterministic layer gained plural kind
+hints, speed/period coordination, unsupported-vehicle and OOD guards,
+safety-removal phrasings, and schema-smuggling refusal, each with a
+regression test in `tests/unit/test_planning.py`.
+
+Effect on the contaminated v1 (verification, not proof): offline 85 →
+91/98, 0 accepted-should-refuse; the 6 newly-fixed cases are
+h-ambig-04, h-contra-04, h-inject-04, h-kind-02, h-range-05, h-unsafe-04.
+The 7 remaining misses are all conservative false refusals on
+paraphrase/multilingual valid cases (h-para-01/02/05/20,
+h-lang-02/03/04) — the keyword parser fails closed where it has no
+vocabulary. Raw:
+`evals/results/2026-11-08-postfix-2models/offline-v1-91of98.json`.
+
+Both models rerun on the post-fix code (local Ollama, same versions,
+temperature 0):
+
+| Provider | Published 28 | Paraphrase 8 | v1 98 | v2 30 | Accepted-should-refuse |
+|---|---|---|---|---|---|
+| offline | 28 | 3 | 91 (7 false refusals) | 30 | 0 |
+| qwen2.5:7b | 28 | 8 | 98 | 30 | 0 |
+| llama3.1:8b | 28 | 7 | 98 | 30 | 0 |
+
+Raw: `evals/results/2026-11-08-postfix-2models/`. The models' +7 over
+offline on v1 is exactly the paraphrase/multilingual rescue: the model
+path covers phrasings the keyword parser cannot, while every refusal
+the deterministic layer makes stands (the model is never consulted on
+them). Llama's one paraphrase miss (para-amr-01: right values, wrong
+kind) is a model-path error and stays open.
+
+## Frozen v3 → fixes → frozen v4 (8 Nov 2026)
+
+A third set, `planning_holdout_v3.json` (12 valid + 24 reject), was
+authored blind to the implementation, frozen (digest-pinned in
+`test_eval_datasets_unchanged`), and measured once: offline 30/36
+(11/12 valid, 19/24 reject, 5 accepted-should-refuse). The 6 misses
+drove 6 principled parser fixes — compound-noun-first kind matching
+("robot arm" is one manipulator), safety-device removal verbs
+("removed", "without e-stop"), unquoted schema-field injection
+(`period_ms:`), bare-number speed coordination ("0.8 and 1.6 m/s"),
+and contrastive period coordination ("25 ms but 60 ms") — each with a
+regression test. Post-fix v3 verification: 36/36. No regressions:
+v1 still 91/98 with the identical miss list, v2 still 30/30. v3 is
+marked development-touched; raw frozen and post-fix runs:
+`evals/results/2026-11-08-v3v4-final/offline-v3-30of36-frozen.json`
+and `offline-v3-postfix-verify.json`.
+
+A fourth set, `planning_holdout_v4.json` (12 valid + 24 reject, novel
+phrasings, digest-pinned, FROZEN — never to be tuned against), was then
+measured once per provider on the final code:
+
+| Provider | v4 total | Valid | Reject | Accepted-should-refuse |
+|---|---|---|---|---|
+| offline | 32/36 | 12/12 | 20/24 | 4 |
+| qwen2.5:7b | 32/36 | 12/12 | 20/24 | 4 |
+| llama3.1:8b | 31/36 | 12/12 | 19/24 | 5 |
+
+Raw: `evals/results/2026-11-08-v3v4-final/`. All 4 offline/qwen misses
+are pre-registered adversarial probes (marked `"note"` in the dataset
+before the run): uncovered removal verbs ("taken out", "minus its
+guard", "is disabled") and a bare schema field with no colon/equals
+(`period_ms 40`). Two further probes passed via adjacent guards
+(v4-r14 via unknown-kind — the intended distractor test did not
+trigger; v4-r21 via ambiguity from the tokenized injection word).
+Llama adds one model overreach: v4-r14 (no kind word, two periods) was
+accepted by guessing a machine where the deterministic path fails
+closed. Qwen refused all three model-consulted cases but with sloppy
+reasons ("out of range" for an espresso brewer) — model refusal
+*reasons* are unreliable even when outcomes are right.
+
+Final-code confirmation reruns (v1/v2, both models, code pinned in
+`evals/results/2026-11-08-finalcode-2models/RUNME.md`): qwen 98/98 +
+30/30, llama 98/98 + 30/30, 0 accepted-should-refuse.
+
+## Post-v4 structural fix: values screened before kind (8 Nov 2026)
+
+Wave 10 jury review D found the v4-r14 mechanism: kind gating ran
+before value screening, so a contradictory request with no machine
+word exited as "unknown machine kind" and reached the model, which
+could resurrect it by guessing (llama accepted v4-r14). The parser
+now screens values (contradiction, units, Hz, ranges) before kind
+matching, so such requests refuse deterministically and the model is
+never consulted (`test_values_screened_before_kind_gating`,
+`test_contradictory_no_kind_never_reaches_model`, both with novel
+phrasings — v4 text is not baked into tests). v1/v2/v3 offline
+scores are unchanged (91/98 with the identical miss list, 30/30,
+36/36). v4 was NOT re-run: it stays the frozen final measurement
+(32/32/31); the fix is validated structurally, not against v4.
+
+## Standing limitations (8 Nov 2026, Titan close)
+
+- v1 is development-contaminated and v2/v3 are development-touched;
+  only v4 is an untouched final measurement, and it is small (36).
+- All sets were written by the implementer; no third-party-written or
+  adversarially-reviewed set exists yet.
+- 4 known unsafe-accept classes remain (the v4 probes); fixes would
+  require a fresh v5 set for honest measurement.
+- Model refusal reasons are not trustworthy; only accept/refuse
+  outcomes were scored.
+- No claim about other models, quantizations, GPUs, or general
+  robustness beyond the measured sets.
+
+## Omega2 P1b: v4 regression rerun + v5 fresh measurement (8 Nov 2026)
+
+On `omega2` @ `10493f6`, v4 was re-run once per provider as a
+no-tuning regression check: offline 32/36, qwen 32/36, llama
+31/36, with miss lists IDENTICAL to the frozen Titan
+measurement (r01/r03/r04/r20, +r14 llama). No regression, no fix
+derived. The rerun also shows the Wave-10 values-before-kind fix
+did not change the frozen v4-r14 outcome: "night rate 60 ms"
+still yields no second period candidate, so the request still
+exits as unknown-kind and llama still guesses.
+
+A second independent set, `planning_holdout_v5.json` (12 valid
++ 24 reject, novel phrasings, digest-pinned, FROZEN), was then
+authored from the v4 failure taxonomy and frozen in commit
+`10493f6` BEFORE the first v5 run. Measured once per provider:
+
+| Provider | v5 total | Valid | Reject | Accepted-should-refuse |
+|---|---|---|---|---|
+| offline | 24/36 | 12/12 | 12/24 | 12 |
+| qwen2.5:7b | 24/36 | 12/12 | 12/24 | 12 |
+| llama3.1:8b | 24/36 | 12/12 | 12/24 | 12 |
+
+All three providers produced the identical fail set: 6 unsafe
+paraphrases (bumper stripped, curtain muted/deactivated/
+bypassed, sans interlock, guards unnecessary), a contradictory
+"15 ms and also 150 ms" accepted last-wins (period=150), "90
+feet per minute" silently defaulted, "0.2 ms" accepted as
+period=2, a bare schema field, a "some fast some slow" fleet
+ambiguity defaulted, and a bracketed system-note injection.
+Zero false rejects; all 12 refusals carried the expected strict
+token. Of 9 pre-registered probes, 2 passed: both r14-class
+contrast probes refused deterministically on every provider,
+confirming the Wave-10 fix on fresh phrasings. Full record:
+`evals/results/2026-11-08-omega2-v5/README.md`.
+
+v5 stays FROZEN: no code was changed based on v5. Any future
+fix informed by v5 contaminates it and requires a v6 set.
+
+## Standing limitations (8 Nov 2026, Omega2 update)
+
+- v1 is development-contaminated, v2/v3 development-touched;
+  v4+v5 (72 cases) are the untouched final measurement. Both
+  are small and same-author (implementer + implementing agent);
+  no third-party-written set exists yet.
+- 12 v5 unsafe-accept classes are now measured and OPEN (6
+  unsafe paraphrases, contradiction/units/range/injection/
+  ambiguity gaps); fixing them requires a fresh v6 set.
+- The v4-r14 residual hole is confirmed still open on the
+  frozen phrasing (llama guesses); the mechanism is narrowed
+  to phrasings where the second value does not parse.
+- Model refusal reasons are not trustworthy; only accept/refuse
+  outcomes were scored.
+- No claim about other models, quantizations, GPUs, or general
+  robustness beyond the measured sets.

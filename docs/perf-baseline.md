@@ -65,7 +65,7 @@ relative-regression signal only. Feeds the gate's
 `QNX_PERFORMANCE_MEASURED` tier (informational; release needs
 behavior, not budgets).
 
-## Target scheduling comparison (2026-11-05, n=200 per config)
+## Target scheduling comparison (2026-11-05, n=200 per config; 8-Nov re-run did not reproduce — see `docs/audits/CAMPAIGN_2026-11-08.md`)
 
 - Tool: `python scripts/qnx_target.py sched --samples N --out <dir>`
   (SSH; per config: guard up under `on -p <prio>[r|f|o]`,
@@ -89,14 +89,17 @@ behavior, not budgets).
 | fifo_both (20f / 20f) | 20f | 196.1 | 311.4 | 504.2 | 618.5 | 803.1 |
 | rr_both (20r / 20r) | 20r | 148.5 | 269.3 | 450.2 | 573.5 | 591.7 |
 
-Reading: raising both endpoints to RT priority cuts p50 ~45% and
-p99 ~65% versus baseline, and collapses the tail (max 60.9 ms →
-0.6 ms): under TCG the sender side dominates the observed
-latency. Raising the guard alone barely moves p50, which is
-consistent with that reading. Figure `60885.3` is one 60 ms
-emulation stall, kept in the table (p99 is robust to it).
-Scheduling contrast only — not a hardware timing guarantee,
-not a real-time claim.
+Reading (5 Nov run only; NOT reproduced 8 Nov): that day,
+raising both endpoints to RT priority coincided with lower
+p50/p99 and a smaller tail (max 60.9 ms → 0.6 ms). The 8 Nov
+re-run (baseline p50 227.4/p99 420.2; fifo_both 274.9/438.6;
+rr_both 264.6/462.9 µs, n=200 each, no 60 ms stall in any
+config) shows the effect is not stable under TCG emulation,
+so no general speedup is claimed and the earlier "sender
+side dominates" reading is withdrawn. Figure `60885.3` is
+the one 60 ms emulation stall, kept in the table (p99 is
+robust to it). Scheduling contrast only — not a hardware
+timing guarantee, not a real-time claim.
 
 ## Regression hooks
 

@@ -68,6 +68,15 @@ def test_seq_old_replay_denied():
     assert ctx.last_seq == 100  # denied commands never advance the cursor
 
 
+def test_seq_delta_max_forward_accepted():
+    """Delta exactly 2^31-1 is the largest forward step: ACCEPT
+    (RFC 1982 boundary; delta >= 2^31 denies)."""
+    ctx = gp.GuardContext(last_seq=0)
+    v = gp.decide(_cmd(seq=(1 << 31) - 1), ctx, LIMITS)
+    assert (v["decision"], v["reason"]) == (gp.ALLOW, gp.R_OK)
+    assert ctx.last_seq == (1 << 31) - 1
+
+
 def test_seq_huge_forward_jump_denied():
     """A jump >= 2^31 is indistinguishable from a replay: deny fail-closed."""
     ctx = gp.GuardContext(last_seq=0)

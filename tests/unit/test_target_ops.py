@@ -586,3 +586,48 @@ def test_write_record_gives_up_after_bounded_retries(runner, monkeypatch):
     with pytest.raises(PermissionError):
         runner._write_record({"op_id": "op-denied", "state": "EXECUTING",
                               "reason": "", "steps": []})
+
+
+def test_validate_params_caps_ir_and_scenarios():
+    """Titan F3: /target/ops params are capped like /runs (ir size,
+    scenario count/charset, src list length)."""
+    steps = ["validate", "generate"]
+    with pytest.raises(tgt.TargetOpError, match="256 KiB"):
+        tgt._validate_params(steps, {"ir": {"pad": "x" * (300 * 1024)}})
+    with pytest.raises(tgt.TargetOpError, match="32 entries"):
+        tgt._validate_params(steps, {"ir": {}, "scenarios": ["s"] * 33})
+    with pytest.raises(tgt.TargetOpError, match="must be \\[A-Za-z"):
+        tgt._validate_params(steps, {"ir": {}, "scenarios": ["ok", "a/b"]})
+    with pytest.raises(tgt.TargetOpError, match="64 files"):
+        tgt._validate_params(
+            steps, {"ir": {}, "src": ["f"] * 65, "scenarios": ["s"]})
+    ok = tgt._validate_params(
+        steps, {"ir": {"a": 1}, "scenarios": ["nominal_navigation"]})
+    assert ok["scenarios"] == ["nominal_navigation"]
+
+
+def _run_generate(ir_doc, tmp_path):
+    ctx = {"work_dir": str(tmp_path / "work"),
+           "params": {"ir": ir_doc}, "op_id": "op-test",
+           "runner": None, "artifacts": {}}
+    ok, detail = tgt._step_generate(ctx)
+    assert ok, detail
+    return tmp_path / "work" / "gen"
+
+
+def test_generate_dispatches_v2_codegen(repo_root, tmp_path):
+    """Native 8-Nov finding: ops always ran v1 codegen, so a v2 IR
+    built a v1-behaving guard (missing machine module + V2 define)."""
+    v2 = json.loads((repo_root / "examples" / "amr-demo"
+                     / "machine-ir-v2.json").read_text(encoding="utf-8"))
+    gen = _run_generate(v2, tmp_path)
+    assert (gen / "genesis_machine_gen.c").is_file()
+    mk = (gen / "genesis_build_gen.mk").read_text(encoding="utf-8")
+    assert "-DGENESIS_MACHINE_V2" in mk
+
+
+def test_generate_keeps_v1_codegen(repo_root, tmp_path):
+    v1 = json.loads((repo_root / "examples" / "amr-demo"
+                     / "machine-ir.json").read_text(encoding="utf-8"))
+    gen = _run_generate(v1, tmp_path)
+    assert not (gen / "genesis_machine_gen.c").exists()

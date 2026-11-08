@@ -63,7 +63,7 @@ document.getElementById('file').addEventListener('change', async (e) => {
   for (const r of p.chain) {
     const st = (r.body && (r.body.status || r.body.verdict)) || (r.kind === 'summary'
       ? `${esc(r.body.scenarios_passed)}/${esc(r.body.scenarios_total)} passed` : '—');
-    const cls = (st === 'pass' || st === 'PASS') ? 'pass' : (st === '—' ? '' : 'fail');
+    const cls = ppStatusClass(st);
     h += `<tr><td><code>${esc(r.kind)}</code></td><td class="${esc(cls)}">${esc(st)}</td>` +
       `<td><code>${esc(String(r.hash).slice(0, 16))}…</code></td></tr>`;
   }

@@ -135,7 +135,7 @@ def _shot(pg, tmp_path, name):
 
 
 def _pick_example(pg, want: str = "") -> str:
-    """Pipeline tab: select an example, wait for its scenarios."""
+    """Pipeline page: select an example, wait for its scenarios."""
     pg.locator('button[data-tab="pipeline"]').click()
     pg.wait_for_function(
         "() => document.querySelectorAll('#pipe-example option').length > 1",
@@ -154,7 +154,7 @@ def _job_id(pg) -> str:
 
 
 def _pick_slowest_example(pg) -> str:
-    """Pipeline tab: select the example with the most scenarios.
+    """Pipeline page: select the example with the most scenarios.
 
     Cancel tests race the job to completion; the widest scenario set
     maximizes the cancellation window on fast runners.
@@ -409,21 +409,61 @@ def test_tampered_passport_rejected_in_browser(page, tmp_path, repo_root):
     assert page.evaluate("() => Studio.passport === null")
 
 
+# -- Active-work context bar --------------------------------------------
+
+
+def test_context_bar_tracks_source_and_passport(page, repo_root):
+    page.wait_for_function(
+        "() => document.querySelector('#live-context').innerText"
+        ".includes('no source')",
+        timeout=15_000)
+    picked = _pick_example(page).split("|")[0]
+    page.wait_for_function(
+        "() => document.querySelector('#live-context').innerText"
+        f".includes('{picked}')",
+        timeout=15_000)
+    golden = (repo_root / "artifacts" / "samples" /
+              "golden_demo_passport.example.json")
+    page.locator('button[data-tab="passport"]').click()
+    page.locator("#ppfile").set_input_files(str(golden))
+    page.wait_for_function(
+        "() => { const t = document.querySelector('#live-context')"
+        ".innerText; return !t.includes('no passport') && "
+        f"t.includes('{picked}'); }}",
+        timeout=15_000)
+
+
 # -- Target tab guidance -------------------------------------------------
 
 
 def test_target_run_without_source_shows_guidance(page):
     page.locator('button[data-tab="target"]').click()
+    if page.locator("#top-run").is_disabled():
+        # SDK-less host: readiness gating names the blocker up front.
+        page.wait_for_function(
+            "() => document.querySelector('#top-ready').innerText"
+            ".includes('QNX SDK')",
+            timeout=10_000)
+        return
     page.locator("#top-run").click()
     page.wait_for_function(
         "() => document.querySelector('#top-out').innerText"
-        ".includes('Pick an example or project in the Pipeline tab')",
+        ".includes('Pick an example or project on the pipeline page')",
         timeout=10_000)
 
 
 def test_target_run_rejects_bogus_image_dir(page):
     _pick_example(page)
     page.locator('button[data-tab="target"]').click()
+    if page.locator("#top-run").is_disabled():
+        # SDK-less host: readiness gating names the blocker up front.
+        page.wait_for_function(
+            "() => document.querySelector('#top-ready').innerText"
+            ".includes('QNX SDK')",
+            timeout=10_000)
+        assert "Host pipeline" in \
+            page.locator("#top-ready").inner_text()
+        return
     page.locator("#top-workflow").select_option(value="full")
     page.locator("#top-image").fill("Z:/no-such-qemu-image")
     page.locator("#top-run").click()
@@ -456,6 +496,8 @@ def test_compare_empty_state(page):
 def test_target_navigation_back_reattaches_op(page):
     _pick_example(page)
     page.locator('button[data-tab="target"]').click()
+    if page.locator("#top-run").is_disabled():
+        return  # SDK-less host: nothing can start; gating covered above
     _run_build_only(page)
     page.wait_for_function(
         "() => document.querySelector('#top-out').innerText"
@@ -499,6 +541,21 @@ def test_limit_change_compare_renders_change_proof(page, tmp_path,
     # Op 1: stock amr example, real qcc build on target service.
     amr_value = _pick_example(page, want="amr-demo|machine-ir.json")
     page.locator('button[data-tab="target"]').click()
+    if page.locator("#top-run").is_disabled():
+        # Honest SDK-less path (CI): gating names the blocker up front,
+        # no phantom op, host fallback named.
+        page.wait_for_function(
+            "() => document.querySelector('#top-ready').innerText"
+            ".includes('QNX SDK')",
+            timeout=10_000)
+        assert "Host pipeline" in \
+            page.locator("#top-ready").inner_text()
+        page.locator("#top-refresh").click()
+        page.wait_for_function(
+            "() => document.querySelector('#top-history').innerText"
+            ".includes('No target ops yet')",
+            timeout=15_000)
+        return
     _run_build_only(page)
     page.wait_for_function(
         "() => document.querySelector('#top-out').innerText"

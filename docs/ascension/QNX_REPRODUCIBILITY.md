@@ -8,13 +8,14 @@ this as "qcc builds are not byte-reproducible". Is that true?
 
 ## Experiments (owner's Windows box, QNX SDP 8.0, qcc 12.2.0 gcc_ntox86_64)
 
-1. **Same sources, two output folders** (`repro.ps1`): guard binaries
-   identical, 0 differing bytes of 14 432.
+1. **Same sources, two output folders** (`scripts/repro/exp1-*.ps1`):
+   guard binaries identical, 0 differing bytes of 14 432.
 2. **Sources of each commit, two worktrees at different paths**
-   (`repro2.ps1`, my own flag order): run 1 = run 2 for each commit, but
-   neither matched the published hash → my command differed from the
-   runner's (`-lm` placement).
-3. **Exact recorded command** from `qnx-build-record.json` (`repro3.ps1`):
+   (`scripts/repro/exp2-*.ps1`, my own flag order): run 1 = run 2 for
+   each commit, but neither matched the published hash → my command
+   differed from the runner's (`-lm` placement).
+3. **Exact recorded command** from `qnx-build-record.json`
+   (`scripts/repro/exp3-*.ps1`):
    `a465e7f` → `b65afcb4…` (AFTER pack) twice; `e439276` → `f92f5e66…`
    (rerun) twice. **Both match.**
 4. **All binaries, all packs** with `scripts/qnx_rebuild_check.py`
@@ -27,11 +28,20 @@ this as "qcc builds are not byte-reproducible". Is that true?
 | `qnx8-x86_64-w11-after` | `a465e7f` | 6/6 MATCH |
 | `qnx8-x86_64-w11-after-rerun` | `5cbc458` | 6/6 MATCH |
 
+Rerun 8 Nov 2026 on the same host class (Windows, SDP 8.0, qcc
+12.2.0): 18/18 MATCH again, full log in
+`docs/ascension/rebuild-2026-11-08.log`. Still one host class only —
+Linux-hosted and cross-SDP reproducibility remain unverified.
+
 ## Conclusion
 
 - The guard hash difference is caused by a **source change**:
   `target/qnx8/guard/genesis_guard.c` gained the IPC-timeline trace in
-  commit `805ef7b`, between the AFTER pack (`a465e7f`) and the rerun.
+  commit `805ef7b`, between the AFTER pack (`a465e7f`) and the rerun
+  (`5cbc458`). The same range also touches
+  `target/qnx8/faultinject/genesis_faultinject.c`, which is why the
+  rerun's `faultinject` hash differs too (`ab18e936…` → `faf4d2a5…`):
+  both deltas are source-caused, not toolchain nondeterminism.
 - With this toolchain and these flags, qcc output was **bit-identical
   across checkout paths and repeated builds** for all 18 binaries tested.
 - Between BEFORE and AFTER (same commit `a465e7f`, contract 1.2 → 1.6)

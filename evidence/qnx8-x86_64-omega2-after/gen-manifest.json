@@ -1,0 +1,20 @@
+{
+  "files": {
+    "genesis_build_gen.mk": "aad35b84acca8d44ffc80a4ee1575a79a3e3d5ee21f6203c53b97893d6ec9143",
+    "genesis_config_gen.h": "16f295f6f4811ca84146dbe537b576a96b99deca466c1279869d21c060bb645d",
+    "genesis_machine_gen.c": "6cae8f1d5951a9e53a0a643dbe9af0b70a2842e6973bae8b4fc18bc88a030928",
+    "genesis_machine_gen.h": "a9df0bd4a52baeb255ce17fef669ddafb7b2f5ffeb50f30614626712dd06ec84"
+  },
+  "generator_version": "0.1.0",
+  "genesis_src": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8",
+  "ir_sha256": "5639d986d258062fcad450260723a04d9de2b4c5432ddef516e81bffefdbe70f",
+  "machine_template_version": "2.1",
+  "schema_version": 2,
+  "template_version": "1.0",
+  "templates": {
+    "genesis_build_gen.mk.tmpl": "194bb470e3b84eaa214b1a39e0515205ecec3915e5078d173ede09afd827e5f2",
+    "genesis_config_gen.h.tmpl": "1f57435c5144060cdce0b6cb5434941bc0b8182b782e63d7df407bf08c64002e",
+    "genesis_machine_gen.c.tmpl": "8918fedfed8289f255e685a69997abbb0ba32330ceb39fcf035148c985dc8643",
+    "genesis_machine_gen.h.tmpl": "82c83ce972fb7d7063e50ddf480c0bf038a2fff9c030729debcbfe54fe214f91"
+  }
+}

@@ -83,7 +83,7 @@ def _native_needed(changes: list[dict[str, Any]]) -> bool:
         status = str(entry.get("status", ""))
         if entry.get("renamed_from") or any(
                 status == t or status.startswith(f"{t} ")
-                or status.startswith(f"renamed from ")
+                or status.startswith("renamed from ")
                 for t in ("changed", "added", "deleted")):
             return True
     return False

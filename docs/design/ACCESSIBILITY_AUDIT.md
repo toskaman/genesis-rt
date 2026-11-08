@@ -8,11 +8,13 @@ no manual screen-reader pass yet — full conformance is NOT claimed.**
 `tests/e2e/test_a11y_axe.py` (runs in host CI with axe-core 4.10.2):
 
 - axe-core, tags `wcag2a wcag2aa wcag21a wcag21aa wcag22aa`, every one of
-  the 12 Studio tabs, **dark and light** themes: 0 serious/critical.
+  the 13 Studio pages, **dark and light** themes: 0 serious/critical.
 - Manual one-off run including `best-practice` and all impact levels:
   0 violations.
-- 320 CSS px viewport, every tab: no page-level horizontal scroll
+- 320 CSS px viewport, every page: no page-level horizontal scroll
   (WCAG 1.4.10).
+- 200 %/400 % zoom emulated via CSS-pixel viewports on the shell
+  pages (`test_shell_navigation.py`); real browser zoom untested.
 - Existing E2E: 390/768/1366 viewport audits, zero console errors.
 
 ## Found and fixed in this pass
@@ -29,7 +31,7 @@ no manual screen-reader pass yet — full conformance is NOT claimed.**
 
 ## Manual checks performed
 
-- Keyboard: Tab reaches the skip link first; tablist arrows/Home/End
+- Keyboard: Tab reaches the skip link first; sidebar arrows/Home/End
   move and activate; focus ring visible in both themes (Playwright).
 - Visual review of light/dark screenshots at 1440 px and 390 px.
 
@@ -39,4 +41,5 @@ no manual screen-reader pass yet — full conformance is NOT claimed.**
   unreviewed by a screen-reader user.
 - Canvas-based Digital Twin has text tables beside it but the canvas
   itself is not described element-by-element.
-- 200 %/400 % browser zoom was checked via the 320 px reflow proxy only.
+- Real 200 %/400 % browser zoom untested (only CSS-pixel emulation +
+  the 320 px reflow proxy).

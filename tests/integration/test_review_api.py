@@ -3,7 +3,6 @@
 """Integration tests: Wave 12 review endpoints (GET /ipc-timeline,
 POST /review/plan). Payloads come from the committed capture and the
 real proofos validator — no invented spans, no invented verdicts."""
-import json
 
 import pytest
 
