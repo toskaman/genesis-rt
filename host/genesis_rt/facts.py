@@ -12,8 +12,8 @@ from .provenance import EXPECTED_TARGET_CHECKS, TARGET_PLATFORM
 # never zero by assumption: SDK-only tests skip without the SDK, and the
 # 2 axe-core scans skip without node_modules/axe-core. Guarded by
 # test_total_count_matches_collected.
-TESTS_WITH_SDK = 1288
-TESTS_SDK_FREE_PASSED = 1282
+TESTS_WITH_SDK = 1292
+TESTS_SDK_FREE_PASSED = 1286
 TESTS_MEASURED_ON = "2026-11-08 TITAN Ascension (SDK-free, Linux, Python 3.12)"
 TESTS_SDK_FREE_SKIPS = 6
 ADVERSARIAL_TESTS = 24

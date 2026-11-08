@@ -1293,6 +1293,14 @@ def _fetch_staged(client, dest: str = "/tmp/genesis") -> tuple[dict | None, str 
     return staged, None
 
 
+def _verify_exit_code(all_ok: bool, fatal_errors: list) -> int:
+    """Exit status for `verify`: 0 only when the matrix passed AND
+    provenance is intact. Fatal errors (unknown identity, unreadable
+    staging, unloadable build-set) fail the run even with a green
+    matrix; absent --ir/--build-set only cap the tier (soft)."""
+    return 0 if (all_ok and not fatal_errors) else 1
+
+
 def _ir_binding(ir_path: str | None) -> dict | None:
     """{machine_id, ir_sha256} the operator binds this run to, or None
     when unattested (the gate then caps the tier — never silently)."""
@@ -1581,6 +1589,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     all_ok = True
     started = _utcnow()
     prov_errors: list[str] = []
+    fatal_errors: list[str] = []
     try:
         for name, command in TARGET_MATRIX:
             if name == "limits_differ":
@@ -1605,15 +1614,18 @@ def cmd_verify(args: argparse.Namespace) -> int:
         uname, uname_err = _fetch_uname(client)
         if uname_err:
             prov_errors.append(uname_err)
+            fatal_errors.append(uname_err)
         staged, staged_err = _fetch_staged(client)
         if staged_err:
             prov_errors.append(staged_err)
+            fatal_errors.append(staged_err)
         manifest_errors: list[str] = []
         if manifest is not None and not staged_err:
             manifest_errors = check_staged_against_manifest(staged, manifest)
             for problem in manifest_errors:
                 print(f"verify: STALE/MISMATCHED — {problem}")
                 prov_errors.append(problem)
+                fatal_errors.append(problem)
             if manifest_errors:
                 all_ok = False  # wrong binary ran: never a PASS
     finally:
@@ -1621,6 +1633,10 @@ def cmd_verify(args: argparse.Namespace) -> int:
     finished = _utcnow()
     if bs_err:
         prov_errors.append(bs_err)
+        if getattr(args, "build_set", None):
+            # Explicitly requested provenance that cannot load fails
+            # the run; an absent --build-set only caps the tier.
+            fatal_errors.append(bs_err)
     transcripts = {}
     for name, _command in TARGET_MATRIX:
         log = out_dir / f"target-{name}.log"
@@ -1656,7 +1672,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     if prov_errors:
         print(f"provenance: {'BOUND' if verified else 'UNBOUND'} "
               f"({'; '.join(prov_errors)})")
-    return 0 if all_ok else 1
+    return _verify_exit_code(all_ok, fatal_errors)
 
 
 @_with_target_lock

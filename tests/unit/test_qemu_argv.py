@@ -302,6 +302,16 @@ def test_state_probe_usage_documents_optional_seq(repo_root):
     assert "probe state <0..3> [seq]" in src
 
 
+def test_verify_exit_code_fails_on_fatal_provenance(qt):
+    """H9: a green matrix with broken provenance (unknown identity,
+    unreadable staging, unloadable build-set) must not exit 0. Absent
+    --ir/--build-set only cap the tier (soft, honestly reported)."""
+    assert qt._verify_exit_code(True, []) == 0
+    assert qt._verify_exit_code(False, []) == 1
+    assert qt._verify_exit_code(True, ["staged inventory failed"]) == 1
+    assert qt._verify_exit_code(True, ["target identity unknown"]) == 1
+
+
 def test_estop_command_greps_reset_after_reset_probe(qt):
     """The arming print fires on the NEXT received message, so the log
     grep must run after (not before) the RESET-PROBE that consumes it."""

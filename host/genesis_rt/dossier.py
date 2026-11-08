@@ -90,6 +90,34 @@ def _redact(obj: Any, path: str, redacted: list[str]) -> Any:
     return obj
 
 
+def _normalize_paths(obj: Any) -> Any:
+    """Collapse the operator home prefix to ~ in plain values (H8).
+
+    The dossier is portable evidence: absolute home paths would leak
+    the OS username into every shared ZIP. Only full-value prefixes
+    collapse (exact, case-insensitive on Windows); non-home absolute
+    paths stay intact as environment documentation. Sealed evidence
+    bytes are never rewritten, only these redacted display copies.
+    """
+    if isinstance(obj, dict):
+        return {key: _normalize_paths(val) for key, val in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_paths(val) for val in obj]
+    if isinstance(obj, str):
+        try:
+            home = str(Path.home())
+        except (OSError, RuntimeError):
+            return obj
+        low, hlow = obj.lower(), home.lower()
+        if low == hlow:
+            return "~"
+        if low.startswith(hlow) and len(obj) > len(home) \
+                and obj[len(home)] in ("/", "\\"):
+            return "~" + obj[len(home):].replace("\\", "/")
+        return obj
+    return obj
+
+
 def _load_json(data: bytes) -> dict[str, Any] | None:
     try:
         obj = json.loads(data.decode("utf-8"))
@@ -134,11 +162,12 @@ def collect_op_files(ops_dir: Path, op_id: str,
             raise DossierError(413, "dossier size cap exceeded (25 MiB)")
         files[arcname] = data
 
-    clean_rec = _redact(rec, "", redacted)
+    clean_rec = _normalize_paths(_redact(rec, "", redacted))
     _add("target-op.json", _lf(json.dumps(clean_rec, indent=1)
                                .encode("utf-8")))
     if isinstance(job_record, dict) and job_record.get("job_id"):
-        clean_job = _redact(job_record, "runner-job", redacted)
+        clean_job = _normalize_paths(_redact(job_record, "runner-job",
+                                             redacted))
         _add("runner-job.json", _lf(json.dumps(clean_job, indent=1,
                                                sort_keys=True, default=str)
                                     .encode("utf-8")))
@@ -267,13 +296,15 @@ def assess_op(op_id: str, rec: dict[str, Any],
         "verdict": verdict,
         "state": state,
         "gate": gate,
-        # Old passports predate level/release_eligible; fall back to
-        # the legacy tier key and to the gate itself.
+        # Old passports predate level; fall back to the legacy tier
+        # key for display. release_eligible has NO fallback: the
+        # modern seal always writes it, so an absent field
+        # (truncated/forged/ancient) reads closed, never open (M6).
         "gate_level": str(gate_body.get("level")
                           or gate_body.get("tier")
                           or ("not sealed" if not gate_body else "?")),
-        "release_eligible": bool(gate_body.get(
-            "release_eligible", gate == "PASS")) and not chain_errors,
+        "release_eligible": bool(gate_body.get("release_eligible",
+                                               False)) and not chain_errors,
         "qnx_verified": qnx_verified,
         "machine": _machine_name(ir),
         "ir_digest": str(((rec.get("artifacts") or {}).get("ir_sha256")
