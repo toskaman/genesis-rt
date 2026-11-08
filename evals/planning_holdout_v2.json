@@ -1,6 +1,6 @@
 {
  "name": "planning-holdout-v2",
- "description": "Written 7 Nov 2026 AFTER the deterministic-guard fixes derived from holdout v1 and BEFORE any measurement on it. v1 is no longer a clean holdout. Same scoring rules as v1.",
+ "description": "Written 7 Nov 2026 AFTER the deterministic-guard fixes derived from holdout v1 and BEFORE any measurement on it. v1 is no longer a clean holdout. Same scoring rules as v1. DEVELOPMENT-TOUCHED 8 Nov 2026: the unsupported-vehicle guard was derived from v2-r12/r13 model failures; regression use only from here on. Fresh holdout: planning_holdout_v3.json.",
  "cases": [
   {
    "id": "v2-v01",

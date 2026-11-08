@@ -105,6 +105,10 @@ MAX_IR_BYTES = 256 * 1024
 MAX_SCENARIOS = 32
 MAX_PASSPORT_TEXT = 3 * 1024 * 1024
 MAX_PLAN_BYTES = 256 * 1024
+# Titan F2: pre-parse ceiling enforced from Content-Length in the
+# middleware. Must exceed every legitimate per-field cap (passport
+# text 3 MiB + envelope) while stopping GB-scale parses.
+MAX_BODY_BYTES = 8 * 1024 * 1024
 
 # Canonical run_id rule lives in orchestrator (single source of truth);
 # the API re-checks early for 400 mapping, run_pipeline enforces it.
@@ -208,6 +212,17 @@ def create_app() -> Any:
             if origin and not _loopback_origin(origin):
                 return JSONResponse({"error": "cross-origin write rejected"},
                                     status_code=403)
+        # Titan F2: refuse absurd bodies BEFORE the JSON parse, so a
+        # GB-scale payload never becomes a GB-scale object graph. The
+        # per-field caps inside the handlers stay authoritative below it.
+        if request.method in ("POST", "PUT", "PATCH"):
+            try:
+                declared = int(request.headers.get("content-length", "0"))
+            except ValueError:
+                declared = 0
+            if declared > MAX_BODY_BYTES:
+                return JSONResponse({"error": "request body too large"},
+                                    status_code=413)
         return await call_next(request)
 
     def _check_common(req: RunRequest) -> None:

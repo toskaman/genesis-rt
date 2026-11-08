@@ -586,3 +586,21 @@ def test_write_record_gives_up_after_bounded_retries(runner, monkeypatch):
     with pytest.raises(PermissionError):
         runner._write_record({"op_id": "op-denied", "state": "EXECUTING",
                               "reason": "", "steps": []})
+
+
+def test_validate_params_caps_ir_and_scenarios():
+    """Titan F3: /target/ops params are capped like /runs (ir size,
+    scenario count/charset, src list length)."""
+    steps = ["validate", "generate"]
+    with pytest.raises(tgt.TargetOpError, match="256 KiB"):
+        tgt._validate_params(steps, {"ir": {"pad": "x" * (300 * 1024)}})
+    with pytest.raises(tgt.TargetOpError, match="32 entries"):
+        tgt._validate_params(steps, {"ir": {}, "scenarios": ["s"] * 33})
+    with pytest.raises(tgt.TargetOpError, match="must be \\[A-Za-z"):
+        tgt._validate_params(steps, {"ir": {}, "scenarios": ["ok", "a/b"]})
+    with pytest.raises(tgt.TargetOpError, match="64 files"):
+        tgt._validate_params(
+            steps, {"ir": {}, "src": ["f"] * 65, "scenarios": ["s"]})
+    ok = tgt._validate_params(
+        steps, {"ir": {"a": 1}, "scenarios": ["nominal_navigation"]})
+    assert ok["scenarios"] == ["nominal_navigation"]

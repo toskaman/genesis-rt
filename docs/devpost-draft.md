@@ -92,10 +92,20 @@ limits change and the other three are byte-identical.
 **AI, without AI theatre.** The optional LLM planner never writes the
 contract: the model extracts a structured intent, deterministic code checks
 units/ranges/ambiguity first and builds the IR from templates, and the same
-validation gate applies. Measured with `qwen2.5:7b-instruct` (CPU, local
-Ollama): 28/28 on the published eval with 0 unsafe accepts, and 8/8 on
-unseen paraphrases where the keyword planner gets 3/8
-(`evals/results/2026-11-07-qwen2.5-7b/`). The default remains the offline,
+validation gate applies. Measured with `qwen2.5:7b-instruct` and
+`llama3.1:8b-instruct` (CPU, local Ollama): 28/28 on the published eval
+with 0 unsafe accepts, and 8/8 (Qwen) on unseen paraphrases where the
+keyword planner gets 3/8. On a harder 98-case holdout the models first
+scored 87 and 81 with 11-14 accepted-should-refuse cases each — real
+failures, fixed deterministically; both models are now rerun post-fix at
+98/98 plus 30/30 on a second holdout. Because those sets are
+development-touched, a fourth frozen 36-case set is the honest final
+word: 32 (Qwen), 31 (Llama), 32 (offline), with every miss a
+pre-registered adversarial probe except one Llama overreach (raw logs
+`evals/results/2026-11-07-holdout-2models/`,
+`evals/results/2026-11-08-finalcode-2models/`,
+`evals/results/2026-11-08-v3v4-final/`,
+`docs/ascension/AI_EVALUATION.md`). The default remains the offline,
 deterministic keyword planner.
 
 ## Potential impact
@@ -119,7 +129,7 @@ python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before
 python evidence/qnx8-x86_64-w11-after/verify.py evidence/qnx8-x86_64-w11-after
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve   # Studio at http://127.0.0.1:8077/
-python -m pytest tests/ -q   # 1192 pass, 0 skip with the QNX SDK (all collected tests run); SDK-less CI: 1187 passed + 5 honest skips (measured 7 Nov 2026) (3 QNX-build + 1 SDK-only codelab + 1 real-build target op)
+python -m pytest tests/ -q   # 1229 collected; SDK run outcome is per-machine (the 2 axe scans skip without node_modules/axe-core); SDK-less CI: 1224 passed + 5 honest skips (measured 8 Nov 2026) (3 QNX-build + 1 SDK-only codelab + 1 real-build target op)
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then

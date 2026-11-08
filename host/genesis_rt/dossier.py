@@ -58,6 +58,11 @@ def _lf(data: bytes) -> bytes:
     return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
 
 
+_SECRET_VALUE_RE = re.compile(
+    r"(?i)\b(password|passwd|secret|api[_-]?key|auth[_-]?token|token|"
+    r"bearer)\b\s*[:=]\s*\S+")
+
+
 def _redact(obj: Any, path: str, redacted: list[str]) -> Any:
     if isinstance(obj, dict):
         out: dict[str, Any] = {}
@@ -72,6 +77,16 @@ def _redact(obj: Any, path: str, redacted: list[str]) -> Any:
     if isinstance(obj, list):
         return [_redact(v, f"{path}[{i}]", redacted)
                 for i, v in enumerate(obj)]
+    if isinstance(obj, str):
+        # Titan F4: secrets also hide in values ("token=abc", pasted
+        # URLs like "?api_key=SEK"). Scrub the value, keep the shape.
+        scrubbed = _SECRET_VALUE_RE.sub(
+            lambda m: m.group(0).split("=" if "=" in m.group(0)
+                                       else ":", 1)[0] + "=***REDACTED***",
+            obj)
+        if scrubbed != obj and path not in redacted:
+            redacted.append(path)
+        return scrubbed
     return obj
 
 
@@ -123,7 +138,8 @@ def collect_op_files(ops_dir: Path, op_id: str,
     _add("target-op.json", _lf(json.dumps(clean_rec, indent=1)
                                .encode("utf-8")))
     if isinstance(job_record, dict) and job_record.get("job_id"):
-        _add("runner-job.json", _lf(json.dumps(job_record, indent=1,
+        clean_job = _redact(job_record, "runner-job", redacted)
+        _add("runner-job.json", _lf(json.dumps(clean_job, indent=1,
                                                sort_keys=True, default=str)
                                     .encode("utf-8")))
     ev_p = ops_dir / f"{op_id}.events.jsonl"

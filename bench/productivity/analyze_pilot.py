@@ -1,31 +1,46 @@
 #!/usr/bin/env python3
 # Copyright 2026 GENESIS RT contributors
 # SPDX-License-Identifier: Apache-2.0
-"""Aggregate anonymized pilot measurement templates (Wave 12 §12).
+"""Aggregate pilot measurement rows with paired-data validation (Titan W2).
 
 Input: JSON-lines, one record per (team, task, lane) — the
 machine-readable form of docs/business/pilot-study.md §§3-4::
 
     {"team": "T1", "task": "validate", "lane": "genesis",
+     "started_utc": "2026-11-08T10:00:00+00:00",
+     "finished_utc": "2026-11-08T10:18:30+00:00",
      "duration_min": 18.5, "interruptions_min": 0,
      "commands_run": 8, "manual_steps": 2,
      "fault_found": true, "fault_id": "unknown-key",
      "evidence": true, "reviewer_min": 6.0,
-     "reviewer_pass": true, "confidence": 4}
+     "reviewer_pass": true, "confidence": 4,
+     "abandoned": false, "operator_kind": "participant",
+     "consent": true}
 
 Output: aggregate JSON on stdout (also ``--out``). Medians only —
 no means over tiny samples, no hour-dollar conversions. Rows that
 fail validation abort the run with a line number (fail-closed):
 pilot data must never silently shrink.
 
-Honesty rules baked in: ``n_teams < 2`` sets
-``comparative_claims: "insufficient"``; per-task lane deltas are
-reported with both medians and both n's, never as a single
-"X% faster" headline.
+Honesty rules baked in:
+
+- A comparison needs PAIRED tasks: the same team completing the same
+  task in BOTH lanes. Two teams that each ran one lane are
+  INCOMPLETE_PAIRED_DATA, never a supported comparison.
+- Owner-operated rows are exploratory only (OWNER_ONLY_EXPLORATORY);
+  they never count as independent validation.
+- Abandoned tasks are counted separately and excluded from medians.
+- Per-task lane deltas report both medians and both n's, never a
+  single "X% faster" headline; within-subject paired deltas are the
+  comparative statistic.
+- ``generalization`` is always INSUFFICIENT_FOR_GENERALIZATION: a
+  pilot is not powered for general claims. The paired n is reported
+  so a future powered study can size itself.
 """
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import statistics
 import sys
@@ -34,6 +49,20 @@ from pathlib import Path
 TASKS = ("validate", "generate", "campaign", "evidence", "compare",
          "regression")
 LANES = ("genesis", "reference")
+PROTOCOL = "pilot-study-v2"
+
+# Sample-validity ladder, weakest to strongest. Order matters: the
+# analyzer reports the strongest status the data actually earns.
+NO_HUMAN_DATA = "NO_HUMAN_DATA"
+OWNER_ONLY_EXPLORATORY = "OWNER_ONLY_EXPLORATORY"
+INCOMPLETE_PAIRED_DATA = "INCOMPLETE_PAIRED_DATA"
+PAIRED_PILOT_LIMITED = "PAIRED_PILOT_LIMITED"
+INDEPENDENT_PILOT_COMPLETE = "INDEPENDENT_PILOT_COMPLETE"
+INSUFFICIENT_FOR_GENERALIZATION = "INSUFFICIENT_FOR_GENERALIZATION"
+
+# A complete independent pilot: this many participant teams with every
+# task paired. Below this, PAIRED_PILOT_LIMITED.
+COMPLETE_TEAMS = 2
 
 
 def _num(row: dict, key: str, line: int, lo: float = 0.0) -> float:
@@ -50,6 +79,19 @@ def _bool(row: dict, key: str, line: int) -> bool:
     if not isinstance(val, bool):
         raise ValueError(f"line {line}: {key} must be true/false")
     return val
+
+
+def _stamp(row: dict, key: str, line: int) -> dt.datetime:
+    raw = row.get(key)
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError(f"line {line}: {key} must be an ISO timestamp")
+    try:
+        stamp = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"line {line}: {key} not ISO: {raw!r}") from exc
+    if stamp.tzinfo is None:
+        raise ValueError(f"line {line}: {key} must carry a timezone")
+    return stamp
 
 
 def load_rows(path: Path) -> list[dict]:
@@ -77,8 +119,32 @@ def load_rows(path: Path) -> list[dict]:
         if key in seen:
             raise ValueError(f"line {line}: duplicate {key}")
         seen.add(key)
+        started = _stamp(row, "started_utc", line)
+        finished = _stamp(row, "finished_utc", line)
+        if finished < started:
+            raise ValueError(f"line {line}: finished_utc before started_utc")
+        kind = row.get("operator_kind")
+        if kind not in ("owner", "participant"):
+            raise ValueError(
+                f"line {line}: operator_kind must be owner/participant")
+        is_owner_team = team.upper().startswith("OWNER")
+        if is_owner_team and kind != "owner":
+            raise ValueError(
+                f"line {line}: OWNER* team must be operator_kind owner")
+        if not is_owner_team and kind != "participant":
+            raise ValueError(
+                f"line {line}: non-OWNER team must be operator_kind "
+                "participant")
+        consent = _bool(row, "consent", line)
+        if kind == "participant" and not consent:
+            raise ValueError(
+                f"line {line}: participant rows require consent=true; "
+                "unconsented data must not be recorded")
+        abandoned = _bool(row, "abandoned", line)
         rows.append({
             "team": team, "task": task, "lane": lane,
+            "started_utc": started.isoformat(),
+            "finished_utc": finished.isoformat(),
             "duration_min": _num(row, "duration_min", line),
             "interruptions_min": _num(row, "interruptions_min", line),
             "commands_run": _num(row, "commands_run", line),
@@ -89,11 +155,14 @@ def load_rows(path: Path) -> list[dict]:
             "reviewer_min": _num(row, "reviewer_min", line),
             "reviewer_pass": _bool(row, "reviewer_pass", line),
             "confidence": _num(row, "confidence", line, lo=1.0),
+            "abandoned": abandoned,
+            "operator_kind": kind,
+            "consent": consent,
         })
         if rows[-1]["confidence"] > 5.0:
             raise ValueError(f"line {line}: confidence must be 1..5")
     if not rows:
-        raise ValueError("no data rows")
+        raise ValueError(f"no data rows ({NO_HUMAN_DATA})")
     return rows
 
 
@@ -101,38 +170,100 @@ def _med(vals: list[float]) -> float | None:
     return statistics.median(vals) if vals else None
 
 
+def _rate(vals: list[bool]) -> float | None:
+    return (sum(vals) / len(vals)) if vals else None
+
+
 def analyze(rows: list[dict]) -> dict:
+    """Aggregate validated rows; see module docstring for the rules."""
+    if not rows:
+        return {
+            "sample_status": NO_HUMAN_DATA,
+            "n_rows": 0,
+            "note": "no pilot rows: no human comparison exists",
+        }
     teams = sorted({r["team"] for r in rows})
+    owners = sorted({r["team"] for r in rows
+                     if r["operator_kind"] == "owner"})
+    participants = sorted({r["team"] for r in rows
+                           if r["operator_kind"] == "participant"})
+
+    def _cell(team: str, task: str, lane: str) -> dict | None:
+        for r in rows:
+            if (r["team"] == team and r["task"] == task
+                    and r["lane"] == lane and not r["abandoned"]):
+                return r
+        return None
+
+    # Paired cells: same participant team, same task, both lanes done.
+    paired: list[dict] = []
+    for team in participants:
+        for task in TASKS:
+            gen, ref = _cell(team, task, "genesis"), _cell(team, task,
+                                                           "reference")
+            if gen is not None and ref is not None:
+                paired.append({
+                    "team": team, "task": task,
+                    "genesis_min": gen["duration_min"],
+                    "reference_min": ref["duration_min"],
+                    "delta_min": ref["duration_min"] - gen["duration_min"],
+                })
+    paired_teams = sorted({p["team"] for p in paired})
+    full_teams = [t for t in paired_teams
+                  if sum(1 for p in paired if p["team"] == t) == len(TASKS)]
+
+    if not participants:
+        status = OWNER_ONLY_EXPLORATORY
+    elif not paired:
+        status = INCOMPLETE_PAIRED_DATA
+    elif len(full_teams) >= COMPLETE_TEAMS:
+        status = INDEPENDENT_PILOT_COMPLETE
+    else:
+        status = PAIRED_PILOT_LIMITED
+
     tasks: dict[str, dict] = {}
     for task in TASKS:
         per_lane = {}
         for lane in LANES:
-            sub = [r for r in rows if r["task"] == task
-                   and r["lane"] == lane]
+            done = [r for r in rows if r["task"] == task
+                    and r["lane"] == lane and not r["abandoned"]]
+            dropped = sum(1 for r in rows if r["task"] == task
+                          and r["lane"] == lane and r["abandoned"])
             per_lane[lane] = {
-                "n": len(sub),
+                "n_completed": len(done),
+                "n_abandoned": dropped,
                 "duration_min_median": _med([r["duration_min"]
-                                             for r in sub]),
+                                             for r in done]),
                 "reviewer_min_median": _med([r["reviewer_min"]
-                                             for r in sub]),
-                "commands_median": _med([r["commands_run"] for r in sub]),
+                                             for r in done]),
+                "commands_median": _med([r["commands_run"] for r in done]),
                 "manual_steps_median": _med([r["manual_steps"]
-                                             for r in sub]),
-                "fault_found_rate": (sum(r["fault_found"] for r in sub)
-                                     / len(sub)) if sub else None,
-                "evidence_rate": (sum(r["evidence"] for r in sub)
-                                  / len(sub)) if sub else None,
-                "reviewer_pass_rate": (sum(r["reviewer_pass"] for r in sub)
-                                       / len(sub)) if sub else None,
-                "confidence_median": _med([r["confidence"] for r in sub]),
+                                             for r in done]),
+                "fault_found_rate": _rate([r["fault_found"] for r in done]),
+                "evidence_rate": _rate([r["evidence"] for r in done]),
+                "reviewer_pass_rate": _rate([r["reviewer_pass"]
+                                             for r in done]),
+                "confidence_median": _med([r["confidence"] for r in done]),
             }
         tasks[task] = per_lane
     return {
+        "protocol": PROTOCOL,
+        "sample_status": status,
+        "n_rows": len(rows),
         "n_teams": len(teams),
         "teams": teams,
-        "n_rows": len(rows),
-        "comparative_claims": ("supported-sample"
-                               if len(teams) >= 2 else "insufficient"),
+        "owner_teams": owners,
+        "participant_teams": participants,
+        "n_paired_tasks": len(paired),
+        "paired_teams": paired_teams,
+        "paired_delta_min_median": _med([p["delta_min"] for p in paired]),
+        "paired": paired,
+        "generalization": {
+            "verdict": INSUFFICIENT_FOR_GENERALIZATION,
+            "paired_participant_teams": len(paired_teams),
+            "note": "pilot-scale sample by design; powered-study sizing "
+                    "needs this n, not a general claim",
+        },
         "tasks": tasks,
     }
 

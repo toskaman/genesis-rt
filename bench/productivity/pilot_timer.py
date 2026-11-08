@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2026 GENESIS RT contributors
 # SPDX-License-Identifier: Apache-2.0
-"""Interactive pilot session timer (Ascension, impact workstream).
+"""Interactive pilot session timer (Titan W2, impact workstream).
 
 Walks one operator through the six pilot tasks of
 docs/business/pilot-study.md §2 in one lane, timestamps start/stop in
@@ -9,6 +9,11 @@ UTC, asks the §3/§4 template questions, and appends one JSON line per
 task in exactly the format analyze_pilot.py validates. Nothing is
 estimated: every number is either a clock reading or the operator's
 own answer. Raw lines are appended, never rewritten.
+
+Abandoned tasks are recorded WITH abandoned=true (never silently
+dropped, never counted as completions). Participant (non-OWNER) rows
+require explicit consent at record time; declining consent records
+nothing for that task.
 
   python bench/productivity/pilot_timer.py --team OWNER --lane genesis \
       --out bench/productivity/data/owner-2026-11.jsonl
@@ -26,7 +31,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from analyze_pilot import LANES, TASKS, load_rows  # noqa: E402
+from analyze_pilot import LANES, PROTOCOL, TASKS, load_rows  # noqa: E402
 
 PROMPTS = {
     "validate": "Accept/reject 3 machine contracts (1 unknown key, 1 limit violation).",
@@ -62,16 +67,26 @@ def _ask(prompt: str, kind: type, read=input, lo=None, hi=None):
 
 
 def run_task(team: str, lane: str, task: str, read=input, clock=time.monotonic,
-             now=_utc) -> dict:
+             now=_utc) -> dict | None:
     print(f"\n== {task} ({lane}) — {PROMPTS[task]}")
+    kind = "owner" if team.upper().startswith("OWNER") else "participant"
     read("Press Enter to START the clock... ")
     t0, started = clock(), now()
     read("Press Enter when the task is DONE (or abandoned)... ")
     t1, finished = clock(), now()
+    abandoned = _ask("  abandoned before finishing? (y/n): ", bool, read)
+    if kind == "participant":
+        consent = _ask("  consent to anonymized use of this record? (y/n): ",
+                       bool, read)
+        if not consent:
+            print("  consent declined: nothing recorded for this task")
+            return None
     row = {
+        "protocol": PROTOCOL,
         "team": team, "task": task, "lane": lane,
         "started_utc": started, "finished_utc": finished,
         "duration_min": round((t1 - t0) / 60.0, 2),
+        "abandoned": abandoned,
         "interruptions_min": _ask("  interruptions (minutes): ", float, read, lo=0),
         "commands_run": _ask("  commands run (count from shell history): ", int, read, lo=0),
         "manual_steps": _ask("  manual steps (count): ", int, read, lo=0),
@@ -82,7 +97,8 @@ def run_task(team: str, lane: str, task: str, read=input, clock=time.monotonic,
         "reviewer_pass": _ask("  reviewer verified it? (y/n): ", bool, read),
         "confidence": _ask("  your confidence 1-5: ", float, read, lo=1, hi=5),
         "notes": read("  notes: ").strip(),
-        "operator_kind": "owner" if team.upper().startswith("OWNER") else "participant",
+        "operator_kind": kind,
+        "consent": True,
     }
     return row
 
@@ -98,6 +114,8 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     for task in a.tasks:
         row = run_task(a.team, a.lane, task)
+        if row is None:  # consent declined: nothing recorded
+            continue
         with out.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(row) + "\n")
         load_rows(out)  # fail-closed: the file must stay analyzable

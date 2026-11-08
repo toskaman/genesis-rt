@@ -1,0 +1,9 @@
+final-code model reruns 8 Nov 2026
+HEAD: 5bb2fc447b77f04eda4e6d2f69dc54d696f5f68e
+uncommitted working tree (planner v3-derive fixes). Pinned files:
+9fc19ae4437c4da74403c3167a263c54f64eb3a92f10f93460209163612b57a8  host/genesis_rt/planning.py
+af1f1e2913fde409fbd15499e0b4f9947650a48b6e27dd92ee05bf9c8c626926  host/genesis_rt/planner.py
+30cc414b4e5236a8acf79926ad7e74c5a079b864d37f8d32f34fd853f911a7bd  host/genesis_rt/ir.py
+53116fca663eb8ced22c56cf35bf9e0e688df5e8be2bda7b09859214799f3310  scripts/eval_planner.py
+d934691a48c9066c0346bae40c6d9e71d8ffa50f8da9994e9b92994e3cb07c53  evals/planning_holdout.json
+32650a91d5dc4401ba8d67c1ef82a8950485ec320a02c35e61e2f3d6aaf25e4c  evals/planning_holdout_v2.json

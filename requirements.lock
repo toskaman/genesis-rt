@@ -1,0 +1,20 @@
+# Pinned verification environment (Titan F5, 8 Nov 2026).
+#
+# Exact third-party versions the 1229-test suite + evals + browser E2E
+# were verified against on Windows (Python 3.14) and Linux CI
+# (Python 3.12). `pyproject.toml` keeps compatible lower bounds for
+# installers; this file reproduces the verified environment:
+#
+#   pip install -r requirements.lock
+#   pip install -e ".[dev,e2e]"
+#
+# Refresh intentionally (re-run the suite) — never float silently.
+cryptography==43.0.3
+fastapi==0.141.1
+httpx==0.28.1
+jsonschema==4.26.0
+paramiko==5.0.0
+playwright==1.63.0
+pytest==7.4.0
+pyyaml==6.0.3
+uvicorn==0.52.4

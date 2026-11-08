@@ -560,6 +560,9 @@ def _ssh_client(port: int, user: str, password: str, timeout: int = 30,
     cooled_down = False
     for attempt in range(1, retries + 1):
         client = paramiko.SSHClient()
+        # Titan F6: AutoAdd is scoped to loopback only (connect() pins
+        # 127.0.0.1 below). Any off-loopback use MUST switch to a pinned
+        # known_hosts policy first.
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
             client.connect("127.0.0.1", port=port, username=user,

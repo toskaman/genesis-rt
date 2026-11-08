@@ -112,7 +112,14 @@ class JobStore:
         self._lock = threading.RLock()
 
     def _path(self, job_id: str) -> Path:
-        return self.jobs_dir / f"job-{job_id}.json"
+        # Defense in depth: the id regex rejects separators outright,
+        # and the resolve check confines even a future regex widening.
+        if not JOB_ID_RE.fullmatch(job_id or ""):
+            raise RunnerError(f"bad job_id: {job_id!r}")
+        path = self.jobs_dir / f"job-{job_id}.json"
+        if path.resolve().parent != self.jobs_dir.resolve():
+            raise RunnerError(f"job_id escapes jobs_dir: {job_id!r}")
+        return path
 
     def get(self, job_id: str) -> dict[str, Any] | None:
         with self._lock:
@@ -225,7 +232,10 @@ def submit(body: bytes, signature: str | None, *,
     except (ValueError, UnicodeDecodeError) as exc:
         raise RunnerError(f"job body is not JSON: {exc}") from exc
     store = JobStore(config.jobs_dir)
-    known = store.get(str(job.get("job_id", "")))
+    raw_id = str(job.get("job_id", ""))
+    # Validate before the duplicate lookup: an unvalidated id must never
+    # be served a planted record from outside jobs_dir (Titan P1).
+    known = store.get(raw_id) if JOB_ID_RE.fullmatch(raw_id) else None
     if known is not None:
         # Duplicate delivery: never re-run, report stored state.
         # A live job reports RUNNING; a terminal job replays.
@@ -407,6 +417,8 @@ def status(config: RunnerConfig, job_id: str) -> dict[str, Any] | None:
 
 def cancel(config: RunnerConfig, job_id: str,
            target: Any = None) -> dict[str, Any]:
+    if not JOB_ID_RE.fullmatch(job_id or ""):
+        raise RunnerError(f"unknown job: {job_id}")
     store = JobStore(config.jobs_dir)
     rec = store.get(job_id)
     if rec is None:
@@ -420,5 +432,8 @@ def cancel(config: RunnerConfig, job_id: str,
             pass  # op already settled or owned elsewhere; settle the job
     rec.update({"status": "CANCELLED", "reason": "cancelled by operator",
                 "finished": time.time(), "updated": time.time()})
+    # Re-stamp the looked-up id: the record's own job_id is untrusted
+    # (a planted record must not redirect this write elsewhere).
+    rec["job_id"] = job_id
     store.put(rec)
     return rec

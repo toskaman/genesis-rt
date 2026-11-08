@@ -81,6 +81,30 @@ gate_verdict:    <PASS/FAIL>   level: <…>   qnx_verified: <true/false>
 replay_result:   <PASS/FAIL + command used>
 ```
 
+## 4.1 Machine record format (v2) + validity ladder
+
+`bench/productivity/pilot_timer.py` converts §§3–4 answers into one
+JSON line per (team, task, lane) for `analyze_pilot.py`. Required
+machine fields beyond §§3–4: `team` (anonymous id; `OWNER*` =
+owner-operated), `operator_kind` (owner/participant),
+`started_utc`/`finished_utc` (ISO with timezone, ordered),
+`abandoned` (true = attempted but not finished; counted separately,
+never a completion), `consent` (participant rows require true —
+declining records nothing).
+
+A comparison is valid only over **paired** tasks: the same team
+completing the same task in **both** lanes. The analyzer reports:
+
+- `NO_HUMAN_DATA` — no rows at all (current state: no pilot run yet).
+- `OWNER_ONLY_EXPLORATORY` — owner rows only; never independent proof.
+- `INCOMPLETE_PAIRED_DATA` — participants exist but nothing is paired
+  (e.g. two teams that each ran one lane).
+- `PAIRED_PILOT_LIMITED` — some paired tasks, below the bar.
+- `INDEPENDENT_PILOT_COMPLETE` — ≥2 participant teams with all six
+  tasks paired.
+- `generalization: INSUFFICIENT_FOR_GENERALIZATION` — always: a pilot
+  sizes a future study, it never generalizes.
+
 ## 5. Feedback survey (5 min, after both lanes)
 
 1. Which lane made the verdict easier to trust? Why (1–2 lines)?

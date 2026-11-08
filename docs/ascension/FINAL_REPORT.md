@@ -1,7 +1,7 @@
 # Ascension — final report (7 Nov 2026)
 
-Branch `ascension` → PR into `main` (see `docs/release/EXECUTION_STATE.md`
-for the PR number once merged). No video work; Devpost not submitted.
+Branch `ascension` → merged as **PR #10** into `main` (`5bb2fc4`).
+No video work; Devpost not submitted.
 
 ## What changed
 

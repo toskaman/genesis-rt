@@ -1,6 +1,6 @@
 # Copyright 2026 GENESIS RT contributors
 # SPDX-License-Identifier: Apache-2.0
-"""TITAN: automated WCAG 2.2 A/AA scan of every Studio tab with axe-core,
+"""TITAN: automated WCAG 2.2 A/AA scan of every Studio page with axe-core,
 in both themes, plus 320 px reflow. Automated only: it does NOT replace a
 manual screen-reader audit (see docs/design/ACCESSIBILITY_AUDIT.md).
 

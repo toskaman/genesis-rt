@@ -1,103 +1,99 @@
 1
-00:00:00,500 --> 00:00:04,000
-GENESIS RT: the physical world compiler for QNX
+00:00:04,200 --> 00:00:10,395
+One changed requirement can change a machine's
+behavior.
 
 2
-00:00:04,200 --> 00:00:09,901
-Embedded software must behave correctly
-even when real systems fail. This is Genesis RT:
+00:00:10,395 --> 00:00:16,590
+But how do you prove the new software is
+correct. This is Genesis RT: describe a
+machine, generate native QNX software, and
+prove it behaves.
 
 3
-00:00:09,901 --> 00:00:14,580
-Describe a machine, generate native QNX software,
-and prove it behaves.
-
-4
-00:00:15,200 --> 00:00:19,681
+00:00:20,200 --> 00:00:24,270
 Everything starts from a machine contract:
 sensors, actuators, safety limits.
 
+4
+00:00:24,270 --> 00:00:28,340
+The designer validates every field before
+anything is built.
+
 5
-00:00:19,681 --> 00:00:23,890
-The designer validates every field
-before anything is built.
+00:00:34,000 --> 00:00:38,030
+Genesis generates the QNX controller: guard
+policy and build files.
 
 6
-00:00:29,000 --> 00:00:32,960
-Genesis generates the QNX controller:
-guard policy and build files.
+00:00:38,030 --> 00:00:42,060
+Each file carries its source hash, pinned
+against the contract.
 
 7
-00:00:32,960 --> 00:00:37,070
-Each file carries its source hash,
-pinned against the contract.
+00:00:48,800 --> 00:00:54,040
+Then it runs for real: compiled with the QNX
+toolchain, executed on QNX 8 under Q-Emu.
 
 8
-00:00:43,800 --> 00:00:50,447
-Then it runs for real: compiled with the QNX
-toolchain, executed on QNX 8 under QEMU.
+00:00:54,040 --> 00:00:59,280
+Sixteen checks, a thousand performance
+samples. Gate: PASS.
 
 9
-00:00:50,447 --> 00:00:54,040
-Sixteen checks, a thousand performance samples.
-Gate: PASS.
+00:01:05,500 --> 00:01:09,930
+Now break it: a stale-sensor fault is injected
+live. The guard answers; the run records it.
 
 10
-00:01:00,500 --> 00:01:06,456
-Now break it: a stale-sensor fault is injected live.
-The guard answers; the run records it.
+00:01:09,930 --> 00:01:14,360
+A targeted verdict. Honest about what was not
+re-tested.
 
 11
-00:01:06,456 --> 00:01:10,050
-A targeted verdict -- honest about
-what was not re-tested.
+00:01:17,300 --> 00:01:21,955
+Diagnose with the evidence graph: every
+verdict links back to scenarios, binaries,
+requirements.
 
 12
-00:01:12,300 --> 00:01:17,503
-Diagnose with the evidence graph: every verdict
-links back to scenarios, binaries, requirements.
-
-13
-00:01:17,503 --> 00:01:22,090
+00:01:21,955 --> 00:01:26,610
 Click any node: the proof behind the claim,
 ready for review.
 
+13
+00:01:34,900 --> 00:01:40,985
+Change one limit. 1. 2 to 1. 6 meters per
+second.
+
 14
-00:01:29,900 --> 00:01:35,789
-Change one limit -- 1.2 to 1.6 meters per second --
-and verify both revisions.
+00:01:40,985 --> 00:01:47,070
+And verify both revisions. Before denies the
+1. 5 command; after allows it. Same rigor, new
+behavior. Two passports.
 
 15
-00:01:35,789 --> 00:01:42,260
-Before denies the 1.5 command; after allows it.
-Same rigor, new behavior -- two passports.
+00:01:55,500 --> 00:02:00,960
+A stale build bound to the new contract is
+refused. No passport. Fail closed.
 
 16
-00:01:50,500 --> 00:01:55,750
-A stale build bound to the new contract
-is refused. No passport. Fail closed.
+00:02:02,300 --> 00:02:08,940
+Both passports replay independently. No
+servers, no trust-me step.
 
 17
-00:01:57,300 --> 00:02:00,944
-Both passports replay independently --
-no servers, no trust-me step.
+00:02:08,940 --> 00:02:15,580
+Before and after verify clean: thirty-four
+files, fifteen links each. Flip a single byte,
+and the verifier rejects the pack. Evidence
+you can defend.
 
 18
-00:02:00,944 --> 00:02:04,968
-Before and after verify clean:
-thirty-four files, fifteen links each.
+00:02:24,300 --> 00:02:28,240
+Specify. Compile. Run.
 
 19
-00:02:04,968 --> 00:02:10,660
-Flip a single byte, and the verifier
-rejects the pack. Evidence you can defend.
-
-20
-00:02:19,300 --> 00:02:24,600
-Specify. Compile. Run. Break. Prove.
-Genesis RT for QNX.
-
-21
-00:02:30,000 --> 00:02:34,000
-Evidence your whole team can inspect.
-
+00:02:28,240 --> 00:02:32,180
+Break. Prove. Genesis RT for QNX. Every
+software change deserves a proof.

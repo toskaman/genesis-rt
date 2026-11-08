@@ -155,12 +155,16 @@ def test_docs_match_facts_source_of_truth():
 def test_devpost_counts_match_facts():
     from genesis_rt import facts
     text = _read("docs/devpost-draft.md")
-    m = re.search(r"# (\d+) pass, 0 skip .*SDK-less CI: (\d+) passed \+ "
+    # Collected totals are never reported as pass counts (CLAIMS.md):
+    # the devpost line states the collected total, the per-machine SDK
+    # caveat, and the measured SDK-less outcome.
+    m = re.search(r"# (\d+) collected; .*SDK-less CI: (\d+) passed \+ "
                   r"(\d+) honest skips", text)
     assert m is not None, "devpost count line missing"
     assert (m.group(1), m.group(2), m.group(3)) == \
         (str(facts.TESTS_WITH_SDK), str(facts.TESTS_SDK_FREE_PASSED),
          str(facts.TESTS_SDK_FREE_SKIPS)), m.groups()
+    assert f"# {facts.TESTS_WITH_SDK} pass, 0 skip" not in text
 
 
 def test_limitations_e2e_wording_current():

@@ -175,6 +175,23 @@ def test_dossier_redacts_secrets(tmp_path):
     assert "params.api_token" in manifest["redacted_keys"]
 
 
+def test_dossier_redacts_secret_values_and_runner_job(tmp_path):
+    """Titan F4: secrets inside string values and runner-job.json."""
+    ops = _write_op(tmp_path / "ops", params={
+        "note": "token=tokval-9z9 see ?api_key=SEKKEY-8y8", "cmd": "plain"})
+    blob = dos_mod.build_dossier_zip(
+        ops, OP, job_record={"job_id": "job-1", "status": "COMPLETED",
+                             "note": "password=hunter3"})
+    files = _unzip(blob)
+    bundled = files[f"dossier-{OP}/target-op.json"].decode("utf-8")
+    assert "tokval-9z9" not in bundled and "SEKKEY-8y8" not in bundled
+    assert "token=***REDACTED***" in bundled
+    assert "plain" in bundled
+    runjob = files[f"dossier-{OP}/runner-job.json"].decode("utf-8")
+    assert "hunter3" not in runjob
+    assert "password=***REDACTED***" in runjob
+
+
 def test_dossier_size_cap_413(tmp_path):
     ops = _write_op(tmp_path / "ops")
     (ops / OP / "target" / "big.log").write_bytes(b"x" * (26 * 1024 * 1024))

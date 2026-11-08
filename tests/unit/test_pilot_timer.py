@@ -14,7 +14,8 @@ from pilot_timer import run_task  # noqa: E402
 
 
 def test_row_is_measured_and_analyzable(tmp_path):
-    answers = iter(["", "", "0", "7", "2", "y", "unknown-key", "y", "3.5", "y", "4", "ok"])
+    answers = iter(["", "", "n", "0", "7", "2", "y", "unknown-key", "y",
+                    "3.5", "y", "4", "ok"])
     ticks = iter([100.0, 100.0 + 9 * 60])
     stamps = iter(["2026-11-07T17:00:00+00:00", "2026-11-07T17:09:00+00:00"])
     row = run_task("OWNER", "genesis", "validate", read=lambda _p: next(answers),
@@ -22,15 +23,21 @@ def test_row_is_measured_and_analyzable(tmp_path):
     assert row["duration_min"] == 9.0
     assert row["operator_kind"] == "owner"
     assert row["fault_id"] == "unknown-key"
+    assert row["abandoned"] is False
+    assert row["consent"] is True
     f = tmp_path / "d.jsonl"
     f.write_text(json.dumps(row) + "\n", encoding="utf-8")
     rep = analyze(load_rows(f))
-    assert rep["comparative_claims"] == "insufficient"
+    assert rep["sample_status"] == "OWNER_ONLY_EXPLORATORY"
 
 
 def test_invalid_answers_are_reasked():
-    answers = iter(["", "", "x", "0", "seven", "7", "2", "maybe", "n", "", "n", "0", "n", "9", "3", ""])
+    answers = iter(["", "", "maybe", "n", "y", "x", "0", "seven", "7", "2",
+                    "maybe", "n", "", "n", "0", "n", "9", "3", ""])
     ticks = iter([0.0, 60.0])
     row = run_task("T1", "reference", "generate", read=lambda _p: next(answers),
                    clock=lambda: next(ticks), now=lambda: "t")
     assert (row["commands_run"], row["fault_found"], row["confidence"]) == (7, False, 3.0)
+    assert row["abandoned"] is False
+    assert row["consent"] is True
+    assert row["operator_kind"] == "participant"

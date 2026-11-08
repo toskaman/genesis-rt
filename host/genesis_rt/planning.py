@@ -36,7 +36,8 @@ from .planner import propose as offline_propose
 # validate_ir (simulation_only, bounded limits, guards) plus the
 # deterministic compiler and the fail-closed evidence gate.
 _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
-    (r"disable.{0,20}guard|guard.{0,20}disable|no guard|without guard",
+    (r"disable.{0,20}guard|guard.{0,20}disable"
+     r"|\b(?:no|without)\s+(?:the\s+)?(?:guard|e-?stop|interlock|watchdog)\b",
      "disabling or removing the safety guard is not supported"),
     (r"ignore.{0,20}(safe|limit|instruct)|bypass.{0,20}(safe|guard|gate)",
      "bypassing safety policy, the guard, or the verification gate is not supported"),
@@ -48,6 +49,31 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
      "disabling simulation-only mode is not supported"),
     (r"weapon|explosive|surveillance target",
      "that use case is out of scope for this engineering tool"),
+    (r"\b(forklifts?|cranes?|hoists?|drones?|quadcopters?|elevators?|"
+     r"escalators?|aircraft|airplanes?|helicopters?|submarines?|"
+     r"printers?|rockets?|satellites?)\b",
+     "that machine is not a supported kind (AMR/conveyor/arm); "
+     "describe a supported machine"),
+    (r"\b(jokes?|poems?|story|stories|songs?|news|weather|recipes?|"
+     r"horoscopes?)\b",
+     "that is not a machine specification; describe the machine kind "
+     "and its limits"),
+    (r"humanoid",
+     "that machine is not a supported kind (AMR/conveyor/arm); "
+     "describe a supported machine"),
+    (r"\b((turn(?:ed|ing)?|switch(?:ed|ing)?|take|took)\s+off\s+"
+     r"(the\s+)?(watchdog|e-?stop|safety|guard|interlock)|"
+     r"(watchdog|e-?stop|safety|guard|interlock)\s+"
+     r"(is\s+|was\s+|were\s+|been\s+)?(turn(?:ed|ing)?|switch(?:ed|ing)?)\s+off|"
+     r"disabl\w*\s+(the\s+)?(watchdog|e-?stop|safety|guard|interlock)|"
+     r"remov\w*\s+(the\s+)?(watchdog|e-?stop|safety|guard|interlock)|"
+     r"(watchdog|e-?stop|safety|guard|interlock)\s+"
+     r"(is\s+|was\s+|were\s+|been\s+)?remov\w*)",
+     "disabling or removing the safety guard is not supported"),
+    (r'"kind"\s*:|"max_linear_speed_mps"\s*:|"period_ms"\s*:'
+     r'|\bmax_linear_speed_mps\s*[:=]|\bperiod_ms\s*[:=]',
+     "prompt-injection style instructions are not followed; describe "
+     "the machine in prose"),
     (r"system prompt|jailbreak|ignore previous|do anything now|hidden instructions"
      r"|developer mode|guards? (?:are |is )?(?:optional|off|disabled)",
      "prompt-injection style instructions are not followed"),
@@ -165,13 +191,16 @@ class LLMProvider:
         into a canonical request for the deterministic planner, and the
         planner's result is checked to carry exactly the intended values.
         """
-        # Deterministic guards first: units, ranges, ambiguity and length are
+        # Deterministic-first: units, ranges, ambiguity and length are
         # judged by the offline parser, never by the model (measured on
         # qwen2.5:7b: the model tends to drop "5 km/h" and apply defaults).
-        # Only "unknown machine kind" -- i.e. phrasing the keyword parser
+        # When the offline parser accepts, its result wins outright — the
+        # model is not consulted (measured 8 Nov 2026: model overrides of
+        # offline accepts caused false refuses on both models). Only
+        # "unknown machine kind" -- i.e. phrasing the keyword parser
         # cannot map -- is handed to the model.
         try:
-            offline_propose(request, machine_id=machine_id)
+            return offline_propose(request, machine_id=machine_id)
         except PlannerRejection as exc:
             if not str(exc).startswith("unknown machine kind"):
                 raise

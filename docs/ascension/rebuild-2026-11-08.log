@@ -1,0 +1,32 @@
+# qcc rebuild check — run log, 8 Nov 2026
+# Host: Windows + QNX SDP 8.0 (qcc 12.2.0 gcc_ntox86_64), repo at 5bb2fc4 (titan-ascension branch, uncommitted docs only)
+# Script: scripts/qnx_rebuild_check.py (fresh git worktree per pack, config header regenerated from pack ir.json, recorded qcc commands replayed)
+# Result: 18/18 MATCH across the three w11 packs (second independent run; first recorded 7 Nov 2026 in QNX_REPRODUCIBILITY.md)
+
+===== evidence/qnx8-x86_64-w11-before =====
+genesis_guard          MATCH 4b76cc1c1a909553 (published 4b76cc1c1a909553)
+genesis_controller     MATCH fec7de1814f5c98d (published fec7de1814f5c98d)
+genesis_device         MATCH 9a5b9d559e09bd6c (published 9a5b9d559e09bd6c)
+genesis_status         MATCH cd97edad966dc001 (published cd97edad966dc001)
+genesis_supervisor     MATCH 86f23d4edd37052d (published 86f23d4edd37052d)
+genesis_faultinject    MATCH 05add5a5c9a3afe1 (published 05add5a5c9a3afe1)
+commit a465e7f: ALL BINARIES REPRODUCED
+
+===== evidence/qnx8-x86_64-w11-after =====
+genesis_guard          MATCH b65afcb42e983095 (published b65afcb42e983095)
+genesis_controller     MATCH 867782cf32a660a7 (published 867782cf32a660a7)
+genesis_device         MATCH 9a5b9d559e09bd6c (published 9a5b9d559e09bd6c)
+genesis_status         MATCH cd97edad966dc001 (published cd97edad966dc001)
+genesis_supervisor     MATCH 86f23d4edd37052d (published 86f23d4edd37052d)
+genesis_faultinject    MATCH ab18e9368819355b (published ab18e9368819355b)
+commit a465e7f: ALL BINARIES REPRODUCED
+
+===== evidence/qnx8-x86_64-w11-rerun =====
+genesis_guard          MATCH f92f5e66b321f9ac (published f92f5e66b321f9ac)
+genesis_controller     MATCH 867782cf32a660a7 (published 867782cf32a660a7)
+genesis_device         MATCH 9a5b9d559e09bd6c (published 9a5b9d559e09bd6c)
+genesis_status         MATCH cd97edad966dc001 (published cd97edad966dc001)
+genesis_supervisor     MATCH 86f23d4edd37052d (published 86f23d4edd37052d)
+genesis_faultinject    MATCH faf4d2a5b82b1263 (published faf4d2a5b82b1263)
+commit 5cbc458: ALL BINARIES REPRODUCED
+

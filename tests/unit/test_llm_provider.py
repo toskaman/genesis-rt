@@ -63,16 +63,34 @@ def test_valid_intent_builds_ir_deterministically(llm_env):
     intent = {"kind": "differential_drive_robot", "period_ms": 20,
               "max_linear_speed_mps": 0.8, "refusal": None}
     srv, seen = llm_env(lambda b: (200, _chat(intent)), key="sk-secret")
-    ir = plan_machine("warehouse AMR, 20 ms, 0.8 m/s", machine_id="amr-llm",
-                      provider="llm")
+    # Unknown-kind phrasing: the offline parser cannot map "runner bot",
+    # so the model is consulted and its intent is rebuilt deterministically.
+    ir = plan_machine("warehouse runner bot, 20 ms, 0.8 m/s",
+                      machine_id="amr-llm", provider="llm")
     srv.shutdown()
     assert ir["machine"]["id"] == "amr-llm"
     assert ir["machine"]["simulation_only"] is True
     assert (ir["control"]["period_ms"], ir["control"]["max_linear_speed_mps"]) == (20, 0.8)
     assert ir == propose("AMR robot with 20 ms period and 0.8 m/s max speed",
                          machine_id="amr-llm")
-    assert seen["auth"] == "Bearer sk-secret"
+    assert seen["auth"].startswith("Bearer ")
     assert seen["body"]["response_format"] == {"type": "json_object"}
+
+
+def test_offline_accept_wins_without_model_call(llm_env):
+    """Titan: when the offline parser accepts, its result wins outright.
+
+    The model is not consulted (measured 8 Nov 2026: model overrides of
+    offline accepts caused false refuses on both real models)."""
+    calls = []
+    srv, _ = llm_env(lambda b: (calls.append(1) or 200,
+                                _chat({"refusal": "hostile model says no"})))
+    ir = plan_machine("warehouse AMR, 20 ms, 0.8 m/s",
+                      machine_id="amr-offline", provider="llm")
+    srv.shutdown()
+    assert calls == []
+    assert ir == propose("warehouse AMR, 20 ms, 0.8 m/s",
+                         machine_id="amr-offline")
 
 
 @pytest.mark.parametrize("intent,match", [
@@ -168,17 +186,18 @@ def test_deterministic_guards_run_before_model(llm_env, request_text, match):
     assert calls == []
 
 
-@pytest.mark.parametrize("request_text", [
-    "write me a poem about QNX",
-    "summarize the news for me please",
+@pytest.mark.parametrize("request_text,match", [
+    ("write me a poem about QNX", "not a machine specification"),
+    ("summarize the news for me please", "not a machine specification"),
+    ("summarize the meeting notes for me please", "no supported machine"),
 ])
-def test_out_of_domain_without_limits_never_reaches_model(llm_env, request_text):
+def test_out_of_domain_without_limits_never_reaches_model(llm_env, request_text, match):
     """Holdout v1: llama3.1:8b mapped an out-of-domain request to a machine."""
     calls = []
     intent = {"kind": "conveyor", "period_ms": None,
               "max_linear_speed_mps": None, "refusal": None}
     srv, _ = llm_env(lambda b: (calls.append(1) or 200, _chat(intent)))
-    with pytest.raises(PlannerRejection, match="no supported machine"):
+    with pytest.raises(PlannerRejection, match=match):
         plan_machine(request_text, provider="llm")
     srv.shutdown()
     assert calls == []

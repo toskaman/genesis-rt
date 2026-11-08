@@ -127,6 +127,8 @@ select, input[type=text], input[type=number], textarea, button.ghost, .cta butto
 .side-foot #live-status p, .side-foot #live-status div { margin:0; }
 .side-foot #live-status .banner { border:0; padding:0; background:transparent; }
 .side-foot #live-status { font-size:.75rem; line-height:1.4; color:var(--mut); }
+#live-context { font-size:.75rem; line-height:1.5; color:var(--mut); margin-top:.4rem; }
+#live-context .ctx { font-weight:600; color:var(--fg); }
 .side-foot .themebar { justify-content:flex-start; }
 .workspace { min-width:0; padding:1.25rem clamp(1rem,3vw,2.5rem) 3rem; }
 main { max-width:88rem; }
@@ -200,6 +202,7 @@ select { min-width:8rem; }
 </div></nav>
 <div class="side-foot">
 <div id="live-status" role="status"><p class="note">Probing backend…</p></div>
+<div id="live-context" class="note" aria-live="polite"></div>
 <details class="note"><summary>What needs the backend?</summary>
 Projects, Designer, Pipeline and Evidence need the live backend
 (<code>PYTHONPATH=host python -m genesis_rt.cli serve</code>, then open
@@ -265,7 +268,7 @@ Verify offline, no QNX SDK needed:</p>
 <p class="note">Seven stages, each driving the real product below.
 LIVE runs against the backend now; ARCHIVED shows the committed
 sample while the backend is offline.</p>
-<div id="judge-out"><p class="note">Loading…</p></div>
+<div id="judge-out" aria-live="polite"><p class="note">Loading…</p></div>
 </section>
 
 <section class="tabpage" id="tab-projects" role="tabpanel" aria-labelledby="tabbtn-projects">
@@ -359,11 +362,11 @@ verify → measure. IR comes from the source picked in the Pipeline tab.</p>
 </select>
 <label for="top-image">image dir</label>
 <input type="text" id="top-image" placeholder="…/qemu (needed for QEMU steps)">
-<button class="act" id="top-run">Run on target</button>
+<button class="act" id="top-run" aria-describedby="top-ready">Run on target</button>
 <button class="ghost" id="top-cancel" disabled>Cancel</button>
 </div>
 <p id="top-ready" class="note" role="status"></p>
-<div id="top-out"><p class="note">No target op yet.</p></div>
+<div id="top-out" aria-live="polite"><p class="note">No target op yet.</p></div>
 <h3>History</h3>
 <div class="row"><button class="ghost" id="top-refresh">Refresh history</button></div>
 <div id="top-history"><p class="note">Not loaded.</p></div>
@@ -1043,6 +1046,48 @@ function renderStatusHtml(online, env) {
     ' · ' + qemu + '<br><span class="note">' +
     (e.sdk_present && e.qemu && e.qemu.present ? 'native target runs available'
       : 'host pipeline only — native runs need SDK + QEMU') + '</span></div>';
+}
+/* Active-work context bar: which source / passport / scenario the
+ * cross-tab flows (Target runner, Twin, Evidence) currently use.
+ * Defensive by design: never throws, never blocks the caller. */
+function renderContext() {
+  const box = document.getElementById('live-context');
+  if (!box) return;
+  let src = 'no source', pp = 'no passport', scen = 'no scenario';
+  try {
+    if (typeof Live !== 'undefined' && Live && Live.pipeSource) {
+      src = Live.pipeSource.kind === 'example'
+        ? String(Live.pipeSource.value).split('|')[0]
+        : 'project ' + Live.pipeSource.pid;
+    }
+  } catch (e) { /* keep default */ }
+  try {
+    if (typeof Studio !== 'undefined' && Studio && Studio.passport) {
+      const d = (typeof twinDescribeSource === 'function')
+        ? twinDescribeSource(Studio.passport) : null;
+      pp = (d && (d.note || d.run)) ? String(d.note || d.run)
+        : 'passport loaded';
+      if (Studio.twinA && Studio.twinA.scen && Studio.twinA.scen.name) {
+        scen = String(Studio.twinA.scen.name);
+      }
+    }
+  } catch (e) { /* keep defaults */ }
+  box.innerHTML = '<span class="ctx">source</span> ' + esc(src) +
+    ' · <span class="ctx">passport</span> ' + esc(pp) +
+    ' · <span class="ctx">scenario</span> ' + esc(scen);
+}
+/* Readiness gating: without the SDK no native workflow can run, so
+ * the button disables up front (reason in #top-ready) instead of
+ * failing after the click. The click-time guard stays as backup. */
+function updateTargetRunEnabled() {
+  const btn = document.getElementById('top-run');
+  if (!btn) return;
+  const env = (typeof Live !== 'undefined' && Live && Live.env &&
+    Live.env.environment) || null;
+  const sdk = !!(env && env.sdk_present);
+  btn.disabled = !sdk;
+  btn.title = sdk ? ''
+    : 'Native runs need the QNX SDK on this machine (see readiness line)';
 }
 
 /* -- Judge Mode (pure core, node-tested) --
@@ -2028,6 +2073,7 @@ function onTabSwitch(name) {
   }
   if (name !== 'twin' && typeof stopTwin === 'function') stopTwin();
   if (name === 'judge' && typeof renderJudge === 'function') renderJudge();
+  if (typeof renderContext === 'function') renderContext();
 }
 document.getElementById('irfile').addEventListener('change', async (e) => {
   const f = e.target.files[0]; if (!f) return;
@@ -2083,6 +2129,7 @@ function usePassportText(text) {
       if (scen) openTwin(scen);
     });
   });
+  if (typeof renderContext === 'function') renderContext();
   return true;
 }
 document.getElementById('ppfile').addEventListener('change', async (e) => {
@@ -2966,6 +3013,7 @@ async function pipeSourceChanged() {
     el('pipe-scenarios').innerHTML =
       '<p class="note">Pick a source to list its verification scenarios.</p>';
   }
+  if (typeof renderContext === 'function') renderContext();
 }
 async function pipeRun() {
   if (!Live.pipeSource) {
@@ -3186,7 +3234,7 @@ async function targetRun() {
   } catch (e) {
     el('top-out').innerHTML = errHtml('target run failed', e);
   } finally {
-    el('top-run').disabled = false;
+    updateTargetRunEnabled();
   }
 }
 async function refreshTargetHistory() {
@@ -3962,6 +4010,8 @@ async function refreshLive() {
       ? '<span class="tag tag-host">Not ready</span> ' + esc(missing.join(' and ')) +
         ' not found on this machine — native runs will be refused; the Host pipeline still works.'
       : '<span class="tag tag-native">Ready</span> QNX SDK and QEMU detected.';
+    updateTargetRunEnabled();
+    renderContext();
     await loadExamples();
     await loadProjects();
     await refreshHistory();
@@ -3977,6 +4027,11 @@ async function refreshLive() {
       '<p class="note">Backend offline: Projects, Designer, Pipeline and Evidence need serve.</p>';
     el('pipe-history').innerHTML = '<p class="note">Backend offline.</p>';
     el('graph-out').innerHTML = '<p class="note">Backend offline.</p>';
+    const runBtn = document.getElementById('top-run');
+    if (runBtn) {
+      runBtn.disabled = true;
+      runBtn.title = 'Backend offline: start serve for target runs';
+    }
   }
   try {
     // Priority: deep link (#/tab) > last tab this session > Overview.

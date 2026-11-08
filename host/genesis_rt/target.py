@@ -72,6 +72,7 @@ _OP_ID_RE = re.compile(r"op-[0-9a-f]{12}")
 _USER_RE = re.compile(r"[a-z_][a-z0-9_-]{0,31}")
 _MEM_RE = re.compile(r"\d+[GM]")
 _CPU_RE = re.compile(r"[A-Za-z0-9_+,.\-]+")
+_SCEN_RE = re.compile(r"[A-Za-z0-9_.\-]{1,128}")
 _ACCELS = ("auto", "whpx", "tcg", "kvm")
 
 
@@ -117,6 +118,14 @@ def _validate_params(steps: list[str], params: dict[str, Any]) -> dict[str, Any]
     out = dict(params)
     if "ir" in out and not isinstance(out["ir"], dict):
         raise TargetOpError("param 'ir' must be an object")
+    if "ir" in out:
+        # Titan F3: bound the persisted op record like /runs does.
+        try:
+            blob = json.dumps(out["ir"]).encode("utf-8")
+        except (TypeError, ValueError):
+            raise TargetOpError("param 'ir' must be JSON-serializable")
+        if len(blob) > 256 * 1024:
+            raise TargetOpError("param 'ir' exceeds 256 KiB")
     if "build_timeout" in out and not _is_int(out["build_timeout"], 60, 1800):
         raise TargetOpError("param 'build_timeout' must be 60..1800")
     if "image_dir" in out:
@@ -139,6 +148,10 @@ def _validate_params(steps: list[str], params: dict[str, Any]) -> dict[str, Any]
         raise TargetOpError("param 'user' has invalid characters")
     if "wait" in out and not _is_int(out["wait"], 5, 900):
         raise TargetOpError("param 'wait' must be 5..900")
+    for _list_param in ("src", "extra_src"):
+        if _list_param in out and isinstance(out[_list_param], list) \
+                and len(out[_list_param]) > 64:
+            raise TargetOpError(f"param '{_list_param}' exceeds 64 files")
     if "src" in out:
         if not isinstance(out["src"], list) or not out["src"]:
             raise TargetOpError("param 'src' must be a non-empty file list")
@@ -160,6 +173,11 @@ def _validate_params(steps: list[str], params: dict[str, Any]) -> dict[str, Any]
         if (not isinstance(sc, list) or not sc
                 or any(not isinstance(s, str) or not s for s in sc)):
             raise TargetOpError("param 'scenarios' must be a non-empty string list")
+        if len(sc) > 32:
+            raise TargetOpError("param 'scenarios' exceeds 32 entries")
+        if any(len(s) > 128 or not _SCEN_RE.fullmatch(s) for s in sc):
+            raise TargetOpError("param 'scenarios' entries must be "
+                                "[A-Za-z0-9_.-]{1,128}")
     need_ir = {"validate", "generate"} & set(steps)
     if need_ir and "ir" not in out:
         raise TargetOpError(f"steps {sorted(need_ir)} require param 'ir'")
