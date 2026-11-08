@@ -203,6 +203,10 @@ EVAL_DATASET_DIGESTS = {
     "planning_holdout_v4.json":  # FROZEN 8 Nov 2026: final independent
         # measurement set. Measure once per provider; never tune.
         "3f515015eace34443496b19ac8f016fc17ebbc7eafd8fba384e849ff01018824",
+    "planning_holdout_v5.json":  # FROZEN 8 Nov 2026 (Omega2): second
+        # independent set, agent-authored after the v4 rerun. 9
+        # pre-registered probes. Measure once per provider; never tune.
+        "5b94e18e812cd497b851a5eaba81bc622b445e0a2d5be6ad10c39224a35e09ae",
 }
 
 
