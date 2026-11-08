@@ -283,6 +283,14 @@ function verifyChainText(text) {
 }
 
 /* HTML escaping: every interpolated passport value goes through esc(). */
+/* Passport record status class: pass/PASS/ok are healthy (native
+ * build/target/perf records carry "ok"), the placeholder is neutral,
+ * anything else renders as failure (fail-closed display). */
+function ppStatusClass(st) {
+  if (st === 'pass' || st === 'PASS' || st === 'ok') return 'pass';
+  if (st === '—') return '';
+  return 'fail';
+}
 function esc(v) {
   return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');

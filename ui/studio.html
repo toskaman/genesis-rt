@@ -445,8 +445,8 @@ the C guard or the QNX target; tiers are never merged.</p>
 <div id="pp-out"><p class="note">Open a <code>passport.json</code>. The hash
 chain is re-verified live; a stored PASS is shown only when valid.</p>
 <p class="note">Try one from the repo checkout:
-<code>evidence/qnx8-x86_64-w11-after/passport.json</code> (or the
-<code>-before</code> / <code>-after-rerun</code> pack).</p></div>
+<code>evidence/qnx8-x86_64-omega2-after/passport.json</code> (or the
+<code>-before</code> pack, or the W11 packs).</p></div>
 </section>
 
 <section class="tabpage" id="tab-diff" role="tabpanel" aria-labelledby="tabbtn-diff">
@@ -710,7 +710,7 @@ function renderPassportHtml(text) {
   h += '<table><tr><th>record</th><th>status</th><th>hash</th></tr>';
   for (const r of p.chain) {
     const st = (r.body && (r.body.status || r.body.verdict)) || '—';
-    const cls = (st === 'pass' || st === 'PASS') ? 'pass' : (st === '—' ? '' : 'fail');
+    const cls = ppStatusClass(st);
     h += '<tr><td><code>' + esc(r.kind) + '</code></td><td class="' + esc(cls) + '">' +
       esc(st) + '</td><td><code>' + esc(String(r.hash).slice(0, 16)) + '…</code></td></tr>';
   }
@@ -1372,8 +1372,9 @@ function targetRel(rec, s) {
 function renderTargetHtml(opId, reduced, record) {
   const rec = record || {};
   const state = rec.state || reduced.state;
+  const phaseShown = reduced.state === 'active' ? reduced.phase : state;
   let h = '<div class="banner">op <code>' + esc(opId) + '</code> · state <b>' +
-    esc(state) + '</b> · phase <code>' + esc(reduced.phase) + '</code></div>';
+    esc(state) + '</b> · phase <code>' + esc(phaseShown) + '</code></div>';
   if (reduced.state !== 'active' && opId) {
     h += '<p><a id="top-dossier" href="/target/ops/' +
       encodeURIComponent(opId) + '/dossier">Export dossier (.zip)</a> ' +

@@ -93,6 +93,7 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'twinsource') return twinDescribeSource(JSON.parse(c.arg));
     if (c.fn === 'twinevent') { const j = JSON.parse(c.arg); return renderTwinEventHtml(j.frame, j.scen, j.note); }
     if (c.fn === 'twinmarkers') return renderTwinMarkersHtml(JSON.parse(c.arg));
+    if (c.fn === 'ppclass') return ppStatusClass(c.arg);
     throw new Error('unknown fn ' + c.fn);
   });
   fs.writeFileSync(process.argv[3], JSON.stringify(out));
@@ -837,3 +838,18 @@ def test_twin_event_and_markers_render_and_escape(amr_ir, tmp_path):
         tmp_path)
     assert "fault corrupted started" in markers
     assert "data-tw=" in markers
+
+
+@node
+def test_passport_status_ok_renders_pass(tmp_path):
+    # P1a: qnx_build/qnx_target/qnx_perf records carry status "ok";
+    # the passport table painted every non-pass status red, so healthy
+    # native records looked failed. "ok" is a pass; unknown stays red.
+    got = _run_js(
+        [{"fn": "ppclass", "arg": "ok"},
+         {"fn": "ppclass", "arg": "pass"},
+         {"fn": "ppclass", "arg": "PASS"},
+         {"fn": "ppclass", "arg": "—"},
+         {"fn": "ppclass", "arg": "fail"},
+         {"fn": "ppclass", "arg": "bogus"}], tmp_path)
+    assert got == ["pass", "pass", "pass", "", "fail", "fail"]

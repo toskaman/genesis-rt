@@ -127,7 +127,7 @@ roadmap, pricing hypotheses, pilot-partner criteria, PMF risks.
 
 ## 7. Adoption obstacles (honest)
 
-- **Prototype maturity:** a 1292-test host suite (Omega2 SDK-free: 1286 passed + 6 honest skips; with the SDK the 6 SDK-gated tests also run) and a 16-step matrix are strong
+- **Prototype maturity:** a 1293-test host suite (Omega2 SDK-free: 1287 passed + 6 honest skips; with the SDK the 6 SDK-gated tests also run) and a 16-step matrix are strong
   for a hackathon, thin for production. Needs hardening sprints,
   fuzzing depth, and long-session robustness.
 - **QNX licensing:** see §9 — customers need their own commercial QNX
