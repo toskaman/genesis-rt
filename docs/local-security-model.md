@@ -47,11 +47,17 @@ in layers (each pinned by a test):
 - **JSON-only writes**: an Origin-less form POST dies at body
   validation (422) before any job/op exists.
   Pinned: `test_form_post_rejected_without_execution`.
-- **GET inventory** (`test_get_route_inventory_matches_audit`, 31
+- **GET inventory** (`test_get_route_inventory_matches_audit`, 36
   routes incl. FastAPI docs): audited side-effect free. The only
   writes reachable from a GET are idempotent store init
   (`_db()`: sqlite file + additive migrations, no attacker data).
   Adding a GET route fails the test until the audit list grows.
+  (Omega3 P1c re-audit, 8 Nov 2026: the five routes added since
+  the Wave-8 audit — `/ipc-timeline`, `/target/ops/compare`,
+  `/target/ops/compare/dossier`, `/target/ops/{op_id}/decision`,
+  `/target/ops/{op_id}/dossier` — were re-checked read-only:
+  op-id validated 400-first, zips built in memory, the
+  timeline serves a fixed committed path with no user input.)
 - **Host header**: deliberately NOT validated. With the five layers
   above, no browser vector reaches a state change; `Host` checking
   would only constrain already-trusted local callers.

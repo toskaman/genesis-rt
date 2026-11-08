@@ -250,6 +250,8 @@ its behavior, and inspect independently verifiable evidence.</p>
 <p class="note">Both decisions are correct under their own contract — that is the point.
 Verify offline, no QNX SDK needed:</p>
 <pre class="cmd"><code>python evidence/qnx8-x86_64-w11-before/verify.py evidence/qnx8-x86_64-w11-before</code></pre>
+<p class="note src-label"><span class="tag tag-archived">Archived</span> Current-source packs, same 16/16 native matrix on the schema-v2 machine: <code>evidence/qnx8-x86_64-omega2-before</code> → <code>evidence/qnx8-x86_64-omega2-after</code>.</p>
+<pre class="cmd"><code>python evidence/qnx8-x86_64-omega2-after/verify.py evidence/qnx8-x86_64-omega2-after</code></pre>
 
 <h2 class="section-h">How it works</h2>
 <ol class="flow">
@@ -1102,7 +1104,7 @@ function judgeStages() {
   return [
     { id: 'machine', title: 'A · The machine', tab: 'designer',
       action: 'judge-open-example',
-      proves: 'The virtual industrial cell: sensors, actuators, safety limits.',
+      proves: 'The virtual AMR: sensors, actuators, safety limits.',
       source: 'examples/amr-demo/machine-ir.json' },
     { id: 'software', title: 'B · The generated QNX software', tab: 'source',
       action: 'judge-open-source',

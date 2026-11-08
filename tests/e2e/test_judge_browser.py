@@ -226,3 +226,18 @@ def test_target_tab_empty_state(page):
         timeout=15_000)
     # Rendered history only (page.content includes the inline JS source).
     assert "top-dossier" not in pg.locator("#top-history").inner_html()
+
+
+def test_overview_current_source_and_stage_a_copy(page):
+    """Omega3 P1b: the overview surfaces the current-source Omega2
+    packs next to the W11 flagship cards, and Judge stage A names
+    the AMR example it actually opens (not an industrial cell)."""
+    pg = page
+    ov = pg.locator("#tab-overview").inner_text()
+    assert "One requirement change, verified natively twice" in ov
+    assert "evidence/qnx8-x86_64-omega2-before" in ov
+    assert "evidence/qnx8-x86_64-omega2-after/verify.py" in ov
+    pg.locator('button[data-tab="judge"]').click()
+    judge = pg.locator("#tab-judge").inner_text()
+    assert "The virtual AMR" in judge
+    assert "industrial cell" not in judge

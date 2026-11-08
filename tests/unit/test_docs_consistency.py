@@ -323,3 +323,123 @@ def test_sched_speedup_claim_withdrawn():
         assert "45%" not in text, rel
         assert "65%" not in text, rel
         assert "no general" in text, rel
+
+
+def test_current_packs_primary_w11_historical():
+    """Omega3 §4.7: current evidence paths are the Omega2 packs; W11
+    references survive only under a Historical marker."""
+    from genesis_rt import facts
+    claims = _read("docs/CLAIMS.md")
+    assert facts.PACK_BEFORE in claims and facts.PACK_AFTER in claims
+    hist = claims.index("Historical")
+    for token in ("w11-before", "w11-after"):
+        for m in re.finditer(re.escape(token), claims):
+            assert m.start() > hist, f"W11 ref outside history: {token}"
+    devpost = _read("docs/devpost-draft.md")
+    assert facts.PACK_BEFORE in devpost and facts.PACK_AFTER in devpost
+    hist = devpost.index("Historical")
+    for token in ("w11-before", "w11-after"):
+        for m in re.finditer(re.escape(token), devpost):
+            assert m.start() > hist, f"W11 ref outside history: {token}"
+
+
+def test_release_readiness_postmerge_recorded():
+    """Omega3 §4.7: the Omega2 readiness audit records the completed
+    merge (past SHAs are immutable history, not brittle pins)."""
+    text = _read("docs/audits/OMEGA2_RELEASE_READINESS.md")
+    assert "Post-merge verification" in text
+    assert "PR #11 merged" in text
+    assert "9098564" in text  # merge commit, immutable
+    assert "42492043838" in text  # main CI run, immutable
+    assert "Merge plan (pre-merge, kept historical)" in text
+
+
+def test_ai_eval_v5_disclosed_current_docs():
+    """Omega3 §4.7: current docs disclose v5 and its open gaps —
+    v4 must never be cherry-picked alone."""
+    assert "v5" in _read("docs/CLAIMS.md")
+    devpost = _read("docs/devpost-draft.md")
+    assert "v5" in devpost
+    assert "OPEN" in devpost or "open gaps" in devpost
+    assert "72" in devpost  # v4+v5 untouched total
+
+
+def test_devpost_not_submitted_and_video_deferred():
+    """Omega3 §4.7: the draft never reads as a submitted entry."""
+    devpost = _read("docs/devpost-draft.md")
+    assert "NOT submitted" in devpost
+    assert "DEFERRED" in devpost
+
+
+def test_impact_status_not_measured_pinned():
+    """Omega3 §4.7: the no-human-data status cannot silently flip."""
+    impact = _read("docs/ascension/IMPACT_STUDY.md")
+    assert "HUMAN USER BENEFIT NOT YET MEASURED" in impact
+    assert "zero invitations sent" in _read("docs/business/pilot-study.md")
+
+
+def test_unsigned_semantics_disclosed():
+    """Omega3 §4.7: hash-only trust is disclosed where packs are
+    claimed (integrity != attestation)."""
+    claims = _read("docs/CLAIMS.md")
+    assert "UNSIGNED" in claims and "hash-only" in claims
+    devpost = _read("docs/devpost-draft.md")
+    assert "hash-only" in devpost
+
+
+def test_pilot_durations_consistent():
+    """Omega3 §4.7: the 90-120 min/lane protocol estimate is the
+    only current figure; the 45-min owner shortcut is corrected."""
+    pilot = _read("docs/business/pilot-study.md")
+    impact = _read("docs/ascension/IMPACT_STUDY.md")
+    assert "90–120 min per lane" in pilot
+    assert "90–120 min/lane" in impact
+    # The correction note quotes the old figure; pin the live headers only.
+    assert "(owner, ~2 × 45 min)" not in impact
+    assert "60–90 min/lane, not 45" in impact
+
+
+def test_no_future_dated_completed_audits():
+    """Omega3 §4.7: the 9-Nov misdate in the 8-Nov baseline stays fixed."""
+    text = _read("docs/audits/ASCENSION_OMEGA2_BASELINE.md")
+    # The correction note quotes the old date; pin the live header only.
+    assert "read-only, 9 Nov 2026" not in text
+    assert "## Wave-1 audit (8 agents, read-only, 8 Nov 2026)" in text
+    assert "Correction 8 Nov 2026 (Omega3" in text
+
+
+def _load_analyzer():
+    spec = importlib.util.spec_from_file_location(
+        "omega3_analyzer_pin",
+        ROOT / "bench" / "productivity" / "analyze_pilot.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["omega3_analyzer_pin"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_quick_tier_doc_matches_code():
+    """Omega3 §6.2: the documented quick triple equals the code's
+    QUICK_TASKS, and QUICK is documented as never COMPLETE."""
+    ap = _load_analyzer()
+    assert tuple(ap.QUICK_TASKS) == ("generate", "campaign", "evidence")
+    pilot = _read("docs/business/pilot-study.md")
+    for task in ap.QUICK_TASKS:
+        assert f"`{task}`" in pilot
+    assert "QUICK_PAIRED_PILOT" in pilot
+    assert "NEVER equivalent" in pilot
+    assert "--quick" in pilot
+
+
+def test_security_model_get_inventory_count_current():
+    """Omega3 P1c §8.2: the prose GET-route count in the local
+    security model equals the audited inventory list (it drifted
+    31 vs 36 once; the pin test only guards the list)."""
+    model = _read("docs/local-security-model.md")
+    m = re.search(r"matches_audit`, (\d+)\s+routes", model)
+    assert m is not None, "GET count claim missing from security model"
+    posture = _read("tests/integration/test_rebinding_posture.py")
+    lst = re.search(r"AUDITED_GET_ROUTES = \[(.*?)\]", posture, re.S)
+    assert lst is not None
+    n = len(re.findall(r'"([^"]+)"', lst.group(1)))
+    assert int(m.group(1)) == n, (m.group(1), n)

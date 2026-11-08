@@ -111,6 +111,50 @@ def test_two_full_teams_are_complete(ap, tmp_path):
     assert out["paired_delta_min_median"] == 5.0
 
 
+# -- quick tier (Omega3 §6.2) --------------------------------------------
+
+def _quick_rows(team, lanes=("genesis", "reference")):
+    return [_row(team, t, lane)
+            for t in ("generate", "campaign", "evidence")
+            for lane in lanes]
+
+
+def test_two_quick_teams_are_quick_paired(ap, tmp_path):
+    rows = _quick_rows("T1") + _quick_rows("T2")
+    out = ap.analyze(ap.load_rows(_write(tmp_path, rows)))
+    assert out["sample_status"] == ap.QUICK_PAIRED_PILOT
+    assert out["n_paired_tasks"] == 6
+    assert out["generalization"]["verdict"] == (
+        ap.INSUFFICIENT_FOR_GENERALIZATION)
+
+
+def test_quick_plus_extras_is_still_not_full(ap, tmp_path):
+    # Two teams pair the quick three plus two extra tasks each, but
+    # neither pairs all six: QUICK, never COMPLETE.
+    rows = (_quick_rows("T1") + _quick_rows("T2")
+            + [_row("T1", t, lane) for t in ("validate", "compare")
+               for lane in ("genesis", "reference")]
+            + [_row("T2", t, lane) for t in ("validate", "regression")
+               for lane in ("genesis", "reference")])
+    out = ap.analyze(ap.load_rows(_write(tmp_path, rows)))
+    assert out["sample_status"] == ap.QUICK_PAIRED_PILOT
+
+
+def test_single_quick_team_is_limited(ap, tmp_path):
+    out = ap.analyze(ap.load_rows(_write(tmp_path, _quick_rows("T1"))))
+    assert out["sample_status"] == ap.PAIRED_PILOT_LIMITED
+
+
+def test_quick_subset_is_exactly_three_tasks(ap):
+    assert tuple(ap.QUICK_TASKS) == ("generate", "campaign", "evidence")
+    assert set(ap.QUICK_TASKS) < set(ap.TASKS)
+
+
+def test_timer_quick_flag_selects_quick_tasks(pt):
+    ns = pt.build_parser().parse_args(["--team", "T1", "--quick"])
+    assert ns.tasks == ["generate", "campaign", "evidence"]
+
+
 def test_generalization_always_insufficient(ap, tmp_path):
     rows = [_row(team, t, lane)
             for team in ("T1", "T2") for t in ap.TASKS
