@@ -55,6 +55,45 @@ separately (`reviewer_check`), never folded into operator time.
 6. `regression` — reproduce the stale-proximity failure on the
    tight-limit IR, apply the provided fix, confirm green.
 
+## 2.1 Quick tier (optional, 3 tasks, ~60–90 min total)
+
+Added 8 Nov 2026 (Omega3 §6.2). A low-friction alternative to
+the full six-task study for teams that cannot spare two
+half-days. Tasks, in lane order:
+
+1. `generate` — change a machine requirement and generate the
+   corresponding software (§2 task 2).
+2. `campaign` — execute the 8-scenario fault campaign
+   (§2 task 3).
+3. `evidence` — produce and independently verify the evidence
+   package, including the 1-byte tamper check (§2 task 4,
+   reviewer checklist §10).
+
+Time basis (ESTIMATE, pending an owner dry run): the 8 Nov
+2026 expert dry run floors these three tasks at ~21 min/lane
+(T2 4 + T3 5 + T4 12 min), i.e. ~45 min for both lanes;
+setup, onboarding and the survey add ~15–45 min. Budget
+60–90 min total. Machine time is negligible (< 1 s/lane for
+the host-only core, measured 8 Nov 2026).
+
+Run it with the timer preset (exactly these three tasks, both
+lanes, randomized order):
+
+```sh
+python bench/productivity/pilot_timer.py --team T1 --plan
+python bench/productivity/pilot_timer.py --team T1 --lane genesis --quick --out bench/productivity/data/t1.jsonl
+python bench/productivity/pilot_timer.py --team T1 --lane reference --quick --out bench/productivity/data/t1.jsonl
+python bench/productivity/analyze_pilot.py bench/productivity/data/t1.jsonl
+```
+
+The analyzer reports `QUICK_PAIRED_PILOT` (limitations:
+`quick-tier-only`, `n=2-teams-minimum` when applicable). A
+quick pilot is NEVER equivalent to a completed six-task
+study: neither a quick dataset, nor quick-plus-extra-tasks
+data, can produce the `COMPLETE` label — only two
+independent teams pairing all six tasks can. Owner-operated
+quick runs are labelled `OWNER_ONLY_EXPLORATORY`.
+
 Reference lane = the team's current practice (their editors,
 scripts, CI). Genesis lane = this repo's CLI/Studio. Lane order
 is randomized per operator (`pilot_timer.py --team T1 --plan
@@ -187,6 +226,10 @@ team, and QNX SDP binaries/images/license files are never shared.
 > candidate half-days.
 
 Status: draft — zero invitations sent so far.
+
+Ready-to-send quick-tier variants (engineer + manager) and
+target-community research: `pilot-outreach.md` (Omega3
+§6.5). Also drafts — nothing sent.
 
 ## 10. Reviewer checklist (for the `evidence` task, both lanes)
 

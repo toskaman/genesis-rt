@@ -57,7 +57,14 @@ NO_HUMAN_DATA = "NO_HUMAN_DATA"
 OWNER_ONLY_EXPLORATORY = "OWNER_ONLY_EXPLORATORY"
 INCOMPLETE_PAIRED_DATA = "INCOMPLETE_PAIRED_DATA"
 PAIRED_PILOT_LIMITED = "PAIRED_PILOT_LIMITED"
+QUICK_PAIRED_PILOT = "QUICK_PAIRED_PILOT"
 INDEPENDENT_PILOT_COMPLETE = "INDEPENDENT_PILOT_COMPLETE"
+# Omega3 §6.2: the low-friction tier runs exactly these three
+# high-signal tasks in both lanes. QUICK is never equivalent to a
+# completed six-task study; the full bar (COMPLETE_TEAMS x all six)
+# is unchanged.
+QUICK_TASKS = ("generate", "campaign", "evidence")
+QUICK_TEAMS = 2
 INSUFFICIENT_FOR_GENERALIZATION = "INSUFFICIENT_FOR_GENERALIZATION"
 
 # A complete independent pilot: this many participant teams with every
@@ -220,6 +227,10 @@ def analyze(rows: list[dict]) -> dict:
     paired_teams = sorted({p["team"] for p in paired})
     full_teams = [t for t in paired_teams
                   if sum(1 for p in paired if p["team"] == t) == len(TASKS)]
+    quick_teams = [t for t in paired_teams
+                   if all(any(p["team"] == t and p["task"] == q
+                             for p in paired)
+                          for q in QUICK_TASKS)]
 
     if not participants:
         status = OWNER_ONLY_EXPLORATORY
@@ -227,6 +238,8 @@ def analyze(rows: list[dict]) -> dict:
         status = INCOMPLETE_PAIRED_DATA
     elif len(full_teams) >= COMPLETE_TEAMS:
         status = INDEPENDENT_PILOT_COMPLETE
+    elif len(quick_teams) >= QUICK_TEAMS:
+        status = QUICK_PAIRED_PILOT
     else:
         status = PAIRED_PILOT_LIMITED
 

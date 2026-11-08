@@ -119,19 +119,30 @@ def plan_session(team: str, seed: int | None = None) -> dict:
             "lane_order": order, "seed": seed}
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--team", required=True, help="anonymous id, e.g. OWNER or T1")
     ap.add_argument("--lane", choices=LANES,
                     help="lane to time (not needed with --plan)")
     ap.add_argument("--out", help="JSONL rows file (not needed with --plan)")
     ap.add_argument("--tasks", nargs="*", default=list(TASKS), choices=TASKS)
+    # Omega3 §6.2: --quick selects exactly the quick tier; when both
+    # --tasks and --quick are given, the last flag wins.
+    ap.add_argument("--quick", dest="tasks", action="store_const",
+                    const=["generate", "campaign", "evidence"],
+                    help="run exactly the quick tier "
+                         "(generate, campaign, evidence)")
     ap.add_argument("--plan", action="store_true",
                     help="print the randomized lane order for --team and exit")
     ap.add_argument("--seed", type=int, default=None,
                     help="plan RNG seed (replays the same order)")
     ap.add_argument("--plan-out", default=None,
                     help="write the session plan JSON here (else stdout)")
+    return ap
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = build_parser()
     a = ap.parse_args(argv)
     if a.plan:
         plan = plan_session(a.team, a.seed)

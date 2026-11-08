@@ -406,3 +406,26 @@ def test_no_future_dated_completed_audits():
     assert "read-only, 9 Nov 2026" not in text
     assert "## Wave-1 audit (8 agents, read-only, 8 Nov 2026)" in text
     assert "Correction 8 Nov 2026 (Omega3" in text
+
+
+def _load_analyzer():
+    spec = importlib.util.spec_from_file_location(
+        "omega3_analyzer_pin",
+        ROOT / "bench" / "productivity" / "analyze_pilot.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["omega3_analyzer_pin"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_quick_tier_doc_matches_code():
+    """Omega3 §6.2: the documented quick triple equals the code's
+    QUICK_TASKS, and QUICK is documented as never COMPLETE."""
+    ap = _load_analyzer()
+    assert tuple(ap.QUICK_TASKS) == ("generate", "campaign", "evidence")
+    pilot = _read("docs/business/pilot-study.md")
+    for task in ap.QUICK_TASKS:
+        assert f"`{task}`" in pilot
+    assert "QUICK_PAIRED_PILOT" in pilot
+    assert "NEVER equivalent" in pilot
+    assert "--quick" in pilot

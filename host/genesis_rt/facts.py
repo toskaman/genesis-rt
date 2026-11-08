@@ -12,9 +12,9 @@ from .provenance import EXPECTED_TARGET_CHECKS, TARGET_PLATFORM
 # never zero by assumption: SDK-only tests skip without the SDK, and the
 # 2 axe-core scans skip without node_modules/axe-core. Guarded by
 # test_total_count_matches_collected.
-TESTS_WITH_SDK = 1322
-TESTS_SDK_FREE_PASSED = 1316
-TESTS_MEASURED_ON = "2026-11-08 TITAN Omega3 hardening-2 (SDK, Windows, Python 3.14)"
+TESTS_WITH_SDK = 1328
+TESTS_SDK_FREE_PASSED = 1322
+TESTS_MEASURED_ON = "2026-11-08 TITAN Omega3 P1a quick-tier (SDK, Windows, Python 3.14)"
 TESTS_SDK_FREE_SKIPS = 6
 ADVERSARIAL_TESTS = 24
 PLANNING_EVAL_CASES = 28
