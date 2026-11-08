@@ -1,4 +1,4 @@
-# ASCENSION Ω² baseline (verified 9 Nov 2026, branch `omega2` @ 97b0103)
+# ASCENSION Ω² baseline (verified 8 Nov 2026, branch `omega2` @ 97b0103)
 
 Machine-readable core:
 

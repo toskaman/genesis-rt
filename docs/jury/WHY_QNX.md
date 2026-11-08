@@ -18,9 +18,14 @@ produces is about those primitives behaving.
   attach; the matrix and codelab say so instead of hiding it.
 - **Real-time scheduling** — `scripts/qnx_target.py sched` compares 4
   configurations (`on -p`, SCHED_FIFO/SCHED_RR, policy verified via
-  `pidin`): RT priorities at both ends cut p50 ~45% / p99 ~65% vs
-  baseline on the author's QEMU target. Informational, no gate tier —
-  TCG timing is a regression aid, not a guarantee.
+  `pidin`). Result inconclusive across runs: the 5 Nov campaign
+  showed lower p50/p99 at RT priority on both ends, but the 8 Nov
+  re-run on jury-fixed sources did not reproduce any speedup
+  (baseline p50 227.4/p99 420.2 vs fifo_both 274.9/438.6,
+  rr_both 264.6/462.9 µs;
+  `docs/audits/CAMPAIGN_2026-11-08.md`) — no general
+  RT-priority speedup is claimed. Informational, no gate tier:
+  QEMU/TCG timing is a regression aid, not a guarantee.
 - **Process supervision** — bounded RESPAWN (×3, then GIVE_UP halt)
   with reset authority, proven by dedicated matrix steps. QNX HAM is
   documented as a complementary deployment option; the QSTI image

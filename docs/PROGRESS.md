@@ -900,3 +900,18 @@
 - G10 clean-install repro: PARTIAL (fresh-clone host green; independent reviewer + SDK pending)
 - G11 real demo video <3:00: PENDING
 - G12 README pitch/arch/commands/limitations/FAQ: YES
+
+## 2026-11-08 -- Omega2: sched RT-priority speedup NOT reproduced
+
+- 8-Nov sched re-run (jury-fixed sources, same TCG target
+  class): baseline p50 227.4/p99 420.2; fifo_guard
+  235.1/392.5; fifo_both 274.9/438.6; rr_both 264.6/462.9
+  us (n=200 each, all status ok, no 60 ms stall in any
+  config). RT-both configs are SLOWER than baseline on
+  p50: the 5-Nov ~45%/~65% reading does not replicate.
+- Current-facing claims corrected (no cherry-pick):
+  WHY_QNX.md, TECHNICAL_EVIDENCE.md:21, perf-baseline.md
+  Reading all now state inconclusive/no-general-speedup,
+  pointing at docs/audits/CAMPAIGN_2026-11-08.md. The
+  5-Nov table is kept as a dated record; frozen audits
+  (WAVE7_BASELINE.md, entries above) untouched.

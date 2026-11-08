@@ -310,3 +310,16 @@ def test_claims_e2e_count_matches_facts():
     m = re.search(r"Real-browser E2E: \*\*(\d+)\*\* collected", _read("docs/CLAIMS.md"))
     assert m is not None
     assert int(m.group(1)) == facts.E2E_BROWSER_TESTS
+
+
+def test_sched_speedup_claim_withdrawn():
+    """Omega2 §4: the 5-Nov RT-priority speedup did not replicate on
+    8 Nov; current-facing docs must carry the inconclusive reading,
+    never the ~45%/~65% generalization (frozen audits exempt)."""
+    for rel in ("docs/jury/WHY_QNX.md",
+                "docs/jury/TECHNICAL_EVIDENCE.md",
+                "docs/perf-baseline.md"):
+        text = _read(rel)
+        assert "45%" not in text, rel
+        assert "65%" not in text, rel
+        assert "no general" in text, rel
