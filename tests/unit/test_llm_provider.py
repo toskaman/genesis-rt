@@ -240,6 +240,18 @@ def test_no_false_refusals_found_by_independent_review(request_text, period, spe
     assert (ir["control"]["period_ms"], ir["control"]["max_linear_speed_mps"]) == (period, speed)
 
 
+def test_omega7_greifer_tier1_never_consults(llm_env):
+    """Omega7 v1.4 rule 19: tier-1 "Greifer" accepts via the
+    deterministic layer; the model is never consulted."""
+    calls = []
+    srv, _ = llm_env(lambda b: (calls.append(1) or 200,
+                                _chat({"refusal": "hostile model says no"})))
+    ir = plan_machine("Greifer, 20 ms, 1 m/s", provider="llm")
+    srv.shutdown()
+    assert calls == []
+    assert ir["machine"]["kind"] == "robotic_arm_virtual"
+
+
 def test_contradictory_no_kind_never_reaches_model(llm_env):
     """Wave 10 jury D: value screening precedes kind gating, so a
     contradictory request with no machine word refuses before the

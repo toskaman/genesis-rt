@@ -480,8 +480,9 @@ object and nothing else, exactly these keys:
  "refusal": null or a short reason}
 Mapping hints: AMR, rover, tugger, mobile/warehouse robot
 -> differential_drive_robot; belt, conveyor -> conveyor; arm,
-manipulator, gripper -> robotic_arm_virtual. Nouns outside this
-list name no machine: refusal "clarification required".
+manipulator, gripper, Greifer -> robotic_arm_virtual. Nouns
+outside this list name no machine: refusal "clarification
+required".
 Rules: use null for any value the request does not state (defaults are applied
 later). Copy numbers exactly. Units must be milliseconds and m/s: if the request
 gives a period in seconds or minutes, or a speed in km/h or other units, set

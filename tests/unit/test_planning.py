@@ -1332,3 +1332,25 @@ def test_omega7_v14_roboter_singular_still_accepts(req):
     from genesis_rt.planning import plan_machine
     ir = plan_machine(req, machine_id="m")
     assert ir["machine"]["kind"] == "differential_drive_robot"
+
+
+@pytest.mark.parametrize("req", [
+    "Greifer, 20 ms, 1 m/s",
+    "Greifer mit 20 ms Takt und 1 m/s",
+    "Greifer bleibt aktiv, 20 ms",
+])
+def test_omega7_v14_greifer_tier1_accepts(req):
+    """Omega7 v1.4 rule 19: DE "Greifer" is a tier-1 arm hint —
+    explicit, inflected-context, and preservation forms accept."""
+    from genesis_rt.planning import plan_machine
+    ir = plan_machine(req, machine_id="m")
+    assert ir["machine"]["kind"] == "robotic_arm_virtual"
+
+
+def test_omega7_v14_greifer_partial_values_disclosed():
+    """Omega7 v1.4 rule 19: partial-value Greifer behaves like
+    every tier-1 hint (defaults disclosed, not silent)."""
+    from genesis_rt.planning import plan_machine
+    ir = plan_machine("Greifer 20 ms", machine_id="m")
+    assert ir["machine"]["kind"] == "robotic_arm_virtual"
+    assert ir["defaults_applied"] == ["max_linear_speed_mps"]
