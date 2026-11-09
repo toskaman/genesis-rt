@@ -229,6 +229,15 @@ EVAL_DATASET_DIGESTS = {
         # 21-case fallback cohort, EN/FR/DE/ES x25. Post-fix blind
         # measurement: once per provider; never tune.
         "cb3820fd8f42aa3b1bed2363dcd1adb3aa53d132bb0da93f47683d800d3ab0b0",
+    "planning_holdout_v9.json":  # FROZEN 9 Nov 2026 (Omega5): sixth
+        # set, separately agent-authored BLIND under contract v1.3
+        # (author saw the contract + prose schema spec ONLY — no
+        # prior dataset, no format example, no source, no results;
+        # two near-convergent cases reworded pre-freeze by the
+        # author's own replacement text via a separate transcriber).
+        # 48 valid + 112 reject, 36-case fallback cohort,
+        # EN/FR/DE/ES x40. Measure once per provider; never tune.
+        "54e08384232286809c9cd163cc820fd83ec8dc1fdbb493a644207550b10eb34a",
 }
 
 
