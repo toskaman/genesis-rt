@@ -91,6 +91,35 @@ def _launch(p):
         pytest.skip(f"no usable browser for e2e ({first_err})")
 
 
+@pytest.fixture()
+def own_srv(tmp_path):
+    """Private backend for the test that kills its server."""
+    prev = api_mod.ARTIFACTS
+    api_mod.ARTIFACTS = tmp_path / "artifacts"
+    port = _free_port()
+    server = uvicorn.Server(uvicorn.Config(
+        api_mod.create_app(), host="127.0.0.1", port=port,
+        log_level="error"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        try:
+            if httpx.get(f"http://127.0.0.1:{port}/health",
+                         timeout=2).status_code == 200:
+                break
+        except httpx.HTTPError:
+            time.sleep(0.2)
+    else:
+        server.should_exit = True
+        pytest.fail("e2e server never became ready")
+    yield SimpleNamespace(base=f"http://127.0.0.1:{port}",
+                          server=server, thread=thread)
+    server.should_exit = True
+    thread.join(timeout=15)
+    api_mod.ARTIFACTS = prev
+
+
 def _watch(pg, errors: list[str]) -> None:
     # Expected 4xx fetches (bad-IR error state) surface as failed
     # resources; the test asserts UI text instead. Genuine JS
@@ -235,6 +264,30 @@ def test_prove_card_usable_at_zoom(srv, repo_root, zoom):
             pg.locator("#change-prove").scroll_into_view_if_needed(
                 timeout=10_000)
             assert pg.locator("#change-prove").is_visible()
+            assert errs == [], f"browser errors: {errs[:8]}"
+        finally:
+            browser.close()
+
+
+def test_prove_backend_dead_fails_honest(own_srv, repo_root):
+    """F1 degraded path: the backend dies after the IRs load —
+    Prove must say it failed, never render a stale card."""
+    with sync_playwright() as p:
+        browser, pg, errs = _prove_page(p, own_srv)
+        try:
+            _goto_diff(pg)
+            before_ir, after_ir = _cell_pair(repo_root)
+            pg.locator("#chgfile-a").set_input_files(str(before_ir))
+            pg.locator("#chgfile-b").set_input_files(str(after_ir))
+            own_srv.server.should_exit = True
+            own_srv.thread.join(timeout=15)
+            pg.locator("#change-prove").click()
+            pg.wait_for_function(
+                "() => document.querySelector('#change-out').innerText"
+                ".includes('Prove failed')",
+                timeout=60_000)
+            card = pg.locator("#change-out").inner_text()
+            assert "Contract knobs" not in card
             assert errs == [], f"browser errors: {errs[:8]}"
         finally:
             browser.close()
