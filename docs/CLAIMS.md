@@ -85,19 +85,32 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
 
 ## AI evaluation (current)
 
-- Latest blind set: **v9** (160 cases, 48 valid + 112 reject,
-  EN/FR/DE/ES x40, 36-case fallback cohort, separately
-  agent-authored against contract v1.3 with NO format example,
-  frozen 54e08384): offline **142/160**, Qwen 2.5 7B and Llama
-  3.1 8B **150/160** each — **5 unsafe accepts of 112**
-  reject-labelled cases (4.5%, same 5 deterministic-layer cases
-  on all providers), **0 wrong-kind accepts** (kind-evidence
-  boundary held), 34 direct consults of 36 eligible per model.
-  Consultation conformance enforced: 8 missing (bare value-less
-  nouns blocked by the limit-gate — code violates rule 18 as
-  written) + 6 unexpected (5 unsupported-vocabulary gaps, 1
-  missing German "Greifer" alias), all 14 explained
-  deterministically, identical on both models.
+- Latest blind set: **v10** (184 cases, 48 valid + 136 reject,
+  en114/fr24/de27/es19, 26-case fallback cohort, separately
+  agent-authored against contract v1.3 + failure CLASSES ONLY
+  (no sources, no tests, no prior case text, no planner runs),
+  frozen d550b802): v1.4 code scores offline **159/184**, Qwen
+  2.5 7B and Llama 3.1 8B **165/184** each — **15 unsafe
+  accepts of 136** (11.0%, same 15 deterministic-layer cases
+  on all providers: 6 unit-ambiguity omission readings, 3
+  structured-injection gaps, 2 documented residual-risk
+  probes, 2 multi-machine coordinations, 1 missing-value
+  vocab gap, 1 ambiguous-kind coordination), **0 wrong-kind
+  accepts** (kind-evidence boundary held), 4 true false
+  rejects per model (3 short-request length-floor, 1
+  unknown-marker window; offline 10 = the same 4 + 6 tier-2
+  it cannot consult). Consults 29 of 26 eligible per model:
+  0 missing + 3 unexpected (missing "suppress" verb, "stop X
+  from V-ing" gap, negation-scope overreach on "nothing
+  works"), all identical on both models and explained
+  deterministically; the 3 still refused via model-echoed veto
+  vocabulary.
+- Previous blind set v9 (160 cases, v1.3 code): offline 142/160,
+  Qwen/Llama 150/160 each; 5 unsafe accepts of 112 (4
+  safety-semantic + 1 fleet-count, all deterministic-layer);
+  0 wrong-kind; 34 consults of 36 eligible per model with 14
+  explained mismatches (8 gate-overreach missing + 6
+  vocabulary unexpected). NEVER rerun on changed code.
 - Previous blind set v8 (100 cases, v1.2 code): offline 82/100,
   Qwen 90/100 (4 wrong-kind), Llama 92/100 (3 wrong-kind);
   4 unsafe accepts; 25 consults per model. Provenance,
@@ -121,6 +134,12 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
   explicit-value protection. Covered by 12 red-then-green test
   cases (8 test functions, one 5-way parametrized) with fresh
   phrasings — v8 was NEVER rerun on this code.
+- v1.4 implementation (built after frozen v10, measured on v10
+  once per provider): Greifer tier-1, Roboter fleet forms,
+  4 safety-vocabulary additions, multilingual unsupported veto
+  (4 kinds), pre-consult gate removed (rule 18 literal).
+  Covered by 49 red-then-green tests with fresh phrasings —
+  v9 was NEVER rerun on this code.
 - Metric vocabulary (never merged): unsafe accepts (reject→IR —
   code-defined, so v9's 5 include the v9-110 fleet-count accept
   alongside 4 safety-semantic accepts), wrong-kind accepts (valid
@@ -132,14 +151,17 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
   reported for regression only.
 - Measurement ladder (never merged into one percentage):
   frozen history (98-case, v2/v3) → regression
-  (v4/v5 postfix) → blind agent-authored (v6, v7, v8-qualified, v9) →
-  model-fallback (v7: 20 consults; v8: 25; v9: 34 of 36
-  eligible, 14 mismatches explained) → human (none).
-- No general-robustness claim from 100-160 cases. Model
+  (v4/v5 postfix) → blind agent-authored (v6, v7, v8-qualified,
+  v9, v10) → model-fallback (v7: 20 consults; v8: 25; v9: 34
+  of 36 eligible, 14 mismatches explained; v10: 29 of 26
+  eligible, 3 mismatches explained) → human (none).
+- No general-robustness claim from 100-184 cases. Model
   refusal reasons are unreliable; only accept/refuse
   outcomes scored. The model never authorizes safety — the
   deterministic gate decides (pinned by tests).
-- Canonical: `docs/audits/OMEGA5_AI_EVALUATION.md` (+ raw
+- Canonical: `docs/audits/OMEGA7_AI_EVALUATION.md` (+ raw
+  `evals/results/2026-11-10-omega7-v10/`); v9 in
+  `docs/audits/OMEGA5_AI_EVALUATION.md` (+ raw
   `evals/results/2026-11-09-omega5-v9/`); consultation audit in
   `docs/audits/OMEGA5_CONSULTATION_AUDIT.md`; v7/v8 report in
   `docs/audits/OMEGA4_AI_EVALUATION.md` (with the 9 Nov

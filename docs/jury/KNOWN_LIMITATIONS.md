@@ -25,13 +25,18 @@ Short version of `docs/limitations-and-safety.md` — the full text governs.
 - No QNX HAM integration: the QSTI image ships no `ham` binary, so
   supervision is our own tested RESPAWN/GIVE_UP process (matrix
   steps `supervisor_respawn`/`supervisor_giveup`).
-- AI planner: blind v9 (160 cases, no format example) measured
-  5 reject→IR accepts / 112 (4 safety-semantic + 1 fleet-count,
-  all deterministic-layer) with 34/36 consults + 14 explained
-  consultation mismatches per model; wrong-kind 0. Previous
-  blind v8 (qualified provenance: limited prior-set
-  format-preview exposure): 4 unsafe / 100. Post-fix v4/v5
-  36/36 is regression-only; v7/v8/v9 are never rerun on
+- AI planner: blind v10 (184 cases, classes-only authoring) measured
+  15 reject→IR accepts / 136 (6 unit-ambiguity omission readings,
+  3 structured-injection gaps, 2 documented residual-risk probes,
+  2 multi-machine coordinations, 1 missing-value vocab gap,
+  1 ambiguous-kind coordination — all deterministic-layer, same
+  15 on all providers) with 29/26 consults + 3 explained
+  consultation mismatches per model (0 missing); wrong-kind 0;
+  4 true false rejects per model. Previous blind v9: 5 unsafe /
+  112; v8 (qualified provenance: limited prior-set
+  format-preview exposure): 4 unsafe / 100. v9 and v10 rates are
+  NOT comparable (different, harder instrument). Post-fix v4/v5
+  36/36 is regression-only; v7/v8/v9/v10 are never rerun on
   changed code. Trigger (v10 rule): any planner or
   deterministic-layer change requires a separately-authored,
   frozen-before-fix blind set (v10) before any improved

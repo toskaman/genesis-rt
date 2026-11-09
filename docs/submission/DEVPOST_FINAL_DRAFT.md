@@ -76,7 +76,7 @@ passport bound to the IR digest and op id → in-op replay
 (9 Nov 2026 owner run, SDK + axe: 1434 passed + 0 skipped,
 0 failures; SDK without axe: 1432 + 2 honest skips;
 SDK-free CI: 1428 + 6 SDK-gated skips).
-Planning unit tests 73/73 in `tests/unit/test_planning.py`
+Planning unit tests 113/113 in `tests/unit/test_planning.py`
 (60 inherited + 13 OMEGA5: 12 red-green planner cases + 1
 v9-overlap methodology pin; distinct from the 28/28
 published-eval regression);
@@ -138,18 +138,26 @@ deterministic keyword planner.
 Measured honesty, newest first (local Ollama CPU,
 `qwen2.5:7b-instruct` + `llama3.1:8b-instruct`):
 
-- **v9 blind holdout** (160 cases, 48 valid + 112 reject,
-  separately agent-authored against contract v1.3 with NO
-  format example, frozen BEFORE the v1.3 code, 9 Nov 2026):
-  offline **142/160**, Qwen and Llama **150/160** — 5 unsafe
-  accepts of 112 (same 5 deterministic-layer cases: 4
-  safety-semantic + 1 fleet-count), 0
-  wrong-kind accepts (registry-checked proposals), 34 of 36
-  expected consults per model (8 bare-noun + 6 vocabulary
-  consultation mismatches, all explained in the report).
+- **v10 blind holdout** (184 cases, 48 valid + 136 reject,
+  separately agent-authored against contract v1.3 + failure
+  CLASSES ONLY, frozen BEFORE the v1.4 code, 9 Nov 2026):
+  offline **159/184**, Qwen and Llama **165/184** — 15 unsafe
+  accepts of 136 (same 15 deterministic-layer cases: 6
+  unit-ambiguity omission readings, 3 structured-injection
+  gaps, 2 documented residual-risk probes, 2 multi-machine
+  coordinations, 1 missing-value vocab gap, 1 ambiguous-kind
+  coordination), 0 wrong-kind accepts (registry-checked
+  proposals), 29 of 26 expected consults per model (0 missing
+  + 3 explained vocabulary/scope mismatches). v9/v10 unsafe
+  rates are NOT comparable (different, harder instrument).
   Three failure kinds, kept separate: unsafe accepts
   (reject→IR), wrong-kind accepts (right valid, wrong machine),
   true false rejects (valid→refused).
+- **v9 blind holdout** (160 cases, v1.3 code, 9 Nov 2026):
+  offline **142/160**, Qwen and Llama **150/160** — 5 unsafe
+  accepts of 112 (4 safety-semantic + 1 fleet-count), 0
+  wrong-kind accepts, 34 of 36 expected consults per model
+  (14 explained mismatches). Never rerun on changed code.
 - **v8 blind holdout** (100 cases, separately
   agent-authored against contract v1.2 — qualified: limited
   prior-set format-preview exposure, zero verbatim overlap —
@@ -181,11 +189,13 @@ Measured honesty, newest first (local Ollama CPU,
   98-case holdout: 87/98 (Qwen), 81/98 (Llama), then
   98/98 + 30/30 post-fix on touched sets.
 
-Raw logs: `evals/results/2026-11-09-omega5-v9/`,
+Raw logs: `evals/results/2026-11-10-omega7-v10/`,
+`evals/results/2026-11-09-omega5-v9/`,
 `evals/results/2026-11-09-omega4-v8/`,
 `evals/results/2026-11-09-omega4-v7/`,
 `evals/results/2026-11-08-omega3-v6/`, full analysis
-`docs/audits/OMEGA5_AI_EVALUATION.md` (+ v7/v8 in
+`docs/audits/OMEGA7_AI_EVALUATION.md` (+ v9 in
+`docs/audits/OMEGA5_AI_EVALUATION.md`, v7/v8 in
 `docs/audits/OMEGA4_AI_EVALUATION.md`, consultation audit in
 `docs/audits/OMEGA5_CONSULTATION_AUDIT.md`).
 
