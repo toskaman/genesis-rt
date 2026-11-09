@@ -1,5 +1,10 @@
 # Devpost submission draft (prepared, NOT submitted)
 
+> **SUPERSEDED — do not file from this page.** Canonical submission
+> copy: [`docs/submission/DEVPOST_FINAL_DRAFT.md`](submission/DEVPOST_FINAL_DRAFT.md)
+> (per `docs/submission/FILING_DAY_CHECKLIST.md`). This working draft
+> is kept for history only.
+>
 > Omega3 P1d note (8 Nov 2026): the AI paragraph below
 > predates the v6 blind holdout and the deterministic
 > fixes. Current AI disclosure: `docs/submission/DEVPOST_FINAL_DRAFT.md`
@@ -148,7 +153,7 @@ python evidence/qnx8-x86_64-omega2-before/verify.py evidence/qnx8-x86_64-omega2-
 python evidence/qnx8-x86_64-omega2-after/verify.py evidence/qnx8-x86_64-omega2-after
 PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve   # Studio at http://127.0.0.1:8077/
-python -m pytest tests/ -q   # 1395 collected; SDK run outcome is per-machine (the 2 axe scans skip without node_modules/axe-core); SDK-less CI: 1389 passed + 6 honest skips (TITAN V3; 9 Nov 2026 base) (3 QNX-build + 2 SDK-only codelab + 1 real-build target op)
+python -m pytest tests/ -q   # 1434 collected; SDK run outcome is per-machine (the 2 axe scans skip without node_modules/axe-core); SDK-less CI: 1428 passed + 6 honest skips (OMEGA6; 9 Nov 2026 base) (3 QNX-build + 2 SDK-only codelab + 1 real-build target op)
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then

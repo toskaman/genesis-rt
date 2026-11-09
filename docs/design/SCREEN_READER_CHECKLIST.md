@@ -35,3 +35,30 @@ For each page: PASS / FAIL + reader + version + date + tester.
 Any FAIL blocks a WCAG-conformance claim for that page.
 File the completed sheet under `docs/design/SCREEN_READER_RESULTS.md`
 (separate file; this checklist stays the blank protocol).
+
+## K1 judge-path script (protocol addendum, OMEGA6 E2 — NOT executed)
+
+No human has run this; a human tester follows it verbatim and
+records what the reader actually announces (no agent contact).
+
+1. Serve the Studio build under test; start NVDA (Windows) or
+   VoiceOver (macOS); note reader + browser + versions + commit.
+2. Overview tab: find the "Prove a change" button by Tab order
+   and by heading/landmark navigation; activate it — the Before
+   / After tab must open with focus moved to its tab.
+3. Before / After tab: find the "Prove a change (needs backend)"
+   heading; both IR file inputs announce their purpose
+   ("IR A (before)", "IR B (after)"); attach
+   `examples/cell-demo/cell-ir-broken.json` + `cell-ir.json`.
+4. Press **Prove**: the "Proving… (two pipelines)" state must
+   be announced (or its absence recorded as a gap); on
+   completion the verdict card must expose, in order: change
+   id, before/after run ids + gates, contract knob flips,
+   fixed/broken scenario lists, chain validity, banner
+   verdict — all as text, no canvas-only content.
+5. Failure path: with no backend, pressing Prove must announce
+   the failure text assertively; record whether focus moves to
+   the error.
+6. Record per step: PASS/FAIL + exact announcement heard +
+   reader + date + tester name; any FAIL is filed as a defect,
+   never reworded into a pass.

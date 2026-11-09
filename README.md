@@ -2,6 +2,17 @@
 
 **From human intent to tested QNX-native machine software.**
 
+GENESIS RT generates inspectable evidence about the behavior of
+the code — a requirement change goes in, a verdict anyone can
+re-verify offline comes out.
+
+> **30-second cold start** (no SDK, no QNX target) — product-time budget:
+> `pip install -e .` (one-time setup, unmeasured) →
+> `genesis-rt validate examples/cell-demo/cell-ir.json` →
+> `genesis-rt demo --ir examples/cell-demo/cell-ir.json`
+> (PASS verdict + offline passport in ~2 s of product runtime after setup;
+> install/clone/first-boot excluded — see `docs/jury/REPRODUCE.md`).
+
 [![host-ci](https://github.com/toskaman/genesis-rt/actions/workflows/host-ci.yml/badge.svg)](https://github.com/toskaman/genesis-rt/actions/workflows/host-ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 

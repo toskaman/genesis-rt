@@ -752,3 +752,102 @@ def test_second_host_provenance_template_present():
                   "Host B fingerprint", "Pack hashes match Host A",
                   "Do NOT register"):
         assert token in text, token
+
+
+_ABSOLUTE_LOCAL_PATH = re.compile(r"C:/|C:\\|/home/|/Users/")
+_CODE_SPAN = re.compile(r"`[^`]*`")
+
+
+def _md_files() -> list[Path]:
+    out = []
+    for path in sorted(ROOT.rglob("*.md")):
+        if ".git" in path.parts or "node_modules" in path.parts:
+            continue
+        out.append(path)
+    return out
+
+
+def _strip_redactions(text: str) -> str:
+    """Drop code spans that are redacted placeholders (`...`)."""
+    return _CODE_SPAN.sub(lambda m: "" if "..." in m.group(0) else m.group(0),
+                          text)
+
+
+def test_docs_have_no_absolute_local_paths():
+    """OMEGA6 A5 (E1-class prevention): repo docs never ship absolute
+    local paths — they 404 on GitHub and leak the author's layout.
+    Redacted placeholders (code spans containing `...`) are allowed."""
+    offenders = []
+    for path in _md_files():
+        body = _strip_redactions(path.read_text(encoding="utf-8"))
+        for lineno, line in enumerate(body.splitlines(), 1):
+            if _ABSOLUTE_LOCAL_PATH.search(line):
+                offenders.append(f"{path.relative_to(ROOT)}:{lineno}:"
+                                 f" {line.strip()[:120]}")
+    assert offenders == [], "\n".join(offenders)
+
+
+def test_docs_have_no_outside_repo_links():
+    """OMEGA6 A5: markdown `../` links must resolve inside the repo
+    (post-E1 the audit copies link repo-relative)."""
+    offenders = []
+    for path in _md_files():
+        body = _CODE_SPAN.sub("", path.read_text(encoding="utf-8"))
+        for match in re.finditer(r"\]\(([^)]+)\)", body):
+            target = match.group(1).strip().split("#")[0].split(" ")[0]
+            if ".." not in target or target.startswith("http"):
+                continue
+            resolved = (path.parent / target).resolve()
+            if resolved != ROOT and ROOT not in resolved.parents:
+                offenders.append(f"{path.relative_to(ROOT)} -> {target}")
+    assert offenders == [], "\n".join(offenders)
+
+
+def test_hero_line_front_doored():
+    """OMEGA6 C1: the one-line value prop sits on all three
+    front doors (README, Studio landing, Devpost first screen)."""
+    hero = "generates inspectable evidence about the behavior of"
+    flat = lambda rel: re.sub(r"\s+", " ", _read(rel))
+    assert hero in flat("README.md")
+    assert hero in flat("ui/studio.html")
+    assert hero in flat("docs/submission/DEVPOST_FINAL_DRAFT.md")
+
+
+def test_qnx_footprint_table_present():
+    """OMEGA6 D4: the QNX evidence doc carries the measured C
+    footprint (text/data/bss) with RSS honestly unmeasured."""
+    text = _read("docs/jury/WHY_QNX.md")
+    assert "## Native binary footprint" in text
+    for token in ("genesis_guard", "6641", "genesis_faultinject",
+                  "8136", "ntox86_64-size",
+                  "No resident-set claim is made"):
+        assert token in text, token
+
+
+def test_v10_trigger_rule_pinned():
+    """OMEGA6 D6: the v10 rule lives in the roadmap-facing
+    limitations doc — planner change implies a fresh blind set."""
+    text = _read("docs/jury/KNOWN_LIMITATIONS.md")
+    assert "v10 rule" in text
+    assert "frozen-before-fix blind set (v10)" in text
+
+
+def test_pack_file_counts_state_verify_py_exclusion():
+    """OMEGA6 A6 (B-19): on-disk pack counts include the verifier
+    itself (35/37); docs claim payload files excluding it (34/36)
+    and must say so, or a hostile reviewer screenshots the gap."""
+    from genesis_rt import facts
+    counts = {}
+    for rel, want_total, want_payload in (
+            (facts.PACK_BEFORE, 35, 34), (facts.PACK_AFTER, 37, 36)):
+        files = [p for p in (ROOT / rel).rglob("*") if p.is_file()]
+        payload = [p for p in files if p.name != "verify.py"]
+        assert len(files) == want_total, (rel, len(files))
+        assert len(payload) == want_payload, (rel, len(payload))
+        counts[rel] = (len(files), len(payload))
+    assert counts  # both packs measured, not assumed
+    for rel in ("docs/CLAIMS.md",
+                "docs/submission/DEVPOST_FINAL_DRAFT.md"):
+        text = _read(rel)
+        assert "34 payload files + verify.py" in text, rel
+        assert "36 payload files + verify.py" in text, rel

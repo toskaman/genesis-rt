@@ -161,6 +161,22 @@ def test_dossier_unknown_op_404(tmp_path):
     assert ei.value.status == 404
 
 
+@pytest.mark.parametrize("evil", ["../escape", "..\\escape", "/abs", "C:\\abs",
+                                  "op with space", "not-an-id", ""])
+def test_dossier_hostile_op_id_refused_before_read(tmp_path, evil):
+    """OMEGA6 A3: the ZIP writer validates the op id before touching
+    disk — a planted op outside ops_dir must not be readable via
+    `../`, and no member may ever carry `..` (ZipSlip)."""
+    ops = _write_op(tmp_path / "ops")
+    _write_op(tmp_path, op_id="escape")  # planted OUTSIDE ops_dir
+    assert (tmp_path / "escape.json").is_file()
+    with pytest.raises(dos_mod.DossierError) as ei:
+        dos_mod.build_dossier_zip(ops, evil)
+    assert ei.value.status == 404
+    with pytest.raises(dos_mod.DossierError):
+        dos_mod.collect_op_files(ops, evil)
+
+
 def test_dossier_escapes_html(tmp_path):
     evil = "<script>alert(1)</script>"
     ops = _write_op(tmp_path / "ops", machine=evil)

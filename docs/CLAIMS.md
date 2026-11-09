@@ -9,23 +9,26 @@ current evidence.
 
 ## Test counts
 
-- Collected total: **1395** (`facts.TESTS_WITH_SDK`; SDK-run skips are
+- Collected total: **1434** (`facts.TESTS_WITH_SDK`; SDK-run skips are
   per-machine — the 2 axe scans skip without `node_modules/axe-core`).
-- SDK-free (9 Nov 2026 + TITAN V3): **1389 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
+- SDK-free (9 Nov 2026 + OMEGA6): **1428 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`, the 28-case
   published eval dataset — distinct from the 73 planning unit
   regression tests in `tests/unit/test_planning.py`).
-- Real-browser E2E: **32** collected from `tests/e2e/` (`facts.E2E_BROWSER_TESTS`):
+- Real-browser E2E: **41** collected from `tests/e2e/` (`facts.E2E_BROWSER_TESTS`):
   23 judge-journey + negative-path tests, 3 axe-core WCAG 2.2 / 320 px
   reflow tests, 6 application-shell tests (routing, history, keyboard,
-  200 %/400 % zoom emulation). All 32 run in host CI. On a machine without
-  `axe-core` in `node_modules` the 2 axe scans **skip** visibly — that is
-  the "2 skipped" in bare Windows + SDK runs (bare SDK run without
-  axe: 1393 passed + 2 skipped of 1395 expected — the OMEGA4 no-axe
-  run measured 1346 + 2 of 1348, and the +28 OMEGA5 and +19 TITAN V3
-  tests are axe-independent unit/docs/integration tests; the previous 1337-tree run needed one retry after a
+  200 %/400 % zoom emulation), 9 K1 Prove-acceptance tests (real click,
+  states, widths, keyboard, zoom, degraded). All 41 run in host CI
+  (all 41 also run SDK-free — no E2E test is SDK-gated). On a machine
+  without `axe-core` in `node_modules` the 2 axe scans **skip**
+  visibly — that is the "2 skipped" in bare Windows + SDK runs
+  (bare SDK run without axe: 1432 passed + 2 skipped of 1434
+  expected — the OMEGA4 no-axe run measured 1346 + 2 of 1348,
+  and the +28 OMEGA5, +19 TITAN V3 and +36 OMEGA6
+  tests are axe-independent; the previous 1337-tree run needed one retry after a
   transient Playwright `networkidle` E2E timeout that passed in
   isolation — no browser-served file changed, so not a regression).
 - Vocabulary: *collected* = found by pytest; *passed*/*skipped* = outcome
@@ -56,9 +59,9 @@ Verify: `python -m pytest tests/ -q`
 ## Evidence packs (current)
 
 - `evidence/qnx8-x86_64-omega2-before/` — BEFORE passport +
-  transcripts (34 files, op-d91bd4133590).
+  transcripts (34 payload files + verify.py, op-d91bd4133590).
 - `evidence/qnx8-x86_64-omega2-after/` — AFTER passport +
-  transcripts (36 files, op-6840da0e9f69).
+  transcripts (36 payload files + verify.py, op-6840da0e9f69).
 - Each pack: 15-link passport chain, stdlib `verify.py`
   (no SDK needed). Trust: hash-only, UNSIGNED
   (`verify-pack --trust local` → exit 2, no signer bound;

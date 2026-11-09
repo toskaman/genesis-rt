@@ -252,7 +252,7 @@ def test_cli_subprocess_end_to_end(repo_root, tmp_path):
 
 def _scripted(answers):
     it = iter(answers)
-    return lambda prompt="": next(it)
+    return lambda _prompt="": next(it)  # input(prompt)-compatible
 
 
 def test_timer_consent_decline_records_nothing(pt):

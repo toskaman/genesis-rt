@@ -20,7 +20,7 @@ Branch `titan-ascension`. Status labels (§27):
   the 100-Q sample, Q28) + E2E prose 30/30→31/31.
 - Codelab coverage break from the new checklist heading —
   fixed by heading wording, test unchanged.
-- Linux-only `external._confined` bypass (`..\x`, `C:/x`
+- Linux-only `external._confined` bypass (`..\<name>`, `<drive>:/<name>`
   resolve inside the workspace on POSIX) — lexical rejects,
   18/18 green on Windows, full suite green on Linux CI.
 - `boot`-kills-QEMU trap + SLIRP-early-accept documented

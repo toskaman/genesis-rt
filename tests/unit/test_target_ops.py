@@ -61,6 +61,24 @@ def test_unknown_workflow_rejected_no_record(runner, tmp_path):
     assert list((tmp_path / "ops").glob("op-*.json")) == []
 
 
+def test_op_events_poll_is_bounded_slow_consumer_safe(runner):
+    """OMEGA6 D2: one events() poll returns at most the page bound
+    (a slow SSE consumer is never buried by a giant op log); the
+    full history stays reachable via resume-after with no loss."""
+    op_id = "op-bbbbbbbbbbbb"
+    for i in range(500):
+        runner._emit(op_id, "tick", f"m{i}")
+    first = runner.events(op_id)
+    assert len(first) == 200, len(first)
+    assert [r["seq"] for r in first] == list(range(200))
+    second = runner.events(op_id, after=199)
+    assert [r["seq"] for r in second] == list(range(200, 400))
+    third = runner.events(op_id, after=399)
+    assert [r["seq"] for r in third] == list(range(400, 500))
+    page = runner.events(op_id, after=199, limit=50)
+    assert [r["seq"] for r in page] == list(range(200, 250))
+
+
 def test_unknown_param_rejected_no_record(runner, tmp_path):
     with pytest.raises(tgt.TargetOpError):
         runner.start("build-only", params={"ir": {}, "rm_rf": "/"})

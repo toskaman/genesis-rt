@@ -48,6 +48,28 @@ identical to its Python mirror by compiled conformance vectors, and
 the 16-step on-target matrix executes the whole story on QNX 8.0
 (QEMU x86_64, `qcc -Vgcc_ntox86_64`, 0 warnings).
 
+## Native binary footprint
+
+Measured 9 Nov 2026 (`qcc -Vgcc_ntox86_64 -O2 -Wall -Wextra`,
+AMR v1 IR, `ntox86_64-size -B`; reproduce: `genesis-rt generate
+examples/amr-demo/machine-ir.json --out <dir>` then `make -f
+genesis_build_gen.mk qnx` + `ntox86_64-size -B genesis_*`):
+
+| binary | text | data | bss | file bytes |
+|---|---|---|---|---|
+| genesis_guard | 6641 | 800 | 56 | 14592 |
+| genesis_controller | 5363 | 704 | 8 | 14016 |
+| genesis_device | 5898 | 696 | 16 | 14280 |
+| genesis_status | 6554 | 1328 | 528 | 15144 |
+| genesis_supervisor | 4954 | 780 | 24 | 14328 |
+| genesis_faultinject | 8136 | 680 | 8 | 18152 |
+
+RSS is NOT measured here — it needs a live QEMU boot with
+`pidin` against these exact binaries, which no campaign has
+recorded; the committed Omega2 packs carry v2-machine binaries
+(different sizes, see `qnx-build-record.json`), not these AMR
+v1 ones. No resident-set claim is made.
+
 ## Bonus candidacy
 
 Best Use of QNX-specific Technologies: message passing, resource

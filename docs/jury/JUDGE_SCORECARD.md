@@ -4,20 +4,20 @@
 > Current scores are in the first table; everything below the line is
 > historical and kept for traceability.
 
-## Current internal assessment — 9 Nov 2026 (OMEGA5)
+## Current internal assessment — 9 Nov 2026 (OMEGA6)
 
-1395 host tests green on the owner machine (SDK+axe: 1395 passed,
-0 skips; SDK-only: 1393 + 2 honest axe skips).
-SDK-free: 1389 + 6 honest skips (SDK-gated).
-55 documentation-consistency tests
-green, 73 planning unit tests green, E2E 32/32 with axe-core
-(30 + 2 skips without it), Omega2 packs re-verified VERIFY OK
+1434 host tests green on the owner machine (SDK+axe: 1434 passed,
+0 skips; SDK-only: 1432 + 2 honest axe skips).
+SDK-free: 1428 + 6 honest skips (SDK-gated).
+61 documentation-consistency tests
+green, 73 planning unit tests green, E2E 41/41 with axe-core
+(39 + 2 skips without it), Omega2 packs re-verified VERIFY OK
 16/16 on the final tree (no target/ C changes, so no native
 re-run required).
 
 | Criterion | Omega4 | **Now** | New OMEGA5 evidence | Remaining gap | Independent attack |
 |---|---|---|---|---|---|
-| Technological Implementation | 9.5 | **9.5** | contract v1.3 (semantic frames, scoped negation, kind-evidence boundary) + 12 red-green planner cases + v9-overlap pin + exit-1 wiring test; `expect_consult` harness enforcement + v7/v8 consultation audit; 6 new doc pins; facts 1395/1389; packs re-verified offline | no native CI runner; TCG-only timing; one build host; cross-SDP unverified; local crypto still 43.0.3 (owner upgrade pending) | 9 (reviewer: v1.3 + enforcement + audit verified, packs re-verified; −1 QEMU-only + single host + no native CI + crypto residual) |
+| Technological Implementation | 9.5 | **9.5** | contract v1.3 (semantic frames, scoped negation, kind-evidence boundary) + 12 red-green planner cases + v9-overlap pin + exit-1 wiring test; `expect_consult` harness enforcement + v7/v8 consultation audit; 6 new doc pins; facts 1434/1428; packs re-verified offline | no native CI runner; TCG-only timing; one build host; cross-SDP unverified; local crypto still 43.0.3 (owner upgrade pending) | 9 (reviewer: v1.3 + enforcement + audit verified, packs re-verified; −1 QEMU-only + single host + no native CI + crypto residual) |
 | Design | 8 | **8** | no UX changes this milestone (no redesign without evidence) | dense single page; no screen-reader session; video deferred | 7 (reviewer: unchanged since Omega4 — axe in CI, no SR session, no video) |
 | Potential Impact | 5 | **5** | owner handoff refreshed (`OMEGA5_OWNER_ACTIONS.md`); nothing sent, nothing faked | `HUMAN USER BENEFIT NOT YET MEASURED`; zero participants, zero invitations | 5 (reviewer agrees) |
 | Innovation & AI Creativity | 8.5 | **8.5** | blind v9 (160, 54e08384, no format example): 142/150/150; wrong-kind 4/3 → 0 via registry; 5 unsafe accepts of 112 (4 safety + 1 fleet, all deterministic-layer, classed); 34/36 consults with 14 explained consultation mismatches; consultation audit pins v7/v8 gaps; raws published | 5 unsafe/112 open; 14 v9 consultation mismatches (explained, not hidden); v9 targeted (no broad-robustness claim) | 8 (reviewer: genuine no-example blind loop, wrong-kind 4/3 → 0 recomputed, enforcement fires; −0.5 open 5/112 + rule-18 + targeted scope) |

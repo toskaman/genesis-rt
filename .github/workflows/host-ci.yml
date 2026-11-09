@@ -22,6 +22,11 @@ jobs:
           python-version: "3.12"
       - name: Install test deps
         run: pip install -r requirements.lock
+      - name: Supply-chain audit (non-blocking)
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.lock --desc || echo "pip-audit findings (if any) triaged in docs/security/SUPPLY_CHAIN_TRIAGE.md"
       - name: Lint (ruff bug classes)
         run: |
           pip install "ruff==0.17.4"

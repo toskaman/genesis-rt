@@ -23,7 +23,8 @@
 
 ## Inspiration
 
-When a requirement changes on embedded control software —
+GENESIS RT generates inspectable evidence about the behavior of
+the code. When a requirement changes on embedded control software —
 say a mobile robot's controller gains a guarded safe-stop
 transition (AMR v1 → v2) — teams must answer three
 questions before shipping: did the code actually change,
@@ -53,7 +54,9 @@ verify offline.
 5. **Prove** — a hash-linked evidence passport and a
    fail-closed release gate; missing, skipped, crashed or
    tampered evidence yields FAIL. Packs verify offline
-   with a stdlib-only `verify.py`.
+   with a stdlib-only `verify.py`. One-click
+   `verify-change` (CLI + API + Studio Prove button)
+   renders one BEFORE/AFTER verdict card per change.
 6. **Explain** — GENESIS Studio (local web UI) with a
    guided tour, a before/after view, an evidence graph, a
    release-decision panel in plain language, light/dark
@@ -69,15 +72,17 @@ target over SSH → contract-aware native oracle (expected
 ALLOW / DENY / SAFE_STOP derived from the validated IR,
 not hard-coded) → transcripts sealed into a 15-link
 passport bound to the IR digest and op id → in-op replay
-→ release decision. Host suite: 1395 tests collected
-(9 Nov 2026 owner run, SDK + axe: 1395 passed + 0 skipped,
-0 failures; SDK without axe: 1393 + 2 honest skips;
-SDK-free CI: 1389 + 6 SDK-gated skips).
+→ release decision. Host suite: 1434 tests collected
+(9 Nov 2026 owner run, SDK + axe: 1434 passed + 0 skipped,
+0 failures; SDK without axe: 1432 + 2 honest skips;
+SDK-free CI: 1428 + 6 SDK-gated skips).
 Planning unit tests 73/73 in `tests/unit/test_planning.py`
 (60 inherited + 13 OMEGA5: 12 red-green planner cases + 1
 v9-overlap methodology pin; distinct from the 28/28
 published-eval regression);
-browser E2E 32/32 (owner run; SDK-free CI skips 2).
+browser E2E 41/41 (owner run; all 41 run SDK-free — no E2E
+test is SDK-gated; the 2 axe scans skip only without
+node_modules/axe-core).
 
 ## How we use QNX (evidence of QNX use)
 
@@ -98,6 +103,8 @@ it is absent from the image). Target: QNX SDP 8.0, `qcc`
 `target/qnx8/common/guard_policy.c`. Executed natively
 twice on current source (BEFORE/AFTER packs below);
 `qnx_verified=True` with replay matches on both.
+Native binary footprint (text/data/bss per process,
+measured 9 Nov 2026): `docs/jury/WHY_QNX.md`.
 
 ## Technical proof: one change, verified natively twice
 
@@ -107,7 +114,7 @@ Omega2 flagship (8 Nov 2026, current source):
 |---|---|---|
 | Contract | AMR v1 | AMR v2 (guarded safe-stop) |
 | Native matrix | 16/16 PASS, sealed | 16/16 PASS, sealed |
-| Pack | `evidence/qnx8-x86_64-omega2-before/` (34 files) | `evidence/qnx8-x86_64-omega2-after/` (36 files) |
+| Pack | `evidence/qnx8-x86_64-omega2-before/` (34 payload files + verify.py) | `evidence/qnx8-x86_64-omega2-after/` (36 payload files + verify.py) |
 
 Stale control: the v2 contract against the v1-built
 binary fails 14/16, exactly on `estop_target` +
@@ -198,6 +205,29 @@ is ready in `docs/business/pilot-study.md` and
 `bench/productivity/`, with zero invitations sent.
 `HUMAN USER BENEFIT NOT YET MEASURED` governs.
 
+Who it serves (persona): the controls or verification lead
+who owns requirement changes on a QNX prototype — the
+person asked at review time "prove the target matches the
+new contract". Buyer (open-core HYPOTHESIS, unvalidated):
+that lead's team, paying for the hosted evidence loop; no
+buyer conversation has happened and no pricing is tested.
+
+Win/loss vs the incumbents it complements (never replaces):
+
+| review question | Momentics / Parasoft / LDRA / VectorCAST | GENESIS RT |
+|---|---|---|
+| did the target match the new requirement? | not their question | one verdict card + offline passport |
+| can a stranger replay the evidence? | reports, screenshots | stdlib `verify.py`, hash-chained |
+| does a stale binary fail loudly? | — | 14/16 behavioral refusal (prose-grade control) |
+| qualification / coverage / profiling | yes — their home turf | no, out of scope by design |
+
+We win when the review question is behavioral proof of a
+change; we lose whenever the buyer needs qualification
+evidence, coverage, or hardware timing — that turf is not
+contested. Determinism receipt: 18/18 bit-for-bit `qcc`
+rebuilds of the W11 pack binaries (7 Nov 2026, third binary
+set `...-after-rerun`); same sources, same bytes.
+
 ## Try it (judge path, ~5 minutes, no SDK)
 
 ```sh
@@ -212,7 +242,7 @@ PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve
 # Studio at http://127.0.0.1:8077/
 python -m pytest tests/ -q
-# 1395 collected; SDK-free CI: 1389 + 6 honest skips
+# 1434 collected; SDK-free CI: 1428 + 6 honest skips
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then

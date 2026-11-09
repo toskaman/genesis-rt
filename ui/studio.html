@@ -220,11 +220,29 @@ and Run keep working on local files with no backend.</details>
 <div class="hero">
 <p class="eyebrow">GENESIS RT · QNX 8.0 host toolchain</p>
 <h1 id="ov-h">Build QNX-native software. Prove how it behaves.</h1>
-<p class="lede">Define a machine contract, generate native QNX software, verify
-its behavior, and inspect independently verifiable evidence.</p>
+<p class="lede">GENESIS RT generates inspectable evidence about the behavior
+of the code: define a machine contract, generate native QNX software,
+verify its behavior, and inspect independently verifiable evidence.</p>
+<p class="note" id="ov-coldstart"><b>30-second cold start</b> (no SDK, no
+target) — product-time budget: <code>genesis-rt validate examples/cell-demo/cell-ir.json</code> →
+<code>genesis-rt demo --ir examples/cell-demo/cell-ir.json</code> — PASS
+verdict + offline passport in ~2 s of product runtime after setup
+(install/clone/first-boot excluded).</p>
 <div class="cta">
 <button type="button" class="primary" data-go="judge">Explore verified demo</button>
 <button type="button" data-go="projects">Open workspace</button>
+<button type="button" data-go="diff">Prove a change</button>
+</div>
+<div class="proof-grid" role="group" aria-label="One-click change proof">
+<article class="proof-card" id="ov-prove-hero">
+<h3>One change, one verdict card</h3>
+<p class="probe">Pick two Machine IR files, press <b>Prove</b> — both
+pipelines run and one BEFORE/AFTER card answers "is the new
+revision green?" with knob flips, fixed scenarios, and
+re-verified hash chains.</p>
+<p class="meta">Same <code>verdict.json</code> as
+<code>genesis-rt verify-change</code> · Before / After tab</p>
+</article>
 </div>
 </div>
 
@@ -1071,12 +1089,16 @@ function renderChangeCard(v) {
   const chains = v.chains_valid || {};
   const link = (r) => '<a href="/runs/' + encodeURIComponent(r.run_id || '') +
     '/passport/raw">' + esc(r.run_id || '?') + ' passport</a>';
+  const where = (r) => (r.qnx_verified === true ? 'QNX 8.0 target'
+    : (r.qnx_verified === false ? 'host' : 'unknown'));
   h += '<article class="proof-card"><h3>Evidence</h3>' +
     '<p class="meta">regenerated: ' +
     (gen.map(code).join(' · ') || 'none') + '</p>' +
     '<p class="meta">chains: before=' +
     (chains.before ? 'valid' : 'INVALID') + ' after=' +
     (chains.after ? 'valid' : 'INVALID') + '</p>' +
+    '<p class="meta">ran where: before=' + esc(where(b)) +
+    ' after=' + esc(where(a)) + '</p>' +
     '<p class="meta">open passports: ' + link(b) + ' · ' + link(a) + '</p></article>';
   return h + '</div>';
 }

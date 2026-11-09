@@ -8,7 +8,9 @@ Demo C expectations in docs/jury/DEMO_WALKTHROUGH.md), verdict.json
 persistence, failure-leg behavior with manual-command fallback, and
 change-id validation.
 """
+import ast
 import json
+from pathlib import Path
 
 import pytest
 
@@ -90,6 +92,23 @@ def test_verify_change_rejects_bad_change_id(repo_root, tmp_path):
                       tmp_path / "change", change_id="../escape")
 
 
+@pytest.mark.parametrize("evil", ["../escape", "..\\escape", "a/b", "a\\b",
+                                  "/abs", "C:\\abs", "has space", "x" * 49])
+def test_verify_change_hostile_id_writes_nothing(repo_root, tmp_path, evil):
+    """OMEGA6 A3: a hostile change_id is refused before any leg runs
+    and leaves nothing on disk — inside the store or beside it.
+    ("" / None mean auto-generate, which is safe by construction.)"""
+    before_ir, after_ir = _cell_pair(repo_root)
+    before = {p.name for p in tmp_path.iterdir()}
+    with pytest.raises(ValueError, match="invalid change_id"):
+        verify_change(before_ir, after_ir, tmp_path / "runs",
+                      tmp_path / "change", change_id=evil)
+    assert {p.name for p in tmp_path.iterdir()} == before
+    assert not (tmp_path / "escape").exists()
+    assert not (tmp_path / "runs").exists()
+    assert not (tmp_path / "change").exists()
+
+
 def test_cli_verify_change_golden(repo_root, tmp_path, capsys):
     before_ir, after_ir = _cell_pair(repo_root)
     rc = main(["verify-change", "--before", str(before_ir),
@@ -124,3 +143,32 @@ def test_cli_verify_change_bad_leg_exit2(repo_root, tmp_path, capsys):
     err = capsys.readouterr().err
     assert "ChangeLegError" in err
     assert "genesis-rt demo --ir" in err
+
+
+def test_change_module_is_composition_only(repo_root):
+    """OMEGA6 B1: change.py composes green paths only — orchestrator
+    (run), compare (diff), evidence (chain re-verify). It must never
+    reach into the planner, validator, codegen, or IR schema, so K1
+    cannot silently change verdict semantics. (Mission text said
+    'gate'; the module actually re-verifies via evidence — the pin
+    records the real wiring, not the paraphrase.)"""
+    src = (Path(str(repo_root)) / "host" / "genesis_rt" / "change.py"
+           ).read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    internal = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            mod = (node.module or "").split(".")[-1]
+            if node.level and mod:
+                internal.add(mod)
+            elif (node.module or "").startswith("genesis_rt."):
+                internal.add(mod)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.startswith("genesis_rt."):
+                    internal.add(alias.name.split(".")[-1])
+    assert internal <= {"compare", "evidence", "orchestrator"}, internal
+    assert internal >= {"compare", "orchestrator"}, internal
+    forbidden = {"planner", "planning", "validator", "codegen",
+                 "codegen_v2", "ir", "ir_v2", "semantics", "gate"}
+    assert internal & forbidden == set()

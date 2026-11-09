@@ -32,7 +32,10 @@ Short version of `docs/limitations-and-safety.md` — the full text governs.
   blind v8 (qualified provenance: limited prior-set
   format-preview exposure): 4 unsafe / 100. Post-fix v4/v5
   36/36 is regression-only; v7/v8/v9 are never rerun on
-  changed code. No general AI-safety claim.
+  changed code. Trigger (v10 rule): any planner or
+  deterministic-layer change requires a separately-authored,
+  frozen-before-fix blind set (v10) before any improved
+  number may be claimed. No general AI-safety claim.
 - Evidence packs are hash-only (UNSIGNED): SHA-256 integrity +
   offline replay, not signer authentication or attestation.
 - Accessibility: automated axe scans in CI only; full

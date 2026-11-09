@@ -158,13 +158,13 @@ E. Marketing pressure to "add AI" could dilute this stance. The scorecard
 A. MEDIUM. Latency claims without numbers are filler; TCG numbers could also
 scare (emulation is slow) if quoted without context.
 B. FIXED (measured, this wave): TCG boot→SSH-banner 21 s (smoke
-`C:/tmp/tcg_smoke.py` log); formal 13-step campaign ~4 min wall (build +
+`%TEMP%/tcg_smoke.py` log); formal 13-step campaign ~4 min wall (build +
 boot + stage 9 binaries + 16 native checks + 1000 perf samples + seal +
 replay); host-only pipeline ~1 s per IR; full host test-file suites 22–35 s.
 QEMU timings are labeled engineering observations, never HW guarantees.
 C. "Twenty-one seconds to SSH, four minutes for the full 16-check native
 campaign with a thousand perf samples — measured today on TCG."
-D. `op-cf7cc4d42aef` record (`C:/tmp/w12-formal/`): COMPLETED 13/13, 16/16,
+D. `op-cf7cc4d42aef` record (`%TEMP%/w12-formal/`): COMPLETED 13/13, 16/16,
 gate PASS, replay PASS; `docs/audits/TASK4_FORMAL_CAMPAIGN.md` (~197 s prior).
 E. WHPX is down on this host (needs reboot), so no accelerated number exists;
 TCG is the honest, slower figure. First cold-boot build + stage dominates.

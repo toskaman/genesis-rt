@@ -130,6 +130,184 @@ def test_all_interpolations_escaped():
         assert bare == [], f"unescaped interpolation in {name}"
 
 
+_SINK_STR = re.compile(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\""
+                       r"|`(?:[^`\\]|\\.)*`")
+
+
+def _sink_statements(code):
+    """Yield (offset, rhs-span) of every innerHTML assignment."""
+    spans = []
+    for match in re.finditer(r"innerHTML\s*\+?=", code):
+        i, n = match.end(), len(code)
+        depth, quote = [0, 0, 0], None
+        while i < n:
+            ch = code[i]
+            if quote:
+                if ch == "\\":
+                    i += 2
+                    continue
+                if ch == quote:
+                    quote = None
+            elif ch in "'\"`":
+                quote = ch
+            elif ch in "([{":
+                depth["([{".index(ch)] += 1
+            elif ch in ")]}":
+                depth[")]}".index(ch)] -= 1
+            elif ch == ";" and depth == [0, 0, 0]:
+                spans.append((match.start(), code[match.end():i]))
+                break
+            i += 1
+    return spans
+
+
+def _split_top_plus(rhs):
+    parts, cur, depth, quote = [], "", 0, None
+    i, n = 0, len(rhs)
+    while i < n:
+        ch = rhs[i]
+        if quote:
+            cur += ch
+            if ch == "\\":
+                cur += rhs[i + 1:i + 2]
+                i += 1
+            elif ch == quote:
+                quote = None
+        elif ch in "'\"`":
+            quote = ch
+            cur += ch
+        elif ch in "([":
+            depth += 1
+            cur += ch
+        elif ch in ")]":
+            depth -= 1
+            cur += ch
+        elif ch == "+" and depth == 0:
+            parts.append(cur)
+            cur = ""
+        else:
+            cur += ch
+        i += 1
+    parts.append(cur)
+    return parts
+
+
+def _norm_operand(raw):
+    return re.sub(r"\s+", " ", _SINK_STR.sub("''", raw)).strip()
+
+
+# OMEGA6 landing audit (9 Nov 2026): every `+` operand of every
+# innerHTML sink, verified by inspection — literals, esc()/code()/
+# errHtml()/encodeURI*() calls, escape-careful render*Html/stateGraphSvg
+# builders (31 bodies audited), or esc-constructed accumulators
+# (h/html/r.html/settled/f/opts). String contents are blanked so copy
+# edits don't trip the pin; any structural sink change fails loudly.
+_PINNED_SINK_OPERANDS = frozenset({
+    ("studio.html", "''"),
+    ("studio.html", "'' : ''"),
+    ("studio.html", "(settled.ok ? settled.html : r.html)"),
+    ("studio.html", "done.map((o) => '' + esc(o.op_id) + ''"
+                    " + esc(o.op_id) + '' + esc(o.state) + '').join('')"),
+    ("studio.html", "errHtml('', e)"),
+    ("studio.html", "errHtml('', err)"),
+    ("studio.html", "esc(created.name)"),
+    ("studio.html", "esc(e.message)"),
+    ("studio.html", "esc(err)"),
+    ("studio.html", "esc(key)"),
+    ("studio.html", "esc(missing.join(''))"),
+    ("studio.html", "esc(pp)"),
+    ("studio.html", "esc(res.summary.machine.id)"),
+    ("studio.html", "esc(res.summary.schema_version)"),
+    ("studio.html", "esc(saved.head)"),
+    ("studio.html", "esc(scen)"),
+    ("studio.html", "esc(src)"),
+    ("studio.html", "f"),
+    ("studio.html", "h"),
+    ("studio.html", "html"),
+    ("studio.html", "missing.length ? ''"),
+    ("studio.html", "opts.join('')"),
+    ("studio.html", "r.html"),
+    ("studio.html", "renderChangeCard(await postJson('',"
+                    " { ir_before: Studio.chgA, ir_after: Studio.chgB }))"),
+    ("studio.html", "renderCompareHtml(c)"),
+    ("studio.html", "renderCxReplayHtml( await postJson('',"
+                    " { record: rep.findings[0], ir: ir }))"),
+    ("studio.html", "renderDecisionHtml(d)"),
+    ("studio.html", "renderDiffHtml(Studio.diffA, Studio.diffB)"),
+    ("studio.html", "renderExploreHtml(Studio.cxReport)"),
+    ("studio.html", "renderGraphDiffHtml(await postJson('', body))"),
+    ("studio.html", "renderGraphHtml(Studio.graph, { scenario: el('').value,"
+                    " status: el('').value, q: el('').value.trim(), })"),
+    ("studio.html", "renderGraphNodeHtml(Studio.graph, id,"
+                    " { runId: Studio.graphRun })"),
+    ("studio.html", "renderImpactHtml(rep)"),
+    ("studio.html", "renderIpcTimelineHtml(await api(''))"),
+    ("studio.html", "renderIrDiffHtml(diff)"),
+    ("studio.html", "renderJobHtml(Live.jobId, reduced, err)"),
+    ("studio.html", "renderJobsHtml(data.jobs)"),
+    ("studio.html", "renderJudgeHtml(st.idx, st)"),
+    ("studio.html", "renderLabHtml(Studio.scens)"),
+    ("studio.html", "renderProjectsHtml(data.projects)"),
+    ("studio.html", "renderReleaseHtml(await postJson('', body))"),
+    ("studio.html", "renderReviewBriefHtml(got.summary)"),
+    ("studio.html", "renderScenarioChecks(proj.summary.scenarios)"),
+    ("studio.html", "renderScenarioChecks(summary.scenarios)"),
+    ("studio.html", "renderSourceHtml(files, Studio.irSha)"),
+    ("studio.html", "renderStatusHtml(false, null)"),
+    ("studio.html", "renderStatusHtml(true, Live.env)"),
+    ("studio.html", "renderSummaryHtml(res.summary)"),
+    ("studio.html", "renderSummaryHtml(summary)"),
+    ("studio.html", "renderTargetHtml(Live.opId, reduced, Live.opRecord)"),
+    ("studio.html", "renderTargetOpsHtml(body.ops || [])"),
+    ("studio.html", "renderTwinEventHtml(A.track.frames[idx], A.scen,"
+                    " A.run.note)"),
+    ("studio.html", "saved.unchanged ? ''"),
+    ("studio.html", "scens.map((s) => '' + esc(s.name) + ''"
+                    " + (s.name === want ? '' : '') + '' + esc(s.name) + ''"
+                    " + esc(s.status) + '').join('')"),
+    ("studio.html", "seen.map((s) => '' + esc(s) + '' + esc(s) + '').join('')"),
+    ("studio.html", "stateGraphSvg(res.summary)"),
+    ("studio.html", "stateGraphSvg(saved.summary)"),
+    ("studio.html", "stateGraphSvg(summary)"),
+    ("dashboard.html", "''"),
+    ("dashboard.html", "h"),
+})
+
+
+def test_innerhtml_sink_operands_audited():
+    """Pinned sink audit: any new/removed innerHTML `+` operand fails.
+
+    The ${...} guard is vacuous for studio.html (all renderers use `+`
+    concatenation), so this test pins the audited operand set instead.
+    To update: inspect the new sink, prove escaping (esc()/code() wrap
+    or escape-careful builder), extend a hostile runtime test, then
+    extend the pin — never extend it blindly."""
+    pages = {"genesis_verify.js": VERIFY_JS.read_text(encoding="utf-8")}
+    for name in ("dashboard.html", "studio.html"):
+        path = REPO_ROOT / "ui" / name
+        if path.exists():
+            pages[name] = "\n".join(_inline_scripts(
+                path.read_text(encoding="utf-8")))
+    found = {}
+    for name, script in pages.items():
+        for offset, rhs in _sink_statements(script):
+            lineno = script.count("\n", 0, offset) + 1
+            for chunk in _split_top_plus(rhs):
+                operand = _norm_operand(chunk)
+                if operand:
+                    found.setdefault((name, operand), []).append(lineno)
+    new = sorted(set(found) - _PINNED_SINK_OPERANDS)
+    gone = sorted(_PINNED_SINK_OPERANDS - set(found))
+    report = []
+    for key in new:
+        report.append(f"NEWAUDIT {key[0]}:{found[key][:3]} :: {key[1]}")
+    for key in gone:
+        report.append(f"VANISHED {key[0]} :: {key[1]}")
+    assert not report, ("sink-operand drift — audit each site, extend a"
+                        " hostile test, then update the pin:\n"
+                        + "\n".join(report))
+
+
 @node
 def test_sha256_matches_hashlib(tmp_path):
     bodies = ["", "abc", "x" * 1000, "héllo→world",
@@ -157,6 +335,15 @@ def test_canonical_json_fixpoint_vs_python(tmp_path):
 def test_escapes_html(tmp_path):
     got = _run_js([{"fn": "esc", "arg": '<script>alert("x&y")</script>'}], tmp_path)
     assert got == ['&lt;script&gt;alert(&quot;x&amp;y&quot;)&lt;/script&gt;']
+
+
+@node
+def test_escapes_single_quotes(tmp_path):
+    """OMEGA6 landing: esc() must neutralize single quotes (red-team
+    wound — attribute-delimiter breakout otherwise)."""
+    (got,) = _run_js([{"fn": "esc", "arg": "a'b\"c<d>e&f"}], tmp_path)
+    assert got == "a&#39;b&quot;c&lt;d&gt;e&amp;f"
+    assert "'" not in got
 
 
 def _fresh_passport(amr_ir, tmp_path):
@@ -327,9 +514,65 @@ def test_studio_change_card_renders_verdict(tmp_path):
     assert "cell_nominal_transfer" in got
     assert "gate=" in got and "PASS" in got
     assert "/runs/chg-card-after/passport/raw" in got
+    assert "ran where: before=host after=host" in got  # B2 leg labels
     (bad,) = _run_js([{"fn": "change", "arg": json.dumps({"nope": 1})}],
                      tmp_path)
     assert "Not a change verdict" in bad
+
+
+@node
+def test_studio_change_card_escapes_hostile_names(tmp_path):
+    """OMEGA6 A2: the K1 card renderer escapes every interpolated
+    value — a `<script>` in a change id, run id, knob, scenario, or
+    generated-file name must render inert, never live markup."""
+    evil = '<script>alert("x")</script>'
+    verdict = {
+        "change_id": f"chg-{evil}",
+        "before": {"run_id": f"r-before-{evil}", "verdict": "FAIL"},
+        "after": {"run_id": f"r-after-{evil}", "verdict": "PASS"},
+        "chains_valid": {"before": True, "after": True},
+        "compare": {
+            "contract": {"limits_changed": {f"knob_{evil}": [0, 1]}},
+            "scenarios": {"fixed": [f"scen_{evil}"], "broken": []},
+            "generated": {"changed": [f"gen_{evil}.h"]},
+        },
+    }
+    (got,) = _run_js([{"fn": "change", "arg": json.dumps(verdict)}],
+                     tmp_path)
+    assert "<script>" not in got
+    assert evil not in got
+    assert "&lt;script&gt;" in got
+    # The passport links stay links (href-encoded, text-escaped).
+    assert "/runs/r-after-" in got and "passport/raw" in got
+
+
+@node
+def test_studio_change_card_ran_where_labels(tmp_path):
+    """OMEGA6 landing (red-team U6): the sponsor-relevant ran-where
+    branch is rendered, not display-only — qnx_verified true/false/
+    missing must surface the QNX-target/host/unknown labels."""
+    base = {
+        "change_id": "chg-ranwhere",
+        "chains_valid": {"before": True, "after": True},
+        "compare": {"contract": {}, "scenarios": {}, "generated": {}},
+    }
+
+    def card(before_qnx, after_qnx):
+        verdict = dict(base)
+        verdict["before"] = {"run_id": "r-b", "verdict": "FAIL"}
+        verdict["after"] = {"run_id": "r-a", "verdict": "PASS"}
+        if before_qnx != "missing":
+            verdict["before"]["qnx_verified"] = before_qnx
+        if after_qnx != "missing":
+            verdict["after"]["qnx_verified"] = after_qnx
+        (got,) = _run_js([{"fn": "change", "arg": json.dumps(verdict)}],
+                         tmp_path)
+        return got
+
+    assert "ran where: before=QNX 8.0 target after=host" in card(True, False)
+    assert "ran where: before=host after=QNX 8.0 target" in card(False, True)
+    assert "ran where: before=unknown after=unknown" in card("missing",
+                                                             "missing")
 
 
 @node
