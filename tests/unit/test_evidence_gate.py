@@ -235,3 +235,61 @@ def test_gate_level_none_on_failure(amr_ir, tmp_path):
     bad["chain"][1]["body"]["ir_sha256"] = "0" * 64
     v = gate.evaluate(bad, ["nominal_navigation"])
     assert v["level"] == "NONE"
+
+
+def test_omega7_arm_campaign_quarantined_at_gate(amr_ir, tmp_path):
+    """OMEGA7 B2: an arm campaign whose scenarios pass on aliased
+    corridor physics can never earn a silent gate PASS — the
+    quarantine reason names the kind and the disclosure."""
+    arm = copy.deepcopy(amr_ir)
+    arm["machine"]["kind"] = "robotic_arm_virtual"
+    arm["machine"]["id"] = "arm-quarantine-probe"
+    manifest = codegen.generate(arm, tmp_path / "gen-arm")
+    results = faultlab.run_all(arm, ["nominal_navigation"])
+    assert [r["status"] for r in results] == ["pass"]
+    p = evidence.build_passport(
+        "run-arm", arm, manifest, results,
+        {"status": "blocked", "verified_on_target": False})
+    assert evidence.verify_chain(p) == []
+    v = gate.evaluate(p, ["nominal_navigation"])
+    assert v["verdict"] == "FAIL"
+    assert any("quarantined physics" in r
+               and "robotic_arm_virtual" in r for r in v["reasons"])
+
+
+def test_omega7_physics_note_quarantines_passport(amr_ir, tmp_path):
+    """OMEGA7 B2: any required scenario body carrying a
+    physics_note quarantines the verdict, even on a natively
+    passing passport (reason asserted; the chain break from the
+    test-only edit is incidental)."""
+    p = _passport(amr_ir, tmp_path)
+    assert gate.evaluate(p, ["nominal_navigation"])["verdict"] == "PASS"
+    scen = next(r for r in p["chain"]
+                if r["kind"] == "scenario:nominal_navigation")
+    scen["body"]["physics_note"] = (
+        "no arm-specific physics exists; ran on the "
+        "differential-drive corridor")
+    v = gate.evaluate(p, ["nominal_navigation"])
+    assert v["verdict"] == "FAIL"
+    assert any("quarantined physics" in r for r in v["reasons"])
+
+
+def test_omega7_native_kinds_unaffected_by_quarantine(amr_ir, tmp_path,
+                                                     repo_root):
+    """OMEGA7 B2: native-physics campaigns keep byte-identical
+    verdicts — no quarantine reason on diff-drive or conveyor."""
+    p = _passport(amr_ir, tmp_path)
+    v = gate.evaluate(p, ["nominal_navigation"])
+    assert v["verdict"] == "PASS"
+    assert not any("quarantin" in r for r in v["reasons"])
+    from genesis_rt.ir import load_ir_file
+    conv = load_ir_file(repo_root / "examples" / "conveyor-demo"
+                        / "machine-ir.json")
+    manifest = codegen.generate(conv, tmp_path / "gen-conv")
+    results = faultlab.run_all(conv, ["belt_jam"])
+    pc = evidence.build_passport(
+        "run-conv", conv, manifest, results,
+        {"status": "blocked", "verified_on_target": False})
+    vc = gate.evaluate(pc, ["belt_jam"])
+    assert vc["verdict"] == "PASS"
+    assert not any("quarantin" in r for r in vc["reasons"])

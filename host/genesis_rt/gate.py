@@ -32,6 +32,15 @@ every tier additionally requires the provenance bindings checked by
 IR/machine digest match, staged-vs-built binaries, transcript digests,
 recomputed perf distribution). Unbound evidence caps the tier with an
 explicit reason instead of failing the host verdict.
+
+OMEGA7 arm quarantine (B2): ``robotic_arm_virtual`` has no arm
+kinematics on host or target; the host faultlab runs it on the
+differential-drive corridor. The gate fails any campaign whose
+``ir`` record names the arm kind, or any of whose required
+scenario bodies carries a ``physics_note``, with an explicit
+``quarantined physics`` reason pointing at the disclosure.
+Native-kind verdicts are byte-identical (neither signal fires
+for them).
 """
 
 from __future__ import annotations
@@ -146,6 +155,33 @@ def evaluate(passport: dict[str, Any], required_scenarios: list[str]) -> dict[st
         reasons.append(f"non-pass scenarios: {sorted(failed)}")
     if not required_scenarios:
         reasons.append("no required scenarios declared (refusing vacuous pass)")
+
+    # OMEGA7 B2 quarantine: the arm kind runs on aliased corridor
+    # physics (the ir body carries the kind; faultlab stamps
+    # physics_note on its results). Either signal fails the
+    # verdict loudly — an arm campaign can never pass silently.
+    ir_rec = by_kind.get("ir")
+    ir_qbody = (ir_rec.get("body", {}) if isinstance(ir_rec, dict)
+                else {})
+    machine = (ir_qbody.get("machine", {})
+               if isinstance(ir_qbody, dict) else {})
+    if isinstance(machine, dict) and \
+            machine.get("kind") == "robotic_arm_virtual":
+        reasons.append(
+            "quarantined physics: robotic_arm_virtual ran on "
+            "diffdrive-corridor (see "
+            "docs/limitations-and-safety.md #10)")
+    noted: list[str] = []
+    for name in required_scenarios:
+        rec = by_kind.get(f"scenario:{name}")
+        body = rec.get("body") if isinstance(rec, dict) else None
+        if isinstance(body, dict) and body.get("physics_note"):
+            noted.append(name)
+    if noted:
+        reasons.append(
+            f"quarantined physics: {len(noted)} scenario(s) ran on "
+            f"aliased physics ({', '.join(sorted(noted))}); see "
+            "docs/limitations-and-safety.md #10")
 
     verdict = "FAIL" if reasons else "PASS"
     # Host base for leveling ignores qnx_build *presence* (a hand-deleted
