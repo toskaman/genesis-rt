@@ -54,7 +54,9 @@ verify offline.
 5. **Prove** — a hash-linked evidence passport and a
    fail-closed release gate; missing, skipped, crashed or
    tampered evidence yields FAIL. Packs verify offline
-   with a stdlib-only `verify.py`.
+   with a stdlib-only `verify.py`. One-click
+   `verify-change` (CLI + API + Studio Prove button)
+   renders one BEFORE/AFTER verdict card per change.
 6. **Explain** — GENESIS Studio (local web UI) with a
    guided tour, a before/after view, an evidence graph, a
    release-decision panel in plain language, light/dark
@@ -99,6 +101,8 @@ it is absent from the image). Target: QNX SDP 8.0, `qcc`
 `target/qnx8/common/guard_policy.c`. Executed natively
 twice on current source (BEFORE/AFTER packs below);
 `qnx_verified=True` with replay matches on both.
+Native binary footprint (text/data/bss per process,
+measured 9 Nov 2026): `docs/jury/WHY_QNX.md`.
 
 ## Technical proof: one change, verified natively twice
 
