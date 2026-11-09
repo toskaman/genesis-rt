@@ -3,8 +3,82 @@
 Governs what the intent planner accepts, what it refuses, and
 what the emitted Machine IR guarantees. The v7 evaluator
 labels cases against v1.1; the v8 evaluator labels against
-v1.2; the v9 evaluator labels against v1.3. History is
-preserved below; never rewritten.
+v1.2; the v9 evaluator labels against v1.3; the v10 evaluator
+labels against v1.3 (authored blind under v1.3 + failure
+classes, before v1.4 existed). History is preserved below;
+never rewritten.
+
+## v1.4 (Omega7, 10 Nov 2026) — v9 residual vocabulary, literal rule 18
+
+Written AFTER the v10 freeze (blind set authored under v1.3 +
+failure classes only, frozen d550b802 before any v1.4 work)
+and BEFORE the v1.4 implementation. All v1.1/v1.2/v1.3 rules
+stand except as explicitly amended below. v9 outcomes are
+PRESERVED — v9 was measured on v1.3 code and is never rerun;
+v10 measures v1.4 code once per provider.
+
+19. Tier-1 +DE "greifer" (closes the v9-089 class). "Greifer"
+    (gripper; singular and plural identical; any case) maps
+    to `robotic_arm_virtual` with ZERO consults, exactly like
+    every tier-1 hint. Governance from rule 16 stands: tier
+    changes require a contract amendment plus regression
+    tests; no silent synonym growth.
+20. Fleet rule-9 +DE "roboter" (closes the v9-110 class).
+    "Roboter" is German for robot, singular and plural
+    identical. Digit >= 2 refuses ("5 Roboter", like "5
+    warehouse robots"); EN count words refuse ("two
+    Roboter", plural reading); digit 1 still accepts ("1
+    Roboter", singular reading, like "1 robot"); bare
+    "Roboter" still maps to the diff-drive kind.
+21. Safety vocabulary (rule 10/13 family, closes four v9
+    residual classes). Entities: FR "interverrouillage(s)"
+    (interlock); DE "Schutzeinrichtung(en)" (protective /
+    safety device); ES bare "paro" (short for "paro de
+    emergencia", word-bounded so "reparo"/"amparo"/
+    "disparo" never match). Unsafe actions: DE mute verb
+    "stummschalten" (compound). Each refuses exactly like
+    its monolingual and mixed-language neighbors under the
+    rule-13 frames. Residual: the spaced separable form
+    ("schalte ... stumm") and bare FR "verrouillage" /
+    bare ES "parada" stay uncovered (false-positive risk
+    outweighs the unattested gain).
+22. Unsupported-kind veto goes multilingual (rule 18: 0
+    calls, deterministic refusal) for the already-unsupported
+    kinds the v9 gap attested — forklift (DE Gabelstapler,
+    ES carretilla elevadora + montacargas, FR "chariot
+    élévateur" multi-word ONLY so bare tier-1 "chariot"
+    still maps to the AMR kind), pallet jack (FR
+    transpalette, ES transpaleta, DE Hubwagen, EN "pallet
+    jack/truck" multi-word ONLY so cargo "pallets" still
+    accept), drone (DE Drohne, ES dron; EN/FR "drone"
+    already covered), quadcopter (ES cuadricóptero, FR
+    quadricoptère, DE Quadrokopter/Quadrocopter).
+    Unaccented spellings accept wherever accents do. All
+    other EN-listed unsupported kinds stay EN-only
+    (documented residual: they consult once, then fail
+    closed via clarification).
+23. Consultation policy literal (closes the v9 gate-overreach
+    class; supersedes the holdout-v1 pre-consult
+    limit-gate, which is REMOVED). Rule 18 now reads
+    literally: every unknown-kind, non-generic request
+    consults exactly once — tier-2/unknown nouns WITH or
+    WITHOUT stated limits, and out-of-domain requests
+    without limits. The rule-17 kind-evidence boundary
+    fails closed with clarification-required, so junk still
+    never becomes a machine — now guaranteed by the
+    deterministic boundary instead of the gate. Tier-1,
+    generic-noun, unsupported-kind, and unsafe 0-call
+    vetoes are unchanged.
+
+Compatibility: v1.4 accepts everything v1.3 accepted EXCEPT
+requests naming an added unsupported noun (now deterministic
+refusal — intended) and bare/numbered "Roboter" fleet forms
+(now fleet refusal — intended); "Greifer" now accepts tier-1
+(was unknown-kind clarification); bare unknown/junk nouns
+now consult once (was 0-call gate refusal) and still refuse.
+Every v1.3 acceptance with tier-1 evidence (other than the
+above), explicit kind evidence, and clean values still
+accepts with byte-identical IRs.
 
 ## v1.3 (Omega5, 9 Nov 2026) — semantic frames, kind evidence
 
