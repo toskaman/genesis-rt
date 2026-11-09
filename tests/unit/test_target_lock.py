@@ -103,7 +103,7 @@ def test_lost_reclaim_race_raises_busy(lock_path, monkeypatch):
     lock_path.write_text(json.dumps({"owner": "dead", "pid": 999999999}),
                          encoding="utf-8")
     monkeypatch.setattr(Path, "unlink", lambda self,
-                        missing_ok=False: None)
+                        _missing_ok=False: None)
     with pytest.raises(qt.TargetBusy, match="stale-lock race"):
         qt.TargetLock(owner="loser").acquire()
 
