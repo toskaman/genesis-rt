@@ -136,7 +136,11 @@ _SINGULAR_FLEET_KINDS = (r"robot|rover|amr|agv|cobot|mobile|belt"
                          r"|conveyor|arm|gripper|manipulator"
                          # Omega5: registry noun + alias singulars.
                          r"|tugger|förderband|förderbands|foerderband"
-                         r"|foerderbands")
+                         r"|foerderbands"
+                         # Omega7 v1.4 rule 20: DE robot, singular and
+                         # plural identical (digit >= 2 arm; count
+                         # words take the plural reading below).
+                         r"|roboter")
 # Omega4 fix-1: generic machine nouns that name no specific kind
 # ("set up a machine", "une Maschine"). With no kind hint they
 # veto the model consult (ambiguous); invented aliases with no
@@ -430,7 +434,12 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
     (f"(?:\\b(?:{_COUNT_WORDS})\\b|\\b\\d+\\b)\\s+(?:\\w+\\s+){{0,2}}"
      f"(?:{_PLURAL_KINDS})\\b"
      f"|\\b[2-9]\\d*\\b\\s+(?:\\w+\\s+){{0,2}}"
-     f"(?:{_SINGULAR_FLEET_KINDS})\\b",
+     f"(?:{_SINGULAR_FLEET_KINDS})\\b"
+     # Omega7 v1.4 rule 20: DE "Roboter" is plural-identical, so
+     # count words take the plural reading ("two Roboter");
+     # digits stay on the singular arm above ("1 Roboter"
+     # still accepts).
+     f"|\\b(?:{_COUNT_WORDS})\\b\\s+(?:\\w+\\s+){{0,2}}roboter\\b",
      "ambiguous machine requirement (fleet or mixed values); "
      "name exactly one machine with one set of limits"),
 )

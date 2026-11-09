@@ -1305,3 +1305,30 @@ def test_omega7_v14_paro_boundary_not_substring():
     from genesis_rt.planning import plan_machine
     ir = plan_machine("reparo del robot, 20 ms, 1 m/s", machine_id="m")
     assert ir["machine"]["kind"] == "differential_drive_robot"
+
+
+@pytest.mark.parametrize("req", [
+    "5 Roboter, 20 ms",
+    "5 warehouse Roboter, 20 ms",
+    "two Roboter with 20 ms period",
+    "several Roboter, 1 m/s",
+])
+def test_omega7_v14_roboter_fleet_refuses(req):
+    """Omega7 v1.4 rule 20: DE "Roboter" counts fleets like every
+    kind noun — digit >= 2 and count words refuse."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    with pytest.raises(PlannerRejection, match="fleet"):
+        plan_machine(req, machine_id="m")
+
+
+@pytest.mark.parametrize("req", [
+    "1 Roboter, 20 ms",
+    "Roboter, 20 ms, 1 m/s",
+])
+def test_omega7_v14_roboter_singular_still_accepts(req):
+    """Omega7 v1.4 rule 20: digit 1 + "Roboter" reads singular
+    (like "1 robot") and bare "Roboter" still maps diff-drive."""
+    from genesis_rt.planning import plan_machine
+    ir = plan_machine(req, machine_id="m")
+    assert ir["machine"]["kind"] == "differential_drive_robot"
