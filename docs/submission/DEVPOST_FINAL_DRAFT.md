@@ -23,7 +23,8 @@
 
 ## Inspiration
 
-When a requirement changes on embedded control software —
+GENESIS RT generates inspectable evidence about the behavior of
+the code. When a requirement changes on embedded control software —
 say a mobile robot's controller gains a guarded safe-stop
 transition (AMR v1 → v2) — teams must answer three
 questions before shipping: did the code actually change,

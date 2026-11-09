@@ -22,3 +22,14 @@ No QNX SDK needed except where marked.
 
 `PYTHONPATH=host` is unnecessary after `pip install -e .`.
 
+## Demo A cold timing (9 Nov 2026, Windows, Python 3.14, host-only)
+
+3 consecutive cold runs of `scripts/run_verified_demo.py` +
+`scripts/replay.py <passport>` (Demo A in `DEMO_WALKTHROUGH.md`).
+Expect ±30% on another box; slower/faster is fine, hanging is not.
+
+| step | run 1 | run 2 | run 3 | budget (±30%) |
+|---|---|---|---|---|
+| `run_verified_demo.py` → `verdict: PASS` | 1.2 s | 1.2 s | 1.2 s | ≤1.6 s |
+| `replay.py` → `chain: valid, gate: PASS` | 0.2 s | 0.1 s | 0.1 s | ≤0.3 s |
+

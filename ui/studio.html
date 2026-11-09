@@ -220,8 +220,13 @@ and Run keep working on local files with no backend.</details>
 <div class="hero">
 <p class="eyebrow">GENESIS RT · QNX 8.0 host toolchain</p>
 <h1 id="ov-h">Build QNX-native software. Prove how it behaves.</h1>
-<p class="lede">Define a machine contract, generate native QNX software, verify
-its behavior, and inspect independently verifiable evidence.</p>
+<p class="lede">GENESIS RT generates inspectable evidence about the behavior
+of the code: define a machine contract, generate native QNX software,
+verify its behavior, and inspect independently verifiable evidence.</p>
+<p class="note" id="ov-coldstart"><b>30-second cold start</b> (no SDK, no
+target): <code>genesis-rt validate examples/cell-demo/cell-ir.json</code> →
+<code>genesis-rt demo --ir examples/cell-demo/cell-ir.json</code> — PASS
+verdict + offline passport in ~2 s.</p>
 <div class="cta">
 <button type="button" class="primary" data-go="judge">Explore verified demo</button>
 <button type="button" data-go="projects">Open workspace</button>

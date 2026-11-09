@@ -803,6 +803,16 @@ def test_docs_have_no_outside_repo_links():
     assert offenders == [], "\n".join(offenders)
 
 
+def test_hero_line_front_doored():
+    """OMEGA6 C1: the one-line value prop sits on all three
+    front doors (README, Studio landing, Devpost first screen)."""
+    hero = "generates inspectable evidence about the behavior of"
+    flat = lambda rel: re.sub(r"\s+", " ", _read(rel))
+    assert hero in flat("README.md")
+    assert hero in flat("ui/studio.html")
+    assert hero in flat("docs/submission/DEVPOST_FINAL_DRAFT.md")
+
+
 def test_qnx_footprint_table_present():
     """OMEGA6 D4: the QNX evidence doc carries the measured C
     footprint (text/data/bss) with RSS honestly unmeasured."""
