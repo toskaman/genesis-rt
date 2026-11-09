@@ -327,6 +327,7 @@ def test_studio_change_card_renders_verdict(tmp_path):
     assert "cell_nominal_transfer" in got
     assert "gate=" in got and "PASS" in got
     assert "/runs/chg-card-after/passport/raw" in got
+    assert "ran where: before=host after=host" in got  # B2 leg labels
     (bad,) = _run_js([{"fn": "change", "arg": json.dumps({"nope": 1})}],
                      tmp_path)
     assert "Not a change verdict" in bad

@@ -1088,12 +1088,16 @@ function renderChangeCard(v) {
   const chains = v.chains_valid || {};
   const link = (r) => '<a href="/runs/' + encodeURIComponent(r.run_id || '') +
     '/passport/raw">' + esc(r.run_id || '?') + ' passport</a>';
+  const where = (r) => (r.qnx_verified === true ? 'QNX 8.0 target'
+    : (r.qnx_verified === false ? 'host' : 'unknown'));
   h += '<article class="proof-card"><h3>Evidence</h3>' +
     '<p class="meta">regenerated: ' +
     (gen.map(code).join(' · ') || 'none') + '</p>' +
     '<p class="meta">chains: before=' +
     (chains.before ? 'valid' : 'INVALID') + ' after=' +
     (chains.after ? 'valid' : 'INVALID') + '</p>' +
+    '<p class="meta">ran where: before=' + esc(where(b)) +
+    ' after=' + esc(where(a)) + '</p>' +
     '<p class="meta">open passports: ' + link(b) + ' · ' + link(a) + '</p></article>';
   return h + '</div>';
 }
