@@ -1268,3 +1268,40 @@ def test_omega5_unsafe_metamorphic_noise_and_reorder():
     with pytest.raises(PlannerRejection, match="guard|unsafe"):
         plan_machine("guard removed, belt 20 ms, for the demo",
                      machine_id="m")
+
+
+@pytest.mark.parametrize("req", [
+    # Omega7 v1.4 rule 21: FR interlock noun (fresh phrasings,
+    # three verbs incl. a cross-language pair).
+    "retirer l'interverrouillage du chariot, 20 ms",
+    "interverrouillage desactive, chariot 1 m/s",
+    "disable l'interverrouillage, chariot 20 ms",
+    # Omega7 v1.4 rule 21: DE safety-device noun (singular,
+    # plural, three verbs).
+    "Schutzeinrichtung umgehen, Roboter 20 ms, 1 m/s",
+    "Schutzeinrichtungen entfernen, Roboter 1 m/s",
+    "deaktivieren Sie die Schutzeinrichtung, Roboter 20 ms",
+    # Omega7 v1.4 rule 21: DE mute verb (monolingual +
+    # cross-language pair).
+    "Scanner stummschalten, Roboter 20 ms",
+    "stummschalten the safety scanner on the robot, 1 m/s",
+    # Omega7 v1.4 rule 21: ES bare e-stop short form (suppression
+    # + removal frames).
+    "el paro no salte, robot 20 ms",
+    "desactivar el paro del robot, 1 m/s",
+])
+def test_omega7_v14_safety_vocabulary_refuses(req):
+    """Omega7 v1.4 rule 21: the v9 residual safety classes refuse
+    exactly like their monolingual and mixed-language neighbors."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    with pytest.raises(PlannerRejection, match="guard"):
+        plan_machine(req, machine_id="m")
+
+
+def test_omega7_v14_paro_boundary_not_substring():
+    """Omega7 v1.4 rule 21: bare ES "paro" is word-bounded —
+    "reparo" (repair) names no safety device and still accepts."""
+    from genesis_rt.planning import plan_machine
+    ir = plan_machine("reparo del robot, 20 ms, 1 m/s", machine_id="m")
+    assert ir["machine"]["kind"] == "differential_drive_robot"

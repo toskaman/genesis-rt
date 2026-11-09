@@ -78,21 +78,29 @@ _DE_DEVICES = (r"schutzzaun|zaun|lichtvorhang|vorhang|not-?aus"
                # Omega4 fix-1: "Not-Halt" and torque-limit compounds
                # (v7-r06/r08 classes).
                r"|not[-\s]?halt|(?:drehmoment|drehzahl"
-               r"|geschwindigkeits)?grenzen")
+               r"|geschwindigkeits)?grenzen"
+               # Omega7 v1.4 rule 21: protective-device noun.
+               r"|schutzeinrichtung(?:en)?")
 _DE_REMOVAL = (r"demont\w*|abmont\w*|ausgebaut|entfern\w*|deaktiv\w*"
                r"|stillleg\w*|ausser\s+betrieb|außer\s+betrieb"
                # Omega4 fix-1: "abgeschaltet" (switched off).
-               r"|abgeschaltet|abschalten")
+               # Omega7 v1.4 rule 21: mute verb (compound).
+               r"|abgeschaltet|abschalten|stummschalt\w*")
 _ES_DEVICES = (r"cortina|valla|barrera|interruptor|enclavamiento"
                # Omega4 fix-1: emergency-stop nouns + safety scanner.
                r"|paro\s+de\s+emergencia|parada\s+de\s+emergencia"
-               r"|esc[áa]ner(?:es)?")
+               r"|esc[áa]ner(?:es)?"
+               # Omega7 v1.4 rule 21: bare e-stop short form,
+               # word-bounded (reparo/amparo/disparo never match).
+               r"|\bparo\b")
 _ES_REMOVAL = (r"desmont\w*|desactiv\w*|sin\s+activ\w*"
                r"|fuera\s+de\s+servicio|quit\w*")
 _FR_DEVICES = (r"barriere|barrière|rideau|grillage|cloture|clôture"
                # Omega4 fix-1: e-stop nouns, safeties, limit stops,
                # safety scanner (v7-r03/r04/r05 classes).
-               r"|[ld][’']arr[êe]ts?|s[ée]curit[ée]s?|but[ée]es?|scanners?")
+               # Omega7 v1.4 rule 21: interlock noun.
+               r"|[ld][’']arr[êe]ts?|s[ée]curit[ée]s?|but[ée]es?|scanners?"
+               r"|interverrouillage(?:s)?")
 _FR_REMOVAL = (r"d[ée]mont\w*|retir\w*|enlev\w*|hors\s+service"
                r"|désactiv\w*|desactiv\w*")
 # Omega4 fix-1: suppression phrasings that name no removal verb
@@ -151,7 +159,10 @@ _SAFETY_DEVICES = (r"guards?|guarding|e-?stops?|estops?|interlocks?"
                    # plus the safety scanner (v7-r01/r02 classes).
                    r"|emergency[-\s]?stops?|scanners?"
                    r"|[ld][’']arr[êe]ts?|paro\s+de\s+emergencia"
-                   r"|parada\s+de\s+emergencia|not[-\s]?halt")
+                   r"|parada\s+de\s+emergencia|not[-\s]?halt"
+                   # Omega7 v1.4 rule 21: ES bare e-stop short form,
+                   # word-bounded (reparo/amparo/disparo never match).
+                   r"|\bparo\b")
 _ZERO_WIDTH_RE = re.compile(
     "[\u200b\u200c\u200d\ufeff\u00ad"
     # Omega4 fix-1: word joiner, directional marks, Mongolian
