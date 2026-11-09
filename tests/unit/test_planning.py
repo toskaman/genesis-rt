@@ -221,6 +221,14 @@ EVAL_DATASET_DIGESTS = {
         # 80 reject, 24-case model-fallback cohort, EN/FR/DE/ES x30.
         # Measure once per provider; never tune. Post-v7 fixes need v8.
         "d91e3956e02fcc60b155828cce116630a3ec7f2e8a9e254198676167f6400d15",
+    "planning_holdout_v8.json":  # FROZEN 9 Nov 2026 (Omega4 fix-1):
+        # fifth set, separately agent-authored BLIND under contract
+        # v1.2 (author saw v1.2 + one v7 case for format; a tool
+        # preview unavoidably exposed ~20 v7 valids — verified 0
+        # verbatim overlap with v4/v5/v6/v7). 35 valid + 65 reject,
+        # 21-case fallback cohort, EN/FR/DE/ES x25. Post-fix blind
+        # measurement: once per provider; never tune.
+        "cb3820fd8f42aa3b1bed2363dcd1adb3aa53d132bb0da93f47683d800d3ab0b0",
 }
 
 
