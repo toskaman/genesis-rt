@@ -38,6 +38,12 @@ if BaseModel is not None:
         run_a: str
         run_b: str
 
+    class ChangeRequest(BaseModel):
+        ir_before: dict[str, Any] | None = None
+        ir_after: dict[str, Any] | None = None
+        scenarios: list[str] | None = None
+        change_id: str | None = None
+
     class ValidateRequest(BaseModel):
         ir: dict[str, Any]
 
@@ -97,6 +103,7 @@ if BaseModel is not None:
 else:  # pragma: no cover - import-time fallback without the api extra
     RunRequest = None  # type: ignore[assignment, misc]
     CompareRequest = None  # type: ignore[assignment, misc]
+    ChangeRequest = None  # type: ignore[assignment, misc]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 ARTIFACTS = REPO_ROOT / "artifacts" / "runs"
@@ -176,7 +183,9 @@ def create_app() -> Any:
     from contextlib import asynccontextmanager
 
     from .build_adapter import probe as probe_env
+    from .change import valid_change_id
     from .compare import compare_runs
+    from .evidence import load_passport, verify_chain
     from .ir import IRValidationError, SCENARIO_IDS, validate_ir
     from .ir_v2 import validate_v2
     from .orchestrator import active_runs, request_cancel
@@ -439,6 +448,154 @@ def create_app() -> Any:
         except ValueError as exc:
             raise HTTPException(409, f"cannot compare: {exc}") from exc
         return JSONResponse(comp)
+
+    def _validate_change_ir(doc: Any, leg: str) -> dict[str, Any]:
+        if not isinstance(doc, dict):
+            raise HTTPException(400, f"invalid {leg} IR: not an object")
+        try:
+            version = doc.get("schema_version")
+            if version == 2:
+                return validate_v2(doc)
+            if version == 1:
+                return validate_ir(doc)
+            raise IRValidationError(
+                f"unsupported schema_version={version!r}")
+        except IRValidationError as exc:
+            raise HTTPException(400, f"invalid {leg} IR: {exc}") from exc
+
+    def _settle_change_leg(job_id: str, leg: str) -> dict[str, Any]:
+        """Wait for one change leg; same error mapping as POST /runs."""
+        try:
+            rec = mgr.wait(job_id, timeout=900)
+        except TimeoutError:
+            raise HTTPException(503, f"{leg} leg still running: {job_id}")
+        if rec["state"] == "cancelled":
+            raise HTTPException(409, f"{leg} leg cancelled: {job_id}")
+        if rec["state"] == "failed":
+            err = rec["error"] or "pipeline failed"
+            head = err.split(":", 1)[0]
+            if head in ("ValueError", "IRValidationError"):
+                raise HTTPException(400, f"{leg} leg bad request: {err}")
+            if head == "PipelineError":
+                raise HTTPException(409, f"{leg} leg conflict: {err}")
+            raise HTTPException(500, f"{leg} leg failed: {err}")
+        if rec["state"] != "succeeded" or not rec["summary"]:
+            raise HTTPException(
+                500, f"{leg} leg {rec['state']}: {rec['error']}")
+        return json.loads(rec["summary"])
+
+    @app.post("/changes")
+    def prove_change(req: ChangeRequest) -> JSONResponse:
+        """K1: run BEFORE+AFTER pipelines and return one verdict card."""
+        import uuid as _uuid
+
+        if req.ir_before is None or req.ir_after is None:
+            raise HTTPException(400, "provide 'ir_before' and 'ir_after'")
+        cid = req.change_id or f"chg-{_uuid.uuid4().hex[:12]}"
+        if not valid_change_id(cid):
+            raise HTTPException(400, f"invalid change_id: {cid!r}")
+        if req.scenarios is not None:
+            if len(req.scenarios) > MAX_SCENARIOS:
+                raise HTTPException(400, "too many scenarios requested")
+            unknown = [s for s in req.scenarios if s not in SCENARIO_IDS]
+            if unknown:
+                raise HTTPException(400, f"unknown scenarios: {sorted(unknown)}")
+        before_ir = _validate_change_ir(req.ir_before, "before")
+        after_ir = _validate_change_ir(req.ir_after, "after")
+        ARTIFACTS.mkdir(parents=True, exist_ok=True)
+        tmp_paths: list[Path] = []
+        try:
+            for ir in (before_ir, after_ir):
+                raw = json.dumps(ir).encode("utf-8")
+                if len(raw) > MAX_IR_BYTES:
+                    raise HTTPException(400, "IR payload too large")
+                with tempfile.NamedTemporaryFile(
+                        mode="wb", suffix=".ir.json", prefix="upload-",
+                        dir=ARTIFACTS, delete=False) as fh:
+                    fh.write(raw)
+                    tmp_paths.append(Path(fh.name))
+        except HTTPException:
+            for p in tmp_paths:
+                _drop(p)
+            raise
+        summaries = []
+        try:
+            for leg, tmp_ir in (("before", tmp_paths[0]),
+                                ("after", tmp_paths[1])):
+                run_id = f"{cid}-{leg}"
+                try:
+                    job_id = mgr.submit(tmp_ir, scenarios=req.scenarios,
+                                        run_id=run_id, cleanup=tmp_ir)
+                except ValueError as exc:
+                    raise HTTPException(400, f"bad request: {exc}") from exc
+                except JobConflict as exc:
+                    raise HTTPException(
+                        409, f"{leg} leg conflict: {exc}") from exc
+                except JobOverloaded as exc:
+                    raise HTTPException(
+                        429, f"server busy: {exc}") from exc
+                summaries.append(_settle_change_leg(job_id, leg))
+        except HTTPException:
+            for p in tmp_paths:
+                _drop(p)
+            raise
+        base = ARTIFACTS.resolve()
+        dirs = []
+        for summary in summaries:
+            candidate = Path(summary["run_dir"]).resolve()
+            if base not in candidate.parents and candidate != base:
+                raise HTTPException(409, "leg run dir escapes artifacts")
+            dirs.append(candidate)
+        try:
+            comp = compare_runs(dirs[0], dirs[1])
+        except ValueError as exc:
+            raise HTTPException(409, f"cannot compare: {exc}") from exc
+        chains_valid = {}
+        for leg, summary in (("before", summaries[0]),
+                             ("after", summaries[1])):
+            chains_valid[leg] = not verify_chain(
+                load_passport(summary["passport"]))
+
+        def _leg(summary: dict[str, Any]) -> dict[str, Any]:
+            return {"run_id": summary["run_id"],
+                    "passport": summary["passport"],
+                    "verdict": summary["verdict"],
+                    "level": summary["level"],
+                    "release_eligible": summary["release_eligible"],
+                    "qnx_verified": summary["qnx_verified"]}
+
+        verdict = {
+            "change_id": cid,
+            "verdict": summaries[1]["verdict"],
+            "before": _leg(summaries[0]),
+            "after": _leg(summaries[1]),
+            "chains_valid": chains_valid,
+            "compare": comp,
+            "manual_commands": [
+                f"genesis-rt compare {dirs[0]} {dirs[1]}  "
+                f"# legs stored as runs {summaries[0]['run_id']} / "
+                f"{summaries[1]['run_id']}",
+            ],
+        }
+        cdir = ARTIFACTS.parent / "change" / cid
+        cdir.mkdir(parents=True, exist_ok=True)
+        (cdir / "verdict.json").write_text(
+            json.dumps(verdict, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
+        return JSONResponse(verdict)
+
+    @app.get("/changes/{change_id}")
+    def get_change(change_id: str) -> JSONResponse:
+        if not valid_change_id(change_id):
+            raise HTTPException(400, f"invalid change_id: {change_id!r}")
+        base = (ARTIFACTS.parent / "change").resolve()
+        candidate = (ARTIFACTS.parent / "change" / change_id).resolve()
+        if base not in candidate.parents and candidate != base:
+            raise HTTPException(400, "change id escapes storage")
+        stored = candidate / "verdict.json"
+        if not stored.is_file():
+            raise HTTPException(404, "unknown change")
+        return JSONResponse(json.loads(stored.read_text(encoding="utf-8")))
 
     @app.post("/jobs", status_code=202)
     def create_job(req: RunRequest) -> JSONResponse:

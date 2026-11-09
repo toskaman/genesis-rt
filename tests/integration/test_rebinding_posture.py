@@ -71,8 +71,10 @@ def test_unknown_export_creates_no_run_artifacts(client, tmp_path):
 # side effect (reads + idempotent store init only). Extend deliberately.
 # /docs, /redoc, /openapi.json, /docs/oauth2-redirect are FastAPI's
 # default static API docs (read-only).
+# Titan v3, 9 Nov 2026: +/changes/{change_id} (stored verdict.json only).
 AUDITED_GET_ROUTES = [
     "/",
+    "/changes/{change_id}",
     "/dashboard.html",
     "/docs",
     "/docs/oauth2-redirect",

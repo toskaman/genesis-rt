@@ -459,6 +459,15 @@ re-verified; the delta table appears only when both are valid.</p>
 <p>B (after): <input type="file" id="diffile-b" aria-label="Passport B (after)" accept=".json"></p>
 <p><button class="ghost" id="diff-twin">Replay A/B in Twin</button></p>
 <div id="diff-out"><p class="note">No comparison yet.</p></div>
+<h3>Prove a change (needs backend)</h3>
+<p class="note">Pick two Machine IR files (before, after) and run both
+pipelines in one step. The card below renders the same
+<code>verdict.json</code> the <code>genesis-rt verify-change</code> CLI
+writes.</p>
+<p>IR A (before): <input type="file" id="chgfile-a" aria-label="IR A (before)" accept=".json"></p>
+<p>IR B (after): <input type="file" id="chgfile-b" aria-label="IR B (after)" accept=".json"></p>
+<p><button class="act" id="change-prove">Prove</button></p>
+<div id="change-out"><p class="note">No change proof yet.</p></div>
 </section>
 
 <section class="tabpage" id="tab-evidence" role="tabpanel" aria-labelledby="tabbtn-evidence">
@@ -1029,6 +1038,47 @@ function renderDiffHtml(textA, textB) {
       '</td><td>' + esc(paint(y)) + '</td><td class="' + esc(cls) + '">' + esc(delta) + '</td></tr>';
   }
   return h + '</table>';
+}
+function renderChangeCard(v) {
+  if (!v || typeof v !== 'object' || !v.before || !v.after || !v.compare) {
+    return '<p class="fail">Not a change verdict.</p>';
+  }
+  const b = v.before, a = v.after, c = v.compare;
+  const vcls = (x) => (x === 'PASS' ? 'pass' : (x === 'FAIL' ? 'fail' : 'unknown'));
+  const code = (x) => '<code>' + esc(x) + '</code>';
+  let h = '<div class="banner">change ' + code(v.change_id) +
+    ' before ' + code(b.run_id) + ' gate=<b class="' + vcls(b.verdict) + '">' +
+    esc(b.verdict) + '</b> → after ' + code(a.run_id) + ' gate=<b class="' +
+    vcls(a.verdict) + '">' + esc(a.verdict) + '</b></div>';
+  h += '<div class="proof-grid" role="group" aria-label="Change verdict">';
+  const lim = ((c.contract || {}).limits_changed) || {};
+  const keys = Object.keys(lim).sort();
+  let knobRows = '';
+  for (const k of keys) {
+    const pair = Array.isArray(lim[k]) ? lim[k] : ['?', '?'];
+    knobRows += '<tr><td>' + code(k) + '</td><td>' + code(String(pair[0])) +
+      ' → ' + code(String(pair[1])) + '</td></tr>';
+  }
+  h += '<article class="proof-card"><h3>Contract knobs</h3><table>' +
+    (knobRows || '<tr><td>no contract knob moved</td></tr>') + '</table></article>';
+  const scen = c.scenarios || {};
+  const fixed = (scen.fixed || []).map(code).join(' · ') || 'none';
+  const broken = (scen.broken || []).map(code).join(' · ') || 'none';
+  h += '<article class="proof-card"><h3>Scenario flips</h3>' +
+    '<p class="probe">fixed: ' + fixed + '</p>' +
+    '<p class="probe">broken: ' + broken + '</p></article>';
+  const gen = (c.generated || {}).changed || [];
+  const chains = v.chains_valid || {};
+  const link = (r) => '<a href="/runs/' + encodeURIComponent(r.run_id || '') +
+    '/passport/raw">' + esc(r.run_id || '?') + ' passport</a>';
+  h += '<article class="proof-card"><h3>Evidence</h3>' +
+    '<p class="meta">regenerated: ' +
+    (gen.map(code).join(' · ') || 'none') + '</p>' +
+    '<p class="meta">chains: before=' +
+    (chains.before ? 'valid' : 'INVALID') + ' after=' +
+    (chains.after ? 'valid' : 'INVALID') + '</p>' +
+    '<p class="meta">open passports: ' + link(b) + ' · ' + link(a) + '</p></article>';
+  return h + '</div>';
 }
 
 /* Studio Live pure core (no DOM): tested under node alongside the
@@ -2110,6 +2160,34 @@ document.getElementById('diff-twin').addEventListener('click', () => {
     document.getElementById('diff-out').innerHTML =
       '<p class="fail">' + esc(err) + '</p>';
   }
+});
+document.getElementById('chgfile-a').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try { Studio.chgA = JSON.parse(await f.text()); }
+  catch (err) {
+    Studio.chgA = null;
+    el('change-out').innerHTML = '<p class="fail">IR A is not valid JSON.</p>';
+  }
+});
+document.getElementById('chgfile-b').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try { Studio.chgB = JSON.parse(await f.text()); }
+  catch (err) {
+    Studio.chgB = null;
+    el('change-out').innerHTML = '<p class="fail">IR B is not valid JSON.</p>';
+  }
+});
+document.getElementById('change-prove').addEventListener('click', async () => {
+  const out = el('change-out');
+  if (!Studio.chgA || !Studio.chgB) {
+    out.innerHTML = '<p class="fail">Load both IR files first.</p>';
+    return;
+  }
+  out.innerHTML = '<p class="note">Proving… (two pipelines)</p>';
+  try {
+    out.innerHTML = renderChangeCard(await postJson('/changes', {
+      ir_before: Studio.chgA, ir_after: Studio.chgB }));
+  } catch (e) { out.innerHTML = errHtml('Prove failed', e); }
 });
 document.getElementById('srcfiles').addEventListener('change', async (e) => {
   const files = [];

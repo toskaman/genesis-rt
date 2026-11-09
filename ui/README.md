@@ -13,7 +13,9 @@ PYTHONPATH=host python -m genesis_rt.cli serve   # http://127.0.0.1:8077/
   passport → diff), plus the file-based inspectors: Source (generated C
   provenance pinned vs the IR), Twin (canvas trace replay), Lab
   (scenario/seeds/checks), Passport (live chain re-verification),
-  Diff (broken-vs-fixed delta), Run (exact CLI/target commands).
+  Diff (broken-vs-fixed delta, plus one-click Prove via
+  `POST /changes` when the backend is live), Run (exact
+  CLI/target commands).
   Without the backend, Projects/Designer/Pipeline show an offline
   banner while the six inspector tabs keep working on local files.
 - `dashboard.html`: Proof Passport inspector. Load a `passport.json`;

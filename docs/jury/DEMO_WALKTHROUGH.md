@@ -68,6 +68,15 @@ side — this is the difference between GENESIS RT and a code
 generator. Same delta in the Studio Diff tab (`ui/studio.html`) and
 over the local API (`POST /runs` twice, then `POST /compare`).
 
+One-click version (same verdict, one step): `genesis-rt verify-change
+--before examples/cell-demo/cell-ir-broken.json --after
+examples/cell-demo/cell-ir.json` runs both legs, seals
+`artifacts/change/<id>/verdict.json`, and prints the card
+(`max_linear_speed_mps: 0.3 -> 1.2`, the three fixed scenarios,
+gate PASS). Studio's Diff tab has the same step behind the Prove
+button (`POST /changes`); if a leg cannot run, the card falls back
+to the manual commands above.
+
 ## If something fails
 
 - `qcc: not found` → SDK env not sourced in that shell; host path
