@@ -63,9 +63,10 @@ def test_valid_intent_builds_ir_deterministically(llm_env):
     intent = {"kind": "differential_drive_robot", "period_ms": 20,
               "max_linear_speed_mps": 0.8, "refusal": None}
     srv, seen = llm_env(lambda b: (200, _chat(intent)), key="sk-secret")
-    # Unknown-kind phrasing: the offline parser cannot map "runner bot",
-    # so the model is consulted and its intent is rebuilt deterministically.
-    ir = plan_machine("warehouse runner bot, 20 ms, 0.8 m/s",
+    # Registry phrasing: the offline parser cannot map "tugger bot",
+    # so the model is consulted and its registry-backed intent is
+    # rebuilt deterministically (Omega5 §3.5 boundary).
+    ir = plan_machine("warehouse tugger bot, 20 ms, 0.8 m/s",
                       machine_id="amr-llm", provider="llm")
     srv.shutdown()
     assert ir["machine"]["id"] == "amr-llm"
@@ -99,13 +100,17 @@ def test_offline_accept_wins_without_model_call(llm_env):
     ({"kind": "conveyor", "max_linear_speed_mps": True}, "out of range"),
     ({"kind": "conveyor", "period_ms": 0}, "out of range"),
     ({"kind": "conveyor", "period_ms": 2.5}, "out of range"),
-    ({"kind": "conveyor", "simulation_only": False, "max_linear_speed_mps": 1.0}, None),
+    ({"kind": "differential_drive_robot", "simulation_only": False,
+      "max_linear_speed_mps": 1.0}, None),
 ])
 def test_intent_is_type_checked(llm_env, intent, match):
     """The model cannot smuggle IR fields: only kind/period/speed are read."""
     srv, _ = llm_env(lambda b: (200, _chat(intent)))
     if match is None:
-        ir = plan_machine("parcel walkway for the depot at 1 m/s", provider="llm")
+        # Omega5 §3.5: registry noun so the intent reaches the
+        # smuggle checks past the kind-evidence boundary.
+        ir = plan_machine("tugger lane for the depot at 1 m/s",
+                          provider="llm")
         assert ir["machine"]["simulation_only"] is True
     else:
         with pytest.raises(PlannerRejection, match=match):

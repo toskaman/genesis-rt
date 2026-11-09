@@ -28,7 +28,9 @@ from typing import Any, Protocol
 from .ir import IRValidationError, validate_ir
 from .planner import PlannerRejection
 from .planner import _KIND_HINTS
+from .planner import explicit_values
 from .planner import propose as offline_propose
+from .semantics import preservation_frame, unsafe_frame
 
 # Unsafe / out-of-scope request patterns (matched on the lowered text).
 # Each maps to a precise refusal explanation shown to the requester.
@@ -117,11 +119,16 @@ _VALUE_UNITS = r"\bms\b|m/s"
 _COUNT_WORDS = (r"two|three|four|five|six|seven|eight|nine|ten"
                 r"|eleven|twelve|both|dozen|several|multiple|many")
 _PLURAL_KINDS = (r"rovers|robots|amrs|mobiles|conveyors|belts|lines"
-                 r"|arms|grippers|manipulators|agvs|cobots")
+                 r"|arms|grippers|manipulators|agvs|cobots"
+                 # Omega5 §3.4/§3.5: registry + alias plurals fleet too.
+                 r"|tuggers|förderbänder|foerderbaender")
 # Omega4 fix-1: singular kind nouns that only signal a fleet with
 # a digit >= 2 ("7 Rover", "2 AMR"); digit 1 keeps accepting.
 _SINGULAR_FLEET_KINDS = (r"robot|rover|amr|agv|cobot|mobile|belt"
-                         r"|conveyor|arm|gripper|manipulator")
+                         r"|conveyor|arm|gripper|manipulator"
+                         # Omega5: registry noun + alias singulars.
+                         r"|tugger|förderband|förderbands|foerderband"
+                         r"|foerderbands")
 # Omega4 fix-1: generic machine nouns that name no specific kind
 # ("set up a machine", "une Maschine"). With no kind hint they
 # veto the model consult (ambiguous); invented aliases with no
@@ -131,6 +138,10 @@ _GENERIC_NOUNS = (r"machine|unit|device|apparatus|equipment|system"
                   r"|dispositif|appareil|unit[ée]|syst[èe]me|équipement"
                   r"|maschine|gerät|einheit|vorrichtung|anlage"
                   r"|m[áa]quina|unidad|dispositivo|aparato|equipo|sistema")
+# Omega5 §3.5 tier-2: model-mediated registry. Deliberately minimal
+# (one entry): unknown industrial nouns fail closed until the
+# contract lists them. Tier changes need a contract amendment.
+_ALIAS_REGISTRY = {"tugger": "differential_drive_robot"}
 _SAFETY_DEVICES = (r"guards?|guarding|e-?stops?|estops?|interlocks?"
                    r"|watchdogs?|curtains?|light\s+curtain"
                    r"|safety\s+curtain|bumpers?|safety\s+switch"
@@ -447,8 +458,10 @@ object and nothing else, exactly these keys:
  "period_ms": integer or null,
  "max_linear_speed_mps": number or null,
  "refusal": null or a short reason}
-Mapping hints: AMR, rover, mobile/warehouse robot -> differential_drive_robot;
-belt, conveyor -> conveyor; arm, manipulator, gripper -> robotic_arm_virtual.
+Mapping hints: AMR, rover, tugger, mobile/warehouse robot
+-> differential_drive_robot; belt, conveyor -> conveyor; arm,
+manipulator, gripper -> robotic_arm_virtual. Nouns outside this
+list name no machine: refusal "clarification required".
 Rules: use null for any value the request does not state (defaults are applied
 later). Copy numbers exactly. Units must be milliseconds and m/s: if the request
 gives a period in seconds or minutes, or a speed in km/h or other units, set
@@ -576,6 +589,42 @@ class LLMProvider:
         if speed is not None and (isinstance(speed, bool) or not isinstance(speed, (int, float))
                                   or not 0 < speed <= 10):
             raise PlannerRejection(f"llm intent speed out of range: {speed!r}")
+        # Omega5 §3.5 kind-evidence boundary: the consult path is
+        # reached only with no tier-1 evidence, so the proposal
+        # stands only on a tier-2 registry noun mapped to exactly
+        # the proposed kind. No silent wrong-kind conversion.
+        evidenced = {k for noun, k in _ALIAS_REGISTRY.items()
+                     if noun in tokens}
+        if kind not in evidenced:
+            raise PlannerRejection(
+                "clarification required: the model proposed "
+                f"{kind}, but the request names no machine the contract "
+                "maps to it (robot/rover/AMR/tugger, conveyor/belt, "
+                "arm/gripper). Name the machine explicitly.") from None
+        # Omega5 §3.5/§5.15 value boundary: explicit request values
+        # win; unstated slots fill from the request or defaults —
+        # the model neither overrides nor invents values.
+        exp_period, exp_speed = explicit_values(request)
+        if period is None:
+            period = exp_period
+        elif exp_period is not None and period != exp_period:
+            raise PlannerRejection(
+                "llm intent must not override the explicit period: "
+                f"request states {exp_period} ms") from None
+        elif exp_period is None:
+            raise PlannerRejection(
+                "llm intent invented an unstated period: state it in "
+                "ms or leave the slot empty") from None
+        if speed is None:
+            speed = exp_speed
+        elif exp_speed is not None and abs(float(speed) - exp_speed) > 1e-9:
+            raise PlannerRejection(
+                "llm intent must not override the explicit speed: "
+                f"request states {exp_speed} m/s") from None
+        elif exp_speed is None:
+            raise PlannerRejection(
+                "llm intent invented an unstated speed: state it in "
+                "m/s or leave the slot empty") from None
         canon = _KIND_PHRASE[kind]
         if period is not None:
             canon += f" with {period} ms period"
@@ -592,9 +641,23 @@ class LLMProvider:
 PROVIDERS: dict[str, type[Any]] = {"offline": OfflineProvider, "llm": LLMProvider}
 
 
+_GUARD_MSG = "disabling or removing the safety guard is not supported"
+
+
 def _refuse_unsafe(request: str) -> None:
     text = canonicalize_request((request or "").lower())
+    # Omega5 §3.2/§3.3: semantic frames decide first. An unsafe
+    # frame refuses at once (unsafe wins over preservation); a
+    # preservation frame exempts ONLY the device-safety patterns
+    # (injection/fleet/units/missing/hardware rules still run).
+    frame = unsafe_frame(text)
+    if frame is not None:
+        raise PlannerRejection(
+            f"unsafe or unsupported requirement: {_GUARD_MSG} ({frame})")
+    exempt_devices = preservation_frame(text)
     for pattern, explanation in _UNSAFE_PATTERNS:
+        if exempt_devices and explanation == _GUARD_MSG:
+            continue
         if re.search(pattern, text):
             raise PlannerRejection(f"unsafe or unsupported requirement: {explanation}")
 

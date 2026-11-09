@@ -58,7 +58,11 @@ _KIND_HINTS = (
       "mobiles", "differential", "agv", "agvs", "chariot", "roboter"),
      "differential_drive_robot"),
     (("conveyor", "conveyors", "belt", "belts", "line", "lines",
-      "convoyeur", "bande", "tapis", "cinta"),
+      "convoyeur", "bande", "tapis", "cinta",
+      # Omega5 §3.4: tier-1 German alias (standard spelling,
+      # genitive/plural inflection, oe transliteration).
+      "förderband", "förderbands", "förderbänder",
+      "foerderband", "foerderbands", "foerderbaender"),
      "conveyor"),
     (("arm", "arms", "gripper", "grippers", "manipulator",
       "manipulators", "bras", "brazo"), "robotic_arm_virtual"),
@@ -134,6 +138,30 @@ _LOOSE_CONSUMERS = r"log|telemet|report|publish|sample|record|trace|diag"
 
 class PlannerRejection(ValueError):
     """Raised when a request cannot be mapped to a safe IR proposal."""
+
+
+def explicit_values(request: str) -> tuple[int | None, float | None]:
+    """Omega5 §3.5: explicit period/speed stated in the request.
+
+    Mirrors propose()'s screening outcome: the single tied period
+    (or single loose value), and the single m/s speed. Returns None
+    per slot when unstated or genuinely ambiguous. Used by the
+    kind-evidence boundary so the model can neither override an
+    explicit value nor invent one for an unstated slot.
+    """
+    text = (request or "").strip().lower()
+    tied, loose = set(), set()
+    for m in _PERIOD_RE.finditer(text):
+        ctx = text[max(0, m.start() - 12):m.end() + 12]
+        if re.search(_PERIOD_CTX, ctx):
+            tied.add(int(m.group(1)))
+        else:
+            loose.add(int(m.group(1)))
+    periods = tied or loose
+    period = next(iter(periods)) if len(periods) == 1 else None
+    speeds = {float(x) for x in _SPEED_RE.findall(text)}
+    speed = next(iter(speeds)) if len(speeds) == 1 else None
+    return period, speed
 
 
 def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
@@ -266,7 +294,11 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
             "in ms (1..1000) or m/s (0, 10], or omit it for the default")
 
     matched: list[str] = []
-    words = set(re.findall(r"[a-z0-9]+", text))
+    # Omega5 §3.4: language-aware tokenization keeps accented words
+    # whole ("förderband" is one token, not "f"+"rderband"). Side
+    # effect: hints no longer match inside accented words ("armé"
+    # is not "arm") — that is correct strictness, not a regression.
+    words = set(re.findall(r"[a-z0-9à-ÿ]+", text))
     # Compound noun first: one adjacent "robot arm" / "robotic arm"
     # names a single manipulator, not a mobile robot plus an arm.
     # Two robot-family mentions ("robot arm and robot") stay ambiguous.
