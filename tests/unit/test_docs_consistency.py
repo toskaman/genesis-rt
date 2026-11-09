@@ -752,3 +752,52 @@ def test_second_host_provenance_template_present():
                   "Host B fingerprint", "Pack hashes match Host A",
                   "Do NOT register"):
         assert token in text, token
+
+
+_ABSOLUTE_LOCAL_PATH = re.compile(r"C:/|C:\\|/home/|/Users/")
+_CODE_SPAN = re.compile(r"`[^`]*`")
+
+
+def _md_files() -> list[Path]:
+    out = []
+    for path in sorted(ROOT.rglob("*.md")):
+        if ".git" in path.parts or "node_modules" in path.parts:
+            continue
+        out.append(path)
+    return out
+
+
+def _strip_redactions(text: str) -> str:
+    """Drop code spans that are redacted placeholders (`...`)."""
+    return _CODE_SPAN.sub(lambda m: "" if "..." in m.group(0) else m.group(0),
+                          text)
+
+
+def test_docs_have_no_absolute_local_paths():
+    """OMEGA6 A5 (E1-class prevention): repo docs never ship absolute
+    local paths — they 404 on GitHub and leak the author's layout.
+    Redacted placeholders (code spans containing `...`) are allowed."""
+    offenders = []
+    for path in _md_files():
+        body = _strip_redactions(path.read_text(encoding="utf-8"))
+        for lineno, line in enumerate(body.splitlines(), 1):
+            if _ABSOLUTE_LOCAL_PATH.search(line):
+                offenders.append(f"{path.relative_to(ROOT)}:{lineno}:"
+                                 f" {line.strip()[:120]}")
+    assert offenders == [], "\n".join(offenders)
+
+
+def test_docs_have_no_outside_repo_links():
+    """OMEGA6 A5: markdown `../` links must resolve inside the repo
+    (post-E1 the audit copies link repo-relative)."""
+    offenders = []
+    for path in _md_files():
+        body = _CODE_SPAN.sub("", path.read_text(encoding="utf-8"))
+        for match in re.finditer(r"\]\(([^)]+)\)", body):
+            target = match.group(1).strip().split("#")[0].split(" ")[0]
+            if ".." not in target or target.startswith("http"):
+                continue
+            resolved = (path.parent / target).resolve()
+            if resolved != ROOT and ROOT not in resolved.parents:
+                offenders.append(f"{path.relative_to(ROOT)} -> {target}")
+    assert offenders == [], "\n".join(offenders)

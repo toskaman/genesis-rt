@@ -52,7 +52,7 @@ as the OMEGA4-era record.
 ## 5. `cryptography>=49` floor (global interpreter — owner command only)
 
 - Measured 9 Nov 2026: `cryptography 43.0.3` in the GLOBAL
-  interpreter (`C:\Users\TheBox\AppData\Local\Python\pythoncore-3.14-64\`).
+  interpreter (global Windows install, e.g. under `%LOCALAPPDATA%\Python\`).
   No project venv exists, so agents must NOT upgrade it.
 - Run yourself (close other Python work first):
   `py -m pip install -U "cryptography==50.0.2"` (matches

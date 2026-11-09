@@ -486,7 +486,7 @@
   (HAM absent QSTI, UI statique), baseline perf cible, codelab
   etape 5 (sudo + cleanup + note STALE_SEQ). Secrets : mot de
   passe cible uniquement via env, aucun secret en historique.
-- P5 : clone frais `C:\tmp` -> 310/310 vert + `validate`/`generate`
+- P5 : clone frais `%TEMP%` -> 310/310 vert + `validate`/`generate`
   /`demo` PASS/`replay` valid (meme machine ; relecteur independant
   hors de portee). Temporaires sous `artifacts/` : gitignore ;
   `replay` demande un chemin explicite sous PowerShell (pas de glob).
