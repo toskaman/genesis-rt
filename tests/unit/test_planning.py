@@ -238,6 +238,14 @@ EVAL_DATASET_DIGESTS = {
         # 48 valid + 112 reject, 36-case fallback cohort,
         # EN/FR/DE/ES x40. Measure once per provider; never tune.
         "54e08384232286809c9cd163cc820fd83ec8dc1fdbb493a644207550b10eb34a",
+    "planning_holdout_v10.json":  # FROZEN 9 Nov 2026 (Omega7):
+        # seventh set, separately agent-authored BLIND under
+        # contract v1.3 + failure CLASSES only (no sources, no
+        # tests, no prior case text, no planner execution; all
+        # phrasings fresh inventions). 48 valid + 136 reject,
+        # 26-case fallback cohort, EN/FR/DE/ES. v1.4 code is
+        # measured on it once per provider; never tune.
+        "d550b802edab3c3993bad7b14d4fd2c705da95476dc8a3cdba80be3c4fbeb584",
 }
 
 
