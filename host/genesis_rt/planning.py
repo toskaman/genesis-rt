@@ -279,6 +279,20 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
      r"printers?|rockets?|satellites?)\b",
      "that machine is not a supported kind (AMR/conveyor/arm); "
      "describe a supported machine"),
+    # Omega7 v1.4 rule 22: the attested unsupported kinds in
+    # FR/DE/ES (forklift, pallet jack, drone, quadcopter).
+    # Multi-word terms stay multi-word so tier-1 "chariot" and
+    # cargo "pallets" are unaffected; unaccented spellings
+    # match wherever accents do. Other EN-listed kinds stay
+    # EN-only (documented residual).
+    (r"\bgabelstapler\b|\bdrohnen?\b|\bdron\b"
+     r"|\bcuadric[óo]pteros?\b|\bquadricopt[èe]res?\b"
+     r"|\bquadro[ck]opters?\b|\bcarretillas?\s+elevadoras?\b"
+     r"|\bmontacargas\b|\btranspalettes?\b|\btranspaletas?\b"
+     r"|\bhubwagens?\b|\bchariot\s+[eé]l[ée]vateurs?\b"
+     r"|\bpallet\s+(?:jack|truck)s?\b",
+     "that machine is not a supported kind (AMR/conveyor/arm); "
+     "describe a supported machine"),
     (r"\b(jokes?|poems?|story|stories|songs?|news|weather|recipes?|"
      r"horoscopes?)\b",
      "that is not a machine specification; describe the machine kind "

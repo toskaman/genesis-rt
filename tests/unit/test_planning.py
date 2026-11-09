@@ -1354,3 +1354,47 @@ def test_omega7_v14_greifer_partial_values_disclosed():
     ir = plan_machine("Greifer 20 ms", machine_id="m")
     assert ir["machine"]["kind"] == "robotic_arm_virtual"
     assert ir["defaults_applied"] == ["max_linear_speed_mps"]
+
+
+@pytest.mark.parametrize("req", [
+    # Omega7 v1.4 rule 22: forklift across FR/DE/ES.
+    "Gabelstapler mit 20 ms Takt",
+    "carretilla elevadora, 20 ms, 1 m/s",
+    "montacargas para el almacen, 1 m/s",
+    "chariot elevateur, 20 ms",
+    # Omega7 v1.4 rule 22: pallet jack across FR/DE/ES/EN.
+    "transpalette motorise, 20 ms",
+    "transpaleta manual, 1 m/s",
+    "Hubwagen mit 20 ms",
+    "pallet jack with 20 ms period",
+    "pallet truck, 1 m/s",
+    # Omega7 v1.4 rule 22: drone/quadcopter across DE/ES/FR.
+    "Drohne mit Kamera, 20 ms",
+    "dron cuadricoptero, 1 m/s",
+    "cuadricoptero sin camara, 20 ms",
+    "quadricoptere de surveillance, 20 ms",
+    "Quadrokopter mit 20 ms",
+    "Quadrocopter mit 20 ms",
+    # Accented spellings refuse identically.
+    "chariot élévateur, 20 ms",
+    "dron cuadricóptero, 1 m/s",
+])
+def test_omega7_v14_unsupported_multilingual_refuses(req):
+    """Omega7 v1.4 rule 22: attested unsupported kinds refuse
+    deterministically in FR/DE/ES (+EN pallet jack), accented
+    or not — veto before any consult."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    with pytest.raises(PlannerRejection, match="not a supported kind"):
+        plan_machine(req, machine_id="m")
+
+
+@pytest.mark.parametrize("req,kind", [
+    ("chariot 20 ms, 1 m/s", "differential_drive_robot"),
+    ("AMR carrying pallets, 20 ms, 1 m/s", "differential_drive_robot"),
+])
+def test_omega7_v14_unsupported_neighbors_still_accept(req, kind):
+    """Omega7 v1.4 rule 22: bare tier-1 "chariot" and cargo
+    "pallets" are untouched by the multi-word veto terms."""
+    from genesis_rt.planning import plan_machine
+    assert plan_machine(req, machine_id="m")["machine"]["kind"] == kind
