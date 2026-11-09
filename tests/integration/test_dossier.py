@@ -35,7 +35,8 @@ def _ir(machine="TestCell"):
             "verification": {"scenarios": ["nominal"]}}
 
 
-def _passport(op_id, gate="PASS", release_eligible="auto"):
+def _passport(op_id, gate="PASS", release_eligible="auto",
+              gate_reasons=None):
     # "auto" mirrors the modern seal (eligible iff gate PASS); None
     # omits the field (pre-field shape); an explicit bool is honored.
     pp = build_passport(
@@ -53,6 +54,8 @@ def _passport(op_id, gate="PASS", release_eligible="auto"):
         verdict["release_eligible"] = gate == "PASS"
     elif release_eligible is not None:
         verdict["release_eligible"] = release_eligible
+    if gate_reasons is not None:
+        verdict["reasons"] = list(gate_reasons)
     return attach_verdict(pp, verdict)
 
 
@@ -65,7 +68,8 @@ def _write_op(ops_dir: Path, op_id: str = OP, state: str = "COMPLETED",
               params: dict | None = None,
               tamper_passport: bool = False,
               ir_digest: str = "abc123",
-              release_eligible="auto") -> Path:
+              release_eligible="auto",
+              gate_reasons=None) -> Path:
     ops_dir.mkdir(parents=True, exist_ok=True)
     rec = {"op_id": op_id, "workflow": "full", "state": state,
            "params": params or {},
@@ -80,7 +84,8 @@ def _write_op(ops_dir: Path, op_id: str = OP, state: str = "COMPLETED",
     (work / "perf").mkdir(parents=True)
     ir = _ir(machine)
     (work / "ir.json").write_text(json.dumps(ir), encoding="utf-8")
-    pp = _passport(op_id, gate, release_eligible)
+    pp = _passport(op_id, gate, release_eligible,
+                   gate_reasons=gate_reasons)
     if tamper_passport:
         pp["chain"][1]["body"]["ir_sha256"] = "EVIL"
     (work / "passport.json").write_text(json.dumps(pp), encoding="utf-8")
@@ -655,3 +660,27 @@ def test_find_job_by_op(tmp_path):
     assert find_job_by_op(jobs, "op-000000000000") is None
     assert find_job_by_op(jobs, "not-an-op") is None
     assert find_job_by_op(tmp_path / "missing", OP) is None
+
+
+def test_omega7_assess_quarantined_op_shows_physics_banner(tmp_path):
+    """OMEGA7 C banner: a sealed quarantine reason surfaces as a
+    PHYSICS WARNING in the dossier why-lines (real assess_op
+    chain, synthetic terminal op)."""
+    ops = _write_op(tmp_path / "ops", gate="FAIL", gate_reasons=[
+        "quarantined physics: robotic_arm_virtual ran on "
+        "diffdrive-corridor (see docs/limitations-and-safety.md #10)"])
+    files, rec, _red = dos_mod.collect_op_files(ops, OP)
+    a = dos_mod.assess_op(OP, rec, files)
+    assert a["verdict"] == "FAIL"
+    assert any(w.startswith("PHYSICS WARNING:")
+               and "robotic_arm_virtual" in w for w in a["why"])
+
+
+def test_omega7_assess_native_op_has_no_banner(tmp_path):
+    """OMEGA7 C banner: verdicts without quarantine reasons keep
+    byte-identical why-lines."""
+    ops = _write_op(tmp_path / "ops", gate="FAIL", gate_reasons=[
+        "non-pass scenarios: ['nominal']"])
+    files, rec, _red = dos_mod.collect_op_files(ops, OP)
+    a = dos_mod.assess_op(OP, rec, files)
+    assert not any("PHYSICS WARNING" in w for w in a["why"])

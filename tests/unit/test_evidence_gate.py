@@ -274,6 +274,19 @@ def test_omega7_physics_note_quarantines_passport(amr_ir, tmp_path):
     assert any("quarantined physics" in r for r in v["reasons"])
 
 
+def test_omega7_quarantine_banners_format():
+    """OMEGA7 C banner: quarantine reasons render as PHYSICS
+    WARNING lines; every other reason renders nothing."""
+    assert gate.quarantine_banners([
+        "quarantined physics: robotic_arm_virtual ran on X",
+        "non-pass scenarios: ['s']",
+        "quarantined physics: 2 scenario(s) ran on aliased physics (a, b)",
+    ]) == ["PHYSICS WARNING: robotic_arm_virtual ran on X",
+            "PHYSICS WARNING: 2 scenario(s) ran on aliased physics (a, b)"]
+    assert gate.quarantine_banners([]) == []
+    assert gate.quarantine_banners(None) == []
+
+
 def test_omega7_native_kinds_unaffected_by_quarantine(amr_ir, tmp_path,
                                                      repo_root):
     """OMEGA7 B2: native-physics campaigns keep byte-identical

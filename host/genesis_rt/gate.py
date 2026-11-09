@@ -59,6 +59,24 @@ LEVELS = ("NONE", "HOST_TESTED", "QNX_COMPILED", "QNX_EXECUTED",
 # until a product policy declares perf budgets.
 RELEASE_MIN_LEVEL = "QNX_BEHAVIOR_VERIFIED"
 
+# OMEGA7 B2/C: quarantine reason prefix. Verdict-reading
+# surfaces (change card, dossier why-lines) banner reasons
+# carrying this prefix as PHYSICS WARNING lines.
+QUARANTINE_PREFIX = "quarantined physics: "
+
+
+def quarantine_banners(reasons: Any) -> list[str]:
+    """Render PHYSICS WARNING lines for quarantine reasons.
+
+    Pure display helper: every other reason renders nothing,
+    so native verdicts keep byte-identical surfaces.
+    """
+    out: list[str] = []
+    for r in reasons or []:
+        if isinstance(r, str) and r.startswith(QUARANTINE_PREFIX):
+            out.append("PHYSICS WARNING: " + r[len(QUARANTINE_PREFIX):])
+    return out
+
 
 def _level(base_ok: bool, by_kind: dict[str, Any]) -> tuple[str, list[str]]:
     """Highest earned tier + explicit cap reasons (informational)."""
@@ -168,7 +186,7 @@ def evaluate(passport: dict[str, Any], required_scenarios: list[str]) -> dict[st
     if isinstance(machine, dict) and \
             machine.get("kind") == "robotic_arm_virtual":
         reasons.append(
-            "quarantined physics: robotic_arm_virtual ran on "
+            QUARANTINE_PREFIX + "robotic_arm_virtual ran on "
             "diffdrive-corridor (see "
             "docs/limitations-and-safety.md #10)")
     noted: list[str] = []
@@ -179,7 +197,7 @@ def evaluate(passport: dict[str, Any], required_scenarios: list[str]) -> dict[st
             noted.append(name)
     if noted:
         reasons.append(
-            f"quarantined physics: {len(noted)} scenario(s) ran on "
+            QUARANTINE_PREFIX + f"{len(noted)} scenario(s) ran on "
             f"aliased physics ({', '.join(sorted(noted))}); see "
             "docs/limitations-and-safety.md #10")
 

@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from .evidence import verify_chain
+from .gate import quarantine_banners
 from .target import TERMINAL_TARGET, valid_op_id
 
 DOSSIER_VERSION = 1
@@ -327,13 +328,15 @@ def assess_op(op_id: str, rec: dict[str, Any],
         "missing_evidence": missing,
         "chain_errors": [str(e)[:200] for e in chain_errors],
         "why": _why_lines(verdict, state, gate, qnx_verified,
-                           chain_errors, missing, failed),
+                           chain_errors, missing, failed,
+                           gate_body.get("reasons", [])),
     }
 
 
 def _why_lines(verdict: str, state: str, gate: str, qnx_verified: bool,
                chain_errors: list[str], missing: list[str],
-               failed: list[str]) -> list[str]:
+               failed: list[str],
+               gate_reasons: list[str] | tuple = ()) -> list[str]:
     """One-sentence causes, deterministic order, no raw JSON needed."""
     if verdict == "PASS":
         return ["all gates green: COMPLETED + gate PASS + "
@@ -343,6 +346,8 @@ def _why_lines(verdict: str, state: str, gate: str, qnx_verified: bool,
         lines.append(f"op did not complete (state {state})")
     if gate != "PASS":
         lines.append(f"gate verdict is {gate}, not PASS")
+    # OMEGA7 C banner: sealed quarantine reasons surface here.
+    lines.extend(quarantine_banners(gate_reasons))
     if not qnx_verified:
         lines.append("not QNX-verified (host-only or unverified target run)")
     if chain_errors:
