@@ -803,6 +803,17 @@ def test_docs_have_no_outside_repo_links():
     assert offenders == [], "\n".join(offenders)
 
 
+def test_qnx_footprint_table_present():
+    """OMEGA6 D4: the QNX evidence doc carries the measured C
+    footprint (text/data/bss) with RSS honestly unmeasured."""
+    text = _read("docs/jury/WHY_QNX.md")
+    assert "## Native binary footprint" in text
+    for token in ("genesis_guard", "6641", "genesis_faultinject",
+                  "8136", "ntox86_64-size",
+                  "No resident-set claim is made"):
+        assert token in text, token
+
+
 def test_v10_trigger_rule_pinned():
     """OMEGA6 D6: the v10 rule lives in the roadmap-facing
     limitations doc — planner change implies a fresh blind set."""
