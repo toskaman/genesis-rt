@@ -1,5 +1,10 @@
 # Devpost submission draft (prepared, NOT submitted)
 
+> **SUPERSEDED — do not file from this page.** Canonical submission
+> copy: [`docs/submission/DEVPOST_FINAL_DRAFT.md`](submission/DEVPOST_FINAL_DRAFT.md)
+> (per `docs/submission/FILING_DAY_CHECKLIST.md`). This working draft
+> is kept for history only.
+>
 > Omega3 P1d note (8 Nov 2026): the AI paragraph below
 > predates the v6 blind holdout and the deterministic
 > fixes. Current AI disclosure: `docs/submission/DEVPOST_FINAL_DRAFT.md`

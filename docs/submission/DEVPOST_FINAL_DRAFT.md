@@ -199,6 +199,29 @@ is ready in `docs/business/pilot-study.md` and
 `bench/productivity/`, with zero invitations sent.
 `HUMAN USER BENEFIT NOT YET MEASURED` governs.
 
+Who it serves (persona): the controls or verification lead
+who owns requirement changes on a QNX prototype — the
+person asked at review time "prove the target matches the
+new contract". Buyer (open-core HYPOTHESIS, unvalidated):
+that lead's team, paying for the hosted evidence loop; no
+buyer conversation has happened and no pricing is tested.
+
+Win/loss vs the incumbents it complements (never replaces):
+
+| review question | Momentics / Parasoft / LDRA / VectorCAST | GENESIS RT |
+|---|---|---|
+| did the target match the new requirement? | not their question | one verdict card + offline passport |
+| can a stranger replay the evidence? | reports, screenshots | stdlib `verify.py`, hash-chained |
+| does a stale binary fail loudly? | — | 14/16 behavioral refusal (prose-grade control) |
+| qualification / coverage / profiling | yes — their home turf | no, out of scope by design |
+
+We win when the review question is behavioral proof of a
+change; we lose whenever the buyer needs qualification
+evidence, coverage, or hardware timing — that turf is not
+contested. Determinism receipt: 18/18 bit-for-bit `qcc`
+rebuilds of the W11 pack binaries (7 Nov 2026, third binary
+set `...-after-rerun`); same sources, same bytes.
+
 ## Try it (judge path, ~5 minutes, no SDK)
 
 ```sh
