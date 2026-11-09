@@ -54,6 +54,26 @@ def test_cli_validate_and_faults(amr_ir_path, repo_root):
     assert r.returncode == 0 and "8/8 scenarios passed" in r.stdout
 
 
+def test_cli_validate_error_carries_file_line_span(amr_ir_path, tmp_path,
+                                                    capsys):
+    """OMEGA6 C3: validate errors point at the offending source line
+    (file:line), so a cold user finds the bad key without grepping."""
+    import json
+
+    from genesis_rt.cli import main
+    doc = json.loads(amr_ir_path.read_text(encoding="utf-8"))
+    doc["machine"]["kind"] = "spaceship"
+    bad = tmp_path / "bad-ir.json"
+    bad.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    lines = bad.read_text(encoding="utf-8").splitlines()
+    want = next(i for i, ln in enumerate(lines, 1) if '"kind"' in ln)
+    rc = main(["validate", str(bad)])
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert f"{bad}:{want}" in err, err
+    assert "unknown machine kind" in err
+
+
 def test_cli_generate_src_points_at_target(amr_ir_path, repo_root, tmp_path):
     """`generate --out <anywhere>` must emit a GENESIS_SRC that resolves
     to this checkout's target/qnx8 (regression: one-level out dirs like

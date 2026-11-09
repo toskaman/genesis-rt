@@ -6,23 +6,58 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
+_KEY_WORD = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _locate_error_line(path: str, message: str) -> int | None:
+    """Best-effort file:line span for a validator message (OMEGA6 C3).
+
+    CLI presentation only — the validator is untouched. Identifier-ish
+    words from the message (longest first) are matched against quoted
+    keys/values (JSON) or `key:` lines (YAML); returns None when
+    nothing matches (e.g. a missing key), leaving the message as-is.
+    """
+    try:
+        lines = Path(path).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    words = sorted(set(_KEY_WORD.findall(message)), key=len, reverse=True)
+    for word in words:
+        if len(word) < 3:
+            continue
+        for lineno, line in enumerate(lines, 1):
+            if (f'"{word}"' in line or f"'{word}'" in line
+                    or re.search(rf"(^|[\s{{,]){re.escape(word)}\s*:",
+                                 line)):
+                return lineno
+    return None
+
 
 def _cmd_validate(args: argparse.Namespace) -> int:
     from .ir import IRValidationError, load_ir_file
     from .ir_v2 import load_ir_v2_file
-    version = _peek_schema_version(args.ir)
-    if version == 1:
-        ir = load_ir_file(args.ir)
-    elif version == 2:
-        ir = load_ir_v2_file(args.ir)
-    else:
-        raise IRValidationError(f"{args.ir}: unsupported schema_version={version!r}")
+    try:
+        version = _peek_schema_version(args.ir)
+        if version == 1:
+            ir = load_ir_file(args.ir)
+        elif version == 2:
+            ir = load_ir_v2_file(args.ir)
+        else:
+            raise IRValidationError(
+                f"{args.ir}: unsupported schema_version={version!r}")
+    except IRValidationError as exc:
+        line = _locate_error_line(args.ir, str(exc))
+        if line is not None and f"{args.ir}:{line}" not in str(exc):
+            raise IRValidationError(
+                f"{args.ir}:{line}: {exc}") from None
+        raise
     print(f"valid: schema v{version} {ir['machine']['id']} ({ir['machine']['kind']}) "
           f"scenarios={len(ir['verification']['scenarios'])}")
     return 0
