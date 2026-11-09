@@ -189,6 +189,25 @@ def _cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_verify_change(args: argparse.Namespace) -> int:
+    from .change import render_card_text, verify_change
+    runs_dir = Path(args.artifacts_dir
+                    or str(REPO_ROOT / "artifacts" / "runs"))
+    verdict = verify_change(args.before, args.after, runs_dir,
+                            runs_dir.parent / "change",
+                            change_id=args.id,
+                            scenarios=args.scenarios)
+    if args.json:
+        print(json.dumps({k: v for k, v in verdict.items()
+                          if k != "verdict_path"},
+                         indent=2, sort_keys=True))
+    else:
+        print(render_card_text(verdict), end="")
+    # Mirror `demo`: a rendered card for a FAIL after-leg still exits 1;
+    # a leg that cannot run raises ChangeLegError (exit 2 via main()).
+    return 0 if verdict["verdict"] == "PASS" else 1
+
+
 def _cmd_graph(args: argparse.Namespace) -> int:
     from .evidence_graph import build_graph, render_graph_text
     passport = json.loads(Path(args.passport).read_text(encoding="utf-8"))
@@ -538,6 +557,18 @@ def build_parser() -> argparse.ArgumentParser:
     cmp = sub.add_parser("compare", help="diff two pipeline run directories")
     cmp.add_argument("run_a"); cmp.add_argument("run_b")
     cmp.add_argument("--json", action="store_true"); cmp.set_defaults(func=_cmd_compare)
+    vc = sub.add_parser("verify-change",
+                        help="prove one IR change: run BEFORE+AFTER, render one verdict card")
+    vc.add_argument("--before", required=True, help="before-revision Machine IR file")
+    vc.add_argument("--after", required=True, help="after-revision Machine IR file")
+    vc.add_argument("--id", default=None, help="change id (default: chg-<random>)")
+    vc.add_argument("--scenarios", nargs="*", default=None,
+                    help="run only these scenarios on both legs")
+    vc.add_argument("--artifacts-dir", default=None,
+                    help="runs directory (default: artifacts/runs; "
+                         "verdict.json goes to artifacts/change/<id>/)")
+    vc.add_argument("--json", action="store_true")
+    vc.set_defaults(func=_cmd_verify_change)
     gr = sub.add_parser("graph", help="render the evidence graph of a passport")
     gr.add_argument("passport")
     gr.add_argument("--ir", default=None,

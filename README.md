@@ -133,6 +133,7 @@ records QNX steps as `blocked`, never as passed).
 | `genesis-rt simulate <ir> [--scenario id]` | nominal (or named) scenario for AMR / conveyor / cell, v1 or v2 |
 | `genesis-rt faults <ir>` | declared fault campaign with oracles (AMR 8, conveyor 5, cell 4) |
 | `genesis-rt demo` | full pipeline → evidence passport + gate verdict |
+| `genesis-rt verify-change --before A --after B` | BEFORE/AFTER in one step → `verdict.json` card |
 | `genesis-rt external-write-manifest` | hash an existing build dir into a manifest |
 | `genesis-rt external-check` | stale-binary check of a build dir vs its manifest |
 | `genesis-rt check-env` | probe for QNX SDK toolchain |

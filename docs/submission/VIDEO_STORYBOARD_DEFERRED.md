@@ -31,7 +31,7 @@
 | 1 | 0:00–0:20 | The problem | Studio overview + voiceover: "a requirement changed — prove the target matches." No typing yet. |
 | 2 | 0:20–0:40 | Machine requirement | AMR v2 contract excerpt on screen; highlight the guarded safe-stop lines. |
 | 3 | 0:40–1:00 | Deterministic compile | Terminal: `PYTHONPATH=host python scripts/run_verified_demo.py` (or generate step); show byte-identical digest line. |
-| 4 | 1:00–1:25 | Actual QNX execution | QEMU console + terminal: `python scripts/qnx_target.py probe --ssh-port 2222`, `identity --ssh-port 2222` (`QNX qnxqemu 8.0.0 x86_64`), then the native matrix transcript excerpt (16/16). |
+| 4 | 1:00–1:25 | Actual QNX execution | QEMU console + terminal: `python scripts/qnx_target.py probe --ssh-port 2222`, `identity --ssh-port 2222` (`QNX qnxqemu 8.0.0 x86_64`), then the native matrix transcript excerpt (16/16). Final 5 s: `cat /dev/genesis/status` (resource-manager telemetry) + the `pidin` process list with the supervisor visible — the named QNX primitives on screen (B2 surface). |
 | 5 | 1:25–1:45 | Fault campaign | Studio Fault Lab or terminal fault tail: injected faults caught, oracle verdicts ALLOW/DENY/SAFE_STOP. |
 | 6 | 1:45–2:05 | BEFORE/AFTER | Studio Compare Workspace side-by-side: v1 vs v2 contract diff + behavior delta; voiceover states both 16/16 under their own contract. |
 | 7 | 2:05–2:20 | Evidence passport | Terminal: `python evidence/qnx8-x86_64-omega2-after/verify.py evidence/qnx8-x86_64-omega2-after` → VERIFY OK; passport excerpt; state hash-only UNSIGNED honestly in one line. |

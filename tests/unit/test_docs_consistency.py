@@ -704,3 +704,51 @@ def test_scorecard_current_section_keeps_ai_residuals():
         "current scorecard section omits unsafe accepts"
     assert ("wrong-kind" in current or "consultation" in current), \
         "current scorecard section omits wrong-kind/consult metrics"
+
+
+def test_filing_day_checklist_present():
+    """Titan v3 B-03: the filing-day checklist exists with the hard
+    stops (video, deadline, public-through-judging, eligibility)."""
+    text = _read("docs/submission/FILING_DAY_CHECKLIST.md")
+    for token in ("15 Dec 2026", "29 Jan 2027", "eligibility",
+                  "public YouTube", "DEVPOST_FINAL_DRAFT.md",
+                  "Developer Tooling"):
+        assert token in text, token
+
+
+def test_bonus_b2_surface_pinned():
+    """Titan v3 B-18: the pasted QNX section names each primitive +
+    file path, the bonus note leads B2, and the storyboard shows
+    the primitives on screen."""
+    draft = _read("docs/submission/DEVPOST_FINAL_DRAFT.md")
+    pasted = draft.split("## Bonus strategy")[0]
+    for token in ("name_attach", "MsgSend", "resmgr",
+                  "/dev/genesis/status", "supervisor",
+                  "target/qnx8/guard", "target/qnx8/supervisor"):
+        assert token in pasted, token
+    strategy = draft.split("## Bonus strategy")[1].split("## ")[0]
+    assert "Best Use of QNX" in strategy and "lead" in strategy.lower()
+    board = _read("docs/submission/VIDEO_STORYBOARD_DEFERRED.md")
+    assert "/dev/genesis/status" in board and "pidin" in board
+
+
+def test_glossary_present_and_linked():
+    """Titan v3 B-14: the plain-language glossary defines the AI
+    ladder terms and START_HERE points cold readers at it."""
+    text = _read("docs/jury/GLOSSARY.md")
+    for token in ("Unsafe accept", "Wrong-kind accept",
+                  "True false reject", "Consult", "Blind holdout",
+                  "Qualified-blind", "Frozen vs regression",
+                  "hash-only", "Stale-binary control"):
+        assert token in text, token
+    assert "GLOSSARY.md" in _read("docs/jury/START_HERE.md")
+
+
+def test_second_host_provenance_template_present():
+    """Titan v3 B-17: the second-host procedure + record template
+    exists and stays honestly unfilled until an owner runs it."""
+    text = _read("docs/submission/SECOND_HOST_PROVENANCE.md")
+    for token in ("TEMPLATE", "qnx_rebuild_check.py", "verify.py",
+                  "Host B fingerprint", "Pack hashes match Host A",
+                  "Do NOT register"):
+        assert token in text, token

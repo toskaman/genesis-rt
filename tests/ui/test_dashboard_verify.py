@@ -60,6 +60,7 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'source') { const j = JSON.parse(c.arg); return renderSourceHtml(j.files, j.irSha); }
     if (c.fn === 'lab') return renderLabHtml(passportScenarios(JSON.parse(c.arg)));
     if (c.fn === 'diff') { const j = JSON.parse(c.arg); return renderDiffHtml(j.a, j.b); }
+    if (c.fn === 'change') return renderChangeCard(JSON.parse(c.arg));
     if (c.fn === 'trace') {
       const t = traceEvents(passportScenarios(JSON.parse(c.arg))[0]);
       return { n: t.events.length, headLen: t.headLen, truncated: t.truncated,
@@ -308,6 +309,27 @@ def test_studio_diff_fixed_and_invalid(amr_ir, tmp_path):
                                                         "b": clean})}],
                      tmp_path)
     assert "INVALID chain" in got and "FIXED" not in got
+
+
+@node
+def test_studio_change_card_renders_verdict(tmp_path):
+    """K1: the shipped Prove-card renderer against a real verdict.json."""
+    from genesis_rt.change import verify_change
+    cell = REPO_ROOT / "examples" / "cell-demo"
+    verdict = verify_change(cell / "cell-ir-broken.json",
+                            cell / "cell-ir.json",
+                            tmp_path / "runs", tmp_path / "change",
+                            change_id="chg-card",
+                            scenarios=["cell_nominal_transfer"])
+    (got,) = _run_js([{"fn": "change", "arg": json.dumps(verdict)}],
+                     tmp_path)
+    assert "max_linear_speed_mps" in got and "0.3" in got and "1.2" in got
+    assert "cell_nominal_transfer" in got
+    assert "gate=" in got and "PASS" in got
+    assert "/runs/chg-card-after/passport/raw" in got
+    (bad,) = _run_js([{"fn": "change", "arg": json.dumps({"nope": 1})}],
+                     tmp_path)
+    assert "Not a change verdict" in bad
 
 
 @node
