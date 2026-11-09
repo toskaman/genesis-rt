@@ -44,6 +44,20 @@ def test_rejects_unknown_top_level_key(amr_ir_dict):
         validate_ir(bad)
 
 
+def test_defaults_applied_shape_validated(amr_ir_dict):
+    """Omega4 §3.2: the disclosure marker is optional but, when
+    present, must be 1..2 unique known field names."""
+    ok = copy.deepcopy(amr_ir_dict)
+    ok["defaults_applied"] = ["period_ms"]
+    assert validate_ir(ok)["defaults_applied"] == ["period_ms"]
+    for bad_marker in ([], ["period_ms", "period_ms"], ["turbo"],
+                        "period_ms", [42]):
+        bad = copy.deepcopy(amr_ir_dict)
+        bad["defaults_applied"] = bad_marker
+        with pytest.raises(IRValidationError):
+            validate_ir(bad)
+
+
 def test_rejects_unknown_machine_kind(amr_ir_dict):
     bad = copy.deepcopy(amr_ir_dict)
     bad["machine"]["kind"] = "starship"

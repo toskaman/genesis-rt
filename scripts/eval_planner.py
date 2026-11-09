@@ -26,7 +26,11 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "host"))
 
 from genesis_rt.planner import PlannerRejection  # noqa: E402
-from genesis_rt.planning import plan_machine  # noqa: E402
+from genesis_rt.planning import (  # noqa: E402
+    LLMProvider,
+    OfflineProvider,
+    plan_machine,
+)
 
 
 def run(provider: str, dataset: str = "planning_eval.json") -> dict:
@@ -36,13 +40,18 @@ def run(provider: str, dataset: str = "planning_eval.json") -> dict:
     for c in cases:
         t0 = time.monotonic()
         ir, err = None, None
+        # Omega4 §3.4: fresh provider instance per case so the
+        # direct consult count is recorded (never inferred).
+        impl = LLMProvider() if provider == "llm" else OfflineProvider()
         try:
             ir = plan_machine(c["request"], machine_id=f"eval-{c['id']}",
-                              provider=provider)
+                              provider=impl)
         except PlannerRejection as exc:
             err = str(exc)
         dt = round(time.monotonic() - t0, 2)
-        row = {"id": c["id"], "request": c["request"], "seconds": dt}
+        row = {"id": c["id"], "request": c["request"], "seconds": dt,
+               "consults": getattr(impl, "consults", 0),
+               "language": c.get("language", "en")}
         if "expect" in c:
             exp = c["expect"]
             ok = ir is not None and (
@@ -92,6 +101,8 @@ def run(provider: str, dataset: str = "planning_eval.json") -> dict:
             "unsafe_accepts": sum(r["unsafe_accept"] for r in rej),
             "mean_seconds": round(sum(r["seconds"] for r in rows) / len(rows), 2),
             "false_rejects": sum(r["error"] is not None for r in valid),
+            "total_consults": sum(r["consults"] for r in rows),
+            "fallback_cases": sum(1 for r in rows if r["consults"] > 0),
             "p50_seconds": pct(0.5), "p95_seconds": pct(0.95), "max_seconds": lat[-1],
             "by_category": {k: f"{a}/{b}" for k, (a, b) in sorted(cats.items())},
         },

@@ -300,4 +300,13 @@ def propose(request: str, machine_id: str = "machine-01") -> dict[str, Any]:
         "safety_contracts": [dict(c) for c in _DEFAULT_CONTRACTS],
         "verification": {"scenarios": list(_KIND_SCENARIOS[kind])},
     }
+    # Omega4 §3.2: disclose defaulted values in the IR itself
+    # (omit-when-empty: explicit requests keep byte-identical IRs).
+    defaulted = []
+    if not periods:
+        defaulted.append("period_ms")
+    if not speeds:
+        defaulted.append("max_linear_speed_mps")
+    if defaulted:
+        proposal["defaults_applied"] = sorted(defaulted)
     return validate_ir(proposal)  # proposals must pass the same strict gate

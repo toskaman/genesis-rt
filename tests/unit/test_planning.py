@@ -878,3 +878,33 @@ def test_llm_provider_counts_model_consults(monkeypatch):
     ir = prov.propose_raw("warehouse unit with timing 30 ms", "m")
     assert prov.consults == 1
     assert ir["machine"]["kind"] == "conveyor"
+
+
+def test_bare_kind_defaults_disclosed_in_ir():
+    """Omega4 §3.2: defaulted values are marked in the IR itself —
+    bare kinds stay accepted only with output disclosure."""
+    from genesis_rt.planning import plan_machine
+    bare = plan_machine("a conveyor", provider="offline")
+    assert bare["defaults_applied"] == ["max_linear_speed_mps",
+                                        "period_ms"]
+    assert bare["control"]["period_ms"] == 10
+    assert bare["control"]["max_linear_speed_mps"] == 1.2
+    explicit = plan_machine("conveyor belt, 30 ms, 1.0 m/s",
+                            provider="offline")
+    assert "defaults_applied" not in explicit
+    partial = plan_machine("conveyor, 30 ms", provider="offline")
+    assert partial["defaults_applied"] == ["max_linear_speed_mps"]
+
+
+def test_eval_harness_records_consults_and_language(repo_root, capsys):
+    """Omega4 §3.4: every eval row carries direct consult counts
+    (never latency-inferred) plus the case language."""
+    import sys as _sys
+    _sys.path.insert(0, str(repo_root / "scripts"))
+    from eval_planner import run
+    rep = run("offline", "planning_eval.json")
+    assert rep["summary"]["total_consults"] == 0
+    assert rep["summary"]["fallback_cases"] == 0
+    rows = rep["cases"]
+    assert all({"consults", "language"} <= set(r) for r in rows)
+    assert all(r["consults"] == 0 for r in rows)
