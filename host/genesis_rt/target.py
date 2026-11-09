@@ -300,13 +300,22 @@ class TargetRunner:
                  "state": r.get("state"), "updated": r.get("updated")}
                 for r in recs[:limit]]
 
-    def events(self, op_id: str, after: int = -1) -> list[dict[str, Any]]:
+    def events(self, op_id: str, after: int = -1,
+               limit: int = 200) -> list[dict[str, Any]]:
+        """Events with seq strictly greater than ``after`` (-1 = all).
+
+        One poll returns at most ``limit`` rows (same page bound as
+        the job store): a slow SSE consumer pages through a giant op
+        log instead of receiving it in one burst (OMEGA6 D2).
+        """
         try:
             lines = self._events_path(op_id).read_text(encoding="utf-8").splitlines()
         except OSError:
             return []
         out = []
         for line in lines:
+            if len(out) >= max(1, limit):
+                break
             if not line.strip():
                 continue
             try:
