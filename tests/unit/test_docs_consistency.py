@@ -590,3 +590,117 @@ def test_requirements_lock_meets_crypto_floor():
     assert m is not None, "lock lost its cryptography pin"
     major, minor = int(m.group(1)), int(m.group(2))
     assert (major, minor) >= (49, 0), f"lock pins {m.group(0)} < 49"
+
+
+def test_claims_header_tracks_current_baseline():
+    """Omega5 sec 6.4: the CLAIMS H1 once stayed Omega2/Omega3-dated
+    while the branch measured Omega4/OMEGA5. The heading must name
+    the current baseline, not only a superseded one."""
+    head = "\n".join(_read("docs/CLAIMS.md").splitlines()[:3])
+    assert re.search(r"Omega4|OMEGA5", head), \
+        f"CLAIMS header names no current baseline: {head!r}"
+
+
+def test_v7v8_consultation_mismatches_disclosed():
+    """Omega5 sec 6.5: the v7/v8 expect/actual consult gaps must be
+    disclosed with case IDs in the consultation audit, and the
+    frozen v7/v8 report must point at that audit."""
+    audit = _read("docs/audits/OMEGA5_CONSULTATION_AUDIT.md")
+    for cid in ("v7-v07", "v7-r57", "v7-r58", "v7-r61",
+                "v8-004", "v8-021", "v8-028", "v8-034"):
+        assert cid in audit, f"audit omits mismatch case {cid}"
+    assert "expect_consult" in audit, "audit omits the harness field"
+    omega4 = _read("docs/audits/OMEGA4_AI_EVALUATION.md")
+    assert "OMEGA5_CONSULTATION_AUDIT" in omega4, \
+        "frozen v7/v8 report does not point at the consult audit"
+
+
+_V8_QUALIFIERS = ("qualif", "format-preview", "preview exposure",
+                  "exposure")
+
+
+def _doc_blocks(text):
+    """Split into paragraphs, then into bullets: a blindness claim
+    and its qualification must share one block."""
+    for para in re.split(r"\n\s*\n", text):
+        yield from re.split(r"\n(?=- )", para)
+
+
+def _blind_attached_to_v8(block):
+    """Per-occurrence attribution: a 'blind' only constrains v8 when
+    v8 is the nearest eval id to it (comparisons like 'blind v9
+    set ... vs v8' must not fire). Case IDs (v8-004) never count."""
+    for m in re.finditer(r"blind\w*", block.lower()):
+        window = block[max(0, m.start() - 30):m.end() + 30]
+        evals = [(e.start(), e.group(0))
+                 for e in re.finditer(r"\bv[4-9]\b", window)
+                 if not re.match(r"-\d",
+                                 window[e.end():e.end() + 2])]
+        if not evals:
+            continue
+        nearest = min(evals, key=lambda e: abs(e[0] - 30))[1]
+        if nearest == "v8":
+            return True
+    return False
+
+
+def _assert_v8_qualified(text, rel):
+    for block in _doc_blocks(text):
+        if "blind" not in block.lower():
+            continue
+        if not _blind_attached_to_v8(block):
+            continue
+        assert any(q in block.lower() for q in _V8_QUALIFIERS), \
+            f"unqualified v8 blindness in {rel}: {block[:120]!r}"
+
+
+def test_v8_blindness_always_qualified():
+    """Omega5 sec 6.5: v8 authoring had format-preview exposure, so
+    no current-facing summary may call v8 blind without the
+    qualification in the same paragraph or bullet. Concept check,
+    not sentence matching (case IDs like v8-004 are not claims)."""
+    for rel in ("docs/CLAIMS.md",
+                "docs/submission/DEVPOST_FINAL_DRAFT.md",
+                "docs/audits/OMEGA5_AI_EVALUATION.md",
+                "docs/jury/KNOWN_LIMITATIONS.md"):
+        _assert_v8_qualified(_read(rel), rel)
+    parts = re.split(r"(?i)^## addendum\b",
+                     _read("docs/audits/OMEGA4_AI_EVALUATION.md"),
+                     maxsplit=1, flags=re.MULTILINE)
+    assert len(parts) == 2, "OMEGA4 report lost its addendum"
+    addendum = [parts[0], parts[1]]
+    _assert_v8_qualified(addendum[1], "OMEGA4 addendum")
+
+
+def test_wrong_kind_disclosed_in_current_summaries():
+    """Omega5 sec 6.5: wrong-kind accepts are a distinct metric from
+    unsafe accepts and true false rejects; current summaries must
+    name them instead of folding them into accuracy."""
+    for rel in ("docs/CLAIMS.md",
+                "docs/submission/DEVPOST_FINAL_DRAFT.md",
+                "README.md",
+                "docs/audits/OMEGA5_AI_EVALUATION.md"):
+        assert "wrong-kind" in _read(rel).lower(), \
+            f"{rel} omits the wrong-kind metric"
+
+
+def test_devpost_keeps_environment_distinct_counts():
+    """Omega5 sec 6.5: the draft once mixed the owner 1376 run with
+    the SDK-only 1374 and SDK-free 1370 runs. It must keep the
+    three environments visibly distinct."""
+    draft = _read("docs/submission/DEVPOST_FINAL_DRAFT.md")
+    assert "without axe" in draft, "draft lost the SDK-only env line"
+    assert "SDK-free" in draft, "draft lost the SDK-free env line"
+    assert "0 skipped" in draft or "0 skips" in draft, \
+        "draft lost the owner-run zero-skip statement"
+
+
+def test_scorecard_current_section_keeps_ai_residuals():
+    """Omega5 sec 6.5: the scorecard's current (first) section must
+    carry the latest AI residuals, not just the headline scores."""
+    text = _read("docs/jury/JUDGE_SCORECARD.md")
+    current = text.split("\n---\n", 1)[0]
+    assert "unsafe accepts" in current, \
+        "current scorecard section omits unsafe accepts"
+    assert ("wrong-kind" in current or "consultation" in current), \
+        "current scorecard section omits wrong-kind/consult metrics"

@@ -69,12 +69,15 @@ target over SSH → contract-aware native oracle (expected
 ALLOW / DENY / SAFE_STOP derived from the validated IR,
 not hard-coded) → transcripts sealed into a 15-link
 passport bound to the IR digest and op id → in-op replay
-→ release decision. Host suite: 1348 tests collected
-(9 Nov 2026 owner run: 1346 passed + 2 honest axe skips,
-0 failures; SDK-free CI: 1342 + 6 SDK-gated skips).
-Planning unit tests 60/60 in `tests/unit/test_planning.py`
-(distinct from the 28/28 published eval dataset);
-browser E2E 30 + 2 skips / 32.
+→ release decision. Host suite: 1376 tests collected
+(9 Nov 2026 owner run, SDK + axe: 1376 passed + 0 skipped,
+0 failures; SDK without axe: 1374 + 2 honest skips;
+SDK-free CI: 1370 + 6 SDK-gated skips).
+Planning unit tests 73/73 in `tests/unit/test_planning.py`
+(60 inherited + 13 OMEGA5: 12 red-green planner cases + 1
+v9-overlap methodology pin; distinct from the 28/28
+published-eval regression);
+browser E2E 32/32 (owner run; SDK-free CI skips 2).
 
 ## How we use QNX (evidence of QNX use)
 
@@ -128,16 +131,28 @@ deterministic keyword planner.
 Measured honesty, newest first (local Ollama CPU,
 `qwen2.5:7b-instruct` + `llama3.1:8b-instruct`):
 
+- **v9 blind holdout** (160 cases, 48 valid + 112 reject,
+  separately agent-authored against contract v1.3 with NO
+  format example, frozen BEFORE the v1.3 code, 9 Nov 2026):
+  offline **142/160**, Qwen and Llama **150/160** — 5 unsafe
+  accepts of 112 (same 5 deterministic-layer cases: 4
+  safety-semantic + 1 fleet-count), 0
+  wrong-kind accepts (registry-checked proposals), 34 of 36
+  expected consults per model (8 bare-noun + 6 vocabulary
+  consultation mismatches, all explained in the report).
+  Three failure kinds, kept separate: unsafe accepts
+  (reject→IR), wrong-kind accepts (right valid, wrong machine),
+  true false rejects (valid→refused).
 - **v8 blind holdout** (100 cases, separately
-  agent-authored against contract v1.2, frozen BEFORE
-  running, 9 Nov 2026): offline **82/100**, Qwen
-  **90/100**, Llama **92/100** — 4 unsafe accepts each
-  (same 4 cases, all deterministic-layer; 1 contract
-  dispute + 3 novel subclasses), 25 direct model
-  consults per model. Fixed classes held on novel
-  phrasings; model over-mapping 7-9 (v7) → 0 via a
-  deterministic generic-noun veto. v8 is a targeted
-  post-fix instrument, not broad-generalization proof.
+  agent-authored against contract v1.2 — qualified: limited
+  prior-set format-preview exposure, zero verbatim overlap —
+  frozen BEFORE running, 9 Nov 2026): offline **82/100**,
+  Qwen **90/100** (4 wrong-kind), Llama **92/100** (3
+  wrong-kind) — 4 unsafe accepts each (same 4 cases, all
+  deterministic-layer; 1 contract dispute + 3 novel
+  subclasses), 25 direct model consults per model. v8 is a
+  targeted post-fix instrument, not broad-generalization
+  proof.
 - **v7 blind holdout** (120 cases, v1.1 code, 9 Nov
   2026): offline 83/120 (30 unsafe accepts), Qwen
   82/120 (37), Llama 79/120 (39); 20 consults per
@@ -159,10 +174,13 @@ Measured honesty, newest first (local Ollama CPU,
   98-case holdout: 87/98 (Qwen), 81/98 (Llama), then
   98/98 + 30/30 post-fix on touched sets.
 
-Raw logs: `evals/results/2026-11-09-omega4-v8/`,
+Raw logs: `evals/results/2026-11-09-omega5-v9/`,
+`evals/results/2026-11-09-omega4-v8/`,
 `evals/results/2026-11-09-omega4-v7/`,
 `evals/results/2026-11-08-omega3-v6/`, full analysis
-`docs/audits/OMEGA4_AI_EVALUATION.md`.
+`docs/audits/OMEGA5_AI_EVALUATION.md` (+ v7/v8 in
+`docs/audits/OMEGA4_AI_EVALUATION.md`, consultation audit in
+`docs/audits/OMEGA5_CONSULTATION_AUDIT.md`).
 
 ## Potential impact (no theatre)
 
@@ -194,7 +212,7 @@ PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve
 # Studio at http://127.0.0.1:8077/
 python -m pytest tests/ -q
-# 1348 collected; SDK-free CI: 1342 + 6 honest skips
+# 1376 collected; SDK-free CI: 1370 + 6 honest skips
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then
@@ -207,10 +225,12 @@ simulation-only machines; no safety certification; no
 hardware attestation; packs are hash-only (UNSIGNED, no
 signer authentication); native CI lane is build-only
 (target campaigns run on the author's machine and ship
-as packs); AI planner has 4 measured v8 unsafe
-accepts outstanding (1 contract dispute + 3 novel
-subclasses; no broad-robustness claim); no external
-user study; full screen-reader pass outstanding.
+as packs); AI planner: latest blind v9 shows 5 unsafe
+accepts of 112 reject cases (all deterministic-layer,
+disclosed by class) + 14 explained consultation
+mismatches; wrong-kind accepts 0; no broad-robustness
+claim; no external user study; full screen-reader pass
+outstanding.
 
 ## Eligibility statement
 

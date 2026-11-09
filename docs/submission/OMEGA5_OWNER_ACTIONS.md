@@ -1,84 +1,83 @@
 # OMEGA5 owner actions (human-only, NOT done by automation)
 
-Date: 9 Nov 2026. Branch `titan-omega5` (from `main` @ `eacab88`).
-Supersedes `OMEGA4_OWNER_ACTIONS.md` as the checklist; that file stays
-as history. Nothing below is authorized for agents.
-
-## 0. Rules recheck (9 Nov 2026)
-
-Official announcements (live rules page bot-guards automated fetch;
-verify by hand before submitting): deadline **15 Dec 2026** (assume
-14:00 EST / 20:00 Paris unless the page says otherwise); winners Feb
-2027; criteria technological implementation / design / potential
-impact / quality of idea; category `Developer Tooling & Host Tools`;
-bonuses incl. Codelab/Tutorial + QNX-specific Technologies; only ONE
-bonus winnable per project. Keep the repo public through judging.
+Date: 9 Nov 2026. Branch `titan-omega5`.
+Nothing below is authorized for agents: do each item yourself, in order.
+Supersedes `OMEGA4_OWNER_ACTIONS.md` for current status; that file stays
+as the OMEGA4-era record.
 
 ## 1. Final video (DEFERRED_BY_OWNER, blocks submission)
 
-Hard requirements: < 3 min, actual current product, real QNX/QEMU
-evidence, public YouTube URL in the Devpost video field.
-
-Capture checklist (prepare only — no agent records anything):
-
-1. Studio start page → flagship Omega2 BEFORE/AFTER pair (both
-   packs, `VERIFY OK`, 16/16 matrix, qnx_verified=True).
-2. BEFORE→AFTER behavior change (v1→v2 guarded transitions) +
-   the stale-binary rejection (state it is operator-recorded).
-3. Machine Designer: valid contract → generated QNX C → build
-   provenance (qcc 12.2.0, 0 warnings).
-4. Target Runner states (READY/RUNNING/QNX_VERIFIED) OR the
-   archived-evidence replay when the target is down — label
-   honestly which one the viewer sees.
-5. Passport explorer: hash chain + offline replay + release verdict.
-6. Planner safety demo (optional, 15 s): an unsafe request refused
-   with its explanation; a valid request accepted.
-7. Closing card: Apache-2.0, repo URL, QEMU-only + no-certification
-   + no-human-data limitations (one line each).
-
-Storyboard timing: 0:00-0:20 problem+promise; 0:20-1:10 native
-proof; 1:10-2:00 change-verification story; 2:00-2:40 evidence +
-safety; 2:40-2:55 limitations + repo; ≤ 2:55 total. Do NOT reuse
-the W12 cut as final. Until done: `SUBMISSION_PENDING_FINAL_VIDEO`.
+- Record < 3 min, real product on its real platform (Studio +
+  QNX evidence), upload PUBLIC to YouTube.
+- Storyboard/shot list: see prior waves' video-production notes
+  (repo-external). Do NOT present the W12 cut as final.
+- Until done: `SUBMISSION_STATUS = PENDING_FINAL_VIDEO`.
 
 ## 2. Devpost submission (after the video exists)
 
-- Canonical text: `docs/submission/DEVPOST_FINAL_DRAFT.md`.
-- Codelab URL + video URL in their Devpost fields.
-- Submit BEFORE the deadline; keep repo + evidence available.
+- Canonical text: `docs/submission/DEVPOST_FINAL_DRAFT.md` (v9-synced:
+  v9 142/150/150, 5 unsafe of 112, 0 wrong-kind, consult audit).
+- Recheck https://qnx.devpost.com/rules before pasting (category,
+  bonus fields, video rules may change).
+- Category: `Developer Tooling & Host Tools`.
+- Bonus fields (if the rules permit two selections): QNX-specific
+  Technologies (primary) + Codelab/Tutorial (second). Only ONE bonus
+  can be won — never imply both.
+- Codelab URL goes in the correct Devpost field; video URL likewise.
+- Submit BEFORE 15 Dec 2026 14:00 EST / 20:00 Paris. Keep the repo
+  public and available through judging (29 Jan 2027).
 
-## 3. Human pilot (quick paired tier)
+## 3. Human pilot (quick tier; nothing sent or faked)
 
 - Status: `HUMAN USER BENEFIT NOT YET MEASURED`. Zero participants,
-  zero invitations, zero records. Protocol/timer/analyzer validated
-  on fixtures only (`docs/business/pilot-study.md`).
-- Your lane: recruit TWO independent teams; 3 quick tasks (generate,
-  campaign, evidence) × both lanes; consent + anonymization per the
-  checklist; verify timer output before aggregation. Earns at most
-  `QUICK_PAIRED_PILOT` — never a generalization claim.
-- Agents send nothing and fabricate nothing.
+  zero invitations sent, zero records in `bench/`.
+- Protocol + timer + analyzer validated on fixtures only:
+  `docs/business/pilot-study.md`, `bench/productivity/`.
+- To run: follow the pilot-study consent + anonymization checklist,
+  recruit TWO independent teams for the 3 quick tasks (generate,
+  campaign, evidence) in both lanes. That earns
+  `QUICK_PAIRED_PILOT` — never `INDEPENDENT_PILOT_COMPLETE`
+  (needs all six tasks) and never a generalization claim.
+- Invitation draft: inside `pilot-study.md`. Send it yourself;
+  no agent may contact anyone.
 
 ## 4. QNX target password rotation (security)
 
-- Image still boots with its DEFAULT password. Procedure:
-  `docs/security/QNX_PASSWORD_ROTATION.md`. Export per session
-  only (`$env:GENESIS_TARGET_PASSWORD`), never in repo files.
-  No agent will read, request, or store the new password.
+- The QNX image still boots with its DEFAULT password. Rotate it:
+  procedure in `docs/security/QNX_PASSWORD_ROTATION.md`.
+- Export per session only: `$env:GENESIS_TARGET_PASSWORD = '...'`
+  (PowerShell) — never commit it, never put it in repo files.
+- No agent will ever read, request, or store the new password.
 
-## 5. `cryptography` floor (global interpreter — owner command only)
+## 5. `cryptography>=49` floor (global interpreter — owner command only)
 
-- This box: 43.0.3 (10 known vulns). Lock + CI: 50.0.2.
-- Run yourself: `py -m pip install -U "cryptography==50.0.2"`,
-  then confirm `50.0.2`. No agent touches the global interpreter.
+- Measured 9 Nov 2026: `cryptography 43.0.3` in the GLOBAL
+  interpreter (`C:\Users\TheBox\AppData\Local\Python\pythoncore-3.14-64\`).
+  No project venv exists, so agents must NOT upgrade it.
+- Run yourself (close other Python work first):
+  `py -m pip install -U "cryptography==50.0.2"` (matches
+  `requirements.lock`), then
+  `py -c "import cryptography; print(cryptography.__version__)"`
+  and confirm `50.0.2`.
+- Residual until done: this box runs 43.0.3 (10 known vulns) while
+  CI installs 50.0.2 from the lock; hash-only pack verification
+  does not depend on it (packs are UNSIGNED by design, see §7).
 
-## 6. Release / tag
+## 6. Release / tag (deferred while video + submission pending)
 
-- Forbidden until video uploaded AND Devpost submitted. Then tag
-  from green `main`. No agent creates releases or tags.
+- Do NOT create a release or tag until the video is uploaded
+  AND Devpost is submitted. Then tag from green `main`.
 
-## 7. Explicitly NOT required
+## 7. Explicitly NOT required (do not do)
 
-- No native CI runner (BUILD-ONLY by design; untrusted-PR +
-  licensed-SDK exfiltration risk). No fresh QEMU campaign needed
-  in OMEGA5 unless `target/` changes (packs re-verified VERIFY OK
-  16/16 on the OMEGA5 branch). No paid APIs or new models.
+- No native CI runner exists (`.github/workflows/qnx.yml` is
+  BUILD-ONLY by design). Do not register one casually: licensed
+  SDK + untrusted PR code = exfiltration risk. Owner-machine
+  campaigns + hash-only packs are the current provenance story.
+- No target C changes in OMEGA5: no fresh QEMU campaign needed
+  (Omega2 packs re-verified VERIFY OK 16/16 on 9 Nov 2026).
+- No paid APIs, no new model downloads needed (local Ollama
+  `qwen2.5:7b-instruct` + `llama3.1:8b-instruct-q4_K_M` used).
+- No v10 dataset exists: v9 is frozen and must NEVER be rerun on
+  changed code. If the planner changes again, a fresh blind set is
+  required before any new generalization claim.

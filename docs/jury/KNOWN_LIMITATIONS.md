@@ -25,11 +25,14 @@ Short version of `docs/limitations-and-safety.md` — the full text governs.
 - No QNX HAM integration: the QSTI image ships no `ham` binary, so
   supervision is our own tested RESPAWN/GIVE_UP process (matrix
   steps `supervisor_respawn`/`supervisor_giveup`).
-- AI planner: blind v8 measured 4 unsafe accepts / 100 (1
-  contract dispute + 3 novel subclasses) with 25 direct model
-  consults per model; post-fix v4/v5 36/36 is
-  regression-only; v7's 30 motivated fix-1 and is never rerun.
-  No general AI-safety claim.
+- AI planner: blind v9 (160 cases, no format example) measured
+  5 reject→IR accepts / 112 (4 safety-semantic + 1 fleet-count,
+  all deterministic-layer) with 34/36 consults + 14 explained
+  consultation mismatches per model; wrong-kind 0. Previous
+  blind v8 (qualified provenance: limited prior-set
+  format-preview exposure): 4 unsafe / 100. Post-fix v4/v5
+  36/36 is regression-only; v7/v8/v9 are never rerun on
+  changed code. No general AI-safety claim.
 - Evidence packs are hash-only (UNSIGNED): SHA-256 integrity +
   offline replay, not signer authentication or attestation.
 - Accessibility: automated axe scans in CI only; full

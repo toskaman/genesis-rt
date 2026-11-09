@@ -52,3 +52,16 @@ QEMU-only; no human data; no screen-reader session; video deferred.
 
 Merge only with all PR checks green and no P0/P1 open. No
 release/tag (video + submission pending owner).
+
+## OMEGA5 terminology note (9 Nov 2026, appended — original kept)
+
+Gate D's "AI evaluation: PASS" means evaluation METHODOLOGY
+completed (disputes adjudicated pre-freeze, blind sets frozen
+before execution, one measurement per provider, raws published) —
+NOT that the planner passed a safety threshold: v8 residuals (4
+unsafe accepts) stayed open, and the v7/v8 consultation audit
+(`docs/audits/OMEGA5_CONSULTATION_AUDIT.md`) later showed
+`expect_consult` was unenforced. Likewise "pilot protocol
+validated" means validated on FIXTURES only — human impact was
+and remains NOT MEASURED. OMEGA5 readiness uses the separated
+vocabulary throughout.

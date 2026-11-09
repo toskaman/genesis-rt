@@ -257,3 +257,4 @@ Förderband gap is additionally a deterministic alias-coverage defect
 `expect_consult` (exactly 1 call when expected, 0 when forbidden, llm
 runs only) and fails the run status on mismatch. Pinned by
 `tests/unit/test_consult_audit.py`.
+Full case-ID-level audit: `docs/audits/OMEGA5_CONSULTATION_AUDIT.md`.

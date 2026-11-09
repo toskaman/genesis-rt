@@ -162,3 +162,33 @@ def test_audit_cli_exit_zero_on_frozen_v8(tmp_path):
     assert proc.returncode == 0, proc.stderr
     out = json.loads((tmp_path / "a.json").read_text(encoding="utf-8"))
     assert out["providers"]["qwen2.5-7b"]["actual_total_consults"] == 25
+
+
+def test_eval_main_exits_1_on_missing_consult(monkeypatch, tmp_path):
+    """Omega5 attack P2: main()'s exit-1 wiring, not just the pure
+    verdict function. A deterministically short-circuited
+    expect_consult case under a never-called stub llm provider
+    fails strict and passes --no-strict. No network, no Ollama."""
+    import eval_planner
+
+    class _StubLLM:
+        consults = 0
+
+        def __getattr__(self, name):
+            raise AssertionError(f"model path must not run: {name}")
+
+    (tmp_path / "evals").mkdir()
+    (tmp_path / "evals" / "fix.json").write_text(json.dumps({"cases": [{
+        "id": "fix-r01", "request": "Build a crop-spraying drone fleet",
+        "language": "en", "expect_consult": True,
+        "expect_reject": "unsupported", "category": "unsupported",
+    }]}), encoding="utf-8")
+    monkeypatch.setattr(eval_planner, "LLMProvider", _StubLLM)
+    monkeypatch.setattr(eval_planner, "REPO", tmp_path)
+    monkeypatch.setattr(sys, "argv", ["eval_planner.py", "--provider",
+                                      "llm", "--dataset", "fix.json"])
+    assert eval_planner.main() == 1
+    monkeypatch.setattr(sys, "argv", ["eval_planner.py", "--provider",
+                                      "llm", "--dataset", "fix.json",
+                                      "--no-strict"])
+    assert eval_planner.main() == 0

@@ -660,6 +660,39 @@ def test_eval_datasets_unchanged(repo_root):
         assert got == want, f"{name} changed: {got}"
 
 
+def test_v9_no_verbatim_overlap_with_prior_sets(repo_root):
+    """Omega5: v9 blindness needs zero verbatim (normalized) prompt
+    overlap with v4-v8 and no internal duplicates. Shared-5-gram
+    pair counts are normalization-sensitive, so they are reported
+    in the audit, never pinned here."""
+    import json
+    import re
+    def norm(s):
+        return re.sub(r"\s+", " ",
+                      re.sub(r"[^a-z0-9 ]", " ", s.lower())).strip()
+    def prompts(name):
+        blob = json.loads(
+            (repo_root / "evals" / name).read_text(encoding="utf-8"))
+        cases = blob["cases"] if isinstance(blob, dict) else blob
+        out = {}
+        for c in cases:
+            cid = c.get("id") or c.get("case_id")
+            txt = c.get("prompt") or c.get("request") or c.get("text") or ""
+            out[cid] = norm(txt)
+        return out
+    v9 = prompts("planning_holdout_v9.json")
+    assert len(v9) == 160
+    assert len(set(v9.values())) == 160, "v9 internal duplicates"
+    old = {}
+    for n in ("planning_holdout_v4.json", "planning_holdout_v5.json",
+              "planning_holdout_v6.json", "planning_holdout_v7.json",
+              "planning_holdout_v8.json"):
+        old.update(prompts(n))
+    old_norms = set(old.values())
+    dupes = sorted(cid for cid, t in v9.items() if t in old_norms)
+    assert dupes == [], f"v9 verbatim overlap with prior sets: {dupes}"
+
+
 def test_removal_paraphrase_classes_refused():
     """Omega3 hardening-2: novel removal/disable paraphrases refuse
     (lift/quiet/missing/minus/inactive/power-loss/jumper/bridge/
