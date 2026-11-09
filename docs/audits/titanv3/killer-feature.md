@@ -1,20 +1,20 @@
 # GENESIS RT — UX reinvention + killer feature (v3 research)
 
 Date: 2026-11-09. Scope: strategy + spec only (READ-ONLY on `genesis-rt/`; this file is the only write).
-Inputs read in full: [recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:1),
-[winners-delta.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/winners-delta.md:1),
-[qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:1),
-[competitors.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:1),
+Inputs read in full: [recon.md](./recon.md#L1),
+[winners-delta.md](./winners-delta.md#L1),
+[qnx-forensics.md](./qnx-forensics.md#L1),
+[competitors.md](./competitors.md#L1),
 plus every code/doc body cited below (opened; search output only located candidates).
 Labels: **VERIFIED FACT** (opened body) / **OBSERVATION** (measured or reasoned, needs interpretation) /
 **ASSUMPTION** (low confidence). No metrics, scores, feedback, or testimonials invented.
 
-Rubric anchor (**VERIFIED FACT**, high — [qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:32-41)):
+Rubric anchor (**VERIFIED FACT**, high — [qnx-forensics.md](./qnx-forensics.md#L32-L41)):
 four equally-weighted criteria — Technological Implementation, Design ("complete, coherent product
 experience, not just a technical proof of concept"), Potential Impact, Innovation & AI Creativity —
 plus Stage-One gate and criterion-1-first tie-breaks. Internal self-score is 31/40 with Design at 8
 (dense single page, no screen-reader session, video deferred) and Impact at 5 (no pilots)
-(**VERIFIED FACT**, high — [JUDGE_SCORECARD.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/JUDGE_SCORECARD.md:18-24)).
+(**VERIFIED FACT**, high — [JUDGE_SCORECARD.md](../../../docs/jury/JUDGE_SCORECARD.md#L18-L24)).
 
 ---
 
@@ -24,30 +24,30 @@ plus Stage-One gate and criterion-1-first tie-breaks. Internal self-score is 31/
 
 **VERIFIED FACT** (high): GENESIS RT requires expressing the machine in its IR first — a real adoption
 tax for anyone not starting from an example
-([competitors.md §4.4](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:281-285)).
+([competitors.md §4.4](./competitors.md#L281-L285)).
 The smallest real IR is 45 lines of strict hand-written JSON (whitelist, fail-closed,
 `simulation_only: true` required)
-([cell-ir.json](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/examples/cell-demo/cell-ir.json:1-45),
-[architecture.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/architecture.md:42-46)).
+([cell-ir.json](../../../examples/cell-demo/cell-ir.json#L1-L45),
+[architecture.md](../../../docs/architecture.md#L42-L46)).
 A planner (NL→IR) exists, but the model proposes and the deterministic validator disposes, with
 5 unsafe accepts of 112 reject cases still open on blind v9
-(**VERIFIED FACT**, high — [README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:58-71)).
+(**VERIFIED FACT**, high — [README.md](../../../README.md#L58-L71)).
 The Studio Designer already has JSON editing + authoritative backend validation + error locate
-(**VERIFIED FACT**, high — [ui/README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/ui/README.md:9-18)).
+(**VERIFIED FACT**, high — [ui/README.md](../../../ui/README.md#L9-L18)).
 
 **OBSERVATION** (high): this is the most painful workflow because it is the *entry* workflow every
 new user, judge-experimenter, and pilot must survive, and every error in it surfaces as a raw
 validator message the user must manually map back to a line, fix, and re-run. The judge happy path
 (Demo A, 2 min) never touches it — it runs a canned script
-([START_HERE.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/START_HERE.md:10-22)) —
+([START_HERE.md](../../../docs/jury/START_HERE.md#L10-L22)) —
 so the pain is invisible in the demo but dominant in real use. Winners-delta DP5 ("designing for
 the non-user") and D11's "remove a real footgun" lesson both point at exactly this class of fix
-([winners-delta.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/winners-delta.md:214-226)).
+([winners-delta.md](./winners-delta.md#L214-L226)).
 
 ### 1.2 Before: 13 actions (CLI + editor, grounded in opened bodies)
 
-Counted from [DEMO_WALKTHROUGH.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/DEMO_WALKTHROUGH.md:1-69),
-[START_HERE.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/START_HERE.md:10-22), and the Designer description:
+Counted from [DEMO_WALKTHROUGH.md](../../../docs/jury/DEMO_WALKTHROUGH.md#L1-L69),
+[START_HERE.md](../../../docs/jury/START_HERE.md#L10-L22), and the Designer description:
 
 | # | Action | Source |
 |---|---|---|
@@ -96,7 +96,7 @@ candidate).
 ### K1. "Prove my change" — one-click BEFORE/AFTER verdict card (CLI `verify-change` + Studio button)
 
 Old Demo C takes 3 CLI commands + manual run-id plumbing + a separate diff surface
-([DEMO_WALKTHROUGH.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/DEMO_WALKTHROUGH.md:48-69)).
+([DEMO_WALKTHROUGH.md](../../../docs/jury/DEMO_WALKTHROUGH.md#L48-L69)).
 K1 collapses it: point at two IRs (or one IR + one knob edit), get one card — contract knob,
 regenerated files, binary hashes, fixed/broken scenarios, gate verdict — backed by the existing
 `compare` + gate machinery. One-sentence identity in the D4/D10/D12 pattern ("change one number,
@@ -109,7 +109,7 @@ get a verdict, not a log pile").
 Effort: S–M (2–4 days: CLI wrapper + Studio card over `POST /runs` ×2 + `POST /compare`; zero gate
 changes). Risk: low — read-only composition of green paths; failure mode is "falls back to today's
 3-command flow." Df=10 because no inspected competitor body describes contract-knob → verdict moves
-([competitors.md §5.1](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:296-300)).
+([competitors.md §5.1](./competitors.md#L296-L300)).
 
 ### K2. Guided IR co-author — NL draft + deterministic repair loop (Studio "New machine" flow, §1.3)
 
@@ -128,7 +128,7 @@ implying model authority. Rl=7 reflects that new UI surface area near a safety-r
 ### K3. One-file proof capsule — double-clickable offline evidence bundle
 
 Extends the dependency-free `dashboard.html` + `genesis_verify.js` + stdlib `verify.py` story
-(**VERIFIED FACT**, high — [ui/README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/ui/README.md:18-28)):
+(**VERIFIED FACT**, high — [ui/README.md](../../../ui/README.md#L18-L28)):
 `genesis-rt export-proof <run>` emits a single self-contained HTML capsule (passport + chain +
 timeline + dossier summary + embedded verifier) that opens from disk with zero install. D12
 "works for people who never touch the tech" pattern — a reviewer verifies without cloning.
@@ -139,14 +139,14 @@ timeline + dossier summary + embedded verifier) that opens from disk with zero i
 
 Effort: S (2–3 days: exporter composing existing dossier + verify core; node-tested like today).
 Risk: very low — pure read path, no pipeline contact. Df=9: no fetched competitor body describes a
-stranger-replayable offline artifact ([competitors.md §5.2](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:301-306)).
+stranger-replayable offline artifact ([competitors.md §5.2](./competitors.md#L301-L306)).
 
 ### K4. "Green board" — one-button native matrix re-run with live progress (Studio target runner)
 
 Wraps `qnx_target.py` probe → boot → run → verify into one Studio button with per-step progress and
 the stale-refusal display, degrading to archived-pack replay without an SDK (today the QNX lane is
 build-only with no runner, and native reproduction is the documented high-friction path —
-**VERIFIED FACT**, high: recon §7/§11; [quickstart §1](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/quickstart-qnx8-qemu.md:44-58)
+**VERIFIED FACT**, high: recon §7/§11; [quickstart §1](../../../docs/quickstart-qnx8-qemu.md#L44-L58)
 needs a myQNX account no automation can remove).
 
 | P | W | T | D | O | Df | R | F | Rl | E | Σ/100 |
@@ -162,7 +162,7 @@ Risk: medium-high — live QEMU/SSH in a demo is flaky by nature; F=5 because th
 Preset dial (Nominal / Rough / Hostile) over the existing simulator + Fault Lab + seeded fault
 injection (**VERIFIED FACT**, high — recon §3): one click runs the campaign, renders a per-scenario
 verdict strip with DENY reasons (`SPEED_OVER_LIMIT`, `STALE_SEQ`, `ESTOP` — machine-readable today
-per [DEMO_WALKTHROUGH.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/DEMO_WALKTHROUGH.md:43-46)),
+per [DEMO_WALKTHROUGH.md](../../../docs/jury/DEMO_WALKTHROUGH.md#L43-L46)),
 exports the transcript. D13 "live-playable beats describable" pattern.
 
 | P | W | T | D | O | Df | R | F | Rl | E | Σ/100 |
@@ -191,7 +191,7 @@ experience spans CLI + run ids + Studio tab), and is pure composition of green, 
 
 - **User.** Embedded prototyper / controls reviewer iterating on a machine contract, and the
   hackathon judge replaying the change story. (**OBSERVATION**, med — same persona as
-  [competitors.md §3-user row](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:247-259).)
+  [competitors.md §3-user row](./competitors.md#L247-L259).)
 - **Problem.** Proving that a requirement change did what was intended — and nothing else — today
   requires running two pipelines by hand, plumbing run ids between commands, and assembling the
   verdict from three surfaces (terminal, Studio Diff tab, dashboard). Demo C's own script shows the
@@ -210,7 +210,7 @@ experience spans CLI + run ids + Studio tab), and is pure composition of green, 
   "open passports" links. On any sub-step failure the card shows which leg failed and falls back to
   printing the equivalent manual commands (no dead ends). (**OBSERVATION**, med — proposed; visual
   vocabulary reuses the existing proof-card pattern in
-  [studio.html](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/ui/studio.html:231-239).)
+  [studio.html](../../../ui/studio.html#L231-L239).)
 - **Visible outcome.** One screen proving causation: "this knob moved, these scenarios flipped,
   everything else held, gate says PASS, both chains valid." The Omega2 narrative (same 16/16
   harness, STALE failing exactly the changed steps) becomes reproducible on any user-supplied pair,
@@ -218,7 +218,7 @@ experience spans CLI + run ids + Studio tab), and is pure composition of green, 
 - **Technical mechanism (additive only).** New thin orchestrator `host/genesis_rt/change.py`
   (~150 lines): calls the existing run orchestrator twice (same function the CLI and Studio
   pipeline already share — "every pipeline step executes the same orchestrator the CLI uses,"
-  [ui/README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/ui/README.md:27-28)), then the
+  [ui/README.md](../../../ui/README.md#L27-L28)), then the
   existing `compare` + `gate` + `replay` logic; new CLI subcommand `verify-change` (23rd, same
   argparse pattern as the 22 in cli.py:494-612); new `POST /changes` + `GET /changes/{id}` routes
   beside `POST /compare` (api.py:289-1097); Studio Before/After tab gains a "Prove" button
@@ -252,7 +252,7 @@ experience spans CLI + run ids + Studio tab), and is pure composition of green, 
 Additive (new module + subcommand + routes + button; no existing behavior altered) / low-risk
 (composition of green paths with manual-command fallback; full existing suite + docs pins must stay
 green) / no video production (live demo only) / days not weeks (2–4 days per §2 estimate; ~5 weeks
-remain to 15 Dec 2026 per [qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:25-30)).
+remain to 15 Dec 2026 per [qnx-forensics.md](./qnx-forensics.md#L25-L30)).
 
 ## 4. Unresolved / explicitly not claimed
 

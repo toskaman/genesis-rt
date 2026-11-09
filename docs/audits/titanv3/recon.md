@@ -1,6 +1,6 @@
 # GENESIS RT — Project Recon (v3 research)
 
-Date: 2026-11-09. Scope: read-only map of `C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt`
+Date: 2026-11-09. Scope: read-only map of `genesis-rt` (repo root)
 (QNX hackathon submission, Developer Tooling & Host Tools).
 Every code/doc body cited below was opened; search output was used only to locate candidates.
 Labels: **VERIFIED FACT** (opened body +/or executed check) / **OBSERVATION** (measured,
@@ -13,7 +13,7 @@ opened files or from commands executed this session.
 - **VERIFIED FACT** (high): repo is GENESIS RT — "The Physical World Compiler":
   constrained machine description → typed Machine IR → deterministic QNX 8.0 C controller
   → native run + seeded fault injection → hash-linked evidence passport.
-  Source: [README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:1-25).
+  Source: [README.md](../../../README.md#L1-L25).
 - **VERIFIED FACT** (high): git HEAD is `60bfd53` "Merge pull request #14 from
   toskaman/titan-omega5"; working tree is clean (`git status --short` empty).
   Measured this session via `git log --oneline -8` / `git status --short`.
@@ -21,11 +21,11 @@ opened files or from commands executed this session.
   host verification fully working, QNX on-target execution verified
   (native `qcc` build 0 warnings, 16/16 on-target matrix, `qnx_verified: true`),
   QEMU x86_64 only, no safety certification, human benefit not measured.
-  Source: [README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:8-13).
+  Source: [README.md](../../../README.md#L8-L13).
 - **VERIFIED FACT** (high): license Apache-2.0; the OpenBridge PolyForm-Strict license
   was deliberately NOT reused because it is not open-source and would violate Devpost
-  rules. Sources: [README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:167-172),
-  [compliance-matrix.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/compliance-matrix.md:24-37).
+  rules. Sources: [README.md](../../../README.md#L167-L172),
+  [compliance-matrix.md](../../../docs/compliance-matrix.md#L24-L37).
 
 ## 2. Repository structure (top level)
 
@@ -54,7 +54,7 @@ opened files or from commands executed this session.
 - **VERIFIED FACT** (high): pipeline is validate → codegen → build → verify →
   evidence → gate; CLI and pipeline dispatch v1/v2 through strict per-version loaders,
   v2 never reinterpreted as v1.
-  Source: [architecture.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/architecture.md:36-46).
+  Source: [architecture.md](../../../docs/architecture.md#L36-L46).
 - **VERIFIED FACT** (high): CLI exposes 22 subcommands (opened `cli.py:494-612`):
   validate, plan, generate, simulate, faults, demo, external-check,
   external-write-manifest, compare, graph, impact, explore, replay, bench, twin,
@@ -66,8 +66,8 @@ opened files or from commands executed this session.
   (+history/revisions/diff/export/impact), env, graphs (+compare), impact (+release),
   ipc-timeline, review/plan, explore (+replay), twin/frames, and static `/`, studio,
   dashboard, verify.js. Loopback-only: `uvicorn.run(..., host="127.0.0.1", port=8077)`.
-  Sources: [cli.py](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/host/genesis_rt/cli.py:320-320),
-  [cli.py](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/host/genesis_rt/cli.py:592-593).
+  Sources: [cli.py](../../../host/genesis_rt/cli.py#L320-L320),
+  [cli.py](../../../host/genesis_rt/cli.py#L592-L593).
 - **VERIFIED FACT** (high): major subsystems and their homes (opened architecture.md):
   NL planner (`planner.py`, optional LLM, same validated path), Machine IR
   (`ir.py`/`ir_v2.py` + `schemas/`), deterministic codegen (`codegen*.py` +
@@ -80,35 +80,35 @@ opened files or from commands executed this session.
   IR numeric canonicalization (`ir*.py`).
 - **VERIFIED FACT** (high): `no-test => no-pass` gate semantics; missing/skipped/
   crashed/tampered evidence yields FAIL (test file `tests/unit/test_evidence_gate.py`
-  exists; claim in [README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:174-176)).
+  exists; claim in [README.md](../../../README.md#L174-L176)).
 - **VERIFIED FACT** (high): without an SDK the build adapter returns
   `{"status": "blocked", ...}` — never success, never silent skip.
-  Source: [build_adapter.py](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/host/genesis_rt/build_adapter.py:113-117).
+  Source: [build_adapter.py](../../../host/genesis_rt/build_adapter.py#L113-L117).
 - **VERIFIED FACT** (high): QNX-native target (`target/qnx8/`, 15 C/H/MK files):
   `genesis_guard` (name_attach/MsgReceive/MsgReply), `genesis_controller`
   (name_open/MsgSend), `genesis_device` (virtual, no physical I/O), `genesis_status`
   (resmgr `/dev/genesis/status`), `genesis_supervisor` (sole reset authority),
   shared `common/guard_policy.c` proven identical to the Python mirror by the
   `guard_vector` conformance harness (`tests/integration/test_c_conformance.py`).
-  Source: [architecture.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/architecture.md:146-157).
+  Source: [architecture.md](../../../docs/architecture.md#L146-L157).
 - **VERIFIED FACT** (high): fault campaign sizes claimed in README
   (AMR 8, conveyor 5, cell 4) match the example IRs exactly — measured this session
   by counting `verification.scenarios` in the three example files (8/5/4).
 - **VERIFIED FACT** (high): time/deadline correctness uses RFC 1982 serial arithmetic
   over uint32 wire clocks in both C and Python, conformance-tested; pairs 2^31+ ms
   apart are ambiguous by construction (disclosed residual).
-  Sources: [architecture.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/architecture.md:126-129),
-  [limitations-and-safety.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/limitations-and-safety.md:14-22).
+  Sources: [architecture.md](../../../docs/architecture.md#L126-L129),
+  [limitations-and-safety.md](../../../docs/limitations-and-safety.md#L14-L22).
 
 ## 4. Workflows (how it is used)
 
 - **VERIFIED FACT** (high): no-SDK judge path (2 min): install → `run_verified_demo.py`
   → `replay.py <passport>` → expect `verdict: PASS, qnx_verified: false, chain: valid,
   gate: PASS` → load passport in `ui/dashboard.html`.
-  Source: [START_HERE.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/START_HERE.md:10-22).
+  Source: [START_HERE.md](../../../docs/jury/START_HERE.md#L10-L22).
 - **VERIFIED FACT** (high): live workbench: `genesis-rt serve` → Studio at
   `http://127.0.0.1:8077/`; without backend, 6 inspector tabs keep working on local files.
-  Source: [ui/README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/ui/README.md:9-22).
+  Source: [ui/README.md](../../../ui/README.md#L9-L22).
 - **VERIFIED FACT** (high): native loop: `qnx_env_check.py` → `quickstart-qnx8-qemu.md`
   → `scripts/qnx_target.py` (boot/put/run/verify incl. `perf`, `sched` campaigns).
   Target password comes from `GENESIS_TARGET_PASSWORD` env var (preferred over
@@ -118,11 +118,11 @@ opened files or from commands executed this session.
   Machine IRs (examples/projects, renames tracked, deletions verdict-neutral), reports
   impact, emits `proofos-plan.json` (never grants release eligibility alone); PRs diff
   against genuine PR base, pushes against push base, first-push zero-SHA falls back
-  to all IRs. Source: [CLAIMS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/CLAIMS.md:152-160).
+  to all IRs. Source: [CLAIMS.md](../../../docs/CLAIMS.md#L152-L160).
 - **VERIFIED FACT** (high): review dossier: one-click ZIP export (report.html + TOC/
   coverage/print CSS + manifest + VERIFY.md) via `GET /target/ops/{id}/dossier`,
   plus plain-language release-decision panel via `.../decision`.
-  Source: [JUDGE_SCORECARD.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/JUDGE_SCORECARD.md:137-137).
+  Source: [JUDGE_SCORECARD.md](../../../docs/jury/JUDGE_SCORECARD.md#L137-L137).
 
 ## 5. UI
 
@@ -136,11 +136,11 @@ opened files or from commands executed this session.
   passport inspector working straight from `file://`; `ui/genesis_verify.js`
   (11,394 bytes) is the shared pure core (SHA-256, canonical form, chain verify),
   node-tested against the Python toolchain from `tests/ui/test_dashboard_verify.py`.
-  Source: [ui/README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/ui/README.md:18-28).
+  Source: [ui/README.md](../../../ui/README.md#L18-L28).
 - **OBSERVATION** (medium): self-assessed Design residual is "dense single page;
   no screen-reader session" (axe scans in CI only); reviewer caps Design at 7/10
   for density + no SR session + no video.
-  Source: [JUDGE_SCORECARD.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/JUDGE_SCORECARD.md:20-21).
+  Source: [JUDGE_SCORECARD.md](../../../docs/jury/JUDGE_SCORECARD.md#L20-L21).
 
 ## 6. APIs (contract surface)
 
@@ -155,8 +155,8 @@ opened files or from commands executed this session.
   + `machine-ir-v2.schema.json`; strict whitelist, fail-closed; `simulation_only: true`
   required; v2 validates AMR/conveyor; `industrial_cell` stays v1-only (v2 validation
   and v1→v2 migration reject it loudly).
-  Sources: [architecture.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/architecture.md:42-46),
-  [limitations-and-safety.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/limitations-and-safety.md:29-30).
+  Sources: [architecture.md](../../../docs/architecture.md#L42-L46),
+  [limitations-and-safety.md](../../../docs/limitations-and-safety.md#L29-L30).
 - **VERIFIED FACT** (high): passport contract: dict with `chain` (15 links, measured
   in omega2-after), `gate` (PASS), `environment` (genesis_version, git_commit,
   platform, python, qnx), hash-chained, replayable via `scripts/replay.py`,
@@ -167,7 +167,7 @@ opened files or from commands executed this session.
 - **VERIFIED FACT** (high): collected total this session = **1376 tests in 97 files**
   (`pytest tests --collect-only`, pytest 9.2.0) — exactly equals
   `facts.TESTS_WITH_SDK = 1376`.
-  Source: [facts.py](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/host/genesis_rt/facts.py:15-15).
+  Source: [facts.py](../../../host/genesis_rt/facts.py#L15-L15).
 - **VERIFIED FACT** (high): `tests/unit/test_docs_consistency.py` → **51 passed
   in 5.13 s** this session (matches the scorecard's "51 documentation-consistency
   tests green"). It pins jury/devpost/commercial counts to `facts.py`, pack paths,

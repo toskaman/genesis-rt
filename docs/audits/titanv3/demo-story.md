@@ -14,11 +14,11 @@
 >
 > Rule anchor: final video **DEFERRED BY OWNER**, Devpost **NOT submitted**
 > (VERIFIED FACT, high:
-> [README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:52-54),
-> [DEVPOST_FINAL_DRAFT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/DEVPOST_FINAL_DRAFT.md:1-6)).
+> [README.md](../../../README.md#L52-L54),
+> [DEVPOST_FINAL_DRAFT.md](../../../docs/submission/DEVPOST_FINAL_DRAFT.md#L1-L6)).
 > Competition rules: video <180 s (treat as mandatory), must show the project
 > on the target (QEMU), public YouTube only
-> (per [qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:65-70)).
+> (per [qnx-forensics.md](./qnx-forensics.md#L65-L70)).
 
 ## 0. The ONE memorable moment
 
@@ -27,23 +27,23 @@
 The stale control: v2 contract run against the v1-built binary fails **14/16**,
 exactly on `estop_target` + `v2_transitions` — the changed behavior and nothing
 else. VERIFIED FACT (high):
-[README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:29-39),
-[DEVPOST_FINAL_DRAFT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/DEVPOST_FINAL_DRAFT.md:112-115).
+[README.md](../../../README.md#L29-L39),
+[DEVPOST_FINAL_DRAFT.md](../../../docs/submission/DEVPOST_FINAL_DRAFT.md#L112-L115).
 
 Why this moment (OBSERVATION, high):
 
 - It is the only beat competitors cannot mirror with a slide: it proves the
   oracle derives expectations from the validated IR per run, not from fixed
-  thresholds (per [competitors.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:331-336)).
+  thresholds (per [competitors.md](./competitors.md#L331-L336)).
 - It maps to the winners-delta pattern DP3 "one-metric identities travel"
-  (per [winners-delta.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/winners-delta.md:376-387)):
+  (per [winners-delta.md](./winners-delta.md#L376-L387)):
   risk index, no-loss rule, dead-man's switch, 45-minute patch — ours is
   "14/16 on exactly the changed steps."
 - It survives the judging pile as one sentence, and it is honest: the control
   is operator-recorded, prose-grade, no sealed transcript ships in the packs
   (VERIFIED FACT, high: same README lines). Say so on camera in one line —
   refusal-first honesty is the brand
-  (per [WHY_GENESIS_RT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_GENESIS_RT.md:40-48)).
+  (per [WHY_GENESIS_RT.md](../../../docs/jury/WHY_GENESIS_RT.md#L40-L48)).
 
 Every timed cut below builds to this moment and lands it before the end card.
 
@@ -55,7 +55,7 @@ Every timed cut below builds to this moment and lands it before the end card.
 > about the behavior of the code.
 
 VERIFIED FACT (high — quoted):
-[WHY_GENESIS_RT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_GENESIS_RT.md:50-53).
+[WHY_GENESIS_RT.md](../../../docs/jury/WHY_GENESIS_RT.md#L50-L53).
 
 ### 15-second pitch (~35 words)
 
@@ -65,9 +65,9 @@ VERIFIED FACT (high — quoted):
 > checks. Replayable by anyone, no SDK needed.
 
 Claim grounding: "screenshots" pain per
-[WHY_GENESIS_RT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_GENESIS_RT.md:3-9);
+[WHY_GENESIS_RT.md](../../../docs/jury/WHY_GENESIS_RT.md#L3-L9);
 passport + stale control per README lines above; SDK-free replay per
-[START_HERE.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/START_HERE.md:10-22).
+[START_HERE.md](../../../docs/jury/START_HERE.md#L10-L22).
 
 ### 30-second pitch (~70 words)
 
@@ -80,9 +80,9 @@ passport + stale control per README lines above; SDK-free replay per
 > promises.
 
 Grounding: AMR v1→v2 safe-stop per
-[DEVPOST_FINAL_DRAFT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/DEVPOST_FINAL_DRAFT.md:26-34);
+[DEVPOST_FINAL_DRAFT.md](../../../docs/submission/DEVPOST_FINAL_DRAFT.md#L26-L34);
 16/16 + packs per README L29-39; fault campaign per
-[DEMO_WALKTHROUGH.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/DEMO_WALKTHROUGH.md:24-46).
+[DEMO_WALKTHROUGH.md](../../../docs/jury/DEMO_WALKTHROUGH.md#L24-L46).
 
 ### 60-second pitch (use the README pitch, verbatim-adjacent)
 
@@ -95,7 +95,7 @@ Grounding: AMR v1→v2 safe-stop per
 > proof-driven demo beats twenty speculative features.
 
 VERIFIED FACT (high — quoted):
-[README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:17-25).
+[README.md](../../../README.md#L17-L25).
 
 ## 2. Full-length demo beats (live / judge-guided, ~5 min)
 
@@ -103,7 +103,7 @@ Chain: hook → pain → interaction → intelligence → result → verificatio
 transformation → differentiation → impact. Each beat names the exact command
 or screen; all commands exist on the current tree
 (VERIFIED FACT, high: storyboard §"Exact commands",
-[VIDEO_STORYBOARD_DEFERRED.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/VIDEO_STORYBOARD_DEFERRED.md:41-54)).
+[VIDEO_STORYBOARD_DEFERRED.md](../../../docs/submission/VIDEO_STORYBOARD_DEFERRED.md#L41-L54)).
 
 | # | Beat | What the judge sees | Evidence it rests on |
 |---|---|---|---|
@@ -119,7 +119,7 @@ or screen; all commands exist on the current tree
 
 OBSERVATION (med): this 9-beat arc doubles as the live-judge tour (Studio
 Guided demo tab has 7 stages; VERIFIED FACT, high per
-[recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:129-134))
+[recon.md](./recon.md#L129-L134))
 and as the narration spine for the recorded cut — same beats, tighter words.
 
 ## 3. Timed video cuts (owner records; DOCS ONLY here)
@@ -138,8 +138,8 @@ Hard constraints (all VERIFIED FACT, high, per qnx-forensics §Video rules):
   `verify.py` replay and say so on camera — **never fake a live run**.
 
 Source for all of the above: the deferred storyboard
-([VIDEO_STORYBOARD_DEFERRED.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/VIDEO_STORYBOARD_DEFERRED.md:1-25),
-[VIDEO_STORYBOARD_DEFERRED.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/VIDEO_STORYBOARD_DEFERRED.md:56-61)).
+([VIDEO_STORYBOARD_DEFERRED.md](../../../docs/submission/VIDEO_STORYBOARD_DEFERRED.md#L1-L25),
+[VIDEO_STORYBOARD_DEFERRED.md](../../../docs/submission/VIDEO_STORYBOARD_DEFERRED.md#L56-L61)).
 
 ### 15-second cut (~35 words)
 
@@ -175,7 +175,7 @@ release-decision panel (fail-closed verdict) before the closing line:
 ### Full 2:45 cut (narrative authority: the deferred storyboard)
 
 Follow the 9-shot timed narrative in
-[VIDEO_STORYBOARD_DEFERRED.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/VIDEO_STORYBOARD_DEFERRED.md:27-39)
+[VIDEO_STORYBOARD_DEFERRED.md](../../../docs/submission/VIDEO_STORYBOARD_DEFERRED.md#L27-L39)
 verbatim (problem → requirement → compile → QNX execution → faults →
 BEFORE/AFTER → passport → stale rejection → value prop, ≈380 words at
 140 wpm). Do not improvise a different arc — the storyboard is already
@@ -186,7 +186,7 @@ target password): same file, L63-71.
 OBSERVATION (high): the historical W12 cut
 (`docs/demo/genesis-rt-demo-w12.mp4`, 154.664 s) predates Studio and is
 explicitly NOT the submission video (VERIFIED FACT, high:
-[README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:52-54)).
+[README.md](../../../README.md#L52-L54)).
 Never upload it as the entry.
 
 ## 4. FAQ (short answers, all evidence-linked)
@@ -194,35 +194,35 @@ Never upload it as the entry.
 1. **What is GENESIS RT?** A contract-aware change-verification and evidence
    layer for QNX: machine contract → validated IR → deterministic native QNX
    8.0 controller → seeded faults → hash-linked evidence passport + fail-closed
-   gate. ([README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:17-25),
-   [WHY_GENESIS_RT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_GENESIS_RT.md:11-22))
+   gate. ([README.md](../../../README.md#L17-L25),
+   [WHY_GENESIS_RT.md](../../../docs/jury/WHY_GENESIS_RT.md#L11-L22))
 2. **What do I need to verify it?** A clone + Python + `pytest`/`pyyaml`;
    two commands, no SDK: `run_verified_demo.py`, then `replay.py <passport>`.
-   ([START_HERE.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/START_HERE.md:10-22))
+   ([START_HERE.md](../../../docs/jury/START_HERE.md#L10-L22))
 3. **Where is the QNX-native proof?** Omega2 BEFORE/AFTER packs, 16/16 PASS
    sealed on both contracts, `qnx_verified: true`, offline `verify.py`.
-   ([README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:29-39))
+   ([README.md](../../../README.md#L29-L39))
 4. **What is genuinely new?** Not codegen — the evidence loop: IR-derived
    oracles, stale-binary refusal, stranger-replayable passports, `compare`
    as a first-class command.
-   ([WHY_GENESIS_RT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_GENESIS_RT.md:24-38))
+   ([WHY_GENESIS_RT.md](../../../docs/jury/WHY_GENESIS_RT.md#L24-L38))
 5. **Does it replace Momentics / Parasoft / LDRA / VectorCAST?** No — it
    complements them; no static analysis, coverage, MISRA, or qualification
    story is claimed.
-   ([DEVPOST_FINAL_DRAFT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/DEVPOST_FINAL_DRAFT.md:185-199),
-   [competitors.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:368-372))
+   ([DEVPOST_FINAL_DRAFT.md](../../../docs/submission/DEVPOST_FINAL_DRAFT.md#L185-L199),
+   [competitors.md](./competitors.md#L368-L372))
 6. **What role does AI play?** Optional planner; model proposes, deterministic
    validator disposes; measured on blind holdouts (v9: 142/150/150, 5 unsafe
    disclosed), never authorizes safety or release.
-   ([README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:58-71))
+   ([README.md](../../../README.md#L58-L71))
 7. **What are the limits?** QEMU-only, no safety certification, host faults
    simulated (labeled `qnx_verified`), packs UNSIGNED hash-only, no pilots,
    human benefit unmeasured, video pending.
-   ([README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:8-13),
-   [competitors.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:79-85))
+   ([README.md](../../../README.md#L8-L13),
+   [competitors.md](./competitors.md#L79-L85))
 8. **What is the license?** Apache-2.0; core stdlib-only.
-   ([START_HERE.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/START_HERE.md:10-16),
-   [recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:25-28))
+   ([START_HERE.md](../../../docs/jury/START_HERE.md#L10-L16),
+   [recon.md](./recon.md#L25-L28))
 
 ## 5. The 10 hardest judge questions (evidence-backed answers)
 
@@ -232,11 +232,11 @@ around it: strictly validated contracts whose limits provably drive runtime
 behavior, a fail-closed gate (missing/skipped/crashed/tampered/recycled ⇒
 FAIL), stranger-replayable passports, and counterfactual `compare` as a
 first-class command. VERIFIED FACT (high):
-[WHY_GENESIS_RT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_GENESIS_RT.md:24-38).
+[WHY_GENESIS_RT.md](../../../docs/jury/WHY_GENESIS_RT.md#L24-L38).
 A generator shows you source; GENESIS RT shows you the contract knob, the
 regenerated files, the changed binary hashes, and the fixed scenarios side
 by side (Demo C,
-[DEMO_WALKTHROUGH.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/DEMO_WALKTHROUGH.md:48-69)).
+[DEMO_WALKTHROUGH.md](../../../docs/jury/DEMO_WALKTHROUGH.md#L48-L69)).
 
 **Q2. "Why QNX — why not Linux + sockets?"**
 Because the generated system is shaped by Neutrino primitives and the
@@ -248,7 +248,7 @@ steps whose blast radius is small and checkable *because* of microkernel
 isolation. The C policy is proven identical to its Python mirror by
 compiled conformance vectors; the 16-step matrix runs on QNX 8.0
 (`qcc -Vgcc_ntox86_64`, 0 warnings). VERIFIED FACT (high):
-[WHY_QNX.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_QNX.md:1-49).
+[WHY_QNX.md](../../../docs/jury/WHY_QNX.md#L1-L49).
 
 **Q3. "QEMU-only, no hardware — is the 'native' claim real?"**
 "Native" means QNX 8.0 binaries built with `qcc` running on a QNX 8.0
@@ -257,8 +257,8 @@ matrix, `qnx_verified: true`. QEMU-only is disclosed, not hidden; no
 physical hardware, no HAM, no attestation, and TCG timing is explicitly a
 regression aid, not a guarantee (the RT-scheduling experiment reported
 **inconclusive** rather than claim a speedup). VERIFIED FACT (high):
-[README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:8-13),
-[WHY_QNX.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_QNX.md:19-32).
+[README.md](../../../README.md#L8-L13),
+[WHY_QNX.md](../../../docs/jury/WHY_QNX.md#L19-L32).
 QEMU is explicitly allowed by the rules (per qnx-forensics §Sponsor/tech).
 
 **Q4. "The stale control is prose-grade — why should I trust your headline moment?"**
@@ -269,8 +269,8 @@ it: both 16/16 contracts, the IR-derived oracle mechanism, and the offline
 replay. The prose-grade label is the point: a team that marks its own best
 moment as unsealed can be believed about what it marks sealed. VERIFIED
 FACT (high):
-[README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:29-39),
-[DEVPOST_FINAL_DRAFT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/DEVPOST_FINAL_DRAFT.md:112-115).
+[README.md](../../../README.md#L29-L39),
+[DEVPOST_FINAL_DRAFT.md](../../../docs/submission/DEVPOST_FINAL_DRAFT.md#L112-L115).
 Sealing the stale transcript is future work (per recon §10).
 
 **Q5. "5 unsafe accepts out of 112 — isn't your AI dangerous?"**
@@ -281,8 +281,8 @@ deterministic validator disposes; the model can never authorize safety,
 mark a build verified, or grant release eligibility (regression-pinned).
 Default planner is the offline deterministic keyword planner; no LLM is
 bundled. VERIFIED FACT (high):
-[README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/README.md:58-71),
-[DEVPOST_FINAL_DRAFT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/DEVPOST_FINAL_DRAFT.md:120-142).
+[README.md](../../../README.md#L58-L71),
+[DEVPOST_FINAL_DRAFT.md](../../../docs/submission/DEVPOST_FINAL_DRAFT.md#L120-L142).
 OBSERVATION (high): publishing failures with layer attribution is the
 cheapest credibility available (transferable-principles argument, per
 competitors.md §1).
@@ -292,7 +292,7 @@ Hash-only UNSIGNED is stated, with the exact `--trust local → exit 2`
 behavior — and forgery is tested, not theorized: 13+ forgery classes
 refused, 24 adversarial passport tests, tampered/version-unknown passports
 raising `InvalidPassport`, `no-test ⇒ no-pass`. VERIFIED FACT (high):
-[WHY_GENESIS_RT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_GENESIS_RT.md:31-36),
+[WHY_GENESIS_RT.md](../../../docs/jury/WHY_GENESIS_RT.md#L31-L36),
 competitors.md §6.3. The trust claim is tamper-*evident* offline replay by
 a stranger, not signed provenance — signatures exist as CLI (`sign-pack` /
 `verify-pack`) but packs ship unsigned, disclosed as such (per recon §8).
@@ -303,8 +303,8 @@ YET MEASURED` governs; the paired pilot kit (6-task + 3-task tiers, consent
 + anonymization enforced) is ready with zero invitations sent. Internal
 self-score holds Potential Impact at 5/10 for exactly this reason.
 VERIFIED FACT (high):
-[DEVPOST_FINAL_DRAFT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/DEVPOST_FINAL_DRAFT.md:185-199),
-[JUDGE_SCORECARD.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/JUDGE_SCORECARD.md:18-23).
+[DEVPOST_FINAL_DRAFT.md](../../../docs/submission/DEVPOST_FINAL_DRAFT.md#L185-L199),
+[JUDGE_SCORECARD.md](../../../docs/jury/JUDGE_SCORECARD.md#L18-L23).
 The demonstrable impact today is reproducible native evidence,
 stale-binary rejection, and offline third-party verification — a bet on the
 evidence loop, not on production readiness.
@@ -318,7 +318,7 @@ derived per run from a validated spec, a before/after native comparison
 with stale-binary refusal, or a stranger-replayable offline passport.
 GENESIS RT claims no static analysis, coverage, MISRA, qualification, or
 ALM integration. OBSERVATION (high, bounded to inspected bodies) + VERIFIED
-FACT non-claims: [competitors.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:262-372).
+FACT non-claims: [competitors.md](./competitors.md#L262-L372).
 
 **Q9. "1376 tests — isn't that a vanity number?"**
 It is a collected count with honest skips, not a pass-fabrication: 1376
@@ -328,9 +328,9 @@ passed. The suite includes 24 adversarial, 73 planning-unit, 32 real-browser
 E2E, and 51 docs-consistency pins (each tracing to a past incident), plus
 16/16 on-target + 1000 perf samples + 9/9 native fault-injection over IPC.
 VERIFIED FACT (high):
-[START_HERE.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/START_HERE.md:24-36),
-[recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:167-201),
-[DEVPOST_FINAL_DRAFT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/DEVPOST_FINAL_DRAFT.md:64-80).
+[START_HERE.md](../../../docs/jury/START_HERE.md#L24-L36),
+[recon.md](./recon.md#L167-L201),
+[DEVPOST_FINAL_DRAFT.md](../../../docs/submission/DEVPOST_FINAL_DRAFT.md#L64-L80).
 
 **Q10. "Judges may never run the project — does the submission stand alone?"**
 Yes by design: the Devpost text names exact QNX files/functions/output/demo,
@@ -340,7 +340,7 @@ verify offline with stdlib-only `verify.py`, the dossier ZIP carries report
 from disk with no backend. The 2-minute SDK-free path exists for judges who
 do run it. VERIFIED FACT (high): text+video requirements per qnx-forensics
 §§Video/Submission-fields; dossier per recon §4; dashboard per
-[START_HERE.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/START_HERE.md:10-22).
+[START_HERE.md](../../../docs/jury/START_HERE.md#L10-L22).
 Unresolved: judges-may-not-run is carried as U3 in qnx-forensics — the
 mitigation is stand-alone text + video, not persuasion.
 
@@ -357,7 +357,7 @@ mitigation is stand-alone text + video, not persuasion.
 
 Grounding: each clause traces to §4/Q&A citations above; "complements, never
 replaces" per
-[DEVPOST_FINAL_DRAFT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/DEVPOST_FINAL_DRAFT.md:185-189);
+[DEVPOST_FINAL_DRAFT.md](../../../docs/submission/DEVPOST_FINAL_DRAFT.md#L185-L189);
 forkability per competitors.md §7.5. OBSERVATION (med): this paragraph is the
 answer to "why pick it" in Developer Tooling & Host Tools, compressed from
 competitors.md §7.
@@ -365,7 +365,7 @@ competitors.md §7.
 ## 7. Optimized submission-field TEXT (NEVER submit — owner files)
 
 Derived from
-[DEVPOST_FINAL_DRAFT.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/DEVPOST_FINAL_DRAFT.md:1-23)
+[DEVPOST_FINAL_DRAFT.md](../../../docs/submission/DEVPOST_FINAL_DRAFT.md#L1-L23)
 (form fields) with storytelling tightening. Field list per qnx-forensics
 §Submission fields. **Do not paste anywhere; the owner completes the form.**
 
@@ -395,7 +395,7 @@ Derived from
   passing, resmgr, monotonic timers, RT experiments, supervision, crash
   containment in "How we use QNX" AND show at least two on screen in the
   video (matrix transcript + `/dev/genesis/status` read). Candidacy per
-  [WHY_QNX.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_QNX.md:51-56).
+  [WHY_QNX.md](../../../docs/jury/WHY_QNX.md#L51-L56).
 
 ## 8. Story risks + mitigations
 

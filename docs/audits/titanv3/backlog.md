@@ -14,10 +14,10 @@ ordered by ratio within each priority band. **HIGH-RISK** = destabilizing to a
 submission-pending repo; do on a branch or defer past filing.
 
 Inputs opened this session:
-[v3 recon](../v3-research/recon.md),
-[winners delta](../v3-research/winners-delta.md),
-[QNX forensics](../v3-research/qnx-forensics.md),
-[competitors](../v3-research/competitors.md),
+[v3 recon](recon.md),
+[winners delta](winners-delta.md),
+[QNX forensics](qnx-forensics.md),
+[competitors](competitors.md),
 plus genesis-rt bodies: `docs/jury/JUDGE_SCORECARD.md`,
 `docs/jury/KNOWN_LIMITATIONS.md`, `docs/limitations-and-safety.md`,
 `docs/jury/WHY_QNX.md`, `docs/submission/OMEGA5_OWNER_ACTIONS.md`,
@@ -28,12 +28,12 @@ plus genesis-rt bodies: `docs/jury/JUDGE_SCORECARD.md`,
 ## Scoreboard the audit attacks
 
 Self-scores (internal, OMEGA5): 31/40 (9.5/8/5/8.5); independent reviewer 29/40
-(9/7/5/8) — [JUDGE_SCORECARD.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/JUDGE_SCORECARD.md:18-37).
+(9/7/5/8) — [JUDGE_SCORECARD.md](../../../docs/jury/JUDGE_SCORECARD.md#L18-L37).
 Impact sits at 5/10 with zero pilots; Design is capped by density + no
 screen-reader session + no video; Tech/AI carry QEMU-only + 5 open unsafe
 accepts. The four Devpost criteria are equally weighted, so Impact at ~half
 marks is a ~12.5% total-score hole no Tech polish can fill. Tie-breaks run
-criterion 1→4 ([qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:36)),
+criterion 1→4 ([qnx-forensics.md](./qnx-forensics.md#L36)),
 so Tech strength only helps ties — it does not rescue Impact.
 
 ## P0 — Submission blockers (no filing without these)
@@ -44,9 +44,9 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: `SUBMISSION_STATUS = PENDING_FINAL_VIDEO`, video
   `DEFERRED_BY_OWNER` since 7 Nov; Devpost cannot be filed without a public
   YouTube <180 s video showing the project on its platform (QEMU).
-  Sources: [VIDEO_DEFERRED.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/submission/VIDEO_DEFERRED.md:1-18),
-  [OMEGA5_OWNER_ACTIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/OMEGA5_OWNER_ACTIONS.md:8-14),
-  [qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:109).
+  Sources: [VIDEO_DEFERRED.md](../../../submission/VIDEO_DEFERRED.md#L1-L18),
+  [OMEGA5_OWNER_ACTIONS.md](../../../docs/submission/OMEGA5_OWNER_ACTIONS.md#L8-L14),
+  [qnx-forensics.md](./qnx-forensics.md#L109).
 - Why brutal: every other item is moot. Winners-delta DP2/DP3 show the demo
   artifact is scored work, not ceremony; a missing video is not a weak demo,
   it is absence from the pile.
@@ -62,8 +62,8 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: canonical text exists
   (`docs/submission/DEVPOST_FINAL_DRAFT.md`, v9-synced) but submission is
   pending the video; hard stop 15 Dec 2026 14:00 ET, no edits after.
-  Sources: [OMEGA5_OWNER_ACTIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/OMEGA5_OWNER_ACTIONS.md:16-28),
-  [qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:27).
+  Sources: [OMEGA5_OWNER_ACTIONS.md](../../../docs/submission/OMEGA5_OWNER_ACTIONS.md#L16-L28),
+  [qnx-forensics.md](./qnx-forensics.md#L27).
 - Fix: after B-01, paste canonical text, select Developer Tooling & Host Tools,
   name exact QNX files/functions/output/demo in text, paste video + codelab
   URLs in the correct fields, submit early.
@@ -74,7 +74,7 @@ so Tech strength only helps ties — it does not rescue Impact.
   Confidence High. Ratio 9.0.
 - VERIFIED FACT: repo must stay public/free through 29 Jan 2027 (§4 Testing);
   owner §3 eligibility is self-confirm only; rules amendable anytime (§11.5).
-  Source: [qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:105-136).
+  Source: [qnx-forensics.md](./qnx-forensics.md#L105-L136).
 - Fix: day-of-filing checklist — visibility check, eligibility self-confirm,
   re-open S1+S2 in a browser, draft early.
 - Verify: public-visibility screenshot at filing + calendar hold to 29 Jan 2027.
@@ -87,9 +87,9 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: `HUMAN USER BENEFIT NOT YET MEASURED`; "zero participants,
   zero invitations sent, zero records in bench/"; protocol + timer + analyzer
   validated on fixtures only. Sources:
-  [JUDGE_SCORECARD.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/JUDGE_SCORECARD.md:22),
-  [pilot-study.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/business/pilot-study.md:1-6),
-  [OMEGA5_OWNER_ACTIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/OMEGA5_OWNER_ACTIONS.md:30-42).
+  [JUDGE_SCORECARD.md](../../../docs/jury/JUDGE_SCORECARD.md#L22),
+  [pilot-study.md](../../../docs/business/pilot-study.md#L1-L6),
+  [OMEGA5_OWNER_ACTIONS.md](../../../docs/submission/OMEGA5_OWNER_ACTIONS.md#L30-L42).
 - Why brutal: 25% of the score is capped at half marks; winners-delta shows
   validity-scored awards go to named beneficiaries + real-world fidelity
   (D2/D5/D15). "Nothing sent, nothing faked" is honest — and currently worth 5.
@@ -106,8 +106,8 @@ so Tech strength only helps ties — it does not rescue Impact.
   text + video. OBSERVATION: the AI-ladder vocabulary (unsafe vs wrong-kind vs
   consults, blind vs qualified-blind, frozen vs regression) is the steepest
   comprehension wall in the repo. Sources:
-  [qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:138-144),
-  [recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:301-304).
+  [qnx-forensics.md](./qnx-forensics.md#L138-L144),
+  [recon.md](./recon.md#L301-L304).
 - Why brutal: a 2-command SDK-free replay nobody runs scores zero; a confused
   judge scores the confusion. Winners-delta DP3: one-metric identities travel.
 - Fix: one-page plain-language glossary + Devpost rewrite pass (one memorable
@@ -123,8 +123,8 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: "automated axe scans in CI only; full screen-reader
   verification is outstanding, not claimed"; reviewer caps Design at 7/10 for
   density + no SR session + no video. Sources:
-  [KNOWN_LIMITATIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/KNOWN_LIMITATIONS.md:38-39),
-  [JUDGE_SCORECARD.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/JUDGE_SCORECARD.md:21).
+  [KNOWN_LIMITATIONS.md](../../../docs/jury/KNOWN_LIMITATIONS.md#L38-L39),
+  [JUDGE_SCORECARD.md](../../../docs/jury/JUDGE_SCORECARD.md#L21).
 - Fix: execute the prepared SR checklist protocol, log the session, fix
   blockers only (no redesign pre-submission).
 - Verify: dated session log + issue list + re-test; pin the log path in docs.
@@ -136,8 +136,8 @@ so Tech strength only helps ties — it does not rescue Impact.
   112 (4 safety + 1 fleet, all deterministic-layer, classed), 0 wrong-kind,
   34/36 consults with 14 explained mismatches; v9 targeted, no broad claim;
   v7/v8/v9 never rerun on changed code. Sources:
-  [JUDGE_SCORECARD.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/JUDGE_SCORECARD.md:23-30),
-  [KNOWN_LIMITATIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/KNOWN_LIMITATIONS.md:28-35).
+  [JUDGE_SCORECARD.md](../../../docs/jury/JUDGE_SCORECARD.md#L23-L30),
+  [KNOWN_LIMITATIONS.md](../../../docs/jury/KNOWN_LIMITATIONS.md#L28-L35).
 - Why brutal: an "unsafe accept" is the single scariest phrase a rival judge
   can quote; rate improved (6.2%→4.5%) but count rose (4→5) on a harder pool.
 - Fix: fix at the deterministic layer with red-green tests, then measure on a
@@ -153,7 +153,7 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: arm kind passes schema but the host mirror runs the
   differential-drive corridor; no arm physics on host or target; scenario
   records carry `physics`/`physics_note` so aliasing is visible in evidence.
-  Source: [limitations-and-safety.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/limitations-and-safety.md:33-37).
+  Source: [limitations-and-safety.md](../../../docs/limitations-and-safety.md#L33-L37).
 - Why brutal: labeled or not, a judge skimming evidence sees arm verdicts
   computed by car physics — one hostile read away from "fabricated results."
 - Fix (pre-deadline): scope it out — validation rejects arm with a clear
@@ -168,8 +168,8 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: the stale-binary control (14/16 failing exactly on
   `estop_target` + `v2_transitions`) is operator-recorded; no sealed
   transcript ships in the packs; sealing is disclosed future work. Sources:
-  [recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:209),
-  [JUDGE_SCORECARD.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/JUDGE_SCORECARD.md:54).
+  [recon.md](./recon.md#L209),
+  [JUDGE_SCORECARD.md](../../../docs/jury/JUDGE_SCORECARD.md#L54).
 - Why brutal: the negative control is the credibility keystone (competitors
   §5.3: "cheapest credibility available") — prose-grade means the strongest
   claim has the weakest artifact.
@@ -184,8 +184,8 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: QEMU x86_64 only; no hardware, no HAM, no attestation; TCG
   timing is a regression aid, not a guarantee; the 5 Nov RT-priority speedup
   did not reproduce on 8 Nov jury-fixed sources — no speedup claimed.
-  Sources: [WHY_QNX.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_QNX.md:19-28),
-  [KNOWN_LIMITATIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/KNOWN_LIMITATIONS.md:5-10).
+  Sources: [WHY_QNX.md](../../../docs/jury/WHY_QNX.md#L19-L28),
+  [KNOWN_LIMITATIONS.md](../../../docs/jury/KNOWN_LIMITATIONS.md#L5-L10).
 - Why brutal: "Potential Impact … why real-time QNX is the right choice" is a
   scored criterion, and the RT experiment's headline is *inconclusive* —
   correct honesty, weak ammunition. A hardware-backed rival wins this cell.
@@ -203,8 +203,8 @@ so Tech strength only helps ties — it does not rescue Impact.
   unregistered self-hosted `qnx` runner; it never boots QEMU or runs the
   16-step matrix — by design (licensed SDK + untrusted PR code = exfiltration
   risk). One build host; cross-SDP reproducibility unverified. Sources:
-  [qnx.yml](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/.github/workflows/qnx.yml:1-43),
-  [JUDGE_SCORECARD.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/JUDGE_SCORECARD.md:20).
+  [qnx.yml](../../../.github/workflows/qnx.yml#L1-L43),
+  [JUDGE_SCORECARD.md](../../../docs/jury/JUDGE_SCORECARD.md#L20).
 - Why brutal: every native claim reduces to "trust the author's laptop plus a
   hash." A judge who distrusts self-reported benchmarks has no independent
   signal.
@@ -222,13 +222,13 @@ so Tech strength only helps ties — it does not rescue Impact.
   Bonus winnable; B1 needs a codelab URL in the designated field, B2 is judged
   from the submission with no extra field. Owner actions name B2 primary +
   B1 second. Sources:
-  [qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:54-58),
-  [OMEGA5_OWNER_ACTIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/OMEGA5_OWNER_ACTIONS.md:22-26).
+  [qnx-forensics.md](./qnx-forensics.md#L54-L58),
+  [OMEGA5_OWNER_ACTIONS.md](../../../docs/submission/OMEGA5_OWNER_ACTIONS.md#L22-L26).
 - Why brutal: split polish across both bonuses halves the winning surface;
   B2 silently fails if the Devpost text + video never name the QNX primitives.
 - Fix: commit to B2-first; Devpost text names files/functions
   (`name_attach`/`MsgSend`/resmgr `/dev/genesis/status`/supervision) per
-  [WHY_QNX.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/WHY_QNX.md:7-38);
+  [WHY_QNX.md](../../../docs/jury/WHY_QNX.md#L7-L38);
   video shows them on screen; B1 filed as the free second selection only.
 - Verify: Devpost text grep for each primitive + file path; video shot list
   includes a QNX-primitive screen segment.
@@ -240,7 +240,7 @@ so Tech strength only helps ties — it does not rescue Impact.
   Confidence Med. Ratio 2.0.
 - OBSERVATION: on-disk counts include `verify.py` (35/37) while docs say
   34/36; no test pins file counts; both packs VERIFY OK so integrity holds.
-  Source: [recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:190-194).
+  Source: [recon.md](./recon.md#L190-L194).
 - Why brutal: trivially checkable mismatch — exactly the kind of nick a
   hostile reviewer can screenshot-circle to seed doubt about all other numbers.
 - Fix: one-line wording fix ("34 payload files + verify.py") + docs-consistency
@@ -253,7 +253,7 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: QNX image still boots with its DEFAULT password (rotation
   procedure exists); global interpreter runs `cryptography 43.0.3`
   (10 known vulns) vs lock 50.0.2; no project venv, so agents must not touch it.
-  Source: [OMEGA5_OWNER_ACTIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/submission/OMEGA5_OWNER_ACTIONS.md:44-64).
+  Source: [OMEGA5_OWNER_ACTIONS.md](../../../docs/submission/OMEGA5_OWNER_ACTIONS.md#L44-L64).
 - Why brutal: "hash-only pack verification does not depend on it" is true and
   beside the point — default creds + known vulns on the build box undermine
   every provenance sentence.
@@ -268,15 +268,15 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: `studio.html` (184 KB) has 13 tabs; self-assessed residual is
   "dense single page"; guided 7-stage Judge Mode tab exists with real
   run/inspect actions. Sources:
-  [recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:129-143),
-  [KNOWN_LIMITATIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/KNOWN_LIMITATIONS.md:16-23).
+  [recon.md](./recon.md#L129-L143),
+  [KNOWN_LIMITATIONS.md](../../../docs/jury/KNOWN_LIMITATIONS.md#L16-L23).
 - Why brutal: Design rewards "complete, coherent product experience, not just
   a technical proof of concept" — density reads as the latter in the first
   30 seconds.
 - Fix: no redesign without evidence (scorecard principle stands); verify Judge
   Mode carries a cold start end-to-end, tighten Overview copy, ensure the
   offline banner + 6 file inspectors degrade gracefully without backend
-  ([ui/README.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/ui/README.md:9-21)).
+  ([ui/README.md](../../../ui/README.md#L9-L21)).
 - Verify: cold-start walkthrough script (owner or owner-recruited human):
   land → Judge Mode → PASS verdict in <5 min, with and without backend.
 
@@ -286,8 +286,8 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: packs are hash-only UNSIGNED by design — SHA-256 integrity +
   offline replay, not signer authentication or attestation; `sign-pack` /
   `verify-pack` CLI exists but packs ship unsigned. Sources:
-  [KNOWN_LIMITATIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/KNOWN_LIMITATIONS.md:36-37),
-  [recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:221).
+  [KNOWN_LIMITATIONS.md](../../../docs/jury/KNOWN_LIMITATIONS.md#L36-L37),
+  [recon.md](./recon.md#L221).
 - Why brutal: "tamper-evident" without identity answers "was it modified" but
   not "who attests this ran on QNX" — the exact gap B-17 widens.
 - Fix (post-filing preferred): sign release packs at tag time with a documented
@@ -302,8 +302,8 @@ so Tech strength only helps ties — it does not rescue Impact.
   Regression: none for positioning. Confidence High. Ratio 4.0 (positioning).
 - VERIFIED FACT: depth is narrow on AMR/conveyor/cell; `industrial_cell` stays
   v1-only — v2 validation and v1→v2 migration reject it loudly. Sources:
-  [competitors.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:254),
-  [limitations-and-safety.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/limitations-and-safety.md:29-32).
+  [competitors.md](./competitors.md#L254),
+  [limitations-and-safety.md](../../../docs/limitations-and-safety.md#L29-L32).
 - Why brutal: "The Physical World Compiler" over-promises against 3 machine
   kinds; a generality-framed judge asks what the 4th kind costs.
 - Fix (pre-deadline): scope statement in Devpost — "narrow + deep on N kinds;
@@ -319,7 +319,7 @@ so Tech strength only helps ties — it does not rescue Impact.
   conformance-tested; pairs 2^31+ ms apart ambiguous by construction;
   wrap path host- and conformance-tested only — no native vector crosses 2^32
   on target yet. Source:
-  [limitations-and-safety.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/limitations-and-safety.md:14-22).
+  [limitations-and-safety.md](../../../docs/limitations-and-safety.md#L14-L22).
 - Fix: add a native wrap-crossing matrix vector (or document why infeasible on
   QEMU time budget); 64-bit clock is the post-MVP cure.
 - Verify: native vector green in a campaign transcript, or a dated infeasibility
@@ -330,8 +330,8 @@ so Tech strength only helps ties — it does not rescue Impact.
   Regression: medium for code. Confidence High. Ratio 1.5 (docs path).
 - VERIFIED FACT: "local-first, no auth, no sandbox beyond timeouts and argv
   lists"; loopback-only (`127.0.0.1:8077`) with foreign-Origin writes 403.
-  Sources: [limitations-and-safety.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/limitations-and-safety.md:28-29),
-  [recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:63-70).
+  Sources: [limitations-and-safety.md](../../../docs/limitations-and-safety.md#L28-L29),
+  [recon.md](./recon.md#L63-L70).
 - Why brutal: a network-exposed no-auth API running codegen/build pipelines is
   a one-line security dismissal — mitigated only if loopback-only is
   unmistakable in every doc.
@@ -356,14 +356,14 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: QSTI image ships no `ham` binary; supervision is the tested
   RESPAWN/GIVE_UP process with dedicated matrix steps; HAM documented as
   complementary. Source:
-  [KNOWN_LIMITATIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/KNOWN_LIMITATIONS.md:25-27).
+  [KNOWN_LIMITATIONS.md](../../../docs/jury/KNOWN_LIMITATIONS.md#L25-L27).
 - Ship the documented position; HAM integration needs an image with HAM +
   new matrix steps + pack regeneration.
 
 ### B-26 Single local operator, no team workflow — DEFER
 - Severity: Medium. Judge 3/10, User 6/10. Effort XL. Confidence High.
 - VERIFIED FACT: "no multi-user/team workflow — single local operator."
-  Source: [KNOWN_LIMITATIONS.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/docs/jury/KNOWN_LIMITATIONS.md:16-23).
+  Source: [KNOWN_LIMITATIONS.md](../../../docs/jury/KNOWN_LIMITATIONS.md#L16-L23).
 - Multi-user is a product generation, not a backlog item; state the scope.
 
 ### B-28 No static analysis / coverage / MISRA / qualification story — POSITION, don't build
@@ -371,7 +371,7 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: commercial class (Parasoft/LDRA/VectorCAST) owns
   standards-shaped verification; GENESIS RT explicitly claims no functional
   safety qualification. Source:
-  [competitors.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/competitors.md:262-291).
+  [competitors.md](./competitors.md#L262-L291).
 - Never compete there; Devpost frames GENESIS RT as the change-verification +
   evidence loop that sits *before* qualification tooling.
 
@@ -380,15 +380,15 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: `docs/demo/genesis-rt-demo-w12.mp4` (154.664 s) predates the
   7 Nov Studio nav change; explicitly NOT the final video; `facts.py` still
   pins it as `VIDEO_FILE`. Sources:
-  [VIDEO_DEFERRED.md](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/submission/VIDEO_DEFERRED.md:11-15),
-  [facts.py](C:/Users/TheBox/Desktop/QNX-hackaton/genesis-rt/host/genesis_rt/facts.py:23-24).
+  [VIDEO_DEFERRED.md](../../../submission/VIDEO_DEFERRED.md#L11-L15),
+  [facts.py](../../../host/genesis_rt/facts.py#L23-L24).
 - Fix: rename or banner the file + directory README as HISTORICAL — do not
   present, do not link from new docs; re-pin `VIDEO_FILE` to the final cut
   once B-01 lands.
 
 ### B-31 Cosmetic: PROGRESS.md Nov-8 entries appended, not prepended — TRIVIAL
 - Severity: Low. Judge 1/10, User 0/10. Effort XS. Confidence Med.
-- OBSERVATION per [recon.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/recon.md:253-255).
+- OBSERVATION per [recon.md](./recon.md#L253-L255).
   Reorder when next touching the file; zero judge leverage either way.
 
 ### B-32 Community Choice: organic only, never game votes — NOTE
@@ -396,7 +396,7 @@ so Tech strength only helps ties — it does not rescue Impact.
 - VERIFIED FACT: one vote per person per submission; circumvention/multiple
   emails/compensating voters → votes disqualified, maker possibly
   disqualified. Source:
-  [qnx-forensics.md](C:/Users/TheBox/Desktop/QNX-hackaton/v3-research/qnx-forensics.md:90).
+  [qnx-forensics.md](./qnx-forensics.md#L90).
 - No action except: announce the entry once through normal channels after
   filing; never incentivize votes.
 
