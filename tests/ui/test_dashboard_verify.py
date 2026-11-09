@@ -333,6 +333,32 @@ def test_studio_change_card_renders_verdict(tmp_path):
 
 
 @node
+def test_studio_change_card_escapes_hostile_names(tmp_path):
+    """OMEGA6 A2: the K1 card renderer escapes every interpolated
+    value — a `<script>` in a change id, run id, knob, scenario, or
+    generated-file name must render inert, never live markup."""
+    evil = '<script>alert("x")</script>'
+    verdict = {
+        "change_id": f"chg-{evil}",
+        "before": {"run_id": f"r-before-{evil}", "verdict": "FAIL"},
+        "after": {"run_id": f"r-after-{evil}", "verdict": "PASS"},
+        "chains_valid": {"before": True, "after": True},
+        "compare": {
+            "contract": {"limits_changed": {f"knob_{evil}": [0, 1]}},
+            "scenarios": {"fixed": [f"scen_{evil}"], "broken": []},
+            "generated": {"changed": [f"gen_{evil}.h"]},
+        },
+    }
+    (got,) = _run_js([{"fn": "change", "arg": json.dumps(verdict)}],
+                     tmp_path)
+    assert "<script>" not in got
+    assert evil not in got
+    assert "&lt;script&gt;" in got
+    # The passport links stay links (href-encoded, text-escaped).
+    assert "/runs/r-after-" in got and "passport/raw" in got
+
+
+@node
 def test_studio_passport_rejects_tampered(amr_ir, tmp_path):
     fresh = _fresh_passport(amr_ir, tmp_path)
     p = json.loads(fresh)
