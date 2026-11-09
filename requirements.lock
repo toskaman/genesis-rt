@@ -1,7 +1,8 @@
-# Pinned verification environment (Titan F5, 8 Nov 2026).
+# Pinned verification environment (Titan F5, 8 Nov 2026;
+# cryptography bumped 9 Nov 2026, Omega4 attack-4).
 #
-# Exact third-party versions the 1293-test suite + evals + browser E2E
-# were verified against on Windows (Python 3.14) and Linux CI
+# Exact third-party versions the 1348-test suite + evals + browser E2E
+# are verified against on Windows (Python 3.14) and Linux CI
 # (Python 3.12). `pyproject.toml` keeps compatible lower bounds for
 # installers; this file reproduces the verified environment:
 #
@@ -9,7 +10,10 @@
 #   pip install -e ".[dev,e2e]"
 #
 # Refresh intentionally (re-run the suite) — never float silently.
-cryptography==43.0.3
+# cryptography 50.0.2: meets the >=49 floor (43.0.3 carried 10 known
+# vulns); abi3 wheels verified for cp312-manylinux (CI) and
+# cp314-win_amd64 (owner box) via pip download 9 Nov 2026.
+cryptography==50.0.2
 fastapi==0.141.1
 httpx==0.28.1
 jsonschema==4.26.0

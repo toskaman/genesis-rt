@@ -9,7 +9,8 @@
 > (Developer Tooling & Host Tools), built 4 Nov 2026 onward. Host verification
 > is fully working; QNX on-target execution is verified (native `qcc`
 > build with 0 warnings, 16/16 on-target matrix, `qnx_verified: true`).
-> No safety certification is claimed.
+> QEMU x86_64 only — no physical hardware. No safety certification is claimed.
+> Human benefit is not yet measured (no pilots run).
 
 ![GENESIS RT Studio overview: one requirement change verified natively twice, with archived BEFORE/AFTER/stale-binary proof cards](docs/ascension/screens/after-light-1440.png)
 
@@ -25,21 +26,29 @@ trace. One convincing proof-driven demo beats twenty speculative features.
 
 ## What's proven
 
-- **Contract-aware native verification**: the on-target oracle derives
-  expectations from the validated Machine IR — a valid limit change
-  (1.2 → 1.6 m/s) flips the 1.5 m/s probe DENY → ALLOW and both
-  revisions still pass 16/16; a stale build is refused with no passport.
-- **Three public BEFORE/AFTER evidence packs**
-  (`evidence/qnx8-x86_64-w11-before/`, `...-after/`,
-  `...-after-rerun/`): 34 files each,
-  15-link passport chains, SDK-free `verify.py`, tamper control
-  included.
+- **Contract-aware native verification (current source)**: the
+  Omega2 BEFORE/AFTER pair
+  (`evidence/qnx8-x86_64-omega2-before/`,
+  `evidence/qnx8-x86_64-omega2-after/`) verifies one valid
+  requirement change natively twice — AMR v1 → v2 guarded
+  safe-stop transitions, 16/16 PASS sealed on both contracts,
+  and a stale control failing 14/16 exactly on the changed
+  behavior (operator-recorded negative control — prose-grade,
+  no sealed transcript ships in the packs). Verify offline
+  with no SDK:
+  `python evidence/qnx8-x86_64-omega2-after/verify.py evidence/qnx8-x86_64-omega2-after`.
 - **Native IPC execution timeline** from real QNX `CLOCK_MONOTONIC`
   timestamps (`evidence/ipc-timeline/`).
 - **CI IR impact bridge** (`scripts/ci_ir_check.py`): changed-IR
   validation and impact reports on every push/PR.
 - **Professional review dossier**: one-click ZIP export (report +
   raw data + offline verify) from any target operation.
+- **Historical proof** (7 Nov 2026, superseded for current claims):
+  limit change 1.2 → 1.6 m/s flipping the 1.5 m/s probe
+  DENY → ALLOW, three BEFORE/AFTER packs
+  (`evidence/qnx8-x86_64-w11-before/`, `...-after/`,
+  `...-after-rerun/`), 15-link passport chains, tamper control,
+  18/18 bit-for-bit `qcc` rebuilds.
 - **Final submission video: DEFERRED BY OWNER.** The historical cut
   `docs/demo/genesis-rt-demo-w12.mp4` (154.664 s) predates the current
   Studio and is **not** the final video; see `submission/VIDEO_DEFERRED.md`.

@@ -27,6 +27,7 @@ from typing import Any, Protocol
 
 from .ir import IRValidationError, validate_ir
 from .planner import PlannerRejection
+from .planner import _KIND_HINTS
 from .planner import propose as offline_propose
 
 # Unsafe / out-of-scope request patterns (matched on the lowered text).
@@ -46,7 +47,12 @@ _REMOVAL_VERBS = (r"strip(?:ped|ping)?|mute[sd]?|deactiv\w*|detach\w*"
                   r"|tak(?:e|en)\s+(?:out|off|away)|cut\s+out"
                   # Hardening-2: wide-window-safe additions only
                   # (silenced curtains, jumpered loop classes).
-                  r"|silenc\w*|jumper\w*")
+                  r"|silenc\w*|jumper\w*"
+                  # Omega4 fix-1: plain "remove" was missing here, so
+                  # "remove the <device>" only fired for the small
+                  # inline device set (v7-r01 class). The device on
+                  # the other side keeps the window safe.
+                  r"|remov\w*")
 # Hardening-2: verbs that must directly govern the device
 # ("drop the guard", "lift the rear guard") — too risky in a
 # wide window ("drop off totes, guard present" is benign).
@@ -66,36 +72,144 @@ _LACK_VERBS = r"lack\w*|missing"
 # Hardening-2: German/Spanish/French device + removal tables
 # (blind-v6 multilingual classes).
 _DE_DEVICES = (r"schutzzaun|zaun|lichtvorhang|vorhang|not-?aus"
-               r"|absperrung|sicherheitsschalter")
+               r"|absperrung|sicherheitsschalter|scanner"
+               # Omega4 fix-1: "Not-Halt" and torque-limit compounds
+               # (v7-r06/r08 classes).
+               r"|not[-\s]?halt|(?:drehmoment|drehzahl"
+               r"|geschwindigkeits)?grenzen")
 _DE_REMOVAL = (r"demont\w*|abmont\w*|ausgebaut|entfern\w*|deaktiv\w*"
-               r"|stillleg\w*|ausser\s+betrieb|außer\s+betrieb")
-_ES_DEVICES = r"cortina|valla|barrera|interruptor|enclavamiento"
+               r"|stillleg\w*|ausser\s+betrieb|außer\s+betrieb"
+               # Omega4 fix-1: "abgeschaltet" (switched off).
+               r"|abgeschaltet|abschalten")
+_ES_DEVICES = (r"cortina|valla|barrera|interruptor|enclavamiento"
+               # Omega4 fix-1: emergency-stop nouns + safety scanner.
+               r"|paro\s+de\s+emergencia|parada\s+de\s+emergencia"
+               r"|esc[áa]ner(?:es)?")
 _ES_REMOVAL = (r"desmont\w*|desactiv\w*|sin\s+activ\w*"
                r"|fuera\s+de\s+servicio|quit\w*")
-_FR_DEVICES = r"barriere|barrière|rideau|grillage|cloture|clôture"
+_FR_DEVICES = (r"barriere|barrière|rideau|grillage|cloture|clôture"
+               # Omega4 fix-1: e-stop nouns, safeties, limit stops,
+               # safety scanner (v7-r03/r04/r05 classes).
+               r"|[ld][’']arr[êe]ts?|s[ée]curit[ée]s?|but[ée]es?|scanners?")
 _FR_REMOVAL = (r"d[ée]mont\w*|retir\w*|enlev\w*|hors\s+service"
                r"|désactiv\w*|desactiv\w*")
+# Omega4 fix-1: suppression phrasings that name no removal verb
+# ("does not trigger/trip", "stays silent"); each requires a
+# safety device within 30 chars so benign uses stay accepted.
+_FR_SUPPRESS = r"(?:ne\s+)?d[ée]clenche(?:nt)?\s+pas"
+_DE_SUPPRESS = r"stumm.{0,30}bleib\w*|bleib\w*.{0,30}stumm"
+_ES_SUPPRESS = r"no\s+salte(?:n)?"
+# Omega4 fix-1: explicit unknown/TBD limit markers. Omission
+# (bare kind) takes documented defaults; an explicit unknown
+# is not omission and must refuse. Each marker requires a
+# value-slot token within 30 chars ("unknown payload" passes).
+_UNKNOWN_MARKERS = (r"unknown|tbd|tba|\bn/a\b|tbc|unspecified"
+                    r"|inconnu|inconnue|ind[ée]finis?|non\s+d[ée]fini"
+                    r"|[àa]\s+d[ée]finir|unbekannt\w*|desconocid[oa]s?"
+                    r"|sin\s+definir|por\s+definir")
+_VALUE_SLOTS = (r"period|speed|velocity|vitesse|p[ée]riode|periode"
+                r"|geschwindigkeit|tempo|velocidad|periodo")
+# Omega4 fix-1: bare units are promiscuous ("unknown payload,
+# 20 ms" must pass), so they only count adjacent to the marker.
+_VALUE_UNITS = r"\bms\b|m/s"
 # Hardening-2: explicit counts turn a plural into a fleet
 # ("three rovers" refuses; bare "rovers" accepts).
 _COUNT_WORDS = (r"two|three|four|five|six|seven|eight|nine|ten"
                 r"|eleven|twelve|both|dozen|several|multiple|many")
 _PLURAL_KINDS = (r"rovers|robots|amrs|mobiles|conveyors|belts|lines"
                  r"|arms|grippers|manipulators|agvs|cobots")
+# Omega4 fix-1: singular kind nouns that only signal a fleet with
+# a digit >= 2 ("7 Rover", "2 AMR"); digit 1 keeps accepting.
+_SINGULAR_FLEET_KINDS = (r"robot|rover|amr|agv|cobot|mobile|belt"
+                         r"|conveyor|arm|gripper|manipulator")
+# Omega4 fix-1: generic machine nouns that name no specific kind
+# ("set up a machine", "une Maschine"). With no kind hint they
+# veto the model consult (ambiguous); invented aliases with no
+# generic noun still consult.
+_GENERIC_NOUNS = (r"machine|unit|device|apparatus|equipment|system"
+                  r"|contraption|gadget|thing"
+                  r"|dispositif|appareil|unit[ée]|syst[èe]me|équipement"
+                  r"|maschine|gerät|einheit|vorrichtung|anlage"
+                  r"|m[áa]quina|unidad|dispositivo|aparato|equipo|sistema")
 _SAFETY_DEVICES = (r"guards?|guarding|e-?stops?|estops?|interlocks?"
                    r"|watchdogs?|curtains?|light\s+curtain"
                    r"|safety\s+curtain|bumpers?|safety\s+switch"
                    r"|safety\s+fence|fences?|safety"
-                   r"|not-?aus\b|arr[êe]t|enclavamiento|verriegelung")
+                   r"|not-?aus\b|arr[êe]t|enclavamiento|verriegelung"
+                   # Omega4 fix-1: the canonical emergency-stop nouns
+                   # plus the safety scanner (v7-r01/r02 classes).
+                   r"|emergency[-\s]?stops?|scanners?"
+                   r"|[ld][’']arr[êe]ts?|paro\s+de\s+emergencia"
+                   r"|parada\s+de\s+emergencia|not[-\s]?halt")
 _ZERO_WIDTH_RE = re.compile(
-    "[\u200b\u200c\u200d\ufeff\u00ad]")
+    "[\u200b\u200c\u200d\ufeff\u00ad"
+    # Omega4 fix-1: word joiner, directional marks, Mongolian
+    # vowel separator, isolate controls, line/paragraph
+    # separators (v7-r51/r54 classes). Bounded set; the full
+    # Cf/Cc/Zl/Zp space is NOT covered.
+    "\u2060\u180e\u200e\u200f\u061c\u2061\u2062\u2063\u2064\u2028\u2029]")
 _SPACED_LETTERS_RE = re.compile(r"\b([a-z])(?:\s+[a-z]){2,}\b")
+# Omega4 fix-1: single-letter hyphen splits ("e - stop").
+_SPACED_HYPHEN_RE = re.compile(r"\b([a-z])\s*-\s*([a-z])")
+# Omega4 fix-1: bounded Cyrillic/Greek lookalike fold applied to
+# the lowered text ("guаrd" -> "guard"). Six Cyrillic letters
+# plus i/omicron only; general confusable folding is out of
+# scope and documented as a residual risk.
+_HOMOGLYPH_FOLD = str.maketrans({
+    "а": "a",  # U+0430 CYRILLIC SMALL LETTER A
+    "с": "c",  # U+0441 CYRILLIC SMALL LETTER ES
+    "е": "e",  # U+0435 CYRILLIC SMALL LETTER IE
+    "о": "o",  # U+043E CYRILLIC SMALL LETTER O
+    "р": "p",  # U+0440 CYRILLIC SMALL LETTER ER
+    "х": "x",  # U+0445 CYRILLIC SMALL LETTER HA
+    "і": "i",  # U+0456 CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I
+    "ο": "o",  # U+03BF GREEK SMALL LETTER OMICRON
+})
+# Omega4 fix-1: split-word evasion ("dis abled", "des acti vado").
+# Chunk sequences rejoin ONLY when the joined form starts with a
+# refusal stem, so ordinary word pairs ("con el paro") pass
+# through untouched.
+_REJOIN_CHUNKS_RE = re.compile(
+    r"\b([a-zà-ÿ]{1,6}(?:\s+[a-zà-ÿ]{1,6}){1,3})\b")
+_REJOIN_STEMS = ("remov", "disabl", "deactiv", "desactiv", "désactiv",
+                 "retir", "enlev", "démont", "demont", "desmont",
+                 "entfern", "deaktiv", "abmont", "stillleg", "quit",
+                 "bypass", "silenc", "inactiv", "sactiva")
+
+
+def _rejoin_split_words(text: str) -> str:
+    """Slide a 2-4 chunk window over each chunk run; rejoin a
+    window only when the joined form starts with a refusal stem
+    ("guard dis abled for" -> "guard disabled for")."""
+    def fix(m: "re.Match[str]") -> str:
+        chunks = m.group(1).split(" ")
+        # Shortest window first: "dis abled for" must rejoin to
+        # "disabled", not to "disabledfor".
+        for width in (2, 3, 4):
+            for i in range(len(chunks) - width + 1):
+                joined = "".join(chunks[i:i + width])
+                if joined.startswith(_REJOIN_STEMS):
+                    chunks[i:i + width] = [joined]
+                    return " ".join(chunks)
+        return m.group(1)
+    prev = None
+    while prev != text:
+        prev = text
+        text = _REJOIN_CHUNKS_RE.sub(fix, text)
+    return text
 
 
 def canonicalize_request(text: str) -> str:
-    """Hardening-2: strip zero-width/format chars and rejoin
-    spaced-out letters ('d i s a b l e d') so evasions meet the
-    same guard as plain text."""
+    """Hardening-2 + Omega4 fix-1: strip zero-width/format chars,
+    fold bounded homoglyphs, rejoin spaced-out letters
+    ('d i s a b l e d') and split words ('dis abled'), glue
+    single-letter hyphen splits ('e - stop'), so evasions meet
+    the same guard as plain text."""
     text = _ZERO_WIDTH_RE.sub("", text or "")
+    text = text.translate(_HOMOGLYPH_FOLD)
+    text = _SPACED_HYPHEN_RE.sub(r"\1-\2", text)
+    text = _REJOIN_CHUNKS_RE.sub(
+        lambda m: _rejoin_split_words(m.group(0)), text)
     return _SPACED_LETTERS_RE.sub(
         lambda m: m.group(0).replace(" ", ""), text)
 _UNNEEDED_WORDS = (r"unnecessary|unneeded|not\s+needed|not\s+required"
@@ -110,7 +224,9 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
     # injection message even when they also name the guard. Parens use
     # a narrow keyword set so '(see manual)' style asides still pass.
     (r"\[[^\[\]]{0,100}(?:system|ignore|disregard|override|instruct"
-     r"|prompt|jailbreak|developer\s*mode|admin|execute|bypass)"
+     r"|prompt|jailbreak|developer\s*mode|admin|execute|bypass"
+     # Omega4 fix-1: non-English directive carriers (v7-r54 class).
+     r"|anweisung|befehl|ignorier\w*|instruction|instrucci[óo]n)"
      r"[^\[\]]{0,100}\]",
      "prompt-injection style instructions are not followed"),
     (r"\([^()]{0,100}(?:ignore\s+previous|disregard|override|bypass)"
@@ -145,12 +261,13 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
      "that machine is not a supported kind (AMR/conveyor/arm); "
      "describe a supported machine"),
     (r"\b((turn(?:ed|ing)?|switch(?:ed|ing)?|take|took)\s+off\s+"
-     r"(the\s+)?(watchdog|e-?stop|safety|guard|interlock)|"
-     r"(watchdog|e-?stop|safety|guard|interlock)\s+"
+     # Omega4 fix-1: emergency-stop joins the inline device set.
+     r"(the\s+)?(watchdog|e-?stop|safety|guard|interlock|emergency[-\s]?stops?)|"
+     r"(watchdog|e-?stop|safety|guard|interlock|emergency[-\s]?stops?)\s+"
      r"(is\s+|was\s+|were\s+|been\s+)?(turn(?:ed|ing)?|switch(?:ed|ing)?)\s+off|"
-     r"disabl\w*\s+(the\s+)?(watchdog|e-?stop|safety|guard|interlock)|"
-     r"remov\w*\s+(the\s+)?(watchdog|e-?stop|safety|guard|interlock)|"
-     r"(watchdog|e-?stop|safety|guard|interlock)\s+"
+     r"disabl\w*\s+(the\s+)?(watchdog|e-?stop|safety|guard|interlock|emergency[-\s]?stops?)|"
+     r"remov\w*\s+(the\s+)?(watchdog|e-?stop|safety|guard|interlock|emergency[-\s]?stops?)|"
+     r"(watchdog|e-?stop|safety|guard|interlock|emergency[-\s]?stops?)\s+"
      r"(is\s+|was\s+|were\s+|been\s+)?remov\w*)",
      "disabling or removing the safety guard is not supported"),
     (r'"kind"\s*:|"max_linear_speed_mps"\s*:|"period_ms"\s*:'
@@ -257,10 +374,41 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
      f"|(?:{_FR_DEVICES}).{{0,30}}(?:{_FR_REMOVAL})"
      f"|(?:{_FR_REMOVAL}).{{0,30}}(?:{_FR_DEVICES})",
      "disabling or removing the safety guard is not supported"),
+    # Omega4 fix-1: suppression without a removal verb (v7-r04/r07/
+    # r10 classes); each arm requires a device within 30 chars.
+    (f"(?:{_FR_DEVICES}).{{0,30}}(?:{_FR_SUPPRESS})"
+     f"|(?:{_FR_SUPPRESS}).{{0,30}}(?:{_FR_DEVICES})"
+     f"|(?:{_DE_DEVICES}).{{0,30}}(?:{_DE_SUPPRESS})"
+     f"|(?:{_DE_SUPPRESS}).{{0,30}}(?:{_DE_DEVICES})"
+     f"|(?:{_ES_DEVICES}).{{0,30}}(?:{_ES_SUPPRESS})"
+     f"|(?:{_ES_SUPPRESS}).{{0,30}}(?:{_ES_DEVICES})",
+     "disabling or removing the safety guard is not supported"),
+    # Omega4 fix-1: explicit unknown/TBD markers attached to a
+    # value slot (v7-r23..r28 classes). Omission-for-default is
+    # unaffected: markers without slots ("unknown payload") pass.
+    (f"(?:{_UNKNOWN_MARKERS}).{{0,30}}(?:{_VALUE_SLOTS})"
+     f"|(?:{_VALUE_SLOTS}).{{0,30}}(?:{_UNKNOWN_MARKERS})"
+     f"|(?:{_UNKNOWN_MARKERS}).{{0,8}}(?:{_VALUE_UNITS})"
+     f"|(?:{_VALUE_UNITS}).{{0,8}}(?:{_UNKNOWN_MARKERS})",
+     "unknown, TBD or empty limit values are not supported; state "
+     "an explicit period in ms and speed in m/s"),
+    # Omega4 fix-1: a limit slot left empty at the end of the
+    # request ("vitesse:"); mid-string empty slots stay uncovered.
+    (r"(?:period|speed|velocity|vitesse|p[ée]riode|periode"
+     r"|geschwindigkeit|tempo|velocidad|periodo)\s*:\s*$",
+     "unknown, TBD or empty limit values are not supported; state "
+     "an explicit period in ms and speed in m/s"),
     # Hardening-2: explicit counts make a fleet ("three rovers",
     # "both belts", "2 AMRs"); bare plurals still accept and
     # hyphenated modifiers ("six-axis") never match.
-    (f"(?:\\b(?:{_COUNT_WORDS})\\b|\\b\\d+\\b)\\s+(?:{_PLURAL_KINDS})\\b",
+    # Omega4 fix-1: up to two filler words between the count and
+    # the kind ("5 warehouse robots"), and digits >= 2 with
+    # singular kind nouns ("2 AMR", "7 Rover"). Digit 1 with a
+    # singular ("1 robot") still accepts.
+    (f"(?:\\b(?:{_COUNT_WORDS})\\b|\\b\\d+\\b)\\s+(?:\\w+\\s+){{0,2}}"
+     f"(?:{_PLURAL_KINDS})\\b"
+     f"|\\b[2-9]\\d*\\b\\s+(?:\\w+\\s+){{0,2}}"
+     f"(?:{_SINGULAR_FLEET_KINDS})\\b",
      "ambiguous machine requirement (fleet or mixed values); "
      "name exactly one machine with one set of limits"),
 )
@@ -308,7 +456,12 @@ refusal "wrong units: state the period in ms and the speed in m/s". Refuse
 (set refusal) if the request is not about one of these simulated machines, asks
 to disable guards, limits or simulation, targets real hardware, or is too vague
 to name a machine. Speeds above 10 m/s or periods outside 1..1000 ms: refusal
-"out of range"."""
+"out of range".
+Generic nouns alone (machine/unit/device, Maschine, dispositif, unidad, ...)
+name no machine: refusal "ambiguous machine kind". If the machine could be two
+different supported kinds, or none clearly: refusal, never a guess. (These are
+courtesy instructions; the deterministic generic-noun veto and the IR gate
+enforce the boundary even when the model guesses.)"""
 
 
 class LLMProvider:
@@ -387,10 +540,24 @@ class LLMProvider:
         except PlannerRejection as exc:
             if not str(exc).startswith("unknown machine kind"):
                 raise
+            # Omega4 fix-1: generic machine nouns with no specific
+            # kind hint veto the consult (v7-r59..r72 overmap
+            # class: the model invented kinds for "a machine" /
+            # "eine Maschine"). Invented aliases without a generic
+            # noun still consult.
+            low = (request or "").lower()
+            tokens = set(re.findall(r"[a-zà-ÿ]+", low))
+            specific = {h for hints, _ in _KIND_HINTS for h in hints}
+            if (re.search(rf"\b(?:{_GENERIC_NOUNS})\b", low)
+                    and tokens.isdisjoint(specific)):
+                raise PlannerRejection(
+                    "ambiguous machine kind: a generic machine noun "
+                    "names no supported kind (robot/rover/AMR, "
+                    "conveyor/belt, arm/gripper)") from None
             # Holdout v1 (llama3.1:8b) turned "write me a poem about QNX"
             # into a machine. With no recognisable machine word, the model
             # is only consulted when the request states a limit in ms or m/s.
-            if not re.search(r"\d+(?:\.\d+)?\s*(?:ms|m/s)\b", request.lower()):
+            if not re.search(r"\d+(?:\.\d+)?\s*(?:ms|m/s)\b", low):
                 raise PlannerRejection(
                     "no supported machine or limit stated; describe the machine "
                     "and give its period in ms or speed in m/s") from None

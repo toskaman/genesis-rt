@@ -443,3 +443,150 @@ def test_security_model_get_inventory_count_current():
     assert lst is not None
     n = len(re.findall(r'"([^"]+)"', lst.group(1)))
     assert int(m.group(1)) == n, (m.group(1), n)
+
+
+def _claims_ai_section() -> str:
+    text = _read("docs/CLAIMS.md")
+    start = text.index("## AI evaluation (current)")
+    end = text.find("\n## ", start + 1)
+    return text[start:end if end != -1 else len(text)]
+
+
+def _latest_blind_holdout() -> str:
+    """Latest COMMITTED (frozen) blind holdout. Untracked drafts
+    (e.g. a v8 file being authored) must not move the goalpost."""
+    proc = subprocess.run(
+        ["git", "ls-files", "evals/planning_holdout_v*.json"],
+        capture_output=True, text=True, cwd=ROOT, timeout=60)
+    names = (proc.stdout.split() if proc.returncode == 0 else
+             [p.name for p in (ROOT / "evals").glob(
+                 "planning_holdout_v*.json")])
+    versions = [int(m.group(1)) for m in
+                (re.fullmatch(r"(?:.*/)?planning_holdout_v(\d+)\.json", n)
+                 for n in names) if m is not None]
+    assert versions, "no frozen blind holdout datasets found"
+    return f"v{max(versions)}"
+
+
+def test_current_ai_summary_names_latest_blind_eval():
+    """Omega4 §2.4: the canonical AI summary must name the latest
+    frozen blind evaluation and quantify its unsafe accepts
+    (it foregrounded v4/v5 after v6 existed)."""
+    section = _claims_ai_section()
+    latest = _latest_blind_holdout()
+    assert latest in section, f"CLAIMS AI omits latest blind eval {latest}"
+    assert re.search(r"\d+ unsafe accepts", section), \
+        "CLAIMS AI lacks a quantified unsafe-accept count"
+
+
+def test_superseded_failures_not_presented_as_latest_open():
+    """Omega4 §2.4: failures fixed or superseded by a later blind
+    set must not read as the latest open findings."""
+    section = _claims_ai_section()
+    assert "12 v5 unsafe-accept classes are measured and OPEN" \
+        not in section
+    assert re.search(r"v5.{0,60}OPEN", section) is None, \
+        "v5 failures still read as open findings"
+
+
+def test_model_consultation_disclosed_current_docs():
+    """Omega4 §2.4: current AI disclosures must state whether the
+    model was actually consulted (v6: zero times)."""
+    assert "consult" in _claims_ai_section().lower()
+    draft = _read("docs/submission/DEVPOST_FINAL_DRAFT.md")
+    assert "consult" in draft.lower()
+
+
+def test_readme_flagships_current_source_packs():
+    """Omega4 §2.4: the README proof section leads with the
+    current-source Omega2 pair; W11 stays as dated history."""
+    readme = _read("README.md")
+    start = readme.index("## What's proven")
+    end = readme.find("\n## ", start + 1)
+    proven = readme[start:end if end != -1 else len(readme)]
+    assert "omega2-before" in proven and "omega2-after" in proven
+    assert proven.index("omega2-before") < proven.index("w11-before"), \
+        "historical packs still lead the flagship proof section"
+
+
+def test_human_impact_not_upgraded_without_records():
+    """Omega4 §2.4: the unmeasured-benefit status stands until real
+    consented pilot records exist (fixtures never count)."""
+    recdir = ROOT / "bench" / "productivity" / "pilot-records"
+    real = [p for p in recdir.glob("*.jsonl")] if recdir.is_dir() else []
+    real = [p for p in real if not p.stem.startswith(
+        ("fixture", "example", "test", "sample"))]
+    if not real:
+        score = _read("docs/jury/JUDGE_SCORECARD.md")
+        assert "HUMAN USER BENEFIT NOT YET MEASURED" in score
+
+
+def test_no_positive_hardware_signer_or_a11y_overclaims():
+    """Omega4 §2.4: QEMU evidence is never physical-hardware proof,
+    hashes are never signer authentication, and axe scans are never
+    a completed screen-reader pass (denials are fine)."""
+    docs = ("README.md", "docs/CLAIMS.md",
+            "docs/submission/DEVPOST_FINAL_DRAFT.md",
+            "docs/jury/JUDGE_SCORECARD.md",
+            "docs/business/COMMERCIAL_VISION.md",
+            "docs/jury/KNOWN_LIMITATIONS.md")
+    denial = ("no ", "not ", "without", "unsigned", "hash-only",
+              "never", "non-", "none ", "unmeasured", "neither")
+    for rel in docs:
+        text = _read(rel)
+        assert re.search(r"(measured|verified|demonstrated|shows?|"
+                         r"achieves?|runs? on|tested on) "
+                         r"(physical|real) hardware",
+                         text, re.I) is None, f"hardware proof claim: {rel}"
+        assert re.search(r"WCAG 2\.2 AA conformat|fully WCAG|"
+                         r"screen-readers? (verified|complete|passed)",
+                         text, re.I) is None, f"a11y overclaim: {rel}"
+        low = text.lower()
+        assert re.search(r"signed (packs?|evidence|passports?|"
+                         r"manifests?|bundles?|dossiers?)",
+                         low) is None, f"signed-packs claim: {rel}"
+        assert re.search(r"(packs?|evidence|passports?|manifests?|"
+                         r"bundles?|dossiers?) (are|were|is) signed",
+                         low) is None, f"signed-packs claim: {rel}"
+        for m in re.finditer(r"signature|attestation", low):
+            line = low[max(0, m.start() - 80):m.end() + 40]
+            assert any(d in line for d in denial), \
+                f"signer/trust overclaim near {m.group(0)!r}: {rel}"
+        for m in re.finditer(r"screen-readers?|screen readers?", low):
+            window = low[max(0, m.start() - 120):m.end() + 120]
+            assert any(d in window for d in
+                       ("outstanding", "pending", "not ", "no ",
+                        "missing", "without", "unmeasured")), \
+                f"unqualified screen-reader claim: {rel}"
+
+
+def _collect_count(path: str) -> int:
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", path, "-o", "addopts=",
+         "--collect-only", "-q", "-p", "no:warnings"],
+        capture_output=True, text=True, cwd=ROOT, timeout=300)
+    m = re.search(r"(\d+) tests? collected", proc.stdout)
+    assert m is not None, proc.stdout[-500:]
+    return int(m.group(1))
+
+
+def test_devpost_planning_count_matches_collected():
+    """Omega4 attack-1: the submission draft's planning line once
+    read 52/52 while 60 collected. Pin it to collection."""
+    n = _collect_count("tests/unit/test_planning.py")
+    draft = _read("docs/submission/DEVPOST_FINAL_DRAFT.md")
+    line = next((ln for ln in draft.splitlines()
+                 if "Planning unit tests" in ln), "")
+    assert line, "draft lost its planning-tests line"
+    assert f"{n}/{n}" in line, f"draft says {line.strip()!r}, collected {n}"
+
+
+def test_requirements_lock_meets_crypto_floor():
+    """Omega4 attack-4: the lock once pinned 43.0.3 against a >=49
+    floor (CI installs the lock). Pin major.minor >= 49."""
+    lock = _read("requirements.lock")
+    m = re.search(r"^cryptography==(\d+)\.(\d+)\.(\d+)\s*$", lock,
+                  re.MULTILINE)
+    assert m is not None, "lock lost its cryptography pin"
+    major, minor = int(m.group(1)), int(m.group(2))
+    assert (major, minor) >= (49, 0), f"lock pins {m.group(0)} < 49"

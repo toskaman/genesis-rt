@@ -88,5 +88,11 @@ These measure regression, NOT generalization.
 
 ## 5. Test command and outcome
 
+> Snapshot scope (Omega4 note, 9 Nov 2026): the counts below
+> belong to the P0c tree (`c6085f2` era, before the P1/INT
+> tests). Final Omega3 tree: 1329 passed + 2 skipped / 1331
+> (`docs/audits/OMEGA3_FINAL_REPORT.md`). This section is
+> preserved as the measurement record of that commit.
+
 `python -m pytest tests/ -q` (SDK, Windows, Python 3.14):
 1320 passed + 2 pre-existing axe skips of 1322, zero failures.

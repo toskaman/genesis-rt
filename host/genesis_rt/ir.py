@@ -110,11 +110,22 @@ def validate_ir(data: dict[str, Any]) -> dict[str, Any]:
     """
     _need(isinstance(data, dict), "IR root must be a mapping")
     allowed_top = {"schema_version", "machine", "actuators", "sensors",
-                   "control", "safety_contracts", "verification", "cell"}
+                   "control", "safety_contracts", "verification", "cell",
+                   "defaults_applied"}
     unknown = set(data) - allowed_top
     _need(not unknown, f"unknown top-level keys: {sorted(unknown)}")
-    for key in allowed_top - {"cell"}:
+    for key in allowed_top - {"cell", "defaults_applied"}:
         _need(key in data, f"missing required key: {key}")
+    if "defaults_applied" in data:
+        # Omega4 §3.2: bare-kind defaults stay accepted only with
+        # output disclosure — 1..2 unique known field names.
+        da = data["defaults_applied"]
+        _need(isinstance(da, list) and 1 <= len(da) <= 2
+              and all(isinstance(x, str) for x in da)
+              and set(da) <= {"period_ms", "max_linear_speed_mps"}
+              and len(set(da)) == len(da),
+              "defaults_applied must be 1..2 unique items from "
+              "[period_ms, max_linear_speed_mps]")
     _need(type(data["schema_version"]) is int
           and data["schema_version"] == SCHEMA_VERSION,
           f"schema_version must be exactly {SCHEMA_VERSION} (bool/float rejected)")

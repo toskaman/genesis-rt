@@ -4,11 +4,44 @@
 > Current scores are in the first table; everything below the line is
 > historical and kept for traceability.
 
-## Current internal assessment — 8 Nov 2026 (Omega3)
+## Current internal assessment — 9 Nov 2026 (Omega4)
 
-1331 host tests green on the owner machine (SDK: 1329 passed + 2
-honest axe skips; SDK-free: 1325 + 6 honest skips), 24-test adversarial
-suite green, 28-case planning eval at 28/28, 52 planning unit tests
+1348 host tests green on the owner machine (SDK+axe: 1348 passed,
+0 skips; SDK-only: 1346 + 2 honest axe skips).
+SDK-free: 1342 + 6 honest skips (SDK-gated).
+45 documentation-consistency tests
+green, 60 planning unit tests green, E2E 32/32 with axe-core
+(30 + 2 skips without it), Omega2 packs re-verified VERIFY OK
+16/16 on the final tree (no target/ C changes, so no native
+re-run required).
+
+| Criterion | Omega3 | **Now** | New Omega4 evidence | Remaining gap | Independent attack |
+|---|---|---|---|---|---|
+| Technological Implementation | 9.5 | **9.5** | CLAIMS/README drift fixes + 8 semantic pins (frozen-only latest-eval, Devpost planning pin, crypto-floor lock pin); requirements.lock cryptography 43.0.3 → 50.0.2 (floor met where CI installs); STALE 14/16 scoped to prose-grade; packs re-verified offline | no native CI runner; TCG-only timing; one build host; cross-SDP unverified; lock bump awaits CI proof | 9 (reviewer: sealed packs on current source hold; −1 QEMU-only + single host + crypto residual) |
+| Design | 8 | **8** | screen-reader checklist protocol (prepared, NOT executed); keyboard/320px/390px/1366px/zoom review; no redesign without evidence | dense single page; no screen-reader session; video deferred | 7 (reviewer: axe 3/3 verified; −3 density + no SR + no video) |
+| Potential Impact | 5 | **5** | pilot tooling validated on fixtures; owner handoff written; nothing sent, nothing faked | `HUMAN USER BENEFIT NOT YET MEASURED`; zero participants, zero invitations | 5 (reviewer agrees) |
+| Innovation & AI Creativity | 8 | **8.5** | blind v7 (120, d91e3956): 83/82/79, 20 consults, 30 shared unsafe; fix-1 under contract v1.2 (6 red-green tests, fresh phrasings); blind v8 (100, cb3820fd): 82/90/92, 25 consults, 4 residuals (1 dispute + 3 subclasses); over-mapping 7-9 → 0; FR/wrong-kind metrics defined; raws published | 4 unsafe/100 open; v8 targeted (no broad-robustness claim); parcel-coinage→conveyor model bias; v6 zero-consult latency-inferred | 7 (reviewer: genuine v7→fix→v8 loop with frozen proof; −3 open residuals + no broad claim + report nicks, since fixed) |
+
+Total **31 / 40** (Omega3: 30.5; independent reviewer: 28/40 =
+9/7/5/7). The AI cell moves up half a point: the model path is
+now exercised and measured (20-25 direct consults), the veto is
+proven on a blind set (generic nouns 8/8, zero consults), and
+residuals are 4 named cases instead of 26 classes — but v8 is a
+targeted instrument, so no broader claim is made. Internal
+assessment, not official judging. No criterion is claimed at
+10/10. Final video DEFERRED BY OWNER; submission pending the
+video.
+
+---
+
+## Historical assessment — 8 Nov 2026 (Omega3)
+
+(Counts below were kept in sync through Omega4 P0; the evidence
+cells are Omega3-era.)
+
+1346 host tests green on the owner machine (SDK: 1344 passed + 2
+honest axe skips; SDK-free: 1340 + 6 honest skips), 24-test adversarial
+suite green, 28-case planning eval at 28/28, 60 planning unit tests
 green, E2E 30 + 2 skips / 32, Omega2 packs re-verified VERIFY OK
 16/16 on the final tree.
 
@@ -32,7 +65,7 @@ DEFERRED BY OWNER; submission pending the video.
 
 | Criterion | 7 Nov | **Now** | New Omega2 evidence | Remaining gap |
 |---|---|---|---|---|
-| Technological Implementation | 9 | **9.5** | 4th native pack on current source (BEFORE/AFTER 16/16 ×2, v2 machine end-to-end first time, 14/16 STALE-as-designed); campaign lock + atomic staging; supervisor-passed pid + set-restart handshake with native proof; 5 native bugs found natively and fixed red-then-green; H9/M6/H8 trust fixes; 1331-test suite green (SDK: 1329+2; SDK-free 1325+6) | no native CI runner; TCG-only timing; one build host; cross-SDP reproducibility unverified |
+| Technological Implementation | 9 | **9.5** | 4th native pack on current source (BEFORE/AFTER 16/16 ×2, v2 machine end-to-end first time, 14/16 STALE-as-designed); campaign lock + atomic staging; supervisor-passed pid + set-restart handshake with native proof; 5 native bugs found natively and fixed red-then-green; H9/M6/H8 trust fixes; 1346-test suite green (SDK: 1344+2; SDK-free 1340+6) | no native CI runner; TCG-only timing; one build host; cross-SDP reproducibility unverified |
 | Design | 7.5 | **8** | Studio honesty pass (shared-core passport classifier, terminal phase banner, runner hint); E2E 29+2 green incl. axe clean × 2 themes; 48 control names verified | designer/graph/runner still form-heavy (scoped fixes, no full redesign); no screen-reader session |
 | Potential Impact | 5 | **5** | pilot kit ready, zero invitations sent — unchanged | `HUMAN USER BENEFIT NOT YET MEASURED` |
 | Innovation & AI Creativity | 8 | **8.5** | v4 rerun identical (no regression); v5 second frozen set (agent-authored, frozen-before-run) measured 24/36 × 3 identical, 0 false rejects; r14-class fix confirmed on fresh phrasings (2/2 deterministic) | 12 v5 unsafe-accept classes open; 72 cases still small and same-author; model refusal reasons unreliable |
@@ -66,7 +99,7 @@ verifiable evidence or a named weakness.
 
 | Criterion | Score | Evidence | Weakness | Improvement | Verified result |
 |---|---|---|---|---|---|
-| A. Technological Implementation | 9/10 | Native guard/controller/device/status/supervisor/faultinject + cellcheck in C (`qcc` 0 warnings, incl. env-gated IPC trace); contract-aware native oracle (IR-derived EXPECTED_DENY/ALLOW/SAFE_STOP/ERROR, float32 wire fidelity, mutation + flipped-verdict anti-cheating); 16/16 on-target matrix; two valid W11 before/after passports + genuine negative; native IPC timeline from real CLOCK_MONOTONIC stamps; 1331 host tests (SDK outcome per-machine; SDK-free: 1325 + 6 honest skips, Omega3 INT jury-attack); C/Python conformance harness; red-team rounds 1–2; soak 100 jobs zero thread leak | QEMU-only (no real hardware); no HAM (absent from image); no HW attestation; uint32 ms clocks wrap-safe RFC1982 | ARM/real-board campaign; HAM integration when image ships it; 64-bit clocks | 16/16 matrix PASS + replay + tamper control; W11 packs VERIFY OK; fresh rerun op-24fecbf11df8 16/16 (7 Nov 2026, `evidence/qnx8-x86_64-w11-after-rerun/`) |
+| A. Technological Implementation | 9/10 | Native guard/controller/device/status/supervisor/faultinject + cellcheck in C (`qcc` 0 warnings, incl. env-gated IPC trace); contract-aware native oracle (IR-derived EXPECTED_DENY/ALLOW/SAFE_STOP/ERROR, float32 wire fidelity, mutation + flipped-verdict anti-cheating); 16/16 on-target matrix; two valid W11 before/after passports + genuine negative; native IPC timeline from real CLOCK_MONOTONIC stamps; 1346 host tests (SDK outcome per-machine; SDK-free: 1340 + 6 honest skips, Omega4 fix-1); C/Python conformance harness; red-team rounds 1–2; soak 100 jobs zero thread leak | QEMU-only (no real hardware); no HAM (absent from image); no HW attestation; uint32 ms clocks wrap-safe RFC1982 | ARM/real-board campaign; HAM integration when image ships it; 64-bit clocks | 16/16 matrix PASS + replay + tamper control; W11 packs VERIFY OK; fresh rerun op-24fecbf11df8 16/16 (7 Nov 2026, `evidence/qnx8-x86_64-w11-after-rerun/`) |
 | B. Design | 9/10 | CLI + local API + Studio Live (projects/designer/SSE pipeline + Target Runner tab with phase checklist + inspection tabs incl. evidence graph); guided 7-stage Judge Mode tab with real run/inspect actions; coherent machine→native-QNX→passport flow from the page; verified 45-min codelab (Win+Linux); precise errors (exit 2 + reason); judge path is 2 commands; one-click dossier ZIP export (`/target/ops/{id}/dossier`: report.html + TOC/coverage/print CSS + manifest + VERIFY.md); inline release-decision panel (`/target/ops/{id}/decision`); change-proof before/after view (contract→code→binary→behavior→passports); real-browser E2E in CI (Judge A→G + 19 negative paths: guidance/cancel/refresh/navigation/tamper/outage/3 viewports, zero console errors); final video DEFERRED BY OWNER (historical w12 cut is not the submission video) | E2E covers the host path only in CI (no QEMU/SDK); final video deferred by owner; YouTube publication pending | Self-hosted SDK/QEMU CI lane; YouTube publish; dossier PDF export | E2E 32/32 (incl. axe WCAG 2.2 scan, both themes, + 320 px reflow) in CI; fresh-clone judge path green (suite 1324 + 6 SDK skips + pack verify OK) |
 | C. Potential Impact | 8/10 | Industrial-cell flagship demo; `docs/business/COMMERCIAL_VISION.md` (users, 8 use cases, landscape, models, roadmap); honest QNX-licensing note; ~45-min onboarding measured; pilot-study kit (task set, both-lane templates, survey, privacy, repro scripts); bench v2 refreshed 2026-11-06 (8 vs 30+10, faults 5/5 vs 3/5, reproducible); CI IR-check bridge (per-push validate + impact + retest verdict + report artifact); dossier review UX | No pilot teams yet; human gains unmeasured (machine-time only, labeled as such) | 2–3 pilots with before/after numbers | Cell Demo C broken→fixed with causal delta; bench REPORT.json |
 | D. Innovation & AI Creativity | 9/10 | Evidence passport + fail-closed gate + counterfactual compare (contract knob → verdict move); contract-aware oracle (distinguishes a changed expectation from a safety regression); native IPC timeline (SEND→RECV→REPLY→DONE waterfall from real target stamps); 24-test adversarial suite; pinned ce-001 counterexample + before/after regression; 28-case planning eval at 28/28 behind the strict gate | Bundled AI is a keyword planner, not an LLM (labeled as such); no real provider adapter | LLM provider adapter measured on the same 28-case set (if a provider becomes available) | `compare` output + eval + oracle mutation results, all replayable |
