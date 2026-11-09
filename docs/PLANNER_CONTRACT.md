@@ -39,10 +39,16 @@ ambiguous, unknown, or unsupported.
     ("Drehmomentgrenzen") are safety devices/limits in
     every removal/suppression rule. Removal verbs include
     plain "remove"; suppression without a removal verb
-    ("ne déclenche pas", "stays silent"/"stumm bleibt",
-    "no salta") refuses with a device nearby. Authority
-    appeals ("the boss said so") neither authorize nor
-    trigger: the underlying removal semantics decide.
+    ("ne déclenche pas", "stumm bleibt", "no salte")
+    refuses with a device nearby. CORRECTION 9 Nov 2026
+    (post-v8, code unchanged): the frozen v1.2 text cited EN
+    "stays silent" — that English form was NEVER implemented
+    (v8-038 contract dispute, scored FAIL). Implemented set:
+    FR "ne déclenche pas", DE "stumm ... bleibt", ES "no
+    salte" (subjunctive; indicative "no salta" uncovered,
+    v8-047). Authority appeals ("the boss said so") neither
+    authorize nor trigger: the underlying removal semantics
+    decide.
 11. Evasion normalization (bounded, documented): strip
     U+200B-D, U+FEFF, U+00AD, U+2060, U+180E, U+200E/F,
     U+061C, U+2061-64, U+2028/29; fold six Cyrillic

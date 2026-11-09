@@ -9,13 +9,13 @@ current evidence.
 
 ## Test counts
 
-- Collected total: **1340** (`facts.TESTS_WITH_SDK`; SDK-run skips are
+- Collected total: **1346** (`facts.TESTS_WITH_SDK`; SDK-run skips are
   per-machine — the 2 axe scans skip without `node_modules/axe-core`).
-- SDK-free (9 Nov 2026 + Omega4 P0 contract): **1334 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
+- SDK-free (9 Nov 2026 + Omega4 fix-1): **1340 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`, the 28-case
-  published eval dataset — distinct from the 52 planning unit
+  published eval dataset — distinct from the 60 planning unit
   regression tests in `tests/unit/test_planning.py`).
 - Real-browser E2E: **32** collected from `tests/e2e/` (`facts.E2E_BROWSER_TESTS`):
   23 judge-journey + negative-path tests, 3 axe-core WCAG 2.2 / 320 px
@@ -23,7 +23,7 @@ current evidence.
   200 %/400 % zoom emulation). All 32 run in host CI. On a machine without
   `axe-core` in `node_modules` the 2 axe scans **skip** visibly — that is
   the "2 skipped" in bare Windows + SDK runs (9 Nov 2026 Windows +
-  SDK run: 1338 passed + 2 skipped of 1340, zero failures, first
+  SDK run: 1344 passed + 2 skipped of 1346, zero failures, first
   attempt; the previous 1337-tree run needed one retry after a
   transient Playwright `networkidle` E2E timeout that passed in
   isolation — no browser-served file changed, so not a regression).
@@ -79,36 +79,54 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
 
 ## AI evaluation (current)
 
-- Latest blind set: **v6** (72 cases, 24 valid + 48 reject,
-  separately agent-authored, frozen before the fixes):
-  **46/72 on offline, Qwen 2.5 7B and Llama 3.1 8B
-  identically** — 24/24 valid, 22/48 rejects,
-  **26 unsafe accepts**, 0 false rejects. The model was consulted
-  **zero times** (deterministic short-circuit on every
-  case); v6 measures the deterministic layer only.
-- v6 open findings: 26 accepted reject-labelled cases
-  (novel paraphrases, multilingual removal, evasion,
-  injections); 3 bare-kind cases are explicit contract
-  disputes (adjudicated in the v1 planner contract —
-  bare kind accepted only with output-disclosed
-  defaults), NOT silently reclassified.
+- Latest blind set: **v8** (100 cases, 35 valid + 65 reject,
+  EN/FR/DE/ES x25, 21-case fallback cohort, separately
+  agent-authored against contract v1.2, frozen cb3820fd;
+  targets the fix-1 classes with novel phrasings): offline
+  **82/100** (4 unsafe accepts), Qwen 2.5 7B **90/100**,
+  Llama 3.1 8B **92/100** (4 unsafe accepts each, same 4
+  cases; 25 direct consults per model). Fixed classes held:
+  unknown/fleet/generic/unsupported 12-12-8-12; model
+  over-mapping 7-9 (v7) → **0** (generic nouns refused with
+  zero consults). Residuals: 1 contract dispute (EN "stays
+  silent" cited but unimplemented) + 3 novel subclasses
+  (ES "salta", "eliminar", FR→EN cross pairing). v8 is NOT
+  broad-generalization proof (targeted instrument).
+- Previous blind set v7 (120 cases, v1.1 code): offline
+  83/120 (30 unsafe accepts), Qwen 82/120 (37), Llama
+  79/120 (39); 20 consults per model; 30 shared
+  deterministic-layer accepts (safety_removal 0/10 incl.
+  plain-English "emergency stop" gaps, evasion 0/6).
+  Motivated fix-1; NEVER rerun on changed code.
+- Previous blind set v6 (72 cases): 46/72 on all three
+  providers identically, 26 unsafe accepts, model consulted
+  zero times (deterministic layer only). 3 bare-kind cases
+  were explicit contract disputes, adjudicated in contract
+  v1.1 (bare kind accepted only with output-disclosed
+  defaults), NOT silently reclassified. v6 outcomes
+  preserved; v7 supersedes it as the open set.
+- Post-v7 fix-1 (contract v1.2, blind-measured by v8):
+  emergency-stop/scanner vocabularies, multilingual
+  suppression + unknown-marker + digit-fleet rules, bounded
+  evasion canonicalization, deterministic generic-noun veto
+  before any consult. Covered by 6 red-then-green tests with
+  fresh phrasings — v7 was NEVER rerun on this code.
 - Post-fix regression (NOT generalization): v4/v5 offline
   36/36 after hardening-2 — development-touched sets,
-  reported for regression only. The 12 v5 failure
-  classes are fixed; v6's 26 are the open set.
+  reported for regression only.
 - Measurement ladder (never merged into one percentage):
   frozen history (98-case, v2/v3) → regression
-  (v4/v5 postfix) → blind agent-authored (v6) →
-  model-fallback (unmeasured until v7) → human (none).
-- **v7 required**: ≥120 fresh blind cases with a real
-  model-fallback cohort and direct consult counts before
-  any new generalization claim. No general-robustness
-  claim from 72 cases.
-- Model refusal reasons are unreliable; only accept/refuse
-  outcomes scored. The model never authorizes safety —
-  the deterministic gate decides (pinned by tests).
-- Canonical: `docs/audits/OMEGA3_AI_EVALUATION.md` (+ raw
-  `evals/results/2026-11-08-omega3-v6/`); history in
+  (v4/v5 postfix) → blind agent-authored (v6, v7, v8) →
+  model-fallback (v7: 20 consults/provider; v8: 25) →
+  human (none).
+- No general-robustness claim from 100-120 cases. Model
+  refusal reasons are unreliable; only accept/refuse
+  outcomes scored. The model never authorizes safety — the
+  deterministic gate decides (pinned by tests).
+- Canonical: `docs/audits/OMEGA4_AI_EVALUATION.md` (+ raw
+  `evals/results/2026-11-09-omega4-v7/` and
+  `evals/results/2026-11-09-omega4-v8/`); v6 report in
+  `docs/audits/OMEGA3_AI_EVALUATION.md`; history in
   `docs/ascension/AI_EVALUATION.md`.
 
 ## CI behavior

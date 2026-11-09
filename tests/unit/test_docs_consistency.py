@@ -453,10 +453,17 @@ def _claims_ai_section() -> str:
 
 
 def _latest_blind_holdout() -> str:
+    """Latest COMMITTED (frozen) blind holdout. Untracked drafts
+    (e.g. a v8 file being authored) must not move the goalpost."""
+    proc = subprocess.run(
+        ["git", "ls-files", "evals/planning_holdout_v*.json"],
+        capture_output=True, text=True, cwd=ROOT, timeout=60)
+    names = (proc.stdout.split() if proc.returncode == 0 else
+             [p.name for p in (ROOT / "evals").glob(
+                 "planning_holdout_v*.json")])
     versions = [int(m.group(1)) for m in
-                (re.fullmatch(r"planning_holdout_v(\d+)\.json", p.name)
-                 for p in (ROOT / "evals").glob("planning_holdout_v*.json"))
-                if m is not None]
+                (re.fullmatch(r"(?:.*/)?planning_holdout_v(\d+)\.json", n)
+                 for n in names) if m is not None]
     assert versions, "no frozen blind holdout datasets found"
     return f"v{max(versions)}"
 
