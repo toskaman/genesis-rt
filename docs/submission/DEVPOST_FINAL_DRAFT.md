@@ -72,15 +72,17 @@ target over SSH → contract-aware native oracle (expected
 ALLOW / DENY / SAFE_STOP derived from the validated IR,
 not hard-coded) → transcripts sealed into a 15-link
 passport bound to the IR digest and op id → in-op replay
-→ release decision. Host suite: 1395 tests collected
-(9 Nov 2026 owner run, SDK + axe: 1395 passed + 0 skipped,
-0 failures; SDK without axe: 1393 + 2 honest skips;
-SDK-free CI: 1389 + 6 SDK-gated skips).
+→ release decision. Host suite: 1431 tests collected
+(9 Nov 2026 owner run, SDK + axe: 1431 passed + 0 skipped,
+0 failures; SDK without axe: 1429 + 2 honest skips;
+SDK-free CI: 1425 + 6 SDK-gated skips).
 Planning unit tests 73/73 in `tests/unit/test_planning.py`
 (60 inherited + 13 OMEGA5: 12 red-green planner cases + 1
 v9-overlap methodology pin; distinct from the 28/28
 published-eval regression);
-browser E2E 32/32 (owner run; SDK-free CI skips 2).
+browser E2E 41/41 (owner run; all 41 run SDK-free — no E2E
+test is SDK-gated; the 2 axe scans skip only without
+node_modules/axe-core).
 
 ## How we use QNX (evidence of QNX use)
 
@@ -240,7 +242,7 @@ PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve
 # Studio at http://127.0.0.1:8077/
 python -m pytest tests/ -q
-# 1395 collected; SDK-free CI: 1389 + 6 honest skips
+# 1431 collected; SDK-free CI: 1425 + 6 honest skips
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then
