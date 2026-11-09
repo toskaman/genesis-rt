@@ -803,6 +803,14 @@ def test_docs_have_no_outside_repo_links():
     assert offenders == [], "\n".join(offenders)
 
 
+def test_v10_trigger_rule_pinned():
+    """OMEGA6 D6: the v10 rule lives in the roadmap-facing
+    limitations doc — planner change implies a fresh blind set."""
+    text = _read("docs/jury/KNOWN_LIMITATIONS.md")
+    assert "v10 rule" in text
+    assert "frozen-before-fix blind set (v10)" in text
+
+
 def test_pack_file_counts_state_verify_py_exclusion():
     """OMEGA6 A6 (B-19): on-disk pack counts include the verifier
     itself (35/37); docs claim payload files excluding it (34/36)
