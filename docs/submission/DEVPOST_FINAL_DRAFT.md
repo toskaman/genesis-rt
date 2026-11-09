@@ -107,7 +107,7 @@ Omega2 flagship (8 Nov 2026, current source):
 |---|---|---|
 | Contract | AMR v1 | AMR v2 (guarded safe-stop) |
 | Native matrix | 16/16 PASS, sealed | 16/16 PASS, sealed |
-| Pack | `evidence/qnx8-x86_64-omega2-before/` (34 files) | `evidence/qnx8-x86_64-omega2-after/` (36 files) |
+| Pack | `evidence/qnx8-x86_64-omega2-before/` (34 payload files + verify.py) | `evidence/qnx8-x86_64-omega2-after/` (36 payload files + verify.py) |
 
 Stale control: the v2 contract against the v1-built
 binary fails 14/16, exactly on `estop_target` +

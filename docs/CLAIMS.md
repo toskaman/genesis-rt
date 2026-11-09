@@ -56,9 +56,9 @@ Verify: `python -m pytest tests/ -q`
 ## Evidence packs (current)
 
 - `evidence/qnx8-x86_64-omega2-before/` — BEFORE passport +
-  transcripts (34 files, op-d91bd4133590).
+  transcripts (34 payload files + verify.py, op-d91bd4133590).
 - `evidence/qnx8-x86_64-omega2-after/` — AFTER passport +
-  transcripts (36 files, op-6840da0e9f69).
+  transcripts (36 payload files + verify.py, op-6840da0e9f69).
 - Each pack: 15-link passport chain, stdlib `verify.py`
   (no SDK needed). Trust: hash-only, UNSIGNED
   (`verify-pack --trust local` → exit 2, no signer bound;

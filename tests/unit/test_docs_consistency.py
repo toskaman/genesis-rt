@@ -801,3 +801,24 @@ def test_docs_have_no_outside_repo_links():
             if resolved != ROOT and ROOT not in resolved.parents:
                 offenders.append(f"{path.relative_to(ROOT)} -> {target}")
     assert offenders == [], "\n".join(offenders)
+
+
+def test_pack_file_counts_state_verify_py_exclusion():
+    """OMEGA6 A6 (B-19): on-disk pack counts include the verifier
+    itself (35/37); docs claim payload files excluding it (34/36)
+    and must say so, or a hostile reviewer screenshots the gap."""
+    from genesis_rt import facts
+    counts = {}
+    for rel, want_total, want_payload in (
+            (facts.PACK_BEFORE, 35, 34), (facts.PACK_AFTER, 37, 36)):
+        files = [p for p in (ROOT / rel).rglob("*") if p.is_file()]
+        payload = [p for p in files if p.name != "verify.py"]
+        assert len(files) == want_total, (rel, len(files))
+        assert len(payload) == want_payload, (rel, len(payload))
+        counts[rel] = (len(files), len(payload))
+    assert counts  # both packs measured, not assumed
+    for rel in ("docs/CLAIMS.md",
+                "docs/submission/DEVPOST_FINAL_DRAFT.md"):
+        text = _read(rel)
+        assert "34 payload files + verify.py" in text, rel
+        assert "36 payload files + verify.py" in text, rel
