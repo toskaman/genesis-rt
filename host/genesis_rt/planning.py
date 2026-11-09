@@ -602,13 +602,14 @@ class LLMProvider:
                     "ambiguous machine kind: a generic machine noun "
                     "names no supported kind (robot/rover/AMR, "
                     "conveyor/belt, arm/gripper)") from None
-            # Holdout v1 (llama3.1:8b) turned "write me a poem about QNX"
-            # into a machine. With no recognisable machine word, the model
-            # is only consulted when the request states a limit in ms or m/s.
-            if not re.search(r"\d+(?:\.\d+)?\s*(?:ms|m/s)\b", low):
-                raise PlannerRejection(
-                    "no supported machine or limit stated; describe the machine "
-                    "and give its period in ms or speed in m/s") from None
+            # Omega7 v1.4 rule 23: the holdout-v1 pre-consult
+            # limit-gate ("no supported machine or limit stated")
+            # is REMOVED — it violated rule 18 as written for
+            # bare tier-2/unknown nouns (v9 gate-overreach class).
+            # Every unknown-kind, non-generic request now consults
+            # exactly once; the rule-17 kind-evidence boundary
+            # below fails closed with clarification-required, so
+            # junk still never becomes a machine.
         intent = self._chat(request)
         if not isinstance(intent, dict):
             raise PlannerRejection("llm returned a non-object intent")
