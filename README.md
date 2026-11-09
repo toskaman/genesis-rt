@@ -55,6 +55,21 @@ trace. One convincing proof-driven demo beats twenty speculative features.
 
 Canonical numbers live in [docs/CLAIMS.md](docs/CLAIMS.md).
 
+## AI planner: measured, not marketed
+
+Latest blind holdout **v9** (160 cases, 48 valid + 112 reject,
+agent-authored against contract v1.3 with no format example, frozen
+before the code): offline **142/160**, Qwen 2.5 7B and Llama 3.1 8B
+**150/160** each — **5 unsafe accepts of 112** reject cases (same 5
+deterministic-layer cases on all providers), **0 wrong-kind accepts**,
+34 of 36 expected model consults per model with 14 explained
+consultation mismatches. A consultation audit
+(`docs/audits/OMEGA5_CONSULTATION_AUDIT.md`) pins the v7/v8
+expectation mismatches, and the harness now enforces
+`expect_consult` per case. The model proposes; the deterministic
+validator decides. Full per-case raws: `evals/results/2026-11-09-omega5-v9/`;
+report: [docs/audits/OMEGA5_AI_EVALUATION.md](docs/audits/OMEGA5_AI_EVALUATION.md).
+
 ## Architecture
 
 ```

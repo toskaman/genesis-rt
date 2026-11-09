@@ -215,3 +215,46 @@ narrower: fix-1's rules generalized to 100 novel phrasings with
 subclasses), and model over-mapping dropped from 7-9 (v7) to 0
 (v8) via the deterministic veto. Universal AI safety remains
 NOT MEASURED and unclaimed.
+
+---
+
+## Addendum 9 Nov 2026 (OMEGA5 §2/§6.1): consultation-label audit
+
+The OMEGA4 harness recorded actual `LLMProvider.consults` but never
+compared them against the datasets' `expect_consult` labels. A
+post-hoc audit (`scripts/audit_eval_consults.py`, read-only over
+committed files — no provider rerun) found expectation mismatches
+in BOTH sets. No frozen dataset or raw result was changed; the
+outcomes above stand, and the labels below are documented history.
+
+- v7: 24 cases labeled `expect_consult=true`; both models actually
+  consulted 20 times. Missing (expected, zero calls, all passed via
+  deterministic short-circuit): `v7-v07` (French "chariot tracteur"
+  — "chariot" is a deterministic AMR hint, so offline accepted
+  correctly without a call), `v7-r57` (drone), `v7-r58` (3D printer),
+  `v7-r61` (French drone) — all three rejected by the deterministic
+  unsupported-machine prefilter. Unexpected: none. Multi-call: none.
+  Cross-provider consult diffs: none.
+- v8: 21 cases labeled `expect_consult=true`; both models actually
+  consulted 25 times. Unexpected (labeled false, one call each):
+  `v8-004`, `v8-021`, `v8-028`, `v8-034` — all four are valid German
+  `Förderband` (conveyor) requests the offline layer rejects as
+  unknown machine kind; both models produced the expected conveyor
+  IR. Missing: none. Multi-call: none. Cross-provider diffs: none.
+- Raw-file digests (sha256, first 16 hex): v7 offline `598ff9bc5effd948`,
+  qwen `2d31880a7654a095`, llama `1aa1b9eb9983e0ed`; v8 offline
+  `60381ad954874b75`, qwen `49a352e62c7f6c77`, llama `fa51a9a997233a07`.
+  Dataset digests: v7 `d91e3956…`, v8 `cb3820fd…` (pinned in tests).
+
+Interpretation: an evaluation's ACTUAL consultation count (what the
+model path did) and its EXPECTED consultation policy (what the dataset
+declares each case must do) are different quantities. OMEGA4 reported
+actuals correctly but left the policy unenforced, so two label errors
+survived: v7 marked four deterministic resolutions as fallback, and v8
+marked four model-resolved alias cases as non-fallback. The v8
+Förderband gap is additionally a deterministic alias-coverage defect
+(addressed in OMEGA5 contract v1.3). From v9 on, the harness enforces
+`expect_consult` (exactly 1 call when expected, 0 when forbidden, llm
+runs only) and fails the run status on mismatch. Pinned by
+`tests/unit/test_consult_audit.py`.
+Full case-ID-level audit: `docs/audits/OMEGA5_CONSULTATION_AUDIT.md`.

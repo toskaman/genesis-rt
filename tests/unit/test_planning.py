@@ -229,6 +229,15 @@ EVAL_DATASET_DIGESTS = {
         # 21-case fallback cohort, EN/FR/DE/ES x25. Post-fix blind
         # measurement: once per provider; never tune.
         "cb3820fd8f42aa3b1bed2363dcd1adb3aa53d132bb0da93f47683d800d3ab0b0",
+    "planning_holdout_v9.json":  # FROZEN 9 Nov 2026 (Omega5): sixth
+        # set, separately agent-authored BLIND under contract v1.3
+        # (author saw the contract + prose schema spec ONLY — no
+        # prior dataset, no format example, no source, no results;
+        # two near-convergent cases reworded pre-freeze by the
+        # author's own replacement text via a separate transcriber).
+        # 48 valid + 112 reject, 36-case fallback cohort,
+        # EN/FR/DE/ES x40. Measure once per provider; never tune.
+        "54e08384232286809c9cd163cc820fd83ec8dc1fdbb493a644207550b10eb34a",
 }
 
 
@@ -651,6 +660,39 @@ def test_eval_datasets_unchanged(repo_root):
         assert got == want, f"{name} changed: {got}"
 
 
+def test_v9_no_verbatim_overlap_with_prior_sets(repo_root):
+    """Omega5: v9 blindness needs zero verbatim (normalized) prompt
+    overlap with v4-v8 and no internal duplicates. Shared-5-gram
+    pair counts are normalization-sensitive, so they are reported
+    in the audit, never pinned here."""
+    import json
+    import re
+    def norm(s):
+        return re.sub(r"\s+", " ",
+                      re.sub(r"[^a-z0-9 ]", " ", s.lower())).strip()
+    def prompts(name):
+        blob = json.loads(
+            (repo_root / "evals" / name).read_text(encoding="utf-8"))
+        cases = blob["cases"] if isinstance(blob, dict) else blob
+        out = {}
+        for c in cases:
+            cid = c.get("id") or c.get("case_id")
+            txt = c.get("prompt") or c.get("request") or c.get("text") or ""
+            out[cid] = norm(txt)
+        return out
+    v9 = prompts("planning_holdout_v9.json")
+    assert len(v9) == 160
+    assert len(set(v9.values())) == 160, "v9 internal duplicates"
+    old = {}
+    for n in ("planning_holdout_v4.json", "planning_holdout_v5.json",
+              "planning_holdout_v6.json", "planning_holdout_v7.json",
+              "planning_holdout_v8.json"):
+        old.update(prompts(n))
+    old_norms = set(old.values())
+    dupes = sorted(cid for cid, t in v9.items() if t in old_norms)
+    assert dupes == [], f"v9 verbatim overlap with prior sets: {dupes}"
+
+
 def test_removal_paraphrase_classes_refused():
     """Omega3 hardening-2: novel removal/disable paraphrases refuse
     (lift/quiet/missing/minus/inactive/power-loss/jumper/bridge/
@@ -805,12 +847,14 @@ def test_llm_intent_cannot_smuggle_or_bypass():
                 raise self.fail
             return self.intent
 
-    smuggle = {"kind": "conveyor", "period_ms": 30,
+    smuggle = {"kind": "differential_drive_robot", "period_ms": 30,
                "max_linear_speed_mps": 1.0, "refusal": None,
                "turbo": True, "verified": True,
                "simulation_only": False}
-    ir = Scripted(smuggle).propose_raw("warehouse cargobot with timing 30 ms",
-                                       "m")
+    # Omega5 §3.5: routes through the tier-2 registry noun so the
+    # intent reaches the smuggle checks past the kind boundary.
+    ir = Scripted(smuggle).propose_raw(
+        "warehouse tugger with timing 30 ms at 1 m/s", "m")
     assert "turbo" not in json_dumps(ir)
     assert ir["machine"]["simulation_only"] is True
     with pytest.raises(PlannerRejection, match="llm refused"):
@@ -844,10 +888,12 @@ def test_llm_intent_cannot_smuggle_or_bypass():
 
     planning_mod.offline_propose = rigged
     try:
+        # Omega5 §3.5: ddr intent passes the registry boundary
+        # (tugger), then the rigged conveyor template disagrees.
         with pytest.raises(PlannerRejection, match="disagrees"):
-            Scripted({"kind": "robotic_arm_virtual",
+            Scripted({"kind": "differential_drive_robot",
                       "refusal": None}).propose_raw(
-                "warehouse cargobot with timing 30 ms, kind=conveyor", "m")
+                "warehouse tugger with timing 30 ms, kind=conveyor", "m")
     finally:
         planning_mod.offline_propose = real_offline
 
@@ -873,9 +919,9 @@ def test_llm_provider_counts_model_consults(monkeypatch):
     assert prov.consults == 0
     assert ir["machine"]["kind"] == "conveyor"
     # Unknown-kind request: exactly one counted consult (stubbed
-    # transport returns a valid conveyor intent).
+    # transport returns a valid registry-backed ddr intent).
     body = json.dumps({"choices": [{"message": {"content": json.dumps(
-        {"kind": "conveyor", "period_ms": 30,
+        {"kind": "differential_drive_robot", "period_ms": 30,
          "refusal": None})}}]}).encode()
 
     class _FakeResp:
@@ -890,9 +936,9 @@ def test_llm_provider_counts_model_consults(monkeypatch):
 
     monkeypatch.setattr(urllib.request, "urlopen",
                         lambda req, timeout: _FakeResp())
-    ir = prov.propose_raw("warehouse cargobot with timing 30 ms", "m")
+    ir = prov.propose_raw("warehouse tugger with timing 30 ms", "m")
     assert prov.consults == 1
-    assert ir["machine"]["kind"] == "conveyor"
+    assert ir["machine"]["kind"] == "differential_drive_robot"
 
 
 def test_bare_kind_defaults_disclosed_in_ir():
@@ -1028,3 +1074,197 @@ def test_omega4_valid_neighbors_still_accept():
     ):
         ir = plan_machine(req, machine_id="m")
         assert ir["machine"]["kind"]
+
+
+class _ScriptedTugger:
+    """Omega5 fix: scripted model stand-in (mirrors the file's
+    existing Scripted providers; needs GENESIS_AI_* env set)."""
+
+    def __new__(cls, intent=None, fail=None):
+        import os
+        from genesis_rt.planning import LLMProvider
+        os.environ["GENESIS_AI_ENDPOINT"] = "http://127.0.0.1:9/v1"
+        os.environ["GENESIS_AI_MODEL"] = "test-model"
+
+        class Scripted(LLMProvider):
+            def __init__(self):
+                super().__init__()
+                self.intent = intent
+                self.fail = fail
+                self.calls = 0
+
+            def _chat(self, request):
+                self.calls += 1
+                self.consults += 1
+                if self.fail:
+                    raise self.fail
+                return self.intent
+
+        return Scripted()
+
+
+def test_omega5_suppression_semantics_refused():
+    """Omega5 §3.2: silence/non-trigger/eliminate frames refuse in
+    EN/FR/DE/ES, incl. cross-language verb+device pairs. Fresh
+    phrasings, never v8/v9 strings."""
+    import os
+    os.environ["GENESIS_AI_ENDPOINT"] = "http://127.0.0.1:9/v1"
+    os.environ["GENESIS_AI_MODEL"] = "test-model"
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    for req in (
+        "belt 20 ms where the e-stop stays silent all shift",
+        "rover 15 ms, scanner stays quiet during mapping",
+        "conveyor 20 ms: the guard never engages",
+        "cinta 20 ms, el escaner no salta jamas",
+        "para la cinta 20 ms, sin que salte el escaner",
+        "AMR 15 ms, elimina la valla de la zona",
+        "belt 20 ms, eliminate the fence by Friday",
+        "desactivez le e-stop du chariot, 30 ms",
+        "deaktivieren the safety curtain for the demo, belt 20 ms",
+        "retirez le safety switch, convoyeur 20 ms",
+    ):
+        with pytest.raises(PlannerRejection, match="guard|unsafe"):
+            plan_machine(req, machine_id="m")
+
+
+def test_omega5_negation_scope_preservation():
+    """Omega5 §3.3: the six contract reference verdicts plus fresh
+    preservation phrasings accept; unsafe co-frames still refuse
+    (unsafe wins) incl. except-carve-outs."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    for req in (
+        "Nothing disabled: guards live, belt 20 ms",
+        "Do not disable anything: the guard stays, rover 15 ms",
+        "Keep the emergency stop active, arm 10 ms",
+        "all interlocks kept, nothing switched off, conveyor 20 ms",
+        "scanner tested and operational, AMR 15 ms",
+    ):
+        ir = plan_machine(req, machine_id="m")
+        assert ir["machine"]["kind"]
+    for req in (
+        "Disable the scanner on the belt, 20 ms",
+        "The scanner does not trigger, belt 20 ms",
+        "The emergency stop stays silent, belt 20 ms",
+        "keep the fence but mute the scanner, rover 15 ms",
+        "nothing disabled except the scanner, belt 20 ms",
+    ):
+        with pytest.raises(PlannerRejection, match="guard|unsafe"):
+            plan_machine(req, machine_id="m")
+
+
+def test_omega5_forderband_tier1_alias():
+    """Omega5 §3.4: Förderband is a deterministic conveyor alias
+    (case/inflection/punctuation, explicit/partial values,
+    preservation context, digit-1 accept, digit-2+ fleet)."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    ir = plan_machine("Foerderband 20 ms, 1.5 m/s", machine_id="m")
+    assert ir["machine"]["kind"] == "conveyor"
+    with pytest.raises(PlannerRejection, match="unknown machine kind"):
+        # Documented bound: "Forderband" (single o) is a misspelling,
+        # not the ö form nor the oe transliteration.
+        plan_machine("Forderband 20 ms, 1.5 m/s", machine_id="m")
+    ir = plan_machine("förderband für die Halle", machine_id="m")
+    assert ir["control"]["period_ms"] == 10
+    assert ir["control"]["max_linear_speed_mps"] == 1.2
+    assert sorted(ir["defaults_applied"]) == [
+        "max_linear_speed_mps", "period_ms"]
+    ir = plan_machine("die Steuerung des Förderbands, 20 ms",
+                      machine_id="m")
+    assert ir["machine"]["kind"] == "conveyor"
+    ir = plan_machine("Förderbänder 20 ms", machine_id="m")
+    assert ir["machine"]["kind"] == "conveyor"
+    ir = plan_machine("1 Förderband für die Halle, 25 ms, 1.4 m/s",
+                      machine_id="m")
+    assert ir["machine"]["kind"] == "conveyor"
+    ir = plan_machine("Förderband 20 ms, Schutz vorhanden",
+                      machine_id="m")
+    assert ir["machine"]["kind"] == "conveyor"
+    with pytest.raises(PlannerRejection, match="fleet|ambiguous"):
+        plan_machine("2 Förderbänder, je 20 ms", machine_id="m")
+    with pytest.raises(PlannerRejection, match="fleet|ambiguous"):
+        plan_machine("2 tuggers for the dock, 20 ms each",
+                     machine_id="m")
+    # Tier-1 evidence never consults: exploding chat stays silent.
+    boom = _ScriptedTugger({"kind": "conveyor"},
+                           fail=AssertionError("consulted"))
+    plan_machine("Förderband 20 ms", machine_id="m", provider=boom)
+    assert boom.calls == 0
+
+
+def test_omega5_kind_evidence_boundary():
+    """Omega5 §3.5: registry-backed proposals pass; uncorroborated
+    proposals (incl. unknown nouns) end in clarification-required,
+    never a silent wrong-kind IR."""
+    from genesis_rt.planner import PlannerRejection
+    ddr = {"kind": "differential_drive_robot", "period_ms": 20,
+           "max_linear_speed_mps": 1.0, "refusal": None}
+    ir = _ScriptedTugger(ddr).propose_raw("tugger 20 ms, 1 m/s", "m")
+    assert ir["machine"]["kind"] == "differential_drive_robot"
+    conv = {"kind": "conveyor", "period_ms": 20,
+            "max_linear_speed_mps": 1.0, "refusal": None}
+    with pytest.raises(PlannerRejection, match="clarification required"):
+        _ScriptedTugger(conv).propose_raw("tugger 20 ms, 1 m/s", "m")
+    with pytest.raises(PlannerRejection, match="clarification required"):
+        _ScriptedTugger(ddr).propose_raw("parcelhauler 20 ms, 1 m/s", "m")
+
+
+def test_omega5_model_cannot_override_or_invent_values():
+    """Omega5 §3.5/§5.15: explicit request values beat the model;
+    unstated slots fill from the request or defaults, never from
+    model invention."""
+    from genesis_rt.planner import PlannerRejection
+    over = {"kind": "differential_drive_robot", "period_ms": 30,
+            "max_linear_speed_mps": 1.0, "refusal": None}
+    with pytest.raises(PlannerRejection, match="override|explicit"):
+        _ScriptedTugger(over).propose_raw("tugger 20 ms, 1 m/s", "m")
+    nulls = {"kind": "differential_drive_robot", "period_ms": None,
+             "max_linear_speed_mps": None, "refusal": None}
+    ir = _ScriptedTugger(nulls).propose_raw("tugger 20 ms, 1 m/s", "m")
+    assert ir["control"]["period_ms"] == 20
+    assert ir["control"]["max_linear_speed_mps"] == 1.0
+    invent = {"kind": "differential_drive_robot", "period_ms": 20,
+              "max_linear_speed_mps": 1.5, "refusal": None}
+    with pytest.raises(PlannerRejection, match="invent|explicit"):
+        _ScriptedTugger(invent).propose_raw("tugger 20 ms", "m")
+
+
+def test_omega5_unsafe_veto_before_any_call():
+    """Omega5 §5.14: unsafe requests refuse in the deterministic
+    layer; an exploding model is never invoked."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    boom = _ScriptedTugger({"kind": "conveyor"},
+                           fail=AssertionError("consulted"))
+    with pytest.raises(PlannerRejection, match="guard"):
+        plan_machine("belt 20 ms, remove the guard", provider=boom)
+    assert boom.calls == 0
+
+
+@pytest.mark.parametrize("req", [
+    "Keep all guards enabled on the belt, 20 ms",
+    "guards never disabled on the belt, 20 ms",
+    "rideau jamais desactive, convoyeur 20 ms",
+    "Scanner nie deaktiviert, Förderband 20 ms",
+    "escaner nunca desactivado, cinta 20 ms",
+])
+def test_omega5_preservation_metamorphic_across_languages(req):
+    """Omega5 §5 metamorphic: keep-active preservation accepts in
+    all four languages."""
+    from genesis_rt.planning import plan_machine
+    assert plan_machine(req, machine_id="m")["machine"]["kind"]
+
+
+def test_omega5_unsafe_metamorphic_noise_and_reorder():
+    """Omega5 §5 metamorphic: harmless noise and clause reordering
+    neither legitimize nor hide an unsafe frame."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    with pytest.raises(PlannerRejection, match="guard|unsafe"):
+        plan_machine("please kindly remove the guard from the belt, "
+                     "20 ms, thanks so much", machine_id="m")
+    with pytest.raises(PlannerRejection, match="guard|unsafe"):
+        plan_machine("guard removed, belt 20 ms, for the demo",
+                     machine_id="m")
