@@ -126,33 +126,40 @@ deterministic keyword planner.
 Measured honesty, newest first (local Ollama CPU,
 `qwen2.5:7b-instruct` + `llama3.1:8b-instruct`):
 
-- **v6 blind holdout** (72 cases, separately
-  agent-authored, frozen BEFORE the fixes, 8 Nov 2026):
+- **v8 blind holdout** (100 cases, separately
+  agent-authored against contract v1.2, frozen BEFORE
+  running, 9 Nov 2026): offline **82/100**, Qwen
+  **90/100**, Llama **92/100** — 4 unsafe accepts each
+  (same 4 cases, all deterministic-layer; 1 contract
+  dispute + 3 novel subclasses), 25 direct model
+  consults per model. Fixed classes held on novel
+  phrasings; model over-mapping 7-9 (v7) → 0 via a
+  deterministic generic-noun veto. v8 is a targeted
+  post-fix instrument, not broad-generalization proof.
+- **v7 blind holdout** (120 cases, v1.1 code, 9 Nov
+  2026): offline 83/120 (30 unsafe accepts), Qwen
+  82/120 (37), Llama 79/120 (39); 20 consults per
+  model. Exposed the fix-1 classes (emergency-stop
+  vocab, unknown-values, digit fleets, evasion,
+  generic-noun over-mapping). Never rerun on
+  changed code.
+- **v6 blind holdout** (72 cases, 8 Nov 2026):
   **46/72 on all three providers** (24/24 valid, 22/48
   reject, 26 unsafe accepts, 0 false rejects;
   fail sets byte-identical). The model was consulted
   ZERO times — the deterministic layer short-circuited
-  every case. v6 does not prove model safety; it
-  measures the deterministic layer against novel
-  paraphrases, multilingual removal, evasion tricks,
-  and injections.
-- Post-v6 hardening fixed the v6 failure *classes*
-  with fresh phrasings (never v6 strings); v4/v5
-  offline regression now 36/36 + 36/36 — but those
-  sets are development-touched, so this measures
-  regression, NOT generalization. A fresh v7 set is
-  required for the next honest claim.
+  every case.
 - v5 (36 cases): 24/36 per provider with 12
-  accepted-should-refuse — the 12 classes that drove
-  the deterministic fixes. v4: 32/32/31 per provider.
-  Earlier 98-case holdout: 87/98 (Qwen), 81/98
-  (Llama), then 98/98 + 30/30 post-fix on touched
-  sets (not generalization proof).
+  accepted-should-refuse. v4: 32/32/31 per provider.
+  Post-fix v4/v5 36/36 + 36/36 are development-touched:
+  regression, NOT generalization proof. Earlier
+  98-case holdout: 87/98 (Qwen), 81/98 (Llama), then
+  98/98 + 30/30 post-fix on touched sets.
 
-Raw logs: `evals/results/2026-11-08-omega3-v6/`,
-`evals/results/2026-11-08-omega3-v4v5-postfix/`,
-`evals/results/2026-11-08-omega2-v5/`, full analysis
-`docs/audits/OMEGA3_AI_EVALUATION.md`.
+Raw logs: `evals/results/2026-11-09-omega4-v8/`,
+`evals/results/2026-11-09-omega4-v7/`,
+`evals/results/2026-11-08-omega3-v6/`, full analysis
+`docs/audits/OMEGA4_AI_EVALUATION.md`.
 
 ## Potential impact (no theatre)
 
@@ -197,9 +204,10 @@ simulation-only machines; no safety certification; no
 hardware attestation; packs are hash-only (UNSIGNED, no
 signer authentication); native CI lane is build-only
 (target campaigns run on the author's machine and ship
-as packs); AI planner has 26 measured v6 unsafe-accept
-classes outstanding (v7 needed); no external user
-study; full screen-reader pass outstanding.
+as packs); AI planner has 4 measured v8 unsafe
+accepts outstanding (1 contract dispute + 3 novel
+subclasses; no broad-robustness claim); no external
+user study; full screen-reader pass outstanding.
 
 ## Eligibility statement
 
