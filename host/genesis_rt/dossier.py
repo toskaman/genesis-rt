@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from .evidence import verify_chain
-from .target import TERMINAL_TARGET
+from .target import TERMINAL_TARGET, valid_op_id
 
 DOSSIER_VERSION = 1
 MAX_DOSSIER_BYTES = 25 * 1024 * 1024
@@ -137,7 +137,13 @@ def collect_op_files(ops_dir: Path, op_id: str,
 
     Raises DossierError(404) for unknown ops, 409 for non-terminal ops,
     413 when caps are exceeded.
+
+    The op id is validated before any disk read: without this, a
+    `../` id reaches files outside ops_dir and the ZIP prefix
+    `dossier-<id>/` becomes a ZipSlip vector (OMEGA6 A3).
     """
+    if not valid_op_id(op_id):
+        raise DossierError(404, f"unknown op {op_id}")
     rec_p = ops_dir / f"{op_id}.json"
     work = ops_dir / op_id
     try:
