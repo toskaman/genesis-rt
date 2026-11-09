@@ -214,6 +214,13 @@ EVAL_DATASET_DIGESTS = {
         # v5 classes were implemented AFTER this freeze; v6 measures
         # them once per provider. Later fixes require v7; never tune.
         "e5fbcd4985a6cc90d2959319c71aeda5aa06b2ef3b0079a5a193bb6965469fde",
+    "planning_holdout_v7.json":  # FROZEN 9 Nov 2026 (Omega4): fourth
+        # independent set, separately agent-authored BLIND under planner
+        # contract v1.1 (author saw contract + threat classes only, never
+        # the parser; no planner execution during authoring). 40 valid +
+        # 80 reject, 24-case model-fallback cohort, EN/FR/DE/ES x30.
+        # Measure once per provider; never tune. Post-v7 fixes need v8.
+        "d91e3956e02fcc60b155828cce116630a3ec7f2e8a9e254198676167f6400d15",
 }
 
 
