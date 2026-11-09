@@ -9,9 +9,9 @@ current evidence.
 
 ## Test counts
 
-- Collected total: **1346** (`facts.TESTS_WITH_SDK`; SDK-run skips are
+- Collected total: **1348** (`facts.TESTS_WITH_SDK`; SDK-run skips are
   per-machine — the 2 axe scans skip without `node_modules/axe-core`).
-- SDK-free (9 Nov 2026 + Omega4 fix-1): **1340 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
+- SDK-free (9 Nov 2026 + Omega4 fix-1): **1342 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`, the 28-case
@@ -23,7 +23,7 @@ current evidence.
   200 %/400 % zoom emulation). All 32 run in host CI. On a machine without
   `axe-core` in `node_modules` the 2 axe scans **skip** visibly — that is
   the "2 skipped" in bare Windows + SDK runs (9 Nov 2026 Windows +
-  SDK run: 1344 passed + 2 skipped of 1346, zero failures, first
+  SDK run: 1346 passed + 2 skipped of 1348, zero failures, first
   attempt; the previous 1337-tree run needed one retry after a
   transient Playwright `networkidle` E2E timeout that passed in
   isolation — no browser-served file changed, so not a regression).
@@ -45,7 +45,9 @@ Verify: `python -m pytest tests/ -q`
   change is governance (guarded transitions), not limits
   (1.2/1.0 m/s both) — stale is caught behaviorally:
   STALE control 14/16, failing exactly on `estop_target` +
-  `v2_transitions` as designed.
+  `v2_transitions` as designed (operator-recorded negative
+  control — prose-grade, no sealed transcript ships in the
+  packs; sealing it is future work).
 - Contract-aware oracle: expectations derive from the validated IR,
   not fixed thresholds (`scripts/qnx_target.py`, `v2_transitions` /
   `limits_differ`).

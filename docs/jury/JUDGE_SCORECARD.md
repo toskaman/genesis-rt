@@ -4,7 +4,40 @@
 > Current scores are in the first table; everything below the line is
 > historical and kept for traceability.
 
-## Current internal assessment — 8 Nov 2026 (Omega3)
+## Current internal assessment — 9 Nov 2026 (Omega4)
+
+1348 host tests green on the owner machine (SDK+axe: 1348 passed,
+0 skips; SDK-only: 1346 + 2 honest axe skips).
+SDK-free: 1342 + 6 honest skips (SDK-gated).
+45 documentation-consistency tests
+green, 60 planning unit tests green, E2E 32/32 with axe-core
+(30 + 2 skips without it), Omega2 packs re-verified VERIFY OK
+16/16 on the final tree (no target/ C changes, so no native
+re-run required).
+
+| Criterion | Omega3 | **Now** | New Omega4 evidence | Remaining gap | Independent attack |
+|---|---|---|---|---|---|
+| Technological Implementation | 9.5 | **9.5** | CLAIMS/README drift fixes + 8 semantic pins (frozen-only latest-eval, Devpost planning pin, crypto-floor lock pin); requirements.lock cryptography 43.0.3 → 50.0.2 (floor met where CI installs); STALE 14/16 scoped to prose-grade; packs re-verified offline | no native CI runner; TCG-only timing; one build host; cross-SDP unverified; lock bump awaits CI proof | 9 (reviewer: sealed packs on current source hold; −1 QEMU-only + single host + crypto residual) |
+| Design | 8 | **8** | screen-reader checklist protocol (prepared, NOT executed); keyboard/320px/390px/1366px/zoom review; no redesign without evidence | dense single page; no screen-reader session; video deferred | 7 (reviewer: axe 3/3 verified; −3 density + no SR + no video) |
+| Potential Impact | 5 | **5** | pilot tooling validated on fixtures; owner handoff written; nothing sent, nothing faked | `HUMAN USER BENEFIT NOT YET MEASURED`; zero participants, zero invitations | 5 (reviewer agrees) |
+| Innovation & AI Creativity | 8 | **8.5** | blind v7 (120, d91e3956): 83/82/79, 20 consults, 30 shared unsafe; fix-1 under contract v1.2 (6 red-green tests, fresh phrasings); blind v8 (100, cb3820fd): 82/90/92, 25 consults, 4 residuals (1 dispute + 3 subclasses); over-mapping 7-9 → 0; FR/wrong-kind metrics defined; raws published | 4 unsafe/100 open; v8 targeted (no broad-robustness claim); parcel-coinage→conveyor model bias; v6 zero-consult latency-inferred | 7 (reviewer: genuine v7→fix→v8 loop with frozen proof; −3 open residuals + no broad claim + report nicks, since fixed) |
+
+Total **31 / 40** (Omega3: 30.5; independent reviewer: 28/40 =
+9/7/5/7). The AI cell moves up half a point: the model path is
+now exercised and measured (20-25 direct consults), the veto is
+proven on a blind set (generic nouns 8/8, zero consults), and
+residuals are 4 named cases instead of 26 classes — but v8 is a
+targeted instrument, so no broader claim is made. Internal
+assessment, not official judging. No criterion is claimed at
+10/10. Final video DEFERRED BY OWNER; submission pending the
+video.
+
+---
+
+## Historical assessment — 8 Nov 2026 (Omega3)
+
+(Counts below were kept in sync through Omega4 P0; the evidence
+cells are Omega3-era.)
 
 1346 host tests green on the owner machine (SDK: 1344 passed + 2
 honest axe skips; SDK-free: 1340 + 6 honest skips), 24-test adversarial

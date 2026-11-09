@@ -1022,7 +1022,7 @@ def test_omega4_valid_neighbors_still_accept():
     for req in (
         "belt 20 ms, emergency stop verified present",
         "conveyor 20 ms, guard present and tested",
-        "set up a conveyor for the sim",
+        "commission a conveyor for the test cell",
         "chariot 20 ms, 1 m/s, rideau teste",
         "AMR with unknown payload, 20 ms, 1 m/s",
     ):

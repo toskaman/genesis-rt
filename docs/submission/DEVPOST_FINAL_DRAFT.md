@@ -69,10 +69,10 @@ target over SSH → contract-aware native oracle (expected
 ALLOW / DENY / SAFE_STOP derived from the validated IR,
 not hard-coded) → transcripts sealed into a 15-link
 passport bound to the IR digest and op id → in-op replay
-→ release decision. Host suite: 1346 tests collected
-(9 Nov 2026 owner run: 1344 passed + 2 honest axe skips,
-0 failures; SDK-free CI: 1340 + 6 SDK-gated skips).
-Planning unit tests 52/52 in `tests/unit/test_planning.py`
+→ release decision. Host suite: 1348 tests collected
+(9 Nov 2026 owner run: 1346 passed + 2 honest axe skips,
+0 failures; SDK-free CI: 1342 + 6 SDK-gated skips).
+Planning unit tests 60/60 in `tests/unit/test_planning.py`
 (distinct from the 28/28 published eval dataset);
 browser E2E 30 + 2 skips / 32.
 
@@ -108,7 +108,9 @@ Omega2 flagship (8 Nov 2026, current source):
 
 Stale control: the v2 contract against the v1-built
 binary fails 14/16, exactly on `estop_target` +
-`v2_transitions`. Historical limits proof (1.2 → 1.6 m/s
+`v2_transitions` (operator-recorded in the campaign notes —
+prose-grade, no sealed transcript in the packs).
+Historical limits proof (1.2 → 1.6 m/s
 DENY→ALLOW flip, 18/18 bit-for-bit rebuilds) in
 `evidence/qnx8-x86_64-w11-*/` (7 Nov 2026).
 
@@ -147,8 +149,9 @@ Measured honesty, newest first (local Ollama CPU,
   **46/72 on all three providers** (24/24 valid, 22/48
   reject, 26 unsafe accepts, 0 false rejects;
   fail sets byte-identical). The model was consulted
-  ZERO times — the deterministic layer short-circuited
-  every case.
+  ZERO times — latency-inferred (the v6 harness had no
+  consult counter); the deterministic layer
+  short-circuited every case.
 - v5 (36 cases): 24/36 per provider with 12
   accepted-should-refuse. v4: 32/32/31 per provider.
   Post-fix v4/v5 36/36 + 36/36 are development-touched:
@@ -191,7 +194,7 @@ PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve
 # Studio at http://127.0.0.1:8077/
 python -m pytest tests/ -q
-# 1346 collected; SDK-free CI: 1340 + 6 honest skips
+# 1348 collected; SDK-free CI: 1342 + 6 honest skips
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then
@@ -217,7 +220,9 @@ RT alpha"), within the Nov 2 – Dec 15, 2026 window.
 Original work, solely owned, Apache-2.0, public, free
 of charge and restriction for judging. No QNX SDK
 files, images, keys, or credentials in the repo or
-artifacts (CI scans enforced). Codelab authored during
+artifacts (CI runs the redaction/no-leak tests; no
+dedicated secret-scanner job — independent review 9 Nov
+2026 found nothing). Codelab authored during
 the period (originated in the initial commit, maintained
 through `33d361c` Omega2, all host steps re-executed
 8 Nov 2026).

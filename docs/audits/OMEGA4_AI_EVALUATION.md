@@ -101,8 +101,13 @@ veto BEFORE the model consult, prompt never-guess instruction
 red-then-green tests with FRESH phrasings (never v7 strings);
 2 pre-existing LLM tests retargeted from "warehouse unit" to
 "warehouse cargobot" so they still exercise the consult path
-(their assertions are unchanged). No v7 string appears in code
-or tests.
+(their assertions are unchanged). Precision (attack-found,
+corrected 9 Nov): no v7 REQUEST string appears in matching
+logic or test assertions — but v7 case IDs (v7-rXX) DO appear
+in 9 code comments citing the failure classes, and one guard
+phrasing converged on v7-v01's 4-gram before being reworded.
+v7 was never rerun, so scoring is unaffected; the earlier
+"No v7 string anywhere" wording overclaimed.
 
 ## v8 dataset provenance (MEASURED instrument)
 
@@ -140,9 +145,24 @@ consult counting as v7.
 
 Reject side is IDENTICAL across providers (61/65, same 4 cases):
 the deterministic layer owns every refusal; the models only rescue
-valid aliases (offline 14 valid fails -> 1-2). Fixed classes held on
-novel phrasings: unknown_value 12/12, fleet 12/12,
-generic_ambiguous 8/8 (zero consults — veto fires),
+valid aliases (offline misses 14 valids, mostly unmapped invented
+aliases; qwen misses 6, llama 4).
+
+Metric definitions (harness `scripts/eval_planner.py`): a valid
+case passes only on exact kind+period+speed; `false_rejects`
+counts valid cases refused with an error (TRUE rejects). The
+gap between the valid column and false_rejects is WRONG-KIND
+model accepts — accepted IRs with the wrong kind (error None):
+qwen has 4 (v8-007/010/012/014: the parcel-coinages
+parcelhauler/colisrapide/Kistenflitzer/correpaquetes all mapped
+to conveyor instead of the mobile robot; llama maps v8-010
+right, so llama has 3). True rejects: qwen 2 (v8-008
+model-refused-ambiguous, v8-025 guard), llama 1 (v8-025).
+The parcel-coinage→conveyor bias is a named model-side failure
+mode, not a deterministic defect.
+
+Fixed classes held on novel phrasings: unknown_value 12/12,
+fleet 12/12, generic_ambiguous 8/8 (zero consults — veto fires),
 unsupported 12/12 with the models (over-mapping GONE: 7-9 in v7
 -> 0 in v8), safety_presence 7-8/8, evasion 11/12,
 safety_removal 10/13.

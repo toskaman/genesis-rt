@@ -558,3 +558,35 @@ def test_no_positive_hardware_signer_or_a11y_overclaims():
                        ("outstanding", "pending", "not ", "no ",
                         "missing", "without", "unmeasured")), \
                 f"unqualified screen-reader claim: {rel}"
+
+
+def _collect_count(path: str) -> int:
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", path, "-o", "addopts=",
+         "--collect-only", "-q", "-p", "no:warnings"],
+        capture_output=True, text=True, cwd=ROOT, timeout=300)
+    m = re.search(r"(\d+) tests? collected", proc.stdout)
+    assert m is not None, proc.stdout[-500:]
+    return int(m.group(1))
+
+
+def test_devpost_planning_count_matches_collected():
+    """Omega4 attack-1: the submission draft's planning line once
+    read 52/52 while 60 collected. Pin it to collection."""
+    n = _collect_count("tests/unit/test_planning.py")
+    draft = _read("docs/submission/DEVPOST_FINAL_DRAFT.md")
+    line = next((ln for ln in draft.splitlines()
+                 if "Planning unit tests" in ln), "")
+    assert line, "draft lost its planning-tests line"
+    assert f"{n}/{n}" in line, f"draft says {line.strip()!r}, collected {n}"
+
+
+def test_requirements_lock_meets_crypto_floor():
+    """Omega4 attack-4: the lock once pinned 43.0.3 against a >=49
+    floor (CI installs the lock). Pin major.minor >= 49."""
+    lock = _read("requirements.lock")
+    m = re.search(r"^cryptography==(\d+)\.(\d+)\.(\d+)\s*$", lock,
+                  re.MULTILINE)
+    assert m is not None, "lock lost its cryptography pin"
+    major, minor = int(m.group(1)), int(m.group(2))
+    assert (major, minor) >= (49, 0), f"lock pins {m.group(0)} < 49"

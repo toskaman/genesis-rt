@@ -33,7 +33,9 @@ trace. One convincing proof-driven demo beats twenty speculative features.
   requirement change natively twice — AMR v1 → v2 guarded
   safe-stop transitions, 16/16 PASS sealed on both contracts,
   and a stale control failing 14/16 exactly on the changed
-  behavior. Verify offline with no SDK:
+  behavior (operator-recorded negative control — prose-grade,
+  no sealed transcript ships in the packs). Verify offline
+  with no SDK:
   `python evidence/qnx8-x86_64-omega2-after/verify.py evidence/qnx8-x86_64-omega2-after`.
 - **Native IPC execution timeline** from real QNX `CLOCK_MONOTONIC`
   timestamps (`evidence/ipc-timeline/`).

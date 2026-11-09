@@ -49,13 +49,14 @@ Nothing below is authorized for agents: do each item yourself, in order.
 - Measured 9 Nov 2026: `cryptography 43.0.3` in the GLOBAL
   interpreter (`C:\Users\TheBox\AppData\Local\Python\pythoncore-3.14-64\`).
   No project venv exists, so agents must NOT upgrade it.
-- Run yourself (сlose other Python work first):
-  `py -m pip install -U "cryptography>=49"`, then
+- Run yourself (close other Python work first):
+  `py -m pip install -U "cryptography==50.0.2"` (matches
+  `requirements.lock`), then
   `py -c "import cryptography; print(cryptography.__version__)"`
-  and confirm `>= 49`.
-- Residual until done: the declared floor is aspirational in
-  this environment; hash-only pack verification does not depend
-  on it (packs are UNSIGNED by design, see §7).
+  and confirm `50.0.2`.
+- Residual until done: this box runs 43.0.3 (10 known vulns) while
+  CI installs 50.0.2 from the lock; hash-only pack verification
+  does not depend on it (packs are UNSIGNED by design, see §7).
 
 ## 6. Release / tag (deferred while video + submission pending)
 
