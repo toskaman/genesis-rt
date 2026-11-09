@@ -36,6 +36,12 @@ Short version of `docs/limitations-and-safety.md` — the full text governs.
   deterministic-layer change requires a separately-authored,
   frozen-before-fix blind set (v10) before any improved
   number may be claimed. No general AI-safety claim.
+- Robotic-arm campaigns are **quarantined, never green**:
+  `robotic_arm_virtual` has no arm kinematics (the host runs
+  it on the differential-drive corridor), so the release gate
+  FAILs every arm campaign with an explicit reason and the
+  change card + dossier banner it as PHYSICS WARNING. No arm
+  PASS can be presented as verification.
 - Evidence packs are hash-only (UNSIGNED): SHA-256 integrity +
   offline replay, not signer authentication or attestation.
 - Accessibility: automated axe scans in CI only; full

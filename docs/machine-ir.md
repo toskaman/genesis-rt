@@ -7,7 +7,10 @@ Schema: `schemas/machine-ir-v1.schema.json`. Validator: `host/genesis_rt/ir.py`.
 
 - `machine`: id, kind (`differential_drive_robot` | `conveyor` |
   `robotic_arm_virtual`), `execution_target` (must be `qnx8_x86_64_qemu`),
-  `simulation_only` (must be `true` in the MVP).
+  `simulation_only` (must be `true` in the MVP). Caveat: the arm kind
+  has no arm kinematics — the release gate quarantines its campaigns
+  (see `limitations-and-safety.md` #10), so no arm PASS reads as
+  arm verification.
 - `actuators`: 1–16 `{id, type}` from a fixed type list.
 - `sensors`: 1–32 `{id, type, freshness_limit_ms}`; the guard enforces the
   strictest freshness limit.

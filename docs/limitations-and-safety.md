@@ -30,11 +30,19 @@
 9. **v2 has no cell semantics.** `industrial_cell` stays on the v1 path:
    v2 validation and v1→v2 migration reject it loudly instead of dropping
    the `cell` block or crashing.
-10. **No arm kinematics.** `robotic_arm_virtual` passes schema validation but
-    the host mirror runs it on the differential-drive corridor; no
-    arm-specific physics exists on host or target yet. Since Wave 10
-    Sprint E, scenario records carry `physics` (+ `physics_note` when
-    aliased), so the aliasing is visible in the evidence itself.
+10. **No arm kinematics — quarantined at the gate.**
+    `robotic_arm_virtual` passes schema validation but the host mirror
+    runs it on the differential-drive corridor; no arm-specific physics
+    exists on host or target yet. Since OMEGA7 the release gate FAILs
+    any campaign whose IR names the arm kind (or any of whose scenario
+    bodies carries `physics_note`) with an explicit `quarantined
+    physics` reason, and the change card + dossier + CLI surface it as
+    a PHYSICS WARNING — an arm campaign can never present a green PASS.
+    Scenario results carry `physics` (+ `physics_note` when aliased);
+    sealed passports carry the quarantine reason in the gate-verdict
+    record. Follow-up: propagate `physics`/`physics_note` into sealed
+    scenario bodies so future aliased kinds quarantine by signal as
+    well as by kind.
 
 If any of these is a surprise, the submission has failed its honesty goal —
 please file an issue.
