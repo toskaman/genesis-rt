@@ -9,9 +9,9 @@ current evidence.
 
 ## Test counts
 
-- Collected total: **1331** (`facts.TESTS_WITH_SDK`; SDK-run skips are
+- Collected total: **1337** (`facts.TESTS_WITH_SDK`; SDK-run skips are
   per-machine — the 2 axe scans skip without `node_modules/axe-core`).
-- SDK-free (8 Nov 2026 + Omega3 INT jury-attack): **1325 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
+- SDK-free (9 Nov 2026 + Omega4 P0 docs): **1331 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`, the 28-case
@@ -22,10 +22,11 @@ current evidence.
   reflow tests, 6 application-shell tests (routing, history, keyboard,
   200 %/400 % zoom emulation). All 32 run in host CI. On a machine without
   `axe-core` in `node_modules` the 2 axe scans **skip** visibly — that is
-  the "2 skipped" in bare Windows + SDK runs (8 Nov 2026 Windows +
-  SDK run: 1329 passed + 2 skipped of 1331, zero failures; an earlier
-  run's single failure was a stale read from editing the devpost draft
-  while the suite ran).
+  the "2 skipped" in bare Windows + SDK runs (9 Nov 2026 Windows +
+  SDK run: 1335 passed + 2 skipped of 1337, zero failures; the first
+  attempt showed one transient Playwright `networkidle` E2E timeout
+  that passed in isolation in 2.4 s and in the second full run —
+  no browser-served file changed, so not a regression).
 - Vocabulary: *collected* = found by pytest; *passed*/*skipped* = outcome
   of one run on one machine. A collected total is never reported as a
   pass count.
@@ -78,14 +79,37 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
 
 ## AI evaluation (current)
 
-- Frozen sets: v4 32/32/31 of 36 (offline/qwen/llama), v5
-  24/36 × 3 identical (12 unsafe accepts, 0 false rejects).
-  72 untouched cases total; both sets small and same-author.
-- 12 v5 unsafe-accept classes are measured and OPEN; the
-  model never authorizes safety (deterministic gate decides).
+- Latest blind set: **v6** (72 cases, 24 valid + 48 reject,
+  separately agent-authored, frozen before the fixes):
+  **46/72 on offline, Qwen 2.5 7B and Llama 3.1 8B
+  identically** — 24/24 valid, 22/48 rejects,
+  **26 unsafe accepts**, 0 false rejects. The model was consulted
+  **zero times** (deterministic short-circuit on every
+  case); v6 measures the deterministic layer only.
+- v6 open findings: 26 accepted reject-labelled cases
+  (novel paraphrases, multilingual removal, evasion,
+  injections); 3 bare-kind cases are explicit contract
+  disputes (adjudicated in the v1 planner contract —
+  bare kind accepted only with output-disclosed
+  defaults), NOT silently reclassified.
+- Post-fix regression (NOT generalization): v4/v5 offline
+  36/36 after hardening-2 — development-touched sets,
+  reported for regression only. The 12 v5 failure
+  classes are fixed; v6's 26 are the open set.
+- Measurement ladder (never merged into one percentage):
+  frozen history (98-case, v2/v3) → regression
+  (v4/v5 postfix) → blind agent-authored (v6) →
+  model-fallback (unmeasured until v7) → human (none).
+- **v7 required**: ≥120 fresh blind cases with a real
+  model-fallback cohort and direct consult counts before
+  any new generalization claim. No general-robustness
+  claim from 72 cases.
 - Model refusal reasons are unreliable; only accept/refuse
-  outcomes scored. No general-robustness claim.
-- Canonical: `docs/ascension/AI_EVALUATION.md`.
+  outcomes scored. The model never authorizes safety —
+  the deterministic gate decides (pinned by tests).
+- Canonical: `docs/audits/OMEGA3_AI_EVALUATION.md` (+ raw
+  `evals/results/2026-11-08-omega3-v6/`); history in
+  `docs/ascension/AI_EVALUATION.md`.
 
 ## CI behavior
 

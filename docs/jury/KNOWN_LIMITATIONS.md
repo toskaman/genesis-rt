@@ -25,6 +25,16 @@ Short version of `docs/limitations-and-safety.md` — the full text governs.
 - No QNX HAM integration: the QSTI image ships no `ham` binary, so
   supervision is our own tested RESPAWN/GIVE_UP process (matrix
   steps `supervisor_respawn`/`supervisor_giveup`).
+- AI planner: blind v6 measured 26 unsafe accepts / 72 with the
+  model consulted zero times; post-fix v4/v5 36/36 is
+  regression-only; a fresh v7 set is required for the next
+  generalization claim. No general AI-safety claim.
+- Evidence packs are hash-only (UNSIGNED): SHA-256 integrity +
+  offline replay, not signer authentication or attestation.
+- Accessibility: automated axe scans in CI only; full
+  screen-reader verification is outstanding, not claimed.
+- Human benefit is not yet measured: zero pilots, zero
+  invitations sent; no productivity claim exists.
 
 Anything presented as measured comes with method + raw artifacts; anything
 pending is labelled pending. That distinction is the point of the project.
