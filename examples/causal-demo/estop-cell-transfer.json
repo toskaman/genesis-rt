@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "incident_id": "inc-estop-cell-01",
+  "title": "cell halts mid-transfer, status ESTOP latched",
+  "machine_ir": "examples/cell-demo/cell-ir.json",
+  "observed": [
+    {
+      "kind": "symptom",
+      "detail": "transfer halted mid-cycle, operator reports ESTOP state",
+      "source": "operator report"
+    },
+    {
+      "kind": "transcript_ref",
+      "detail": "target-estop_target.log:3 DENY ESTOP state=3",
+      "source": "evidence/qnx8-x86_64-omega2-before"
+    }
+  ]
+}

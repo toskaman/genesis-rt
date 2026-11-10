@@ -243,6 +243,58 @@ def _cmd_verify_change(args: argparse.Namespace) -> int:
     return 0 if verdict["verdict"] == "PASS" else 1
 
 
+def _cmd_causal_repro(args: argparse.Namespace) -> int:
+    from .causal_run import reproduce
+    runs_dir = Path(args.runs_dir) if args.runs_dir else \
+        REPO_ROOT / "artifacts" / "runs"
+    dossiers_dir = Path(args.dossiers_dir) if args.dossiers_dir else \
+        REPO_ROOT / "artifacts" / "dossiers"
+    try:
+        dossier = reproduce(args.incident, runs_dir, dossiers_dir,
+                            target=args.target,
+                            machine_ir=args.machine_ir,
+                            only=args.hypotheses)
+    except (IRValidationError, OSError, ValueError) as exc:
+        print(f"invalid: {exc}")
+        return 2
+    if args.json:
+        print(json.dumps({k: v for k, v in dossier.items()
+                          if k != "dossier_path"},
+                         indent=2, sort_keys=True))
+    else:
+        causal = dossier["causality"]
+        print(f"causal: {dossier['incident']['incident_id']}  "
+              f"winner={causal['winning_hypothesis'] or '-'}  "
+              f"conclusive={causal['conclusive']}")
+        for hyp in dossier["hypotheses"]:
+            print(f"  {hyp['id']}: {hyp['verdict']}")
+        print(f"dossier: {dossier['dossier_path']}")
+    return 0 if dossier["causality"]["conclusive"] else 1
+
+
+def _cmd_causal_fix(args: argparse.Namespace) -> int:
+    from .causal_run import verify_fix
+    runs_dir = Path(args.runs_dir) if args.runs_dir else \
+        REPO_ROOT / "artifacts" / "runs"
+    changes_dir = Path(args.changes_dir) if args.changes_dir else \
+        REPO_ROOT / "artifacts" / "change"
+    try:
+        dossier = verify_fix(args.dossier, args.after_ir, runs_dir,
+                             changes_dir, scenarios=args.scenarios)
+    except (IRValidationError, OSError, ValueError) as exc:
+        print(f"invalid: {exc}")
+        return 2
+    if args.json:
+        print(json.dumps({k: v for k, v in dossier.items()
+                          if k != "dossier_path"},
+                         indent=2, sort_keys=True))
+    else:
+        fix = dossier["fix"]
+        print(f"causal-fix: {fix['change_id']}  verdict={fix['verdict']}")
+        print(f"dossier: {dossier['dossier_path']}")
+    return 0 if dossier["fix"]["verdict"] == "PASS" else 1
+
+
 def _cmd_demo_break(args: argparse.Namespace) -> int:
     import tempfile as _tempfile
     import time as _time
@@ -786,6 +838,42 @@ def build_parser() -> argparse.ArgumentParser:
                          "verdict.json goes to artifacts/change/<id>/)")
     vc.add_argument("--json", action="store_true")
     vc.set_defaults(func=_cmd_verify_change)
+    cr = sub.add_parser("causal-repro",
+                        help="incident -> hypotheses -> experiments -> "
+                             "sealed causal dossier")
+    cr.add_argument("--incident", required=True,
+                    help="validated incident JSON file")
+    cr.add_argument("--machine-ir", default=None,
+                    help="override the incident's machine IR file")
+    cr.add_argument("--runs-dir", default=None,
+                    help="runs directory (default: artifacts/runs)")
+    cr.add_argument("--dossiers-dir", default=None,
+                    help="dossiers directory "
+                         "(default: artifacts/dossiers)")
+    cr.add_argument("--hypotheses", nargs="*", default=None,
+                    help="run only these hypothesis ids")
+    cr.add_argument("--target", choices=("archived", "live"),
+                    default="archived",
+                    help="native grounding: archived Omega2 transcripts "
+                         "(default) or a live target op")
+    cr.add_argument("--json", action="store_true")
+    cr.set_defaults(func=_cmd_causal_repro)
+    cf = sub.add_parser("causal-fix",
+                        help="append a K1 BEFORE/AFTER fix proof to a "
+                             "sealed dossier and reseal it")
+    cf.add_argument("--dossier", required=True,
+                    help="sealed dossier directory")
+    cf.add_argument("--after-ir", required=True,
+                    help="fixed-revision Machine IR file")
+    cf.add_argument("--runs-dir", default=None,
+                    help="runs directory (default: artifacts/runs)")
+    cf.add_argument("--changes-dir", default=None,
+                    help="changes directory (default: artifacts/change)")
+    cf.add_argument("--scenarios", nargs="*", default=None,
+                    help="fix-leg scenarios "
+                         "(default: winning experiment scenario)")
+    cf.add_argument("--json", action="store_true")
+    cf.set_defaults(func=_cmd_causal_fix)
     db = sub.add_parser("demo-break",
                         help="seal, mutate one binary, watch STALE refuse it")
     db.add_argument("--workspace", default=None,

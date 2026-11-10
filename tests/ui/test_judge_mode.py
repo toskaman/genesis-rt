@@ -26,7 +26,7 @@ KNOWN_TABS = {"judge", "projects", "designer", "source", "pipeline",
 KNOWN_ACTIONS = {"judge-open-example", "judge-open-source",
                  "judge-run-fault", "judge-open-evidence",
                  "judge-open-designer", "judge-run-verify",
-                 "judge-open-dossier"}
+                 "judge-open-dossier", "judge-run-causal"}
 
 
 def _inline_scripts(html: str) -> list[str]:
@@ -73,10 +73,10 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
 
 
 @node
-def test_seven_stages_drive_real_tabs_and_actions(tmp_path):
+def test_eight_stages_drive_real_tabs_and_actions(tmp_path):
     (stages,) = _run_js([{"fn": "jstages", "arg": "null"}], tmp_path)
-    assert len(stages) == 7
-    assert len({s["id"] for s in stages}) == 7
+    assert len(stages) == 8
+    assert len({s["id"] for s in stages}) == 8
     for s in stages:
         assert set(s) >= {"id", "title", "tab", "action", "proves",
                           "source"}
@@ -85,7 +85,7 @@ def test_seven_stages_drive_real_tabs_and_actions(tmp_path):
         assert s["proves"] and s["source"]
     assert [s["id"] for s in stages] == [
         "machine", "software", "failure", "diagnosis", "correction",
-        "verification", "value"]
+        "verification", "value", "causal"]
 
 
 @node
@@ -95,7 +95,7 @@ def test_clamp_sticks_at_both_ends(tmp_path):
                                   {"fn": "jclamp", "arg": "3"},
                                   {"fn": "jclamp", "arg": "-2"}],
                                  tmp_path)
-    assert (lo, hi, mid, neg) == (0, 6, 3, 0)
+    assert (lo, hi, mid, neg) == (0, 7, 3, 0)
 
 
 @node
@@ -131,7 +131,7 @@ def test_render_offline_archived_and_clamped(tmp_path):
         assert "disabled" in html
     assert "A · The machine · active" in first
     assert "data-jnav=\"prev\" disabled" in first
-    assert "G · The value · active" in last
+    assert "H · The causal proof · active" in last
     assert "data-jnav=\"next\" disabled" in last
 
 

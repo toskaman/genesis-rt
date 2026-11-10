@@ -47,6 +47,16 @@ if BaseModel is not None:
     class ValidateRequest(BaseModel):
         ir: dict[str, Any]
 
+    class CausalReproRequest(BaseModel):
+        incident: dict[str, Any]
+        machine_ir: dict[str, Any]
+        target: str = "archived"
+        only: list[str] | None = None
+
+    class CausalFixRequest(BaseModel):
+        ir_after: dict[str, Any]
+        scenarios: list[str] | None = None
+
     class ProjectCreate(BaseModel):
         name: str | None = None
         from_example: str | None = None
@@ -596,6 +606,110 @@ def create_app() -> Any:
         if not stored.is_file():
             raise HTTPException(404, "unknown change")
         return JSONResponse(json.loads(stored.read_text(encoding="utf-8")))
+
+    def _causal_paths():
+        dossiers = ARTIFACTS.parent / "dossiers"
+        dossiers.mkdir(parents=True, exist_ok=True)
+        return dossiers
+
+    def _causal_dossier_file(incident_id: str) -> Path:
+        from .incident import valid_incident_id
+        if not valid_incident_id(incident_id):
+            raise HTTPException(400,
+                                f"invalid incident_id: {incident_id!r}")
+        base = _causal_paths().resolve()
+        candidate = (base / incident_id).resolve()
+        if base not in candidate.parents and candidate != base:
+            raise HTTPException(400, "incident id escapes storage")
+        return candidate / "dossier.json"
+
+    def _causal_temp(payload: dict[str, Any], prefix: str) -> Path:
+        raw = json.dumps(payload).encode("utf-8")
+        if len(raw) > MAX_IR_BYTES:
+            raise HTTPException(400, "payload too large")
+        with tempfile.NamedTemporaryFile(
+                mode="wb", suffix=".json", prefix=prefix,
+                dir=ARTIFACTS, delete=False) as fh:
+            fh.write(raw)
+            return Path(fh.name)
+
+    @app.post("/causal/dossiers")
+    def causal_repro(req: CausalReproRequest) -> JSONResponse:
+        """Incident -> hypotheses -> experiments -> sealed dossier."""
+        from .causal_run import DossierError, reproduce
+        from .incident import validate_incident
+        if req.target not in ("archived", "live"):
+            raise HTTPException(400,
+                                f"unknown target: {req.target!r}")
+        findings = validate_incident(req.incident)
+        if findings:
+            raise HTTPException(400, f"invalid incident: {findings[0]}")
+        ARTIFACTS.mkdir(parents=True, exist_ok=True)
+        tmp_paths: list[Path] = []
+        try:
+            inc_path = _causal_temp(req.incident, "upload-incident-")
+            ir_path = _causal_temp(req.machine_ir, "upload-causal-ir-")
+            tmp_paths.extend((inc_path, ir_path))
+            dossier = reproduce(inc_path, ARTIFACTS, _causal_paths(),
+                                target=req.target, machine_ir=ir_path,
+                                only=req.only)
+        except DossierError as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        finally:
+            for p in tmp_paths:
+                _drop(p)
+        return JSONResponse({k: v for k, v in dossier.items()
+                             if k != "dossier_path"})
+
+    @app.get("/causal/flagship")
+    def causal_flagship() -> JSONResponse:
+        """Serve the flagship incident + machine IR pair (read-only)."""
+        try:
+            incident = json.loads(
+                (REPO_ROOT / "examples" / "causal-demo"
+                 / "estop-cell-transfer.json").read_text(
+                     encoding="utf-8"))
+            machine_ir = json.loads(
+                (REPO_ROOT / "examples" / "cell-demo"
+                 / "cell-ir.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise HTTPException(
+                500, f"flagship files unreadable: {exc}") from exc
+        return JSONResponse({"incident": incident,
+                             "machine_ir": machine_ir})
+
+    @app.get("/causal/dossiers/{incident_id}")
+    def causal_get(incident_id: str) -> JSONResponse:
+        from .causal_run import verify_dossier
+        stored = _causal_dossier_file(incident_id)
+        if not stored.is_file():
+            raise HTTPException(404, "unknown dossier")
+        checked = verify_dossier(stored)
+        return JSONResponse(
+            {"valid": checked["valid"], "errors": checked["errors"],
+             "dossier": json.loads(stored.read_text(encoding="utf-8"))})
+
+    @app.post("/causal/dossiers/{incident_id}/fix")
+    def causal_fix(incident_id: str,
+                   req: CausalFixRequest) -> JSONResponse:
+        """Append a K1 BEFORE/AFTER fix proof to the dossier + reseal."""
+        from .causal_run import DossierError, verify_fix
+        stored = _causal_dossier_file(incident_id)
+        if not stored.is_file():
+            raise HTTPException(404, "unknown dossier")
+        ARTIFACTS.mkdir(parents=True, exist_ok=True)
+        tmp_ir = None
+        try:
+            tmp_ir = _causal_temp(req.ir_after, "upload-causal-fix-")
+            dossier = verify_fix(stored.parent, tmp_ir, ARTIFACTS,
+                                 ARTIFACTS.parent / "change",
+                                 scenarios=req.scenarios)
+        except DossierError as exc:
+            raise HTTPException(400, f"bad request: {exc}") from exc
+        finally:
+            _drop(tmp_ir)
+        return JSONResponse({k: v for k, v in dossier.items()
+                             if k != "dossier_path"})
 
     @app.post("/demo/break")
     def demo_break() -> JSONResponse:

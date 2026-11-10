@@ -146,6 +146,8 @@ records QNX steps as `blocked`, never as passed).
 | `genesis-rt faults <ir>` | declared fault campaign with oracles (AMR 8, conveyor 5, cell 4) |
 | `genesis-rt demo` | full pipeline → evidence passport + gate verdict |
 | `genesis-rt verify-change --before A --after B` | BEFORE/AFTER in one step → `verdict.json` card |
+| `genesis-rt causal-repro --incident FILE` | incident → hypotheses → sealed causal dossier |
+| `genesis-rt causal-fix --dossier DIR --after-ir FILE` | K1 fix proof appended + dossier resealed |
 | `genesis-rt demo-break` | seal → mutate → STALE refusal in seconds |
 | `genesis-rt quickstart [--example cell]` | validate + run + card in one command |
 | `genesis-rt watch <ir> [--once]` | re-validate on every save, 1-line verdict |

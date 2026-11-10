@@ -836,6 +836,18 @@ def test_wow_commands_documented():
         assert f"genesis-rt {cmd}" in table, f"{cmd} missing from README"
 
 
+def test_causal_commands_documented():
+    """Causal slice: every new causal command is built AND documented."""
+    from genesis_rt.cli import build_parser
+    parser = build_parser()
+    action = next(a for a in parser._actions
+                  if type(a).__name__ == "_SubParsersAction")
+    table = _read("README.md")
+    for cmd in ("causal-repro", "causal-fix"):
+        assert cmd in action.choices, f"{cmd} not wired in CLI"
+        assert f"genesis-rt {cmd}" in table, f"{cmd} missing from README"
+
+
 def test_qnx_footprint_table_present():
     """OMEGA6 D4: the QNX evidence doc carries the measured C
     footprint (text/data/bss) with RSS honestly unmeasured."""

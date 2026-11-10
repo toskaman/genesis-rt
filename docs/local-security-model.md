@@ -47,7 +47,7 @@ in layers (each pinned by a test):
 - **JSON-only writes**: an Origin-less form POST dies at body
   validation (422) before any job/op exists.
   Pinned: `test_form_post_rejected_without_execution`.
-- **GET inventory** (`test_get_route_inventory_matches_audit`, 37
+- **GET inventory** (`test_get_route_inventory_matches_audit`, 39
   routes incl. FastAPI docs): audited side-effect free. The only
   writes reachable from a GET are idempotent store init
   (`_db()`: sqlite file + additive migrations, no attacker data).
@@ -61,6 +61,11 @@ in layers (each pinned by a test):
   (Titan v3 re-audit, 9 Nov 2026: `/changes/{change_id}` serves
   one stored `verdict.json` — id validated 400-first, resolved
   path containment-checked against the change store, no writes.)
+  (Causal slice re-audit, 10 Nov 2026:
+  `/causal/dossiers/{incident_id}` serves one stored `dossier.json`
+  plus re-verification — id validated 400-first, containment-checked
+  against the dossier store, no writes; `/causal/flagship` serves
+  two fixed committed files with no user input.)
 - **Host header**: deliberately NOT validated. With the five layers
   above, no browser vector reaches a state change; `Host` checking
   would only constrain already-trusted local callers.
