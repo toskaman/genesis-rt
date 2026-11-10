@@ -146,6 +146,10 @@ records QNX steps as `blocked`, never as passed).
 | `genesis-rt faults <ir>` | declared fault campaign with oracles (AMR 8, conveyor 5, cell 4) |
 | `genesis-rt demo` | full pipeline → evidence passport + gate verdict |
 | `genesis-rt verify-change --before A --after B` | BEFORE/AFTER in one step → `verdict.json` card |
+| `genesis-rt demo-break` | seal → mutate → STALE refusal in seconds |
+| `genesis-rt quickstart [--example cell]` | validate + run + card in one command |
+| `genesis-rt watch <ir> [--once]` | re-validate on every save, 1-line verdict |
+| `genesis-rt new --kind cell --id ID --out FILE` | first Machine IR from an example, validated |
 | `genesis-rt external-write-manifest` | hash an existing build dir into a manifest |
 | `genesis-rt external-check` | stale-binary check of a build dir vs its manifest |
 | `genesis-rt check-env` | probe for QNX SDK toolchain |

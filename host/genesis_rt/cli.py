@@ -243,6 +243,186 @@ def _cmd_verify_change(args: argparse.Namespace) -> int:
     return 0 if verdict["verdict"] == "PASS" else 1
 
 
+def _cmd_demo_break(args: argparse.Namespace) -> int:
+    import tempfile as _tempfile
+    import time as _time
+
+    from .breakdemo import BUDGET_S, run_break_demo
+    t0 = _time.monotonic()
+    if args.workspace:
+        report = run_break_demo(args.workspace)
+    else:
+        with _tempfile.TemporaryDirectory(prefix="genesis-break-") as tmp:
+            report = run_break_demo(tmp)
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        print(f"sealed {len(report['binaries'])} binaries -> CONSISTENT")
+        print(f"mutated genesis_guard -> {report['stale']['verdict']}: "
+              f"{', '.join(report['stale']['stale_binaries'])}")
+        print(f"stale-refusal demo: STALE in {report['elapsed_s']}s "
+              f"(budget {BUDGET_S:.0f}s) — the wrong binary cannot pass.")
+    if _time.monotonic() - t0 > BUDGET_S:
+        print(f"OVER BUDGET: demo exceeded {BUDGET_S:.0f}s", file=sys.stderr)
+        return 1
+    return 0
+
+
+_QUICKSTART_EXAMPLES = {
+    "cell": "examples/cell-demo/cell-ir.json",
+    "amr": "examples/amr-demo/machine-ir.json",
+    "conveyor": "examples/conveyor-demo/machine-ir.json",
+}
+
+
+def _cmd_quickstart(args: argparse.Namespace) -> int:
+    from .ir import IRValidationError
+    from .orchestrator import run_pipeline
+    ir_path = args.ir or str(REPO_ROOT / _QUICKSTART_EXAMPLES[args.example])
+    try:
+        version = _peek_schema_version(ir_path)
+        if version == 1:
+            from .ir import load_ir_file
+            ir = load_ir_file(ir_path)
+        elif version == 2:
+            from .ir_v2 import load_ir_v2_file
+            ir = load_ir_v2_file(ir_path)
+        else:
+            raise IRValidationError(
+                f"{ir_path}: unsupported schema_version={version!r}")
+    except (IRValidationError, OSError, ValueError) as exc:
+        print(f"invalid: {exc}")
+        return 2
+    machine = ir["machine"]["id"]
+    summary = run_pipeline(ir_path, REPO_ROOT / "artifacts" / "runs")
+    if args.json:
+        print(json.dumps({
+            "ir": ir_path, "machine": machine, "valid": True,
+            "verdict": summary["verdict"], "level": summary["level"],
+            "release_eligible": summary["release_eligible"],
+            "qnx_verified": summary["qnx_verified"],
+            "passport": summary["passport"],
+            "elapsed_s": summary["elapsed_s"]}, indent=2, sort_keys=True))
+    else:
+        print(f"valid: schema v{version} {machine} "
+              f"({ir['machine']['kind']}) "
+              f"scenarios={len(ir['verification']['scenarios'])}")
+        print(f"run: {summary['run_id']}  verdict: {summary['verdict']}  "
+              f"level: {summary['level']}  "
+              f"release_eligible: {summary['release_eligible']}  "
+              f"qnx_verified: {summary['qnx_verified']}  "
+              f"elapsed: {summary['elapsed_s']}s")
+        print(f"passport: {summary['passport']}")
+        for name, outcome in summary["steps"]["verification"][
+                "scenarios"].items():
+            print(f"  {name}: {outcome}")
+        print("next: genesis-rt verify-change --before <a> --after <b>  "
+              "# prove one change")
+        print("next: genesis-rt demo-break  # watch STALE refuse a mutant")
+    return 0 if summary["verdict"] == "PASS" else 1
+
+
+def _watch_check(ir_path: str) -> tuple[bool, str]:
+    """Validate once; returns (ok, one verdict line). Presentation only —
+    the validator stays the authority (C3 file:line spans preserved)."""
+    from .ir import IRValidationError
+    try:
+        version = _peek_schema_version(ir_path)
+        if version == 1:
+            from .ir import load_ir_file
+            ir = load_ir_file(ir_path)
+        elif version == 2:
+            from .ir_v2 import load_ir_v2_file
+            ir = load_ir_v2_file(ir_path)
+        else:
+            raise IRValidationError(
+                f"{ir_path}: unsupported schema_version={version!r}")
+    except (IRValidationError, OSError, ValueError) as exc:
+        line = _locate_error_line(ir_path, str(exc))
+        detail = f"{ir_path}:{line}: {exc}" if line is not None \
+            else f"{ir_path}: {exc}"
+        return False, f"INVALID {detail}"
+    return True, (f"VALID schema v{version} {ir['machine']['id']} "
+                  f"({ir['machine']['kind']})")
+
+
+def _cmd_watch(args: argparse.Namespace) -> int:
+    import time as _time
+    if args.once:
+        ok, line_out = _watch_check(args.ir)
+        print(line_out)
+        return 0 if ok else 2
+    last: tuple[float, int] | None = None
+    rc = 0
+    t0 = _time.monotonic()
+    try:
+        while True:
+            try:
+                stat = Path(args.ir).stat()
+                sig: tuple[float, int] | None = (stat.st_mtime, stat.st_size)
+            except OSError:
+                sig = None
+            if sig != last:
+                last = sig
+                ok, line_out = _watch_check(args.ir)
+                print(line_out, flush=True)
+                rc = 0 if ok else 2
+            if args.timeout is not None and \
+                    _time.monotonic() - t0 >= args.timeout:
+                return rc
+            _time.sleep(args.interval)
+    except KeyboardInterrupt:
+        print("watch stopped.", file=sys.stderr)
+        return rc
+
+
+def _cmd_new(args: argparse.Namespace) -> int:
+    from .newmachine import (NewMachineError, OFFERED_KINDS, TEMPLATES,
+                             build_machine_ir, resolve_kind)
+    if args.out is None:
+        print("missing --out FILE (where to write the IR)")
+        return 2
+    out = Path(args.out)
+    if out.exists() and not args.force:
+        print(f"exists: {out} (refusing to overwrite; use --force)")
+        return 2
+    try:
+        if args.interactive:
+            print(f"kinds: {', '.join(OFFERED_KINDS)} "
+                  "(arm excluded until arm physics lands)")
+            kind = input("kind: ")
+            machine_id = input("machine id: ")
+            template = json.loads(
+                (REPO_ROOT / TEMPLATES[resolve_kind(kind)]
+                 ).read_text(encoding="utf-8"))
+            overrides: dict[str, str] = {}
+            for key in sorted(template["control"]):
+                raw = input(f"{key} [{template['control'][key]}]: ").strip()
+                if raw:
+                    overrides[key] = raw
+        else:
+            if args.kind is None or args.id is None:
+                print("missing --kind KIND and --id ID "
+                      "(or use --interactive)")
+                return 2
+            kind, machine_id = args.kind, args.id
+            overrides = {}
+            for item in args.set or []:
+                if "=" not in item:
+                    print(f"invalid --set {item!r} (want KEY=VALUE)")
+                    return 2
+                key, _, value = item.partition("=")
+                overrides[key.strip()] = value.strip()
+        ir = build_machine_ir(kind, machine_id, overrides, out)
+    except NewMachineError as exc:
+        print(f"invalid: {exc}")
+        return 2
+    print(f"machine written: {out} ({ir['machine']['kind']})")
+    print(f"next: genesis-rt validate {out}")
+    print(f"next: genesis-rt quickstart --ir {out}  # run it")
+    return 0
+
+
 def _cmd_graph(args: argparse.Namespace) -> int:
     from .evidence_graph import build_graph, render_graph_text
     passport = json.loads(Path(args.passport).read_text(encoding="utf-8"))
@@ -604,6 +784,44 @@ def build_parser() -> argparse.ArgumentParser:
                          "verdict.json goes to artifacts/change/<id>/)")
     vc.add_argument("--json", action="store_true")
     vc.set_defaults(func=_cmd_verify_change)
+    db = sub.add_parser("demo-break",
+                        help="seal, mutate one binary, watch STALE refuse it")
+    db.add_argument("--workspace", default=None,
+                    help="keep the demo workspace here (default: temp dir)")
+    db.add_argument("--json", action="store_true")
+    db.set_defaults(func=_cmd_demo_break)
+    qs = sub.add_parser("quickstart",
+                        help="validate + run an example, print the card")
+    qs.add_argument("--example", default="cell",
+                    choices=sorted(_QUICKSTART_EXAMPLES),
+                    help="bundled example (default: cell)")
+    qs.add_argument("--ir", default=None,
+                    help="Machine IR file (overrides --example)")
+    qs.add_argument("--json", action="store_true")
+    qs.set_defaults(func=_cmd_quickstart)
+    wt = sub.add_parser("watch",
+                        help="re-validate an IR file on every save")
+    wt.add_argument("ir", help="Machine IR file to watch")
+    wt.add_argument("--once", action="store_true",
+                    help="validate once and exit")
+    wt.add_argument("--interval", type=float, default=0.5,
+                    help="poll interval in seconds (default: 0.5)")
+    wt.add_argument("--timeout", type=float, default=None,
+                    help="stop after SECONDS (exit code is last verdict)")
+    wt.set_defaults(func=_cmd_watch)
+    nw = sub.add_parser("new",
+                        help="build a first Machine IR from an example")
+    nw.add_argument("--kind", default=None,
+                    help="machine kind (cell, amr, conveyor, or full name)")
+    nw.add_argument("--id", default=None, help="machine id")
+    nw.add_argument("--out", default=None, help="where to write the IR file")
+    nw.add_argument("--set", action="append", default=None,
+                    help="knob override KEY=VALUE (repeatable)")
+    nw.add_argument("--force", action="store_true",
+                    help="overwrite an existing --out file")
+    nw.add_argument("--interactive", action="store_true",
+                    help="prompt for kind, id and knobs")
+    nw.set_defaults(func=_cmd_new)
     gr = sub.add_parser("graph", help="render the evidence graph of a passport")
     gr.add_argument("passport")
     gr.add_argument("--ir", default=None,

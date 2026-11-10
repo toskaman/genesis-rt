@@ -17,12 +17,13 @@ current evidence.
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`, the 28-case
   published eval dataset — distinct from the 113 planning unit
   regression tests in `tests/unit/test_planning.py`).
-- Real-browser E2E: **41** collected from `tests/e2e/` (`facts.E2E_BROWSER_TESTS`):
+- Real-browser E2E: **43** collected from `tests/e2e/` (`facts.E2E_BROWSER_TESTS`):
   23 judge-journey + negative-path tests, 3 axe-core WCAG 2.2 / 320 px
   reflow tests, 6 application-shell tests (routing, history, keyboard,
   200 %/400 % zoom emulation), 9 K1 Prove-acceptance tests (real click,
-  states, widths, keyboard, zoom, degraded). All 41 run in host CI
-  (all 41 also run SDK-free — no E2E test is SDK-gated). On a machine
+  states, widths, keyboard, zoom, degraded), 2 break-it acceptance
+  tests (real click, dead-backend). All 43 run in host CI
+  (all 43 also run SDK-free — no E2E test is SDK-gated). On a machine
   without `axe-core` in `node_modules` the 2 axe scans **skip**
   visibly — that is the "2 skipped" in bare Windows + SDK runs
   (bare SDK run without axe: 1525 passed + 2 skipped of 1527

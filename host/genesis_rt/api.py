@@ -597,6 +597,14 @@ def create_app() -> Any:
             raise HTTPException(404, "unknown change")
         return JSONResponse(json.loads(stored.read_text(encoding="utf-8")))
 
+    @app.post("/demo/break")
+    def demo_break() -> JSONResponse:
+        """W1: seal, mutate one binary, refuse STALE (host, seconds)."""
+        from .breakdemo import run_break_demo
+        with tempfile.TemporaryDirectory(prefix="genesis-break-") as tmp:
+            report = run_break_demo(tmp)
+        return JSONResponse(report)
+
     @app.post("/jobs", status_code=202)
     def create_job(req: RunRequest) -> JSONResponse:
         """Async submit: 202 immediately, poll /jobs/{id} or stream events."""

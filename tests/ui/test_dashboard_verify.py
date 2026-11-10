@@ -61,6 +61,7 @@ def _run_js(calls: list[dict], tmp_path: Path) -> list:
     if (c.fn === 'lab') return renderLabHtml(passportScenarios(JSON.parse(c.arg)));
     if (c.fn === 'diff') { const j = JSON.parse(c.arg); return renderDiffHtml(j.a, j.b); }
     if (c.fn === 'change') return renderChangeCard(JSON.parse(c.arg));
+    if (c.fn === 'break') return renderBreakCard(JSON.parse(c.arg));
     if (c.fn === 'trace') {
       const t = traceEvents(passportScenarios(JSON.parse(c.arg))[0]);
       return { n: t.events.length, headLen: t.headLen, truncated: t.truncated,
@@ -227,6 +228,7 @@ _PINNED_SINK_OPERANDS = frozenset({
     ("studio.html", "missing.length ? ''"),
     ("studio.html", "opts.join('')"),
     ("studio.html", "r.html"),
+    ("studio.html", "renderBreakCard(await postJson('', {}))"),
     ("studio.html", "renderChangeCard(await postJson('',"
                     " { ir_before: Studio.chgA, ir_after: Studio.chgB }))"),
     ("studio.html", "renderCompareHtml(c)"),
@@ -573,6 +575,24 @@ def test_studio_change_card_ran_where_labels(tmp_path):
     assert "ran where: before=host after=QNX 8.0 target" in card(False, True)
     assert "ran where: before=unknown after=unknown" in card("missing",
                                                              "missing")
+
+
+@node
+def test_studio_break_card_renders_and_escapes(tmp_path):
+    """W1: the break-it card renders the refusal and escapes every
+    interpolated value — a `<script>` binary name stays inert."""
+    evil = '<script>alert("x")</script>'
+    report = {"fresh": {"verdict": "CONSISTENT"},
+              "stale": {"verdict": "STALE",
+                        "stale_binaries": [f"guard-{evil}", "ok_bin"]},
+              "binaries": ["a", "b"],
+              "elapsed_s": 0.1,
+              "native_pointer": f"archived {evil}"}
+    (got,) = _run_js([{"fn": "break", "arg": json.dumps(report)}], tmp_path)
+    assert "STALE" in got and "ok_bin" in got
+    assert "<script>" not in got
+    assert evil not in got
+    assert "&lt;script&gt;" in got
 
 
 @node
