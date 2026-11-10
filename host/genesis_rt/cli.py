@@ -294,7 +294,9 @@ def _cmd_quickstart(args: argparse.Namespace) -> int:
         print(f"invalid: {exc}")
         return 2
     machine = ir["machine"]["id"]
-    summary = run_pipeline(ir_path, REPO_ROOT / "artifacts" / "runs")
+    runs_dir = Path(args.runs_dir) if args.runs_dir else \
+        REPO_ROOT / "artifacts" / "runs"
+    summary = run_pipeline(ir_path, runs_dir)
     if args.json:
         print(json.dumps({
             "ir": ir_path, "machine": machine, "valid": True,
@@ -797,6 +799,8 @@ def build_parser() -> argparse.ArgumentParser:
                     help="bundled example (default: cell)")
     qs.add_argument("--ir", default=None,
                     help="Machine IR file (overrides --example)")
+    qs.add_argument("--runs-dir", default=None,
+                    help="runs directory (default: artifacts/runs)")
     qs.add_argument("--json", action="store_true")
     qs.set_defaults(func=_cmd_quickstart)
     wt = sub.add_parser("watch",

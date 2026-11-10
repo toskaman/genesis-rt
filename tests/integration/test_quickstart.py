@@ -8,8 +8,8 @@ import pytest
 from genesis_rt.cli import main
 
 
-def test_quickstart_cell_passes(capsys):
-    rc = main(["quickstart"])
+def test_quickstart_cell_passes(tmp_path, capsys):
+    rc = main(["quickstart", "--runs-dir", str(tmp_path / "runs")])
     out = capsys.readouterr().out
     assert rc == 0
     assert "valid:" in out
@@ -18,11 +18,21 @@ def test_quickstart_cell_passes(capsys):
     assert "verify-change" in out  # next step printed
 
 
-def test_quickstart_example_choice(capsys):
-    rc = main(["quickstart", "--example", "conveyor"])
+def test_quickstart_example_choice(tmp_path, capsys):
+    rc = main(["quickstart", "--example", "conveyor",
+               "--runs-dir", str(tmp_path / "runs")])
     out = capsys.readouterr().out
     assert rc == 0
     assert "PASS" in out
+
+
+def test_quickstart_runs_dir_isolated(tmp_path):
+    runs = tmp_path / "runs"
+    rc = main(["quickstart", "--runs-dir", str(runs)])
+    assert rc == 0
+    assert sorted(p.name for p in runs.iterdir()) != []
+    assert list((runs / sorted(p.name for p in runs.iterdir())[0]
+                 ).glob("passport.json")) != []
 
 
 def test_quickstart_unknown_example_exits_2():
@@ -39,8 +49,9 @@ def test_quickstart_invalid_ir_exits_2(tmp_path, capsys):
     assert "invalid" in capsys.readouterr().out.lower()
 
 
-def test_quickstart_json(capsys):
-    rc = main(["quickstart", "--json"])
+def test_quickstart_json(tmp_path, capsys):
+    rc = main(["quickstart", "--json",
+               "--runs-dir", str(tmp_path / "runs")])
     out = capsys.readouterr().out
     assert rc == 0
     body = json.loads(out)
