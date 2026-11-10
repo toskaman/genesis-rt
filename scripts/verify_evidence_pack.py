@@ -15,6 +15,12 @@ Checks (exit 0 = integrity OK, exit 2 = failure):
      to judge against EXPECTED_RESULTS.md -- this tool proves integrity,
      not that the underlying run passed.
 
+Stale-control packs (manifest control == "stale") additionally bind
+the sealed refusal: the passport's stale_control claim, the op
+record's stale_refusal, and the target matrix must name the same
+failing checks, and the gate must be FAIL (the expected outcome of
+a negative control). No perf evidence ships in a control pack.
+
 Stdlib only. No QNX SDK, no network, no credentials needed.
 """
 import hashlib
@@ -131,12 +137,43 @@ def main(argv) -> int:
 
     checks = target.get("checks", [])
     n_pass = sum(1 for c in checks if c.get("passed"))
-    perf = json.loads((pack / "performance" / "qnx-perf-record.json")
-                      .read_text(encoding="utf-8"))
-    print(f"observed: op={op.get('state')} gate={passport.get('gate')} "
-          f"matrix={n_pass}/{len(checks)} "
-          f"samples={len(perf.get('raw_samples_us', []))} "
-          f"qnx_verified={(op.get('artifacts') or {}).get('qnx_verified')}")
+    failing = sorted(c.get("name") for c in checks
+                     if isinstance(c, dict) and c.get("passed") is not True)
+    if manifest.get("control", "pass") == "stale":
+        kinds = {r.get("kind"): r.get("body", {})
+                 for r in passport.get("chain", [])
+                 if isinstance(r, dict)}
+        ctl = kinds.get("stale_control")
+        if not isinstance(ctl, dict):
+            failures.append("stale: passport lacks the sealed "
+                            "stale_control claim")
+            ctl = {}
+        elif sorted(ctl.get("failed_checks", [])) != failing:
+            failures.append("stale: sealed claim != target matrix")
+        refused = (op.get("artifacts") or {}).get("stale_refusal") or {}
+        if sorted(refused.get("failed", [])) != failing:
+            failures.append("stale: op stale_refusal != target matrix")
+        if sorted(refused.get("expected", [])) != sorted(
+                ctl.get("expected_refusal", [])):
+            failures.append("stale: declared refusal != sealed claim")
+        if passport.get("gate") != "FAIL":
+            failures.append(f"stale: gate is {passport.get('gate')}, need FAIL")
+        print(f"observed: op={op.get('state')} gate={passport.get('gate')} "
+              f"(FAIL expected: negative control) "
+              f"matrix={n_pass}/{len(checks)} refusal={failing} "
+              f"qnx_verified={(op.get('artifacts') or {}).get('qnx_verified')}")
+    else:
+        perf = json.loads((pack / "performance" / "qnx-perf-record.json")
+                          .read_text(encoding="utf-8"))
+        print(f"observed: op={op.get('state')} gate={passport.get('gate')} "
+              f"matrix={n_pass}/{len(checks)} "
+              f"samples={len(perf.get('raw_samples_us', []))} "
+              f"qnx_verified={(op.get('artifacts') or {}).get('qnx_verified')}")
+    # Pack-shape integrity: a stale pack must not smuggle perf files
+    # (a control run produces no perf evidence to claim).
+    perf_files = [rel for rel in files if rel.startswith("performance/")]
+    if manifest.get("control", "pass") == "stale" and perf_files:
+        failures.append(f"stale: unexpected perf files: {sorted(perf_files)}")
     if failures:
         print("FAIL:")
         for f in failures:
