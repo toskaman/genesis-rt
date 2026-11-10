@@ -126,6 +126,25 @@ def build_passport(run_id: str, ir: dict[str, Any],
     }
 
 
+def append_record(passport: dict[str, Any], kind: str,
+                body: dict[str, Any]) -> dict[str, Any]:
+    """Append one hash-linked record to an UNSEALED passport chain.
+
+    Fail-closed: refuses duplicate kinds (the gate rejects ambiguous
+    evidence) and refuses to extend a chain that already carries a
+    gate verdict (a sealed verdict must never gain new evidence).
+    """
+    if not isinstance(body, dict):
+        raise ValueError("record body must be an object")
+    chain = passport.get("chain", [])
+    kinds = {r.get("kind") for r in chain if isinstance(r, dict)}
+    if "gate_verdict" in kinds:
+        raise ValueError("passport already sealed: refusing post-verdict append")
+    if kind in kinds:
+        raise ValueError(f"duplicate record kind: {kind} (refusing ambiguous evidence)")
+    return _chain_append(chain, kind, body)
+
+
 def attach_verdict(passport: dict[str, Any], verdict: dict[str, Any]) -> dict[str, Any]:
     body = {k: v for k, v in verdict.items() if k != "evaluated_utc"}
     _chain_append(passport["chain"], "gate_verdict", body)
