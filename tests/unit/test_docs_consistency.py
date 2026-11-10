@@ -824,6 +824,18 @@ def test_hero_line_front_doored():
     assert hero in flat("docs/submission/DEVPOST_FINAL_DRAFT.md")
 
 
+def test_wow_commands_documented():
+    """OMEGA8 W1-W4: every new wow command is built AND documented."""
+    from genesis_rt.cli import build_parser
+    parser = build_parser()
+    action = next(a for a in parser._actions
+                  if type(a).__name__ == "_SubParsersAction")
+    table = _read("README.md")
+    for cmd in ("demo-break", "quickstart", "watch", "new"):
+        assert cmd in action.choices, f"{cmd} not wired in CLI"
+        assert f"genesis-rt {cmd}" in table, f"{cmd} missing from README"
+
+
 def test_qnx_footprint_table_present():
     """OMEGA6 D4: the QNX evidence doc carries the measured C
     footprint (text/data/bss) with RSS honestly unmeasured."""

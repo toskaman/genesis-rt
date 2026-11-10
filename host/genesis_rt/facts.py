@@ -12,14 +12,14 @@ from .provenance import EXPECTED_TARGET_CHECKS, TARGET_PLATFORM
 # never zero by assumption: SDK-only tests skip without the SDK, and the
 # 2 axe-core scans skip without node_modules/axe-core. Guarded by
 # test_total_count_matches_collected.
-TESTS_WITH_SDK = 1527
-TESTS_SDK_FREE_PASSED = 1521
-TESTS_MEASURED_ON = "2026-11-10 TITAN OMEGA7 (SDK + axe, Windows, Python 3.14; SDK-free lane via probe-reported absent SDK)"
+TESTS_WITH_SDK = 1559
+TESTS_SDK_FREE_PASSED = 1553
+TESTS_MEASURED_ON = "2026-11-10 TITAN OMEGA7+wow (SDK + axe, Windows, Python 3.14; SDK-free lane via probe-reported absent SDK)"
 TESTS_SDK_FREE_SKIPS = 6
 ADVERSARIAL_TESTS = 24
 PLANNING_EVAL_CASES = 28
 QCC_VERSION = "12.2.0"
-E2E_BROWSER_TESTS = 41
+E2E_BROWSER_TESTS = 43
 VIDEO_FILE = "docs/demo/genesis-rt-demo-w12.mp4"
 VIDEO_DURATION_S = 154.664
 PACK_BEFORE = "evidence/qnx8-x86_64-omega2-before"

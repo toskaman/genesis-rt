@@ -487,6 +487,12 @@ writes.</p>
 <p>IR B (after): <input type="file" id="chgfile-b" aria-label="IR B (after)" accept=".json"></p>
 <p><button class="act" id="change-prove">Prove</button></p>
 <div id="change-out"><p class="note">No change proof yet.</p></div>
+<h3>Break it (needs backend)</h3>
+<p class="note">Seal two binaries, mutate one without re-sealing, watch the
+refusal name it — host digest level, in seconds. The native behavioral
+refusal stays archived (see the Omega2 packs), never faked live.</p>
+<p><button class="act" id="break-run">Break it</button></p>
+<div id="break-out"><p class="note">Nothing broken yet.</p></div>
 </section>
 
 <section class="tabpage" id="tab-evidence" role="tabpanel" aria-labelledby="tabbtn-evidence">
@@ -1102,6 +1108,22 @@ function renderChangeCard(v) {
     ' after=' + esc(where(a)) + '</p>' +
     '<p class="meta">open passports: ' + link(b) + ' · ' + link(a) + '</p></article>';
   return h + '</div>';
+}
+function renderBreakCard(r) {
+  if (!r || typeof r !== 'object' || !r.stale) {
+    return '<p class="fail">Not a break-it report.</p>';
+  }
+  const names = (r.stale.stale_binaries || [])
+    .map((n) => '<code>' + esc(n) + '</code>').join(' · ') || 'none';
+  let h = '<div class="banner">sealed ' + esc((r.binaries || []).length) +
+    ' binaries → ' + esc((r.fresh || {}).verdict || '?') + '</div>';
+  h += '<article class="proof-card"><h3>The wrong binary cannot pass</h3>' +
+    '<p class="probe">mutated → <b>' + esc(r.stale.verdict) + '</b>: ' +
+    names + '</p>' +
+    '<p class="meta">host digest level · ' + esc(r.elapsed_s) + ' s</p>' +
+    '<p class="meta">native refusal archived (never faked live): ' +
+    esc(r.native_pointer || '') + '</p></article>';
+  return h;
 }
 
 /* Studio Live pure core (no DOM): tested under node alongside the
@@ -2211,6 +2233,13 @@ document.getElementById('change-prove').addEventListener('click', async () => {
     out.innerHTML = renderChangeCard(await postJson('/changes', {
       ir_before: Studio.chgA, ir_after: Studio.chgB }));
   } catch (e) { out.innerHTML = errHtml('Prove failed', e); }
+});
+document.getElementById('break-run').addEventListener('click', async () => {
+  const out = el('break-out');
+  out.innerHTML = '<p class="note">Breaking… (seal → mutate → refuse)</p>';
+  try {
+    out.innerHTML = renderBreakCard(await postJson('/demo/break', {}));
+  } catch (e) { out.innerHTML = errHtml('Break-it failed', e); }
 });
 document.getElementById('srcfiles').addEventListener('change', async (e) => {
   const files = [];
