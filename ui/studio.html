@@ -4008,7 +4008,8 @@ async function judgeAction(action) {
           '<p class="note">seal <code>' +
           esc(String(dossier.seal).slice(0, 12)) + '…</code> · ' +
           esc(String(dossier.target_mode)) + ' grounding</p>';
-        switchTab('passport');
+        // Stay on the Judge tab: the verdicts render here (switching
+        // away would hide the payoff this action just produced).
         judgeNote('Causal dossier sealed: winner ' + w +
           ' — verdicts above, proof in the response.');
       } catch (e) {
