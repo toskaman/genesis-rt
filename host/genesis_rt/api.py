@@ -666,7 +666,7 @@ def create_app() -> Any:
         """Serve the flagship incident + machine IR pair (read-only)."""
         try:
             incident = json.loads(
-                (REPO_ROOT / "examples" / "causal-demo"
+                (REPO_ROOT / "incidents"
                  / "estop-cell-transfer.json").read_text(
                      encoding="utf-8"))
             machine_ir = json.loads(

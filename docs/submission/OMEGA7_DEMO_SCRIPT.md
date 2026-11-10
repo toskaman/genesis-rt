@@ -6,7 +6,7 @@ archived path. All commands from the repo root.
 ## 1. Reproduce the incident (one command)
 
 ```
-genesis-rt causal-repro --incident examples/causal-demo/estop-cell-transfer.json --json
+genesis-rt causal-repro --incident incidents/estop-cell-transfer.json --json
 ```
 
 Expect: exit 0, `winning_hypothesis: H-estop`, five

@@ -25,7 +25,7 @@ def client(tmp_path, monkeypatch):
 
 def _payload(repo_root):
     incident = json.loads(
-        (repo_root / "examples" / "causal-demo"
+        (repo_root / "incidents"
          / "estop-cell-transfer.json").read_text(encoding="utf-8"))
     machine_ir = json.loads(
         (repo_root / "examples" / "cell-demo"

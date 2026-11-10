@@ -8,7 +8,7 @@ from pathlib import Path
 from genesis_rt.cli import main
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-INCIDENT = (REPO_ROOT / "examples" / "causal-demo"
+INCIDENT = (REPO_ROOT / "incidents"
             / "estop-cell-transfer.json")
 CELL_IR = REPO_ROOT / "examples" / "cell-demo" / "cell-ir.json"
 

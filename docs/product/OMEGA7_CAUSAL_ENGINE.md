@@ -20,10 +20,10 @@ or assemble screenshots into a report.
 ## Flagship story (implemented, measured)
 
 A cell halts mid-transfer with ESTOP latched
-(`examples/causal-demo/estop-cell-transfer.json`). One command:
+(`incidents/estop-cell-transfer.json`). One command:
 
 ```
-genesis-rt causal-repro --incident examples/causal-demo/estop-cell-transfer.json
+genesis-rt causal-repro --incident incidents/estop-cell-transfer.json
 ```
 
 ranks H-estop first (matched signals: estop, halt, state=3),

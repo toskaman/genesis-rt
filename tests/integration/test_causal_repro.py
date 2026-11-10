@@ -9,7 +9,7 @@ from genesis_rt.causal_run import reproduce, verify_dossier, verify_fix
 
 
 def _paths(repo_root: Path, tmp_path: Path):
-    incident = (repo_root / "examples" / "causal-demo"
+    incident = (repo_root / "incidents"
                 / "estop-cell-transfer.json")
     return (incident, tmp_path / "runs", tmp_path / "dossiers",
             tmp_path / "change")
