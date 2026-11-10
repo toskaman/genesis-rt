@@ -6,14 +6,25 @@
 
 ## Current internal assessment — 9 Nov 2026 (OMEGA6)
 
-1434 host tests green on the owner machine (SDK+axe: 1434 passed,
-0 skips; SDK-only: 1432 + 2 honest axe skips).
-SDK-free: 1428 + 6 honest skips (SDK-gated).
+1490 host tests green on the owner machine (SDK+axe: 1490 passed,
+0 skips; SDK-only: 1488 + 2 honest axe skips).
+SDK-free: 1484 + 6 honest skips (SDK-gated).
 61 documentation-consistency tests
-green, 73 planning unit tests green, E2E 41/41 with axe-core
+green, 113 planning unit tests green, E2E 41/41 with axe-core
 (39 + 2 skips without it), Omega2 packs re-verified VERIFY OK
 16/16 on the final tree (no target/ C changes, so no native
 re-run required).
+
+OMEGA7 delta (10 Nov 2026, branch `titan/omega7-v10-stale-arm` —
+reported here, scores above held with no re-assessment): planner
+contract v1.4 (Greifer tier-1, Roboter fleet forms, 4
+safety-vocabulary additions, 4-kind multilingual unsupported
+veto, rule-18-literal consult policy) measured on blind v10
+(184 cases, d550b802): 159/165/165 with 15 unsafe accepts of
+136 (same 15 on all providers), 0 wrong-kind, 29/26 consults
++ 3 explained mismatches; arm verdicts quarantined at the
+release gate (FAIL + PHYSICS WARNING banner, native verdicts
+byte-identical). Counts above re-synced to the OMEGA7 tree.
 
 | Criterion | Omega4 | **Now** | New OMEGA5 evidence | Remaining gap | Independent attack |
 |---|---|---|---|---|---|
