@@ -9,9 +9,9 @@ current evidence.
 
 ## Test counts
 
-- Collected total: **1609** (`facts.TESTS_WITH_SDK`; SDK-run skips are
+- Collected total: **1610** (`facts.TESTS_WITH_SDK`; SDK-run skips are
   per-machine — the 2 axe scans skip without `node_modules/axe-core`).
-- SDK-free (10 Nov 2026 + OMEGA7): **1603 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
+- SDK-free (10 Nov 2026 + OMEGA7): **1604 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`, the 28-case
@@ -26,7 +26,7 @@ current evidence.
   (all 44 also run SDK-free — no E2E test is SDK-gated). On a machine
   without `axe-core` in `node_modules` the 2 axe scans **skip**
   visibly — that is the "2 skipped" in bare Windows + SDK runs
-  (bare SDK run without axe: 1607 passed + 2 skipped of 1609
+  (bare SDK run without axe: 1608 passed + 2 skipped of 1610
   expected — the OMEGA4 no-axe run measured 1346 + 2 of 1348,
   and the +28 OMEGA5, +19 TITAN V3, +36 OMEGA6, +56 OMEGA7
   and +35 stale-control tests are axe-independent; the previous 1337-tree run needed one retry after a

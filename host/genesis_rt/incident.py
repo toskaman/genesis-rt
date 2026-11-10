@@ -18,7 +18,10 @@ from typing import Any
 
 from .orchestrator import valid_run_id
 
-INCIDENT_SCHEMA_VERSION = 1
+#: Namespaced marker: must never equal an IR schema_version int, or
+#: ci_ir_check (which keys on schema_version) would validate incident
+#: docs as Machine IRs. Pinned by test_incident_marker_not_ir_version.
+INCIDENT_SCHEMA_VERSION = "incident/1"
 
 #: Room for derived run-id suffixes inside the 64-char run id cap.
 MAX_INCIDENT_ID_LEN = 48

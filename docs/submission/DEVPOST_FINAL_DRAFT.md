@@ -72,10 +72,10 @@ target over SSH → contract-aware native oracle (expected
 ALLOW / DENY / SAFE_STOP derived from the validated IR,
 not hard-coded) → transcripts sealed into a 15-link
 passport bound to the IR digest and op id → in-op replay
-→ release decision. Host suite: 1609 tests collected
-(10 Nov 2026 owner run, SDK + axe: 1609 passed + 0 skipped,
-0 failures; SDK without axe: 1607 + 2 honest skips;
-SDK-free CI: 1603 + 6 SDK-gated skips).
+→ release decision. Host suite: 1610 tests collected
+(10 Nov 2026 owner run, SDK + axe: 1610 passed + 0 skipped,
+0 failures; SDK without axe: 1608 + 2 honest skips;
+SDK-free CI: 1604 + 6 SDK-gated skips).
 Planning unit tests 113/113 in `tests/unit/test_planning.py`
 (60 inherited + 13 OMEGA5 + 40 OMEGA7 red-green planner
 cases incl. methodology pins; distinct from the 28/28
@@ -252,7 +252,7 @@ PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve
 # Studio at http://127.0.0.1:8077/
 python -m pytest tests/ -q
-# 1609 collected; SDK-free CI: 1603 + 6 honest skips
+# 1610 collected; SDK-free CI: 1604 + 6 honest skips
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then

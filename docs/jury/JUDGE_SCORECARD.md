@@ -15,10 +15,10 @@ human benefit still NOT YET MEASURED.
 
 ## Prior assessment — 10 Nov 2026 (OMEGA7 + wow batch)
 
-1609 host tests green on the owner machine (SDK+axe: 1609 passed,
-0 skips; SDK-only: 1607 + 2 honest axe skips).
-SDK-free: 1603 + 6 honest skips (SDK-gated).
-64 documentation-consistency tests
+1610 host tests green on the owner machine (SDK+axe: 1610 passed,
+0 skips; SDK-only: 1608 + 2 honest axe skips).
+SDK-free: 1604 + 6 honest skips (SDK-gated).
+65 documentation-consistency tests
 green, 113 planning unit tests green, E2E 44/44 with axe-core
 (42 + 2 skips without it), Omega2 packs re-verified VERIFY OK
 16/16 on the final tree (no target/ C changes, so no native

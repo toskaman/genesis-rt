@@ -16,7 +16,7 @@ from genesis_rt.incident import (
 
 def _good() -> dict:
     return {
-        "schema_version": 1,
+        "schema_version": "incident/1",
         "incident_id": "inc-estop-01",
         "title": "cell halts mid-transfer, status ESTOP",
         "machine_ir": "examples/cell-demo/cell-ir.json",
@@ -71,3 +71,11 @@ def test_digest_stable_and_canonical(tmp_path):
                  encoding="utf-8")
     assert incident_digest(load_incident(p)) == d1
     assert len(d1) == 64
+
+
+def test_incident_marker_not_ir_version():
+    # ci_ir_check keys on schema_version in (1, 2): a colliding
+    # incident marker would fail CI IR validation (PR #19 lesson).
+    from genesis_rt.incident import INCIDENT_SCHEMA_VERSION
+    assert INCIDENT_SCHEMA_VERSION not in (1, 2)
+    assert isinstance(INCIDENT_SCHEMA_VERSION, str)

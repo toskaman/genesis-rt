@@ -18,7 +18,7 @@ from genesis_rt.causal_run import (
 
 def _estop_incident() -> dict:
     return {
-        "schema_version": 1,
+        "schema_version": "incident/1",
         "incident_id": "inc-estop-01",
         "title": "cell halts mid-transfer, status ESTOP",
         "machine_ir": "examples/cell-demo/cell-ir.json",
