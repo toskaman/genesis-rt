@@ -274,6 +274,29 @@ def test_omega7_physics_note_quarantines_passport(amr_ir, tmp_path):
     assert any("quarantined physics" in r for r in v["reasons"])
 
 
+def test_omega7_physics_note_propagates_through_passport(amr_ir, tmp_path):
+    """OMEGA7 landing (red-team B4): faultlab's physics_note survives
+    build_passport into the sealed scenario body — the gate's
+    physics_note OR-branch fires on real pipeline passports, not just
+    hand-built ones."""
+    arm = copy.deepcopy(amr_ir)
+    arm["machine"]["kind"] = "robotic_arm_virtual"
+    arm["machine"]["id"] = "arm-propagation-probe"
+    manifest = codegen.generate(arm, tmp_path / "gen-arm")
+    results = faultlab.run_all(arm, ["nominal_navigation"])
+    assert results[0]["physics_note"]  # stamped by faultlab
+    p = evidence.build_passport(
+        "run-arm-prop", arm, manifest, results,
+        {"status": "blocked", "verified_on_target": False})
+    scen = next(r for r in p["chain"]
+                if r["kind"] == "scenario:nominal_navigation")
+    assert scen["body"].get("physics_note") == results[0]["physics_note"]
+    assert evidence.verify_chain(p) == []
+    v = gate.evaluate(p, ["nominal_navigation"])
+    assert v["verdict"] == "FAIL"
+    assert sum("quarantined physics" in r for r in v["reasons"]) == 2
+
+
 def test_omega7_quarantine_banners_format():
     """OMEGA7 C banner: quarantine reasons render as PHYSICS
     WARNING lines; every other reason renders nothing."""

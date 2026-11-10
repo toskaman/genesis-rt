@@ -205,3 +205,16 @@ python scripts/eval_planner.py --provider llm `
 
 v10 is FROZEN forever. It is never rerun on changed code.
 Further fixes need v11 (out of scope).
+
+## Landing addendum (10 Nov 2026, red-team B3)
+
+The three full sha256 digests in `55640be`'s commit message match no
+computable form of the committed raw files (raw, LF-normalized,
+newline-stripped, and canonical-JSON forms all tested — independent
+landing reproduction). They are orphaned strings, likely digests of
+pre-commit bytes; the message is immutable without a history
+rewrite, so it stands uncorrected. Authority rests instead on: (1)
+the digests in this report (`b795e82f…`/`31f68c44…`/`ebf3fe2e…`,
+verified against raw bytes); (2) single-commit, never-modified raw
+files; (3) bit-identical independent re-runs. No raw file was
+touched by this note.

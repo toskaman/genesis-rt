@@ -195,7 +195,12 @@ def test_omega7_arm_change_card_shows_physics_banner(repo_root, tmp_path):
                             scenarios=["nominal_navigation"])
     assert verdict["verdict"] == "FAIL"
     card = render_card_text(verdict)
-    assert card.count("PHYSICS WARNING") == 2
+    # Landing (red-team B4): 2 legs x 2 DISTINCT quarantine reasons
+    # (kind + aliased-physics note). The pre-fix expectation of 2
+    # encoded the bug — the physics_note reason was dropped.
+    assert card.count("PHYSICS WARNING") == 4
+    assert card.count("ran on diffdrive-corridor") == 2
+    assert card.count("ran on aliased physics") == 2
     assert "robotic_arm_virtual" in card
 
 

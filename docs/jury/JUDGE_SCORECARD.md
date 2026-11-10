@@ -4,12 +4,12 @@
 > Current scores are in the first table; everything below the line is
 > historical and kept for traceability.
 
-## Current internal assessment — 9 Nov 2026 (OMEGA6)
+## Current internal assessment — 9 Nov 2026 (OMEGA7)
 
-1525 host tests green on the owner machine (SDK+axe: 1525 passed,
-0 skips; SDK-only: 1523 + 2 honest axe skips).
-SDK-free: 1519 + 6 honest skips (SDK-gated).
-61 documentation-consistency tests
+1527 host tests green on the owner machine (SDK+axe: 1527 passed,
+0 skips; SDK-only: 1525 + 2 honest axe skips).
+SDK-free: 1521 + 6 honest skips (SDK-gated).
+62 documentation-consistency tests
 green, 113 planning unit tests green, E2E 41/41 with axe-core
 (39 + 2 skips without it), Omega2 packs re-verified VERIFY OK
 16/16 on the final tree (no target/ C changes, so no native

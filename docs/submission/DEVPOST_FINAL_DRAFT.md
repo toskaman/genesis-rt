@@ -72,10 +72,10 @@ target over SSH → contract-aware native oracle (expected
 ALLOW / DENY / SAFE_STOP derived from the validated IR,
 not hard-coded) → transcripts sealed into a 15-link
 passport bound to the IR digest and op id → in-op replay
-→ release decision. Host suite: 1525 tests collected
-(10 Nov 2026 owner run, SDK + axe: 1525 passed + 0 skipped,
-0 failures; SDK without axe: 1523 + 2 honest skips;
-SDK-free CI: 1519 + 6 SDK-gated skips).
+→ release decision. Host suite: 1527 tests collected
+(10 Nov 2026 owner run, SDK + axe: 1527 passed + 0 skipped,
+0 failures; SDK without axe: 1525 + 2 honest skips;
+SDK-free CI: 1521 + 6 SDK-gated skips).
 Planning unit tests 113/113 in `tests/unit/test_planning.py`
 (60 inherited + 13 OMEGA5 + 40 OMEGA7 red-green planner
 cases incl. methodology pins; distinct from the 28/28
@@ -252,7 +252,7 @@ PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve
 # Studio at http://127.0.0.1:8077/
 python -m pytest tests/ -q
-# 1525 collected; SDK-free CI: 1519 + 6 honest skips
+# 1527 collected; SDK-free CI: 1521 + 6 honest skips
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then
@@ -265,10 +265,11 @@ simulation-only machines; no safety certification; no
 hardware attestation; packs are hash-only (UNSIGNED, no
 signer authentication); native CI lane is build-only
 (target campaigns run on the author's machine and ship
-as packs); AI planner: latest blind v9 shows 5 unsafe
-accepts of 112 reject cases (all deterministic-layer,
-disclosed by class) + 14 explained consultation
-mismatches; wrong-kind accepts 0; no broad-robustness
+as packs); AI planner: latest blind v10 shows 15 unsafe
+accepts of 136 reject cases (same 15 deterministic-layer
+cases on all providers, disclosed by class) + 29 of 26
+consults with 3 explained mismatches, 0 missing;
+wrong-kind accepts 0; no broad-robustness
 claim; no external user study; full screen-reader pass
 outstanding.
 
