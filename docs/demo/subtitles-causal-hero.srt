@@ -1,0 +1,81 @@
+1
+00:00:03,000 --> 00:00:06,240
+Every factory runs on
+machines it cannot fully explain.
+
+2
+00:00:06,240 --> 00:00:09,841
+When one fails at two
+a.m., the question is never
+
+3
+00:00:09,841 --> 00:00:12,001
+just what broke.
+It is why.
+
+4
+00:00:12,001 --> 00:00:14,162
+And what proof
+do you have?
+
+5
+00:00:14,162 --> 00:00:17,762
+Genesis RT is a causal
+failure engine for real-time QNX
+
+6
+00:00:17,762 --> 00:00:20,283
+systems. Watch. Eight
+stages. One guided run.
+
+7
+00:00:20,283 --> 00:00:22,803
+The machine. Its
+contract. The generated software.
+
+8
+00:00:22,803 --> 00:00:24,603
+The failure, reproduced, not described.
+
+9
+00:00:24,603 --> 00:00:28,204
+Now the diagnosis. Six competing
+hypotheses, executed as native experiments.
+
+10
+00:00:28,204 --> 00:00:31,805
+Five come back inconclusive. One
+is supported, with a sealed
+
+11
+00:00:31,805 --> 00:00:33,965
+evidence dossier behind
+it. No guessing.
+
+12
+00:00:33,965 --> 00:00:35,765
+No green badge on trust.
+
+13
+00:00:35,765 --> 00:00:37,926
+Every verdict links
+to replayable proof.
+
+14
+00:00:37,926 --> 00:00:41,166
+The binary. The run.
+The before and the after.
+
+15
+00:00:41,166 --> 00:00:43,687
+A failed actuator
+becomes a decided release.
+
+16
+00:00:43,687 --> 00:00:45,847
+In seconds, not
+sprints. Genesis RT.
+
+17
+00:00:45,847 --> 00:00:47,287
+From incident to proof.

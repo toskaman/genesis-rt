@@ -190,6 +190,23 @@ def test_video_claim_matches_facts():
         assert str(facts.VIDEO_DURATION_S) in _read(rel), rel
 
 
+def test_causal_video_claims_match_facts():
+    """OMEGA8 video: hero + brag cuts exist and validation pins them."""
+    from genesis_rt import facts
+    for attr in ("HERO_VIDEO_FILE", "BRAG_VIDEO_FILE"):
+        assert (ROOT / getattr(facts, attr)).is_file(), attr
+    validation = _read("docs/demo/MEDIA_VALIDATION_CAUSAL.md")
+    for token in (facts.HERO_VIDEO_FILE, facts.BRAG_VIDEO_FILE,
+                  str(facts.HERO_VIDEO_DURATION_S),
+                  str(facts.BRAG_VIDEO_DURATION_S),
+                  "C5022619C5E82F915482A98EB49CF783061FFEEC113E721D64CB9BF20F4B59DC",
+                  "6548BE78C973F4D1628D841471BEC3A3F1D04B2F871928050431230B29EEB0C2",
+                  "DEFERRED", "PUBLICATION_HANDOFF_CAUSAL.md"):
+        assert token in validation, token
+    handoff = _read("docs/demo/PUBLICATION_HANDOFF_CAUSAL.md")
+    assert "DEFERRED_BY_OWNER" in handoff
+
+
 def test_no_stale_video_handoff_claims():
     """Wave 12 §5: edit + voice are done; only upload is pending."""
     matrix = _read("docs/compliance-matrix.md")
