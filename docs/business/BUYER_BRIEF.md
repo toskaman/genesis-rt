@@ -93,7 +93,7 @@ runners cannot hold the SDK — structural, not a bug).
 - Complements Momentics and Parasoft/LDRA/VectorCAST —
   it proves *executed behavior*, it does not analyze
   code or replace qualification suites.
-- Prototype maturity: 1559-test host suite + 16-step
+- Prototype maturity: 1610-test host suite + 16-step
   matrix is strong for a hackathon, thin for production.
 - QEMU x86_64 only; no ARM/real-hardware timing; no
   safety-certification claim of any kind.

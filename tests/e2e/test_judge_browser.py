@@ -216,6 +216,20 @@ def test_judge_host_journey_stages_a_to_g(page, tmp_path):
     _shot(pg, tmp_path, "g-release")
 
 
+def test_judge_stage_h_causal_renders_action(page):
+    # Wiring only (no click: the full run executes six pipelines).
+    pg = page
+    pg.locator('button[data-tab="judge"]').click()
+    pg.wait_for_selector("#judge-out")
+    for _ in range(7):
+        pg.locator('#judge-out button[data-jnav="next"]').click()
+    assert "The causal proof" in _judge_text(pg)
+    action = pg.locator(
+        '#judge-out button[data-jaction="judge-run-causal"]')
+    assert action.count() == 1
+    assert action.is_enabled()
+
+
 def test_target_tab_empty_state(page):
     pg = page
     pg.locator('button[data-tab="target"]').click()

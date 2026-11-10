@@ -72,8 +72,13 @@ def test_unknown_export_creates_no_run_artifacts(client, tmp_path):
 # /docs, /redoc, /openapi.json, /docs/oauth2-redirect are FastAPI's
 # default static API docs (read-only).
 # Titan v3, 9 Nov 2026: +/changes/{change_id} (stored verdict.json only).
+# Causal slice, 10 Nov 2026: +/causal/dossiers/{incident_id} (stored
+# dossier.json + re-verify only, traversal-guarded) +/causal/flagship
+# (read-only repo files).
 AUDITED_GET_ROUTES = [
     "/",
+    "/causal/dossiers/{incident_id}",
+    "/causal/flagship",
     "/changes/{change_id}",
     "/dashboard.html",
     "/docs",

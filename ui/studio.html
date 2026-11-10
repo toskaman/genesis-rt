@@ -284,8 +284,8 @@ Verify offline, no QNX SDK needed:</p>
 
 <section class="tabpage" id="tab-judge" role="tabpanel" aria-labelledby="tabbtn-judge">
 <h2>Guided demo</h2>
-<p class="page-intro">The core result in seven steps: machine, contract, generated QNX code, native verification, a fault, the before/after change, and offline verification. Use <b>Next</b> to move on; nothing needs to be installed.</p>
-<p class="note">Seven stages, each driving the real product below.
+<p class="page-intro">The core result in eight steps: machine, contract, generated QNX code, native verification, a fault, the before/after change, offline verification, and the causal proof. Use <b>Next</b> to move on; nothing needs to be installed.</p>
+<p class="note">Eight stages, each driving the real product below.
 LIVE runs against the backend now; ARCHIVED shows the committed
 sample while the backend is offline.</p>
 <div id="judge-out" aria-live="polite"><p class="note">Loading…</p></div>
@@ -1191,7 +1191,7 @@ function updateTargetRunEnabled() {
 }
 
 /* -- Judge Mode (pure core, node-tested) --
- * Seven guided stages; every action drives the real product (tab
+ * Eight guided stages; every action drives the real product (tab
  * navigation or a live backend call). No mock runs, no inert buttons:
  * with the backend offline the actions disable and the banner names
  * the archived sample instead. */
@@ -1225,6 +1225,10 @@ function judgeStages() {
       action: 'judge-open-dossier',
       proves: 'Release eligibility and an exportable evidence dossier.',
       source: 'passport + gate verdict' },
+    { id: 'causal', title: 'H · The causal proof', tab: 'passport',
+      action: 'judge-run-causal',
+      proves: 'One incident to ranked hypotheses to a sealed dossier (live backend run).',
+      source: 'POST /causal/dossiers (estop flagship)' },
   ];
 }
 function judgeClamp(idx) {
@@ -3986,6 +3990,30 @@ async function judgeAction(action) {
         Live.judge.extra = '';
         judgeNote('Passport tab opened: run stage F first, then return ' +
           'here for the release state.');
+      }
+    } else if (action === 'judge-run-causal') {
+      judgeNote('Causal proof running: incident to hypotheses to dossier…');
+      try {
+        const flag = JSON.parse(await apiText('/causal/flagship'));
+        const dossier = await postJson('/causal/dossiers',
+          { incident: flag.incident, machine_ir: flag.machine_ir });
+        const w = (dossier.causality &&
+          dossier.causality.winning_hypothesis) || '-';
+        let rows = '';
+        for (const h of (dossier.hypotheses || [])) {
+          rows += '<li>' + esc(h.id) + ': ' + esc(h.verdict) + '</li>';
+        }
+        Live.judge.extra = '<h4>Causal dossier: winner ' + esc(w) +
+          '</h4><ul>' + rows + '</ul>' +
+          '<p class="note">seal <code>' +
+          esc(String(dossier.seal).slice(0, 12)) + '…</code> · ' +
+          esc(String(dossier.target_mode)) + ' grounding</p>';
+        switchTab('passport');
+        judgeNote('Causal dossier sealed: winner ' + w +
+          ' — verdicts above, proof in the response.');
+      } catch (e) {
+        Live.judge.extra = '';
+        judgeNote('Causal proof failed: ' + ((e && e.message) || e));
       }
     } else {
       judgeNote('Unknown judge action: ' + action);
