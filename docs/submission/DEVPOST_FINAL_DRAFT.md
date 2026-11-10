@@ -72,10 +72,10 @@ target over SSH → contract-aware native oracle (expected
 ALLOW / DENY / SAFE_STOP derived from the validated IR,
 not hard-coded) → transcripts sealed into a 15-link
 passport bound to the IR digest and op id → in-op replay
-→ release decision. Host suite: 1610 tests collected
-(10 Nov 2026 owner run, SDK + axe: 1610 passed + 0 skipped,
-0 failures; SDK without axe: 1608 + 2 honest skips;
-SDK-free CI: 1604 + 6 SDK-gated skips).
+→ release decision. Host suite: 1611 tests collected
+(10 Nov 2026 owner run, SDK + axe: 1611 passed + 0 skipped,
+0 failures; SDK without axe: 1609 + 2 honest skips;
+SDK-free CI: 1605 + 6 SDK-gated skips).
 Planning unit tests 113/113 in `tests/unit/test_planning.py`
 (60 inherited + 13 OMEGA5 + 40 OMEGA7 red-green planner
 cases incl. methodology pins; distinct from the 28/28
@@ -252,7 +252,7 @@ PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve
 # Studio at http://127.0.0.1:8077/
 python -m pytest tests/ -q
-# 1610 collected; SDK-free CI: 1604 + 6 honest skips
+# 1611 collected; SDK-free CI: 1605 + 6 honest skips
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then
@@ -313,7 +313,7 @@ already participates; never buy, automate, or
 incentivize votes; never use multiple accounts.
 No outreach sent to date.
 
-## Rules compliance checklist (verified 8 Nov 2026)
+## Rules compliance checklist (re-verified 10 Nov 2026 via hackathon page + mirrors; direct /rules fetch returned 403 — owner confirms on filing)
 
 - Public repo + Apache-2.0 detected: YES.
 - One category (Developer Tooling & Host Tools): YES.
@@ -321,7 +321,9 @@ No outreach sent to date.
   above; SDK path documented).
 - QNX 8.0 evidence + identified files: YES.
 - Video <3:00, public YouTube, device footage:
-  PENDING OWNER (storyboard ready).
+  CUTS READY, UPLOAD PENDING OWNER (hero 64.16 s + brag 20.77 s validated —
+  `docs/demo/MEDIA_VALIDATION_CAUSAL.md`; no third-party music in hero cut;
+  owner uploads + pastes URL, see `docs/demo/PUBLICATION_HANDOFF_CAUSAL.md`).
 - English materials: YES.
 - Free availability through judging (Jan 29, 2027):
   YES.

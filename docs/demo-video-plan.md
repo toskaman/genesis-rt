@@ -6,6 +6,13 @@
 > Only the YouTube upload remains an owner handoff
 > (`docs/demo/PUBLICATION_HANDOFF_W12.md`). The storyboard below is
 > kept as the executed record.
+>
+> OMEGA8 causal cuts (2026-11-10, in addition to W12): hero
+> `docs/demo/genesis-rt-causal-hero.mp4` (64.16 s, Kokoro narration, burned
+> captions) and vertical discovery `docs/demo/genesis-rt-brag.mp4` (20.766667 s,
+> CC BY 4.0 music) — see `docs/demo/MEDIA_VALIDATION_CAUSAL.md`. Upload of these
+> cuts is likewise an owner handoff
+> (`docs/demo/PUBLICATION_HANDOFF_CAUSAL.md`, DEFERRED_BY_OWNER).
 
 Record only genuine runs. Studio-first shot list (the CLI-only cut is
 retired: pipelines and target ops run from Studio Live since Wave 7/8):

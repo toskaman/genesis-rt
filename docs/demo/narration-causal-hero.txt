@@ -1,0 +1,11 @@
+Every factory runs on machines it cannot fully explain. When one fails at two a.m., the question is never just what broke. It is why. And what proof do you have?
+
+Genesis RT is a causal failure engine for real-time QNX systems. Watch. Eight stages. One guided run. The machine. Its contract. The generated software. The failure, reproduced, not described.
+
+Now the diagnosis. Six competing hypotheses, executed as native experiments. Five come back inconclusive. One is supported, with a sealed evidence dossier behind it.
+
+No guessing. No green badge on trust. Every verdict links to replayable proof. The binary. The run. The before and the after.
+
+A failed actuator becomes a decided release. In seconds, not sprints.
+
+Genesis RT. From incident to proof.
