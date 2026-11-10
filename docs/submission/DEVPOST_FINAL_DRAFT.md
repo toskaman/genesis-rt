@@ -313,7 +313,7 @@ already participates; never buy, automate, or
 incentivize votes; never use multiple accounts.
 No outreach sent to date.
 
-## Rules compliance checklist (verified 8 Nov 2026)
+## Rules compliance checklist (re-verified 10 Nov 2026 via hackathon page + mirrors; direct /rules fetch returned 403 — owner confirms on filing)
 
 - Public repo + Apache-2.0 detected: YES.
 - One category (Developer Tooling & Host Tools): YES.
@@ -321,7 +321,9 @@ No outreach sent to date.
   above; SDK path documented).
 - QNX 8.0 evidence + identified files: YES.
 - Video <3:00, public YouTube, device footage:
-  PENDING OWNER (storyboard ready).
+  CUTS READY, UPLOAD PENDING OWNER (hero 64.16 s + brag 20.77 s validated —
+  `docs/demo/MEDIA_VALIDATION_CAUSAL.md`; no third-party music in hero cut;
+  owner uploads + pastes URL, see `docs/demo/PUBLICATION_HANDOFF_CAUSAL.md`).
 - English materials: YES.
 - Free availability through judging (Jan 29, 2027):
   YES.
