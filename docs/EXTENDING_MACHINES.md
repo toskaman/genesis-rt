@@ -52,8 +52,9 @@ labeled as a sketch, never as a supported kind.
 
 - Schema-accepting a kind with no simulator behind it. The arm
   kind passes validation but runs aliased on the diffdrive
-  corridor — disclosed in `docs/limitations-and-safety.md` #10
-  and now stamped on every record via `physics_note`.
+  corridor — disclosed in `docs/limitations-and-safety.md` #10,
+  stamped on every record via `physics_note`, and quarantined at
+  the release gate (arm campaigns FAIL loudly, never pass).
 - Reusing another kind's physics, scenarios, or planner hints
   without saying so in the evidence.
 - Claiming target behavior before the C policy + conformance

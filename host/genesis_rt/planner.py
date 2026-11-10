@@ -64,8 +64,11 @@ _KIND_HINTS = (
       "förderband", "förderbands", "förderbänder",
       "foerderband", "foerderbands", "foerderbaender"),
      "conveyor"),
+    # Omega7 v1.4 rule 19: tier-1 German gripper (singular and
+    # plural identical; contract amendment + regression tests).
     (("arm", "arms", "gripper", "grippers", "manipulator",
-      "manipulators", "bras", "brazo"), "robotic_arm_virtual"),
+      "manipulators", "bras", "brazo", "greifer"),
+     "robotic_arm_virtual"),
 )
 
 _AMR_SCENARIOS = (

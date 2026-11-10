@@ -31,12 +31,17 @@ _ENT = (r"emergency[-\s]?stops?|e-?stops?|estops?|scanners?|"
         r"safety\s+switch|watchdogs?|"
         r"barriere|barrière|rideau|grillage|cloture|clôture|"
         r"[ld][’']arr[êe]ts?|bouton\s+d[’']arr[êe]t|s[ée]curit[ée]s?|"
-        r"but[ée]es?|capteur\s+de\s+s[ée]curit[ée]?|"
+        # Omega7 v1.4 rule 21: FR interlock noun.
+        r"but[ée]es?|interverrouillage(?:s)?|capteur\s+de\s+s[ée]curit[ée]?|"
         r"schutzzaun|sicherheitszaun|zaun|lichtvorhang|vorhang|"
+        # Omega7 v1.4 rule 21: DE protective-device noun.
         r"not-?aus|not[-\s]?halt|absperrung|sicherheitsschalter|"
+        r"schutzeinrichtung(?:en)?|"
         r"(?:drehmoment|drehzahl|geschwindigkeits)?grenzen|"
         r"cortina|valla|barrera|interruptor|enclavamiento|"
-        r"paro\s+de\s+emergencia|parada\s+de\s+emergencia|"
+        # Omega7 v1.4 rule 21: ES bare e-stop short form,
+        # word-bounded (reparo/amparo/disparo never match).
+        r"\bparo\b|paro\s+de\s+emergencia|parada\s+de\s+emergencia|"
         r"esc[áa]ner(?:es)?|l[íi]mites?\s+de\s+seguridad|"
         r"bot[óo]n\s+de\s+emergencia")
 _ENT_RE = re.compile(_ENT)
@@ -51,7 +56,8 @@ _DISABLE = (r"disabl\w*|deactiv\w*|desactiv\w*|désactiv\w*|deaktiv\w*|"
             r"disconnect\w*|switch\s+off|turn\s+off|shut\s+off|"
             r"power\s+(?:down|off)|[ée]teindre|mettre\s+hors\s+service|"
             r"hors\s+service|abschalten|abgeschaltet|stillleg\w*|"
-            r"ausser\s+betrieb|außer\s+betrieb|ausschalten|apag\w*|"
+            # Omega7 v1.4 rule 21: DE mute verb (compound).
+            r"ausser\s+betrieb|außer\s+betrieb|ausschalten|stummschalt\w*|apag\w*|"
             r"desconect\w*|fuera\s+de\s+servicio|jumper\w*|bridg\w*|"
             r"bypass\w*|defeat\w*|umgeh\w*|überbrück\w*|puentear|"
             r"anular|contourne\w*|neutralis\w*")

@@ -15,6 +15,11 @@ manifest.json + verify.py + README.md + EXPECTED_RESULTS.md.
 
 Refuses non-COMPLETED ops and binding mismatches. Idempotent for a fixed
 --out (rebuild overwrites).
+
+Stale-control ops (workflow `stale-control`, gate FAIL by design) build
+a control pack: same hash-chain + offline verify.py, but no in-op
+build/perf/gen evidence — the sealed claim is the target refusal
+(matrix + transcripts + stage-manifest digests).
 """
 import argparse
 import datetime
@@ -57,9 +62,12 @@ def main(argv=None) -> int:
     ap.add_argument("--op", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--commit", default=None)
+    ap.add_argument("--ops-dir", default=None,
+                    help="target-ops store (default: repo artifacts)")
     args = ap.parse_args(argv)
 
-    ops_dir = REPO / "artifacts" / "runs" / "target-ops"
+    ops_dir = (Path(args.ops_dir) if args.ops_dir
+               else REPO / "artifacts" / "runs" / "target-ops")
     op_dir = ops_dir / args.op
     rec_p = ops_dir / f"{args.op}.json"
     if not rec_p.is_file() or not op_dir.is_dir():
@@ -81,17 +89,28 @@ def main(argv=None) -> int:
     (out / "performance").mkdir(parents=True)
     (out / "sources").mkdir(parents=True)
 
-    for name in ("ir.json", "passport.json", "qemu-console.log",
-                 "qnx-build-record.json", "stage-manifest.json",
-                 "gen-manifest.json"):
-        _copy_canonical(op_dir / name, out / name)
+    stale = rec.get("workflow") == "stale-control"
+    required = ["ir.json", "passport.json", "qemu-console.log",
+                "stage-manifest.json"]
+    if not stale:
+        required += ["qnx-build-record.json", "gen-manifest.json"]
+    for name in required:
+        src = op_dir / name
+        if not src.is_file():
+            print(f"error: op {args.op} lacks {name}", file=sys.stderr)
+            return 2
+        _copy_canonical(src, out / name)
     for p in sorted((op_dir / "target").glob("*")):
         _copy_canonical(p, out / "transcripts" / p.name)
-    for p in sorted((op_dir / "perf").glob("*")):
-        _copy_canonical(p, out / "performance" / p.name)
-    for p in sorted((op_dir / "gen").glob("*")):
-        if p.suffix in (".mk", ".h", ".c"):
-            _copy_canonical(p, out / "sources" / p.name)
+    if not (out / "transcripts" / "qnx-target-record.json").is_file():
+        print(f"error: op {args.op} lacks the target record", file=sys.stderr)
+        return 2
+    if not stale:
+        for p in sorted((op_dir / "perf").glob("*")):
+            _copy_canonical(p, out / "performance" / p.name)
+        for p in sorted((op_dir / "gen").glob("*")):
+            if p.suffix in (".mk", ".h", ".c"):
+                _copy_canonical(p, out / "sources" / p.name)
     _copy_canonical(rec_p, out / "target-op.json")
     ev_p = ops_dir / f"{args.op}.events.jsonl"
     if ev_p.is_file():
@@ -103,8 +122,10 @@ def main(argv=None) -> int:
     passport = json.loads((out / "passport.json").read_text(encoding="utf-8"))
     target = json.loads((out / "transcripts" / "qnx-target-record.json")
                         .read_text(encoding="utf-8"))
-    perf = json.loads((out / "performance" / "qnx-perf-record.json")
-                      .read_text(encoding="utf-8"))
+    perf = None
+    if not stale:
+        perf = json.loads((out / "performance" / "qnx-perf-record.json")
+                          .read_text(encoding="utf-8"))
     op_sanitized = json.loads((out / "target-op.json").read_text(encoding="utf-8"))
 
     # Pre-check bindings before publishing.
@@ -115,6 +136,31 @@ def main(argv=None) -> int:
     if not sealed or sealed != (target.get("ir") or {}).get("ir_sha256"):
         print("error: target IR digest != sealed IR digest", file=sys.stderr)
         return 2
+    if stale:
+        if passport.get("gate") != "FAIL":
+            print("error: stale-control pack needs a FAIL passport",
+                  file=sys.stderr)
+            return 2
+        kinds = {r.get("kind"): r.get("body", {})
+                 for r in passport.get("chain", [])
+                 if isinstance(r, dict)}
+        ctl = kinds.get("stale_control")
+        if not isinstance(ctl, dict):
+            print("error: stale-control passport lacks the sealed "
+                  "stale_control claim", file=sys.stderr)
+            return 2
+        failing = sorted(c.get("name") for c in target.get("checks", [])
+                         if isinstance(c, dict) and c.get("passed") is not True)
+        if sorted(ctl.get("failed_checks", [])) != failing:
+            print("error: stale_control claim != target matrix", file=sys.stderr)
+            return 2
+        refused = ((op_sanitized.get("artifacts") or {}).get("stale_refusal")
+                   or {})
+        if (sorted(refused.get("failed", [])) != failing
+                or sorted(refused.get("expected", [])) != sorted(
+                    ctl.get("expected_refusal", []))):
+            print("error: op stale_refusal != sealed claim", file=sys.stderr)
+            return 2
 
     binaries = ((passport.get("environment") or {}).get("qnx") or {}).get(
         "binaries", {})
@@ -125,7 +171,8 @@ def main(argv=None) -> int:
 
     checks = target.get("checks", [])
     n_pass = sum(1 for c in checks if c.get("passed"))
-    samples = perf.get("raw_samples_us", [])
+    samples = perf.get("raw_samples_us", []) if perf else []
+    perf_method = perf.get("method", "?") if perf else "n/a (control runs no perf)"
     wanted = (op_sanitized.get("artifacts") or {}).get("wanted", [])
     info_detail = next((c.get("detail", "") for c in checks
                         if c.get("detail", "").startswith("QNX")), "")
@@ -133,15 +180,66 @@ def main(argv=None) -> int:
     # line; keep only the uname part ("QNX <host> <ver> <date> <arch>").
     qnx_line = (info_detail.splitlines()[0].split("|")[0].strip()[:160]
                 if info_detail else "?")
-    build_rec = json.loads((out / "qnx-build-record.json")
-                           .read_text(encoding="utf-8"))
-    qcc_raw = ((build_rec.get("environment") or {}).get("qcc_version") or "")
-    # `qcc -V` lists every configured target; report the default one.
-    m = re.search(r"([\d.]+),(\S+)\s*\(default\)", qcc_raw)
-    qcc_line = (f"qcc {m.group(1)} ({m.group(2)}, default target)" if m
-                else " ".join(qcc_raw.split())[:160] or "?")
+    if stale:
+        qcc_line = "prebuilt staging (no in-op build; digests in binaries.json)"
+    else:
+        build_rec = json.loads((out / "qnx-build-record.json")
+                               .read_text(encoding="utf-8"))
+        qcc_raw = ((build_rec.get("environment") or {}).get("qcc_version") or "")
+        # `qcc -V` lists every configured target; report the default one.
+        m = re.search(r"([\d.]+),(\S+)\s*\(default\)", qcc_raw)
+        qcc_line = (f"qcc {m.group(1)} ({m.group(2)}, default target)" if m
+                    else " ".join(qcc_raw.split())[:160] or "?")
 
-    readme = f"""# Native QNX evidence pack ({args.op})
+    if stale:
+        refused = ((op_sanitized.get("artifacts") or {}).get("stale_refusal")
+                   or {})
+        readme = f"""# Native QNX stale-control pack ({args.op})
+
+Negative-control records from GENESIS RT target op `{args.op}`
+(workflow `stale-control`, repo commit `{commit}`): prebuilt
+(stale) binaries staged on the QNX 8.0/QEMU target refused at
+exactly the declared checks.
+
+## Verify (no QNX SDK, no network, no credentials)
+
+```sh
+python verify.py
+```
+
+Expected: exit 0 plus the observed refusal below. Any modified,
+missing or unlisted file, broken passport link, cross-operation
+substitution, or refusal mismatch fails with exit 2. See
+EXPECTED_RESULTS.md for the reference values.
+
+## Transform from the raw op: LF canonicalization only
+
+- Every evidence file is content-identical to
+  `artifacts/runs/target-ops/{args.op}/` (git-ignored local evidence),
+  with line endings canonicalized to LF so digests verify on every
+  platform. Absolute paths reflect the author's build machine; no
+  credentials are recorded anywhere in the op (verified before
+  publishing).
+- Target binaries excluded: only sha256/size/cksum digests ship (see
+  binaries.json) — the linked binaries may contain QNX libc code.
+- No in-op build, perf, or codegen evidence exists for a control run
+  (binaries are prebuilt + staged); the sealed claim is the refusal.
+
+## Trust model (read before citing)
+
+- Proves: these exact staged bytes failed a 16-step on-target matrix
+  on QNX 8.0/QEMU at exactly {sorted(refused.get("failed", []))},
+  sealed FAIL as designed, replay matched, digests bound.
+- Does NOT prove: physical hardware behavior, hard-real-time
+  guarantees, safety certification, or anything about other runs.
+- The gate FAIL is the expected outcome of a negative control — it
+  proves the wrong binary cannot pass, not a product verdict.
+- QEMU timings are regression aids, not timing guarantees.
+- The anchor is hash-linked (manifest + git history), not a
+  hardware-backed attestation.
+"""
+    else:
+        readme = f"""# Native QNX evidence pack ({args.op})
 
 Authentic records from GENESIS RT target op `{args.op}` (workflow
 `{op_sanitized.get("workflow")}`, repo commit `{commit}`).
@@ -178,7 +276,32 @@ fails with exit 2. See EXPECTED_RESULTS.md for the reference values.
   hardware-backed attestation.
 """
     (out / "README.md").write_bytes(readme.encode("utf-8"))
-    expected = f"""# Expected results ({args.op})
+    if stale:
+        refused = ((op_sanitized.get("artifacts") or {}).get("stale_refusal")
+                   or {})
+        expected = f"""# Expected results ({args.op})
+
+Observed values at pack build time. `python verify.py` reprints the
+observed claims; compare them with this file.
+
+- op state: {op_sanitized.get("state")}
+- gate verdict: {passport.get("gate")} (FAIL is expected: negative control)
+- qnx_verified: {(op_sanitized.get("artifacts") or {}).get("qnx_verified")}
+- matrix: {n_pass}/{len(checks)} checks passed
+- declared refusal: {sorted(refused.get("expected", []))}
+- observed refusal: {sorted(refused.get("failed", []))}
+- required scenarios: 0 (a control claims no pass)
+- passport chain links: {len(passport.get("chain", []))}
+- performance samples: n/a (control runs no perf step)
+- provenance: v{target.get("provenance_version")} err={target.get("provenance_error")}
+- replay (in-op): {(op_sanitized.get("artifacts") or {}).get("replay")}
+- target identity: {qnx_line}
+- toolchain: {qcc_line}
+- IR digest: {sealed}
+- passport anchor (sha256): {_sha256_file(out / "passport.json")}
+"""
+    else:
+        expected = f"""# Expected results ({args.op})
 
 Observed values at pack build time. `python verify.py` reprints the
 observed claims; compare them with this file.
@@ -189,7 +312,7 @@ observed claims; compare them with this file.
 - matrix: {n_pass}/{len(checks)} checks passed
 - fault scenarios sealed: {len(wanted)} ({", ".join(wanted[:4])}...)
 - passport chain links: {len(passport.get("chain", []))}
-- performance samples: {len(samples)} ({perf.get("method", "?")})
+- performance samples: {len(samples)} ({perf_method})
 - provenance: v{target.get("provenance_version")} err={target.get("provenance_error")}
 - replay (in-op): {(op_sanitized.get("artifacts") or {}).get("replay")}
 - target identity: {qnx_line}
@@ -208,6 +331,7 @@ observed claims; compare them with this file.
         "pack": out.name,
         "pack_version": 1,
         "op_id": args.op,
+        "control": "stale" if stale else "pass",
         "commit": commit,
         "created_utc": datetime.datetime.now(datetime.timezone.utc)
         .isoformat(timespec="seconds"),

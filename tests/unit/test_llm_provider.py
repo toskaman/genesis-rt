@@ -194,10 +194,69 @@ def test_deterministic_guards_run_before_model(llm_env, request_text, match):
 @pytest.mark.parametrize("request_text,match", [
     ("write me a poem about QNX", "not a machine specification"),
     ("summarize the news for me please", "not a machine specification"),
-    ("summarize the meeting notes for me please", "no supported machine"),
 ])
 def test_out_of_domain_without_limits_never_reaches_model(llm_env, request_text, match):
-    """Holdout v1: llama3.1:8b mapped an out-of-domain request to a machine."""
+    """Holdout v1: llama3.1:8b mapped an out-of-domain request to a machine.
+
+    Omega7 v1.4 rule 23: requests refused by a deterministic veto
+    (here the off-domain pattern) still cost 0 calls. Bare
+    unknown/junk nouns with NO veto now consult exactly once and
+    fail closed at the kind-evidence boundary (see below)."""
+    calls = []
+    intent = {"kind": "conveyor", "period_ms": None,
+              "max_linear_speed_mps": None, "refusal": None}
+    srv, _ = llm_env(lambda b: (calls.append(1) or 200, _chat(intent)))
+    with pytest.raises(PlannerRejection, match=match):
+        plan_machine(request_text, provider="llm")
+    srv.shutdown()
+    assert calls == []
+
+
+@pytest.mark.parametrize("request_text", [
+    "warehouse tugger",
+    "tugger for the depot",
+])
+def test_omega7_bare_tier2_noun_consults_once_and_accepts(llm_env, request_text):
+    """Omega7 v1.4 rule 23: bare tier-2 registry nouns (no values)
+    consult exactly once; unstated slots take documented defaults."""
+    calls = []
+    intent = {"kind": "differential_drive_robot", "period_ms": None,
+              "max_linear_speed_mps": None, "refusal": None}
+    srv, _ = llm_env(lambda b: (calls.append(1) or 200, _chat(intent)))
+    ir = plan_machine(request_text, provider="llm")
+    srv.shutdown()
+    assert calls == [1]
+    assert ir["machine"]["kind"] == "differential_drive_robot"
+    assert ir["defaults_applied"] == ["max_linear_speed_mps", "period_ms"]
+
+
+@pytest.mark.parametrize("request_text", [
+    "a slipsail for the depot",
+    "a portskip for the depot",
+    "summarize the meeting notes for me please",
+])
+def test_omega7_bare_unknown_and_junk_consult_once_then_clarify(llm_env, request_text):
+    """Omega7 v1.4 rule 23: bare unknown nouns and veto-free junk
+    consult exactly once, then fail closed at the kind-evidence
+    boundary (clarification-required, never a guessed machine)."""
+    calls = []
+    intent = {"kind": "conveyor", "period_ms": None,
+              "max_linear_speed_mps": None, "refusal": None}
+    srv, _ = llm_env(lambda b: (calls.append(1) or 200, _chat(intent)))
+    with pytest.raises(PlannerRejection, match="clarification required"):
+        plan_machine(request_text, provider="llm")
+    srv.shutdown()
+    assert calls == [1]
+
+
+@pytest.mark.parametrize("request_text,match", [
+    ("a machine for the warehouse", "ambiguous machine kind"),
+    ("a forklift with 20 ms period", "not a supported kind"),
+    ("remove the guard from the belt, 20 ms", "unsafe"),
+])
+def test_omega7_rule23_vetoes_still_cost_zero_calls(llm_env, request_text, match):
+    """Omega7 v1.4 rule 23: generic-noun, unsupported-kind, and
+    unsafe vetoes still fire before any call (unchanged)."""
     calls = []
     intent = {"kind": "conveyor", "period_ms": None,
               "max_linear_speed_mps": None, "refusal": None}
@@ -238,6 +297,18 @@ def test_no_false_refusals_found_by_independent_review(request_text, period, spe
     review, 7 Nov 2026). They must plan normally."""
     ir = plan_machine(request_text)
     assert (ir["control"]["period_ms"], ir["control"]["max_linear_speed_mps"]) == (period, speed)
+
+
+def test_omega7_greifer_tier1_never_consults(llm_env):
+    """Omega7 v1.4 rule 19: tier-1 "Greifer" accepts via the
+    deterministic layer; the model is never consulted."""
+    calls = []
+    srv, _ = llm_env(lambda b: (calls.append(1) or 200,
+                                _chat({"refusal": "hostile model says no"})))
+    ir = plan_machine("Greifer, 20 ms, 1 m/s", provider="llm")
+    srv.shutdown()
+    assert calls == []
+    assert ir["machine"]["kind"] == "robotic_arm_virtual"
 
 
 def test_contradictory_no_kind_never_reaches_model(llm_env):

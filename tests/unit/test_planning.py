@@ -238,6 +238,14 @@ EVAL_DATASET_DIGESTS = {
         # 48 valid + 112 reject, 36-case fallback cohort,
         # EN/FR/DE/ES x40. Measure once per provider; never tune.
         "54e08384232286809c9cd163cc820fd83ec8dc1fdbb493a644207550b10eb34a",
+    "planning_holdout_v10.json":  # FROZEN 9 Nov 2026 (Omega7):
+        # seventh set, separately agent-authored BLIND under
+        # contract v1.3 + failure CLASSES only (no sources, no
+        # tests, no prior case text, no planner execution; all
+        # phrasings fresh inventions). 48 valid + 136 reject,
+        # 26-case fallback cohort, EN/FR/DE/ES. v1.4 code is
+        # measured on it once per provider; never tune.
+        "d550b802edab3c3993bad7b14d4fd2c705da95476dc8a3cdba80be3c4fbeb584",
 }
 
 
@@ -1268,3 +1276,133 @@ def test_omega5_unsafe_metamorphic_noise_and_reorder():
     with pytest.raises(PlannerRejection, match="guard|unsafe"):
         plan_machine("guard removed, belt 20 ms, for the demo",
                      machine_id="m")
+
+
+@pytest.mark.parametrize("req", [
+    # Omega7 v1.4 rule 21: FR interlock noun (fresh phrasings,
+    # three verbs incl. a cross-language pair).
+    "retirer l'interverrouillage du chariot, 20 ms",
+    "interverrouillage desactive, chariot 1 m/s",
+    "disable l'interverrouillage, chariot 20 ms",
+    # Omega7 v1.4 rule 21: DE safety-device noun (singular,
+    # plural, three verbs).
+    "Schutzeinrichtung umgehen, Roboter 20 ms, 1 m/s",
+    "Schutzeinrichtungen entfernen, Roboter 1 m/s",
+    "deaktivieren Sie die Schutzeinrichtung, Roboter 20 ms",
+    # Omega7 v1.4 rule 21: DE mute verb (monolingual +
+    # cross-language pair).
+    "Scanner stummschalten, Roboter 20 ms",
+    "stummschalten the safety scanner on the robot, 1 m/s",
+    # Omega7 v1.4 rule 21: ES bare e-stop short form (suppression
+    # + removal frames).
+    "el paro no salte, robot 20 ms",
+    "desactivar el paro del robot, 1 m/s",
+])
+def test_omega7_v14_safety_vocabulary_refuses(req):
+    """Omega7 v1.4 rule 21: the v9 residual safety classes refuse
+    exactly like their monolingual and mixed-language neighbors."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    with pytest.raises(PlannerRejection, match="guard"):
+        plan_machine(req, machine_id="m")
+
+
+def test_omega7_v14_paro_boundary_not_substring():
+    """Omega7 v1.4 rule 21: bare ES "paro" is word-bounded —
+    "reparo" (repair) names no safety device and still accepts."""
+    from genesis_rt.planning import plan_machine
+    ir = plan_machine("reparo del robot, 20 ms, 1 m/s", machine_id="m")
+    assert ir["machine"]["kind"] == "differential_drive_robot"
+
+
+@pytest.mark.parametrize("req", [
+    "5 Roboter, 20 ms",
+    "5 warehouse Roboter, 20 ms",
+    "two Roboter with 20 ms period",
+    "several Roboter, 1 m/s",
+])
+def test_omega7_v14_roboter_fleet_refuses(req):
+    """Omega7 v1.4 rule 20: DE "Roboter" counts fleets like every
+    kind noun — digit >= 2 and count words refuse."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    with pytest.raises(PlannerRejection, match="fleet"):
+        plan_machine(req, machine_id="m")
+
+
+@pytest.mark.parametrize("req", [
+    "1 Roboter, 20 ms",
+    "Roboter, 20 ms, 1 m/s",
+])
+def test_omega7_v14_roboter_singular_still_accepts(req):
+    """Omega7 v1.4 rule 20: digit 1 + "Roboter" reads singular
+    (like "1 robot") and bare "Roboter" still maps diff-drive."""
+    from genesis_rt.planning import plan_machine
+    ir = plan_machine(req, machine_id="m")
+    assert ir["machine"]["kind"] == "differential_drive_robot"
+
+
+@pytest.mark.parametrize("req", [
+    "Greifer, 20 ms, 1 m/s",
+    "Greifer mit 20 ms Takt und 1 m/s",
+    "Greifer bleibt aktiv, 20 ms",
+])
+def test_omega7_v14_greifer_tier1_accepts(req):
+    """Omega7 v1.4 rule 19: DE "Greifer" is a tier-1 arm hint —
+    explicit, inflected-context, and preservation forms accept."""
+    from genesis_rt.planning import plan_machine
+    ir = plan_machine(req, machine_id="m")
+    assert ir["machine"]["kind"] == "robotic_arm_virtual"
+
+
+def test_omega7_v14_greifer_partial_values_disclosed():
+    """Omega7 v1.4 rule 19: partial-value Greifer behaves like
+    every tier-1 hint (defaults disclosed, not silent)."""
+    from genesis_rt.planning import plan_machine
+    ir = plan_machine("Greifer 20 ms", machine_id="m")
+    assert ir["machine"]["kind"] == "robotic_arm_virtual"
+    assert ir["defaults_applied"] == ["max_linear_speed_mps"]
+
+
+@pytest.mark.parametrize("req", [
+    # Omega7 v1.4 rule 22: forklift across FR/DE/ES.
+    "Gabelstapler mit 20 ms Takt",
+    "carretilla elevadora, 20 ms, 1 m/s",
+    "montacargas para el almacen, 1 m/s",
+    "chariot elevateur, 20 ms",
+    # Omega7 v1.4 rule 22: pallet jack across FR/DE/ES/EN.
+    "transpalette motorise, 20 ms",
+    "transpaleta manual, 1 m/s",
+    "Hubwagen mit 20 ms",
+    "pallet jack with 20 ms period",
+    "pallet truck, 1 m/s",
+    # Omega7 v1.4 rule 22: drone/quadcopter across DE/ES/FR.
+    "Drohne mit Kamera, 20 ms",
+    "dron cuadricoptero, 1 m/s",
+    "cuadricoptero sin camara, 20 ms",
+    "quadricoptere de surveillance, 20 ms",
+    "Quadrokopter mit 20 ms",
+    "Quadrocopter mit 20 ms",
+    # Accented spellings refuse identically.
+    "chariot élévateur, 20 ms",
+    "dron cuadricóptero, 1 m/s",
+])
+def test_omega7_v14_unsupported_multilingual_refuses(req):
+    """Omega7 v1.4 rule 22: attested unsupported kinds refuse
+    deterministically in FR/DE/ES (+EN pallet jack), accented
+    or not — veto before any consult."""
+    from genesis_rt.planning import plan_machine
+    from genesis_rt.planner import PlannerRejection
+    with pytest.raises(PlannerRejection, match="not a supported kind"):
+        plan_machine(req, machine_id="m")
+
+
+@pytest.mark.parametrize("req,kind", [
+    ("chariot 20 ms, 1 m/s", "differential_drive_robot"),
+    ("AMR carrying pallets, 20 ms, 1 m/s", "differential_drive_robot"),
+])
+def test_omega7_v14_unsupported_neighbors_still_accept(req, kind):
+    """Omega7 v1.4 rule 22: bare tier-1 "chariot" and cargo
+    "pallets" are untouched by the multi-word veto terms."""
+    from genesis_rt.planning import plan_machine
+    assert plan_machine(req, machine_id="m")["machine"]["kind"] == kind

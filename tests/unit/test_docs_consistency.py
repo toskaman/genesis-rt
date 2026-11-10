@@ -695,6 +695,17 @@ def test_devpost_keeps_environment_distinct_counts():
         "draft lost the owner-run zero-skip statement"
 
 
+def test_final_draft_limitations_names_latest_blind():
+    """OMEGA7 landing (gates P1): the honesty section must point at
+    the latest blind set — v10 residual, never a stale v9 pointer."""
+    text = _read("docs/submission/DEVPOST_FINAL_DRAFT.md")
+    section = text.split("## Limitations", 1)[1].split("\n## ", 1)[0]
+    assert "latest blind v10" in section, \
+        "Limitations section lost the v10 latest-pointer"
+    assert "latest blind v9" not in section, \
+        "Limitations section regressed to a stale v9 pointer"
+
+
 def test_scorecard_current_section_keeps_ai_residuals():
     """Omega5 sec 6.5: the scorecard's current (first) section must
     carry the latest AI residuals, not just the headline scores."""

@@ -78,21 +78,29 @@ _DE_DEVICES = (r"schutzzaun|zaun|lichtvorhang|vorhang|not-?aus"
                # Omega4 fix-1: "Not-Halt" and torque-limit compounds
                # (v7-r06/r08 classes).
                r"|not[-\s]?halt|(?:drehmoment|drehzahl"
-               r"|geschwindigkeits)?grenzen")
+               r"|geschwindigkeits)?grenzen"
+               # Omega7 v1.4 rule 21: protective-device noun.
+               r"|schutzeinrichtung(?:en)?")
 _DE_REMOVAL = (r"demont\w*|abmont\w*|ausgebaut|entfern\w*|deaktiv\w*"
                r"|stillleg\w*|ausser\s+betrieb|außer\s+betrieb"
                # Omega4 fix-1: "abgeschaltet" (switched off).
-               r"|abgeschaltet|abschalten")
+               # Omega7 v1.4 rule 21: mute verb (compound).
+               r"|abgeschaltet|abschalten|stummschalt\w*")
 _ES_DEVICES = (r"cortina|valla|barrera|interruptor|enclavamiento"
                # Omega4 fix-1: emergency-stop nouns + safety scanner.
                r"|paro\s+de\s+emergencia|parada\s+de\s+emergencia"
-               r"|esc[áa]ner(?:es)?")
+               r"|esc[áa]ner(?:es)?"
+               # Omega7 v1.4 rule 21: bare e-stop short form,
+               # word-bounded (reparo/amparo/disparo never match).
+               r"|\bparo\b")
 _ES_REMOVAL = (r"desmont\w*|desactiv\w*|sin\s+activ\w*"
                r"|fuera\s+de\s+servicio|quit\w*")
 _FR_DEVICES = (r"barriere|barrière|rideau|grillage|cloture|clôture"
                # Omega4 fix-1: e-stop nouns, safeties, limit stops,
                # safety scanner (v7-r03/r04/r05 classes).
-               r"|[ld][’']arr[êe]ts?|s[ée]curit[ée]s?|but[ée]es?|scanners?")
+               # Omega7 v1.4 rule 21: interlock noun.
+               r"|[ld][’']arr[êe]ts?|s[ée]curit[ée]s?|but[ée]es?|scanners?"
+               r"|interverrouillage(?:s)?")
 _FR_REMOVAL = (r"d[ée]mont\w*|retir\w*|enlev\w*|hors\s+service"
                r"|désactiv\w*|desactiv\w*")
 # Omega4 fix-1: suppression phrasings that name no removal verb
@@ -128,7 +136,11 @@ _SINGULAR_FLEET_KINDS = (r"robot|rover|amr|agv|cobot|mobile|belt"
                          r"|conveyor|arm|gripper|manipulator"
                          # Omega5: registry noun + alias singulars.
                          r"|tugger|förderband|förderbands|foerderband"
-                         r"|foerderbands")
+                         r"|foerderbands"
+                         # Omega7 v1.4 rule 20: DE robot, singular and
+                         # plural identical (digit >= 2 arm; count
+                         # words take the plural reading below).
+                         r"|roboter")
 # Omega4 fix-1: generic machine nouns that name no specific kind
 # ("set up a machine", "une Maschine"). With no kind hint they
 # veto the model consult (ambiguous); invented aliases with no
@@ -151,7 +163,10 @@ _SAFETY_DEVICES = (r"guards?|guarding|e-?stops?|estops?|interlocks?"
                    # plus the safety scanner (v7-r01/r02 classes).
                    r"|emergency[-\s]?stops?|scanners?"
                    r"|[ld][’']arr[êe]ts?|paro\s+de\s+emergencia"
-                   r"|parada\s+de\s+emergencia|not[-\s]?halt")
+                   r"|parada\s+de\s+emergencia|not[-\s]?halt"
+                   # Omega7 v1.4 rule 21: ES bare e-stop short form,
+                   # word-bounded (reparo/amparo/disparo never match).
+                   r"|\bparo\b")
 _ZERO_WIDTH_RE = re.compile(
     "[\u200b\u200c\u200d\ufeff\u00ad"
     # Omega4 fix-1: word joiner, directional marks, Mongolian
@@ -262,6 +277,20 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"\b(forklifts?|cranes?|hoists?|drones?|quadcopters?|elevators?|"
      r"escalators?|aircraft|airplanes?|helicopters?|submarines?|"
      r"printers?|rockets?|satellites?)\b",
+     "that machine is not a supported kind (AMR/conveyor/arm); "
+     "describe a supported machine"),
+    # Omega7 v1.4 rule 22: the attested unsupported kinds in
+    # FR/DE/ES (forklift, pallet jack, drone, quadcopter).
+    # Multi-word terms stay multi-word so tier-1 "chariot" and
+    # cargo "pallets" are unaffected; unaccented spellings
+    # match wherever accents do. Other EN-listed kinds stay
+    # EN-only (documented residual).
+    (r"\bgabelstapler\b|\bdrohnen?\b|\bdron\b"
+     r"|\bcuadric[óo]pteros?\b|\bquadricopt[èe]res?\b"
+     r"|\bquadro[ck]opters?\b|\bcarretillas?\s+elevadoras?\b"
+     r"|\bmontacargas\b|\btranspalettes?\b|\btranspaletas?\b"
+     r"|\bhubwagens?\b|\bchariot\s+[eé]l[ée]vateurs?\b"
+     r"|\bpallet\s+(?:jack|truck)s?\b",
      "that machine is not a supported kind (AMR/conveyor/arm); "
      "describe a supported machine"),
     (r"\b(jokes?|poems?|story|stories|songs?|news|weather|recipes?|"
@@ -419,7 +448,12 @@ _UNSAFE_PATTERNS: tuple[tuple[str, str], ...] = (
     (f"(?:\\b(?:{_COUNT_WORDS})\\b|\\b\\d+\\b)\\s+(?:\\w+\\s+){{0,2}}"
      f"(?:{_PLURAL_KINDS})\\b"
      f"|\\b[2-9]\\d*\\b\\s+(?:\\w+\\s+){{0,2}}"
-     f"(?:{_SINGULAR_FLEET_KINDS})\\b",
+     f"(?:{_SINGULAR_FLEET_KINDS})\\b"
+     # Omega7 v1.4 rule 20: DE "Roboter" is plural-identical, so
+     # count words take the plural reading ("two Roboter");
+     # digits stay on the singular arm above ("1 Roboter"
+     # still accepts).
+     f"|\\b(?:{_COUNT_WORDS})\\b\\s+(?:\\w+\\s+){{0,2}}roboter\\b",
      "ambiguous machine requirement (fleet or mixed values); "
      "name exactly one machine with one set of limits"),
 )
@@ -460,8 +494,9 @@ object and nothing else, exactly these keys:
  "refusal": null or a short reason}
 Mapping hints: AMR, rover, tugger, mobile/warehouse robot
 -> differential_drive_robot; belt, conveyor -> conveyor; arm,
-manipulator, gripper -> robotic_arm_virtual. Nouns outside this
-list name no machine: refusal "clarification required".
+manipulator, gripper, Greifer -> robotic_arm_virtual. Nouns
+outside this list name no machine: refusal "clarification
+required".
 Rules: use null for any value the request does not state (defaults are applied
 later). Copy numbers exactly. Units must be milliseconds and m/s: if the request
 gives a period in seconds or minutes, or a speed in km/h or other units, set
@@ -567,13 +602,14 @@ class LLMProvider:
                     "ambiguous machine kind: a generic machine noun "
                     "names no supported kind (robot/rover/AMR, "
                     "conveyor/belt, arm/gripper)") from None
-            # Holdout v1 (llama3.1:8b) turned "write me a poem about QNX"
-            # into a machine. With no recognisable machine word, the model
-            # is only consulted when the request states a limit in ms or m/s.
-            if not re.search(r"\d+(?:\.\d+)?\s*(?:ms|m/s)\b", low):
-                raise PlannerRejection(
-                    "no supported machine or limit stated; describe the machine "
-                    "and give its period in ms or speed in m/s") from None
+            # Omega7 v1.4 rule 23: the holdout-v1 pre-consult
+            # limit-gate ("no supported machine or limit stated")
+            # is REMOVED — it violated rule 18 as written for
+            # bare tier-2/unknown nouns (v9 gate-overreach class).
+            # Every unknown-kind, non-generic request now consults
+            # exactly once; the rule-17 kind-evidence boundary
+            # below fails closed with clarification-required, so
+            # junk still never becomes a machine.
         intent = self._chat(request)
         if not isinstance(intent, dict):
             raise PlannerRejection("llm returned a non-object intent")

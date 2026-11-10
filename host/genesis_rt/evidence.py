@@ -111,6 +111,10 @@ def build_passport(run_id: str, ir: dict[str, Any],
                 "status": res["status"], "checks": res.get("checks", []),
                 "stats": res.get("stats", {}),
                 "trace": _slim_trace(res.get("trace", []))}
+        # OMEGA7 landing (red-team B4): propagate faultlab's physics_note
+        # so the gate's quarantine OR-branch fires on real passports.
+        if res.get("physics_note"):
+            body["physics_note"] = res["physics_note"]
         _chain_append(chain, f"scenario:{res['scenario']}", body)
     passed = sum(1 for r in scenario_results if r["status"] == "pass")
     failed = sum(1 for r in scenario_results if r["status"] not in ("pass",))
@@ -124,6 +128,25 @@ def build_passport(run_id: str, ir: dict[str, Any],
         "environment": environment_manifest(qnx_build),
         "chain": chain,
     }
+
+
+def append_record(passport: dict[str, Any], kind: str,
+                body: dict[str, Any]) -> dict[str, Any]:
+    """Append one hash-linked record to an UNSEALED passport chain.
+
+    Fail-closed: refuses duplicate kinds (the gate rejects ambiguous
+    evidence) and refuses to extend a chain that already carries a
+    gate verdict (a sealed verdict must never gain new evidence).
+    """
+    if not isinstance(body, dict):
+        raise ValueError("record body must be an object")
+    chain = passport.get("chain", [])
+    kinds = {r.get("kind") for r in chain if isinstance(r, dict)}
+    if "gate_verdict" in kinds:
+        raise ValueError("passport already sealed: refusing post-verdict append")
+    if kind in kinds:
+        raise ValueError(f"duplicate record kind: {kind} (refusing ambiguous evidence)")
+    return _chain_append(chain, kind, body)
 
 
 def attach_verdict(passport: dict[str, Any], verdict: dict[str, Any]) -> dict[str, Any]:

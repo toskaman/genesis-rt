@@ -379,6 +379,7 @@ verify → measure. IR comes from the source picked on the pipeline page.</p>
 <option value="full">full (validate → build → stage → verify → measure)</option>
 <option value="build-only">build-only</option>
 <option value="verify-only">verify-only</option>
+<option value="stale-control">stale-control (negative control: sealed refusal)</option>
 </select>
 <label for="top-image">image dir</label>
 <input type="text" id="top-image" size="30" placeholder="…/qemu (needed for QEMU steps)">
@@ -3308,7 +3309,7 @@ async function targetRun() {
   }
   const workflow = el('top-workflow').value || 'full';
   const imageDir = el('top-image').value.trim();
-  if ((workflow === 'full' || workflow === 'verify-only') && !imageDir) {
+  if ((workflow === 'full' || workflow === 'verify-only' || workflow === 'stale-control') && !imageDir) {
     el('top-out').innerHTML = '<p class="fail">Image dir is required for QEMU workflows.</p>';
     return;
   }

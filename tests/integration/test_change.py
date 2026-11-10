@@ -172,3 +172,44 @@ def test_change_module_is_composition_only(repo_root):
     forbidden = {"planner", "planning", "validator", "codegen",
                  "codegen_v2", "ir", "ir_v2", "semantics", "gate"}
     assert internal & forbidden == set()
+
+
+def _arm_ir(repo_root, tmp_path):
+    import copy
+    src = repo_root / "examples" / "amr-demo" / "machine-ir.json"
+    ir = json.loads(src.read_text(encoding="utf-8"))
+    arm = copy.deepcopy(ir)
+    arm["machine"]["kind"] = "robotic_arm_virtual"
+    arm["machine"]["id"] = "arm-banner-probe"
+    out = tmp_path / "arm-ir.json"
+    out.write_text(json.dumps(arm), encoding="utf-8")
+    return out
+
+
+def test_omega7_arm_change_card_shows_physics_banner(repo_root, tmp_path):
+    """OMEGA7 C banner: quarantined arm legs surface a PHYSICS
+    WARNING on the change card (both legs), naming the kind."""
+    arm_ir = _arm_ir(repo_root, tmp_path)
+    verdict = verify_change(arm_ir, arm_ir, tmp_path / "runs",
+                            tmp_path / "change", change_id="chg-arm",
+                            scenarios=["nominal_navigation"])
+    assert verdict["verdict"] == "FAIL"
+    card = render_card_text(verdict)
+    # Landing (red-team B4): 2 legs x 2 DISTINCT quarantine reasons
+    # (kind + aliased-physics note). The pre-fix expectation of 2
+    # encoded the bug — the physics_note reason was dropped.
+    assert card.count("PHYSICS WARNING") == 4
+    assert card.count("ran on diffdrive-corridor") == 2
+    assert card.count("ran on aliased physics") == 2
+    assert "robotic_arm_virtual" in card
+
+
+def test_omega7_native_change_card_has_no_banner(repo_root, tmp_path):
+    """OMEGA7 C banner: native-kind cards are byte-identical —
+    no banner line appears without a quarantine reason."""
+    before_ir, after_ir = _cell_pair(repo_root)
+    verdict = verify_change(before_ir, after_ir, tmp_path / "runs",
+                            tmp_path / "change", change_id="chg-native")
+    card = render_card_text(verdict)
+    assert "PHYSICS WARNING" not in card
+    assert "quarantin" not in card

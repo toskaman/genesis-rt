@@ -54,7 +54,15 @@ STEP_STATE: dict[str, str | None] = {
     "qemu_stop": None,  # teardown: tracked step, no state transition
     "seal": "SEALING",
     "replay": "REPLAYING",
+    "qemu_verify_stale": "VERIFYING",
+    "seal_stale": "SEALING",
 }
+
+# Negative-control contract (OMEGA7 B-13): the stale-control workflow
+# stages PREBUILT binaries (no generate/build in-op) and seals a FAIL
+# passport when the on-target matrix refuses exactly at the declared
+# checks. Any other failure shape FAILEDs the op, never sealed.
+STALE_CONTROL_WORKFLOW = "stale-control"
 
 WORKFLOWS: dict[str, list[str]] = {
     "full": ["validate", "env", "generate", "build", "probe_image",
@@ -63,6 +71,9 @@ WORKFLOWS: dict[str, list[str]] = {
     "build-only": ["validate", "env", "generate", "build", "seal", "replay"],
     "verify-only": ["env", "probe_image", "qemu_boot", "wait_ssh",
                     "qemu_verify", "qemu_stop"],
+    STALE_CONTROL_WORKFLOW: ["validate", "env", "probe_image", "qemu_boot",
+                             "wait_ssh", "qemu_put", "qemu_verify_stale",
+                             "qemu_stop", "seal_stale", "replay"],
 }
 
 GUEST_STAGING_DIR = "/tmp/genesis"
@@ -111,7 +122,7 @@ def _qt() -> Any:
 def _validate_params(steps: list[str], params: dict[str, Any]) -> dict[str, Any]:
     allowed = {"ir", "scenarios", "build_timeout", "image_dir", "memory",
                "accel", "cpu", "ssh_port", "user", "wait", "src", "samples",
-               "build_set", "extra_src"}
+               "build_set", "extra_src", "expect_refusal"}
     unknown = sorted(set(params) - allowed)
     if unknown:
         raise TargetOpError(f"unknown op params: {unknown}")
@@ -178,6 +189,26 @@ def _validate_params(steps: list[str], params: dict[str, Any]) -> dict[str, Any]
         if any(len(s) > 128 or not _SCEN_RE.fullmatch(s) for s in sc):
             raise TargetOpError("param 'scenarios' entries must be "
                                 "[A-Za-z0-9_.-]{1,128}")
+    if "expect_refusal" in out:
+        er = out["expect_refusal"]
+        if (not isinstance(er, list) or not er
+                or any(not isinstance(s, str) or not s for s in er)):
+            raise TargetOpError("param 'expect_refusal' must be a "
+                                "non-empty string list")
+        if any(len(s) > 128 or not _SCEN_RE.fullmatch(s) for s in er):
+            raise TargetOpError("param 'expect_refusal' entries must be "
+                                "[A-Za-z0-9_.-]{1,128}")
+        from .provenance import EXPECTED_TARGET_CHECKS
+        unknown = sorted(set(er) - set(EXPECTED_TARGET_CHECKS))
+        if unknown:
+            raise TargetOpError("param 'expect_refusal' names unknown "
+                                f"matrix checks: {unknown}")
+        if len(set(er)) != len(er):
+            raise TargetOpError("param 'expect_refusal' must not repeat checks")
+        out["expect_refusal"] = sorted(er)
+    if "qemu_verify_stale" in steps and "expect_refusal" not in out:
+        raise TargetOpError("step 'qemu_verify_stale' requires param "
+                            "'expect_refusal'")
     need_ir = {"validate", "generate"} & set(steps)
     if need_ir and "ir" not in out:
         raise TargetOpError(f"steps {sorted(need_ir)} require param 'ir'")
@@ -791,6 +822,75 @@ def _step_qemu_verify(ctx: dict[str, Any]) -> tuple[bool, str]:
     return True, f"target matrix PASS (see {out.name}/)"
 
 
+def _matrix_failing(record: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """(all check names, failing check names) of a target record.
+
+    Fail-closed: anything not explicitly passed counts as failing, and
+    a matrix that is not exactly the 16-check campaign matrix is
+    refused (a partial matrix must never seal as a control).
+    """
+    from .provenance import EXPECTED_TARGET_CHECKS
+    checks = record.get("checks")
+    if not isinstance(checks, list) or not checks:
+        raise TargetOpError("target record has no check matrix")
+    names = [c.get("name") for c in checks if isinstance(c, dict)]
+    if sorted(names) != sorted(EXPECTED_TARGET_CHECKS):
+        raise TargetOpError(
+            f"matrix is not the {len(EXPECTED_TARGET_CHECKS)}-check campaign "
+            f"matrix (got {len(names)} checks)")
+    failing = sorted(c.get("name") for c in checks
+                     if isinstance(c, dict) and c.get("passed") is not True)
+    return names, failing
+
+
+def _step_qemu_verify_stale(ctx: dict[str, Any]) -> tuple[bool, str]:
+    """Negative control: stale binaries must fail at exactly the declared checks.
+
+    Runs the same `verify` invocation as qemu_verify, then requires
+    rc == 1 with the failing set exactly equal to param
+    `expect_refusal`. A green matrix (stale binaries accepted) or any
+    other failure shape fails the op: only the declared refusal seals.
+    """
+    qt = _qt()
+    params = ctx["params"]
+    work = Path(ctx["work_dir"])
+    ir_path = work / "ir.json"
+    ir_path.write_text(json.dumps(params.get("ir", {})), encoding="utf-8")
+    manifest = work / "stage-manifest.json"
+    out = work / "target"
+    rc = _unlocked(qt.cmd_verify)(argparse.Namespace(
+        ir=str(ir_path), build_set=params.get("build_set"),
+        require_manifest=str(manifest) if manifest.is_file() else None,
+        password=None, ssh_port=int(params.get("ssh_port", 2222)),
+        user=params.get("user", DEFAULT_TARGET_USER), out=str(out)))
+    expected = sorted(params.get("expect_refusal") or [])
+    if rc == 0:
+        return False, ("stale control INVALID: matrix passed "
+                       "(stale binaries accepted) — refusing to seal")
+    if rc != 1:
+        return False, f"verify rc={rc}, not a matrix refusal (see {out.name}/)"
+    rec_path = out / "qnx-target-record.json"
+    if not rec_path.is_file():
+        return False, f"verify refused without a target record (see {out.name}/)"
+    try:
+        record = json.loads(rec_path.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        return False, f"target record unreadable: {exc}"
+    try:
+        names, failing = _matrix_failing(record)
+    except TargetOpError as exc:
+        return False, f"refusing to seal: {exc}"
+    if failing != expected:
+        return False, (f"refusal shape {failing} != declared {expected} "
+                       f"(see {out.name}/) — refusing to seal")
+    ctx["artifacts"]["target_dir"] = str(out)
+    ctx["artifacts"]["stale_refusal"] = {
+        "expected": expected, "failed": failing,
+        "passed": len(names) - len(failing), "total": len(names)}
+    return True, (f"stale refusal observed at {failing} "
+                  f"({len(names) - len(failing)}/{len(names)})")
+
+
 def _step_qemu_perf(ctx: dict[str, Any]) -> tuple[bool, str]:
     qt = _qt()
     params = ctx["params"]
@@ -862,7 +962,10 @@ def _step_seal(ctx: dict[str, Any]) -> tuple[bool, str]:
 
     Mirrors run_pipeline's seal recipe (faultlab sims, build_passport,
     gate verdict, never a vacuous PASS). A gate FAIL fails the op: a
-    COMPLETED op always carries a PASS passport.
+    COMPLETED op always carries a PASS passport — except the
+    stale-control workflow, which seals a FAIL passport via
+    _step_seal_stale (a COMPLETED control proves the refusal, not a
+    pass; dossier and release surfaces still require gate PASS).
     """
     from . import faultlab
     from .evidence import attach_verdict, build_passport, save_passport
@@ -916,6 +1019,92 @@ def _step_seal(ctx: dict[str, Any]) -> tuple[bool, str]:
                    f"{len(wanted)} scenarios)")
 
 
+def _step_seal_stale(ctx: dict[str, Any]) -> tuple[bool, str]:
+    """Seal a stale-control passport: refusal transcript + FAIL gate.
+
+    No host sims run (the control is target-only) and no in-op build
+    exists (binaries were prebuilt + staged): the passport binds the
+    normalized IR, the stage-manifest digests, and the full 16-check
+    target record, plus a hash-linked `stale_control` claim naming
+    the declared vs observed refusal. The gate verdict over this
+    passport is FAIL (no scenarios declared — the passport claims no
+    pass); that FAIL is the sealed outcome, and the op COMPLETES
+    with it. Any shape but exactly the declared refusal fails the op.
+    """
+    from .codegen import ir_sha256
+    from .evidence import (append_record, attach_verdict, build_passport,
+                           save_passport)
+    from .gate import evaluate
+    from .projects import validate_any
+    params = ctx["params"]
+    work = Path(ctx["work_dir"])
+    try:
+        _, valid = validate_any(params["ir"])
+    except Exception as exc:
+        return False, f"invalid IR at seal: {exc}"
+    rec_path = work / "target" / "qnx-target-record.json"
+    if not rec_path.is_file():
+        return False, "no target record (qemu_verify_stale did not run?)"
+    try:
+        target_rec = json.loads(rec_path.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        return False, f"target record unreadable: {exc}"
+    try:
+        names, failing = _matrix_failing(target_rec)
+    except TargetOpError as exc:
+        return False, f"refusing to seal: {exc}"
+    expected = sorted(params.get("expect_refusal") or [])
+    if failing != expected:
+        return False, (f"refusing to seal: failing checks {failing} != "
+                       f"declared refusal {expected}")
+    man_path = work / "stage-manifest.json"
+    if not man_path.is_file():
+        return False, "no stage manifest (qemu_put did not run?)"
+    try:
+        staged = json.loads(man_path.read_text(encoding="utf-8")).get("files", {})
+    except ValueError as exc:
+        return False, f"stage manifest unreadable: {exc}"
+    if not isinstance(staged, dict) or not staged:
+        return False, "stage manifest names no files (unstaged run?)"
+    binaries = {name: {k: info.get(k) for k in ("sha256", "size", "cksum")}
+                for name, info in staged.items() if isinstance(info, dict)}
+    sha = ir_sha256(valid)
+    codegen_manifest = {"ir_sha256": sha, "files": [], "stale_control": True,
+                        "note": "prebuilt binaries staged, not generated in-op"}
+    qnx_build = {"status": "stale-control",
+                 "note": ("binaries prebuilt + staged via qemu_put; digests "
+                          "from the stage manifest, not an in-op build"),
+                 "binaries": binaries, "verified_on_target": False}
+    try:
+        passport = build_passport(ctx["op_id"], valid, codegen_manifest, [],
+                                  qnx_build, target_rec, None, None)
+    except Exception as exc:
+        return False, f"passport build failed: {exc}"
+    n_pass = len(names) - len(failing)
+    append_record(passport, "stale_control", {
+        "expected_refusal": expected, "failed_checks": failing,
+        "matrix": f"{n_pass}/{len(names)}",
+        "note": ("negative control: stale binaries must fail exactly "
+                 "at the declared checks")})
+    verdict = evaluate(passport, [])
+    attach_verdict(passport, verdict)
+    passport_path = work / "passport.json"
+    save_passport(passport, passport_path)
+    ctx["artifacts"]["passport"] = str(passport_path)
+    ctx["artifacts"]["verdict"] = verdict["verdict"]
+    ctx["artifacts"]["wanted"] = []
+    ctx["artifacts"]["qnx_verified"] = verdict["qnx_verified"]
+    ctx["artifacts"]["ir_sha256"] = sha
+    ctx["artifacts"]["stale_refusal"] = {
+        "expected": expected, "failed": failing,
+        "passed": n_pass, "total": len(names)}
+    if verdict["verdict"] != "FAIL":
+        return False, (f"refusing to seal: gate said {verdict['verdict']} "
+                       "for a control op")
+    return True, (f"sealed control refusal {failing} "
+                  f"({n_pass}/{len(names)}, gate FAIL as designed)")
+
+
 def _step_replay(ctx: dict[str, Any]) -> tuple[bool, str]:
     """Independent replay: recompute chain + gate from the sealed file."""
     from .evidence import load_passport, verify_chain
@@ -965,8 +1154,10 @@ STEP_IMPLS: dict[str, StepFn] = {
     "wait_ssh": _step_wait_ssh,
     "qemu_put": _step_qemu_put,
     "qemu_verify": _step_qemu_verify,
+    "qemu_verify_stale": _step_qemu_verify_stale,
     "qemu_perf": _step_qemu_perf,
     "qemu_stop": _step_qemu_stop,
     "seal": _step_seal,
+    "seal_stale": _step_seal_stale,
     "replay": _step_replay,
 }

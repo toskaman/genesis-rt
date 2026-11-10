@@ -95,11 +95,16 @@ def verify_change(before_ir: str | Path, after_ir: str | Path,
             load_passport(summary["passport"]))
 
     def _leg(summary: dict[str, Any]) -> dict[str, Any]:
+        gate = summary.get("steps", {}).get("gate", {})
         return {"run_id": summary["run_id"], "run_dir": summary["run_dir"],
                 "passport": summary["passport"], "verdict": summary["verdict"],
                 "level": summary["level"],
                 "release_eligible": summary["release_eligible"],
-                "qnx_verified": summary["qnx_verified"]}
+                "qnx_verified": summary["qnx_verified"],
+                # OMEGA7 C banner: sealed gate reasons per leg so
+                # the card can banner quarantines (additive key).
+                "reasons": list(gate.get("reasons", []))
+                if isinstance(gate, dict) else []}
 
     verdict: dict[str, Any] = {
         "change_id": cid,
@@ -143,6 +148,18 @@ def render_card_text(verdict: dict[str, Any]) -> str:
                                       "INVALID") + " after=" +
                  ("valid" if chains.get("after") else "INVALID"))
     lines.append(f"verdict: {verdict['verdict']}")
+    # OMEGA7 C banner: quarantine reasons surface as PHYSICS
+    # WARNING lines per leg. The composition pin forbids
+    # importing gate here, so this literal mirrors
+    # gate.QUARANTINE_PREFIX (drift is caught by the arm-card
+    # integration test). Native cards keep zero banner lines.
+    for tag in ("before", "after"):
+        for reason in verdict.get(tag, {}).get("reasons") or []:
+            if isinstance(reason, str) and \
+                    reason.startswith("quarantined physics: "):
+                lines.append(
+                    f"{tag}: PHYSICS WARNING: "
+                    + reason[len("quarantined physics: "):])
     if verdict.get("verdict_path"):
         lines.append(f"verdict.json: {verdict['verdict_path']}")
     return "\n".join(lines) + "\n"
