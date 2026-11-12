@@ -1,0 +1,200 @@
+{
+  "op_id": "op-33c56ec417a4",
+  "workflow": "full",
+  "state": "COMPLETED",
+  "reason": "all steps done",
+  "steps": [
+    {
+      "name": "validate",
+      "state": "done",
+      "detail": "IR valid (machine=cell-demo-01, normalized)"
+    },
+    {
+      "name": "env",
+      "state": "done",
+      "detail": "SDK present (qcc=cc: targets available in E:/qnx800/host/win64/x86_64/etc/qcc:\n\t12.2.0,gcc_ntoaarch64le\n\t12.2.0,gcc_ntoaarch64le_cxx\n\t12.2.0,gcc_ntoaarch64le_gpp\n\t12.2.0,gcc_ntox86_64\t(default)\n\t12.2.0,gcc_ntox86_64_cxx\n\t12.2.0,gcc_ntox86_64_gpp\n, qemu=True)"
+    },
+    {
+      "name": "generate",
+      "state": "done",
+      "detail": "3 files, ir 73e52055d017"
+    },
+    {
+      "name": "build",
+      "state": "done",
+      "detail": "build ok, 7 binaries"
+    },
+    {
+      "name": "probe_image",
+      "state": "done",
+      "detail": "image probed"
+    },
+    {
+      "name": "qemu_boot",
+      "state": "done",
+      "detail": "QEMU pid 10544 alive"
+    },
+    {
+      "name": "wait_ssh",
+      "state": "done",
+      "detail": "ssh banner on port 2222"
+    },
+    {
+      "name": "qemu_put",
+      "state": "done",
+      "detail": "9 files staged + manifest (staging cleaned)"
+    },
+    {
+      "name": "qemu_verify",
+      "state": "done",
+      "detail": "target matrix PASS (see target/)"
+    },
+    {
+      "name": "qemu_perf",
+      "state": "done",
+      "detail": "perf done (see perf/)"
+    },
+    {
+      "name": "qemu_stop",
+      "state": "done",
+      "detail": "QEMU pid 10544 stopped"
+    },
+    {
+      "name": "seal",
+      "state": "done",
+      "detail": "sealed PASS (qnx_verified=True, 4 scenarios)"
+    },
+    {
+      "name": "replay",
+      "state": "done",
+      "detail": "replay matches (PASS, qnx_verified=True)"
+    }
+  ],
+  "params": {
+    "image_dir": "E:\\qnx800\\images\\qemu\\qemu",
+    "accel": "tcg",
+    "cpu": "max",
+    "extra_src": [
+      "artifacts\\campaign-omega2\\stage\\genesis_guard_v2",
+      "artifacts\\campaign-omega2\\stage\\genesis_guard_conv"
+    ],
+    "build_set": "..\\_t10\\build-set-cell-live.json",
+    "ir": {
+      "schema_version": 1,
+      "machine": {
+        "id": "cell-demo-01",
+        "kind": "industrial_cell",
+        "execution_target": "qnx8_x86_64_qemu",
+        "simulation_only": true
+      },
+      "actuators": [
+        {
+          "id": "amr-drive",
+          "type": "velocity_command"
+        },
+        {
+          "id": "belt-drive",
+          "type": "belt_speed_command"
+        }
+      ],
+      "sensors": [
+        {
+          "id": "amr-odometry",
+          "type": "odometry",
+          "freshness_limit_ms": 100
+        },
+        {
+          "id": "belt-speed",
+          "type": "belt_speed_mps",
+          "freshness_limit_ms": 100
+        },
+        {
+          "id": "cell-estop",
+          "type": "estop_bool",
+          "freshness_limit_ms": 50
+        },
+        {
+          "id": "station-presence",
+          "type": "presence_bool",
+          "freshness_limit_ms": 100
+        }
+      ],
+      "control": {
+        "period_ms": 10,
+        "max_linear_speed_mps": 1.2,
+        "max_angular_speed_radps": 1.0,
+        "guarded_state_transitions": true
+      },
+      "safety_contracts": [
+        {
+          "name": "simulator-watchdog",
+          "if": "simulator_disconnected",
+          "then": "command_virtual_stop"
+        },
+        {
+          "name": "speed-limit",
+          "if": "speed_exceeds_limit",
+          "then": "reject_command"
+        },
+        {
+          "name": "stale-presence-inhibit",
+          "if": "proximity_is_stale",
+          "then": "command_virtual_stop"
+        }
+      ],
+      "verification": {
+        "scenarios": [
+          "cell_estop_during_transfer",
+          "cell_nominal_transfer",
+          "cell_stale_presence",
+          "cell_transfer_jam"
+        ]
+      },
+      "cell": {
+        "station_x_m": 6.0,
+        "transfer_ticks": 50,
+        "presence_sensor": "station-presence",
+        "amr_actuator": "amr-drive",
+        "belt_actuator": "belt-drive"
+      }
+    }
+  },
+  "artifacts": {
+    "machine_id": "cell-demo-01",
+    "sdk_present": true,
+    "qemu_present": true,
+    "gen_dir": "..\\_t10\\target-ops\\op-33c56ec417a4\\gen",
+    "gen_manifest": "..\\_t10\\target-ops\\op-33c56ec417a4\\gen-manifest.json",
+    "ir_sha256": "73e52055d0173770bf904470f2fa565d95a198495ea386ad526366976776ff9b",
+    "qnx_build_record": "..\\_t10\\target-ops\\op-33c56ec417a4\\qnx-build-record.json",
+    "binaries": [
+      "..\\_t10\\target-ops\\op-33c56ec417a4\\gen\\genesis_cellcheck",
+      "..\\_t10\\target-ops\\op-33c56ec417a4\\gen\\genesis_controller",
+      "..\\_t10\\target-ops\\op-33c56ec417a4\\gen\\genesis_device",
+      "..\\_t10\\target-ops\\op-33c56ec417a4\\gen\\genesis_faultinject",
+      "..\\_t10\\target-ops\\op-33c56ec417a4\\gen\\genesis_guard",
+      "..\\_t10\\target-ops\\op-33c56ec417a4\\gen\\genesis_status",
+      "..\\_t10\\target-ops\\op-33c56ec417a4\\gen\\genesis_supervisor"
+    ],
+    "qemu_pid": 10544,
+    "stage_manifest": "..\\_t10\\target-ops\\op-33c56ec417a4\\stage-manifest.json",
+    "target_dir": "..\\_t10\\target-ops\\op-33c56ec417a4\\target",
+    "perf_dir": "..\\_t10\\target-ops\\op-33c56ec417a4\\perf",
+    "passport": "..\\_t10\\target-ops\\op-33c56ec417a4\\passport.json",
+    "verdict": "PASS",
+    "wanted": [
+      "cell_estop_during_transfer",
+      "cell_nominal_transfer",
+      "cell_stale_presence",
+      "cell_transfer_jam"
+    ],
+    "qnx_verified": true,
+    "replay": {
+      "verdict": "PASS",
+      "qnx_verified": true
+    }
+  },
+  "created": 1794494262.747345,
+  "updated": 1794494491.3004105,
+  "owner_pid": 2704
+}

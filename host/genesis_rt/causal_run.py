@@ -145,6 +145,17 @@ def verify_dossier(dossier: dict[str, Any] | str | Path) -> dict[str, Any]:
             if actual != machine["ir_sha256"]:
                 errors.append("before-IR hash mismatch")
     for exp in doc.get("experiments", []) or []:
+        ground = exp.get("native_grounding")
+        if isinstance(ground, dict) and ground.get("transcript_sha256"):
+            try:
+                tsha = _canon_sha256(Path(ground.get("transcript", "")))
+            except OSError:
+                errors.append(f"experiment {exp.get('id')}: "
+                              "native transcript missing")
+            else:
+                if tsha != ground["transcript_sha256"]:
+                    errors.append(f"experiment {exp.get('id')}: "
+                                  "native transcript hash mismatch")
         ppath = exp.get("passport")
         if not ppath:
             continue
@@ -195,6 +206,16 @@ def _passport_scenario(passport_path: str,
     return None
 
 
+def _canon_sha256(path: Path) -> str:
+    """sha256 of a transcript with CRLF canonicalized to LF.
+
+    Evidence packs ship LF transcripts (scripts/build_evidence_pack.py);
+    hashing the canonical form keeps a live dossier verifiable against
+    its published pack on every platform."""
+    return hashlib.sha256(
+        path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def _ground_archived(native_check: str | None,
                      pack_dir: Path) -> dict[str, Any]:
     if not native_check:
@@ -205,16 +226,26 @@ def _ground_archived(native_check: str | None,
     if not transcript.exists():
         return {"mode": "archived", "status": "absent",
                 "transcript": str(transcript)}
-    digest = hashlib.sha256(transcript.read_bytes()).hexdigest()
+    digest = _canon_sha256(transcript)
     return {"mode": "archived", "status": "present",
             "transcript": str(transcript),
             "transcript_sha256": digest}
 
 
-def _ground_live(native_check: str | None, ops_dir: Path,
+LIVE_WORKFLOW = "full"
+
+
+def _run_live_op(ir_obj: dict[str, Any], ops_dir: Path,
                  runner_factory: Callable[[], Any] | None,
                  live_params: dict[str, Any],
                  timeout_s: float) -> dict[str, Any]:
+    """Run ONE hermetic native op for the whole incident.
+
+    The ``full`` workflow generates, builds and stages this incident's
+    own machine binaries before the 16-check matrix runs, so grounding
+    never depends on leftovers from an earlier campaign. One QEMU boot
+    serves every hypothesis (each reads its own check from the record).
+    """
     if runner_factory is None:
         from .target import TargetRunner
 
@@ -223,22 +254,28 @@ def _ground_live(native_check: str | None, ops_dir: Path,
 
         runner_factory = _default
     runner = runner_factory()
+    params = dict(live_params)
+    params["ir"] = ir_obj
+    t0 = time.monotonic()
     try:
-        rec = runner.start("verify-only", dict(live_params))
+        rec = runner.start(LIVE_WORKFLOW, params)
     except Exception as exc:
         return {"mode": "live", "status": "start-failed",
+                "workflow": LIVE_WORKFLOW,
                 "error": f"{type(exc).__name__}: {exc}"}
     op_id = rec.get("op_id", "")
-    deadline = time.monotonic() + timeout_s
+    deadline = t0 + timeout_s
     state: dict[str, Any] | None = None
     while time.monotonic() < deadline:
         state = runner.get(op_id)
         if state is None or state.get("state") in TERMINAL_LIVE:
             break
         time.sleep(2)
+    elapsed = round(time.monotonic() - t0, 1)
+    base = {"mode": "live", "workflow": LIVE_WORKFLOW, "op_id": op_id,
+            "op_seconds": elapsed}
     if state is None:
-        return {"mode": "live", "status": "unknown",
-                "op_id": op_id}
+        return {**base, "status": "unknown"}
     if state.get("state") not in TERMINAL_LIVE:
         cancel = getattr(runner, "cancel", None)
         if callable(cancel):
@@ -246,13 +283,69 @@ def _ground_live(native_check: str | None, ops_dir: Path,
                 cancel(op_id)
             except Exception:
                 pass
-        return {"mode": "live", "status": "timeout", "op_id": op_id,
-                "state": state.get("state")}
-    return {"mode": "live", "status": "completed"
-            if state.get("state") == "COMPLETED" else "op-failed",
-            "op_id": op_id, "state": state.get("state"),
-            "native_check": native_check,
-            "artifacts": state.get("artifacts", {})}
+        return {**base, "status": "timeout", "state": state.get("state")}
+    artifacts = state.get("artifacts", {}) or {}
+    if state.get("state") != "COMPLETED":
+        return {**base, "status": "op-failed", "state": state.get("state"),
+                "reason": state.get("reason", "")}
+    out = {**base, "status": "completed", "state": "COMPLETED",
+           "passport": artifacts.get("passport", ""),
+           "verdict": artifacts.get("verdict"),
+           "qnx_verified": artifacts.get("qnx_verified"),
+           "target_dir": artifacts.get("target_dir", "")}
+    record: dict[str, Any] | None = None
+    tdir = artifacts.get("target_dir")
+    if tdir:
+        rpath = Path(tdir) / "qnx-target-record.json"
+        try:
+            record = json.loads(rpath.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            record = None
+    out["_record"] = record
+    return out
+
+
+def _ground_from_live(native_check: str | None,
+                      live: dict[str, Any] | None) -> dict[str, Any]:
+    """Per-hypothesis grounding read from the single live op.
+
+    ``present`` only when the op COMPLETED, the target record lists the
+    hypothesis's native check as passed on QNX, and its transcript file
+    exists (sha256 recorded). Anything else is reported as it is.
+    """
+    if not native_check:
+        return {"mode": "live", "status": "no-native-check",
+                "note": "mechanism has no native injector; host only"}
+    if live is None:
+        return {"mode": "live", "status": "not-run",
+                "native_check": native_check}
+    public = {k: v for k, v in live.items() if not k.startswith("_")}
+    if live.get("status") != "completed":
+        return {**public, "native_check": native_check}
+    record = live.get("_record")
+    if not isinstance(record, dict):
+        return {**public, "status": "no-record",
+                "native_check": native_check}
+    check = next((c for c in record.get("checks", []) or []
+                  if isinstance(c, dict)
+                  and c.get("name") == native_check), None)
+    if check is None:
+        return {**public, "status": "absent", "native_check": native_check}
+    transcript = Path(live.get("target_dir", "")) / \
+        f"target-{native_check}.log"
+    grounding = {**public, "native_check": native_check,
+                 "check_passed": bool(check.get("passed")),
+                 "verified_on_target": record.get("verified_on_target"),
+                 "transcript": str(transcript)}
+    if transcript.is_file():
+        grounding["transcript_sha256"] = _canon_sha256(transcript)
+    if not check.get("passed"):
+        grounding["status"] = "check-failed"
+    elif "transcript_sha256" not in grounding:
+        grounding["status"] = "absent"
+    else:
+        grounding["status"] = "present"
+    return grounding
 
 
 def _machine_kind(ir_path: Path) -> str:
@@ -295,6 +388,7 @@ def reproduce(incident_path: str | Path, runs_dir: str | Path,
     inc_id = incident["incident_id"]
     hypotheses: list[dict[str, Any]] = []
     experiments: list[dict[str, Any]] = []
+    live: dict[str, Any] | None = None
     for plan in plans:
         hyp_id = plan["hypothesis_id"]
         scenario = plan["scenario"]
@@ -333,10 +427,12 @@ def reproduce(incident_path: str | Path, runs_dir: str | Path,
                                      if isinstance(c, dict)
                                      and not c.get("passed", True)]
         if target == "live":
-            grounding = _ground_live(
-                plan["native_check"], dossiers_dir_run(runs),
-                runner_factory, dict(live_params or {}),
-                live_timeout_s)
+            if live is None and plan["native_check"]:
+                live = _run_live_op(
+                    json.loads(ir_bytes.decode("utf-8")),
+                    dossiers_dir_run(runs), runner_factory,
+                    dict(live_params or {}), live_timeout_s)
+            grounding = _ground_from_live(plan["native_check"], live)
         else:
             grounding = _ground_archived(plan["native_check"], pack)
         verdict = verdict_for(hyp_id, {"status": outcome}, incident)
@@ -376,6 +472,12 @@ def reproduce(incident_path: str | Path, runs_dir: str | Path,
         "target_mode": target,
         "created_utc": _utc_now(),
     }
+    if target == "live":
+        dossier["native_op"] = (
+            {k: v for k, v in live.items() if not k.startswith("_")}
+            if live is not None else {"status": "not-run",
+                                      "note": "no hypothesis has a "
+                                              "native check"})
     seal_dossier(dossier)
     (ddir / "dossier.json").write_text(
         json.dumps(dossier, indent=2, sort_keys=True) + "\n",

@@ -51,10 +51,23 @@ appends the K1 verdict and reseals (measured: PASS, 2.1 s).
 - No probability percentages anywhere: rank + matched signals +
   experiment verdicts are the reported confidence.
 - Native grounding defaults to archived Omega2 transcripts,
-  labeled ARCHIVED. The live-target path is implemented
-  (TargetRunner verify-only + bounded poll + timeout-cancel) but
-  NOT executed in this environment (no QEMU session here);
-  fake-runner tests cover completed/op-failed/timeout/start-failed.
+  labeled ARCHIVED (these are AMR-machine transcripts grounding a
+  cell incident — a mechanism-level, not machine-level, match).
+- T10 (12 Nov 2026) executed the live path and fixed what that
+  surfaced: the slice started a `verify-only` op per hypothesis on
+  whatever binaries were left on the target and reported bare
+  `completed` without reading the check. It now runs ONE hermetic
+  `full` op for the incident's own machine (generate, `qcc`, stage,
+  16-check matrix, seal, replay), reads each hypothesis's check from
+  the target record (`present` / `check-failed` / `absent` /
+  `no-record`), hashes the LF-canonical transcript, and
+  `verify_dossier` re-checks those hashes. The first live run failed
+  15/16 (`limits_differ`: the oracle refused industrial-cell
+  predictions by design); after pinning that the cell compiles the
+  shared guard sources, the oracle covers `industrial_cell` and the
+  rerun sealed 16/16, `qnx_verified=True` (op-33c56ec417a4,
+  `evidence/t10-causal-live-dossier/`). Live grounding corroborates
+  mechanisms; it never upgrades a verdict.
 - H-stalebin host check is not wired (manifest comparison needs
   staged builds): INCONCLUSIVE on host + archived v2_transitions
   grounding. H-crash/H-seq have no cell injection scenario:

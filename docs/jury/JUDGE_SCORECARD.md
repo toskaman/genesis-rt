@@ -4,7 +4,36 @@
 > Current scores are in the first table; everything below the line is
 > historical and kept for traceability.
 
-## Current internal assessment — 12 Nov 2026 (OMEGA9 domination pass)
+## Current internal assessment — 12 Nov 2026 (T10: live causal grounding)
+
+T10 delta (branch `titan/t10-live-causal`): the flagship causal
+path — previously "implemented, NOT executed" — ran live on QNX 8.0
+QEMU and its first live run surfaced three real defects, fixed
+red-then-green: (1) one `verify-only` op per hypothesis on leftover
+target binaries → ONE hermetic `full` op on the incident's own
+machine; (2) a COMPLETED op was reported as grounded without reading
+the check → per-check grounding from the target record with
+LF-canonical transcript hashes re-checked by `verify_dossier`;
+(3) the native oracle refused industrial-cell predictions (15/16,
+fail-closed) → oracle extended to `industrial_cell` after pinning
+that the cell compiles the shared guard sources. Result: first
+native industrial-cell pack (op-33c56ec417a4, 16/16, sealed PASS,
+`qnx_verified=True`) and a live-grounded dossier with an offline
+verifier that fails on a forged verdict or transcript
+(`evidence/t10-causal-live-dossier/`). 1629 host tests (18 new);
+SDK-free: 1623 + 6 honest skips (SDK-gated).
+
+Scores, internal (not official): Technological Implementation
+9.5 → **9.5** (already high; adds native coverage of a fourth
+machine kind, still QEMU-only); Design **8** (Judge stage H now
+names the live-grounded record; no redesign); Potential Impact
+**5** (no humans involved — unchanged by policy); Innovation & AI
+Creativity 8.5 → **9** (the incident → cause → native-proof loop is
+now demonstrated end to end on QNX, not only on the host with
+borrowed AMR transcripts). Total **31.5 / 40**. Video still DEFERRED
+BY OWNER; human benefit still NOT YET MEASURED.
+
+## Prior assessment — 12 Nov 2026 (OMEGA9 domination pass)
 
 OMEGA9 delta (branch `titan/omega9-domination`, scores held with no
 re-assessment — see red-team below): Judge guided flow is now
@@ -48,9 +77,9 @@ human benefit still NOT YET MEASURED. All video cuts withdrawn
 
 ## Prior assessment — 10 Nov 2026 (OMEGA7 + wow batch)
 
-1611 host tests green on the owner machine (SDK+axe: 1611 passed,
-0 skips; SDK-only: 1609 + 2 honest axe skips).
-SDK-free: 1605 + 6 honest skips (SDK-gated).
+Then (10 Nov): 1611 tests green on the owner machine (SDK+axe: 1611
+passed, 0 skips; SDK-only: 1609 + 2 honest axe skips; SDK-free
+1605 + 6 SDK-gated skips).
 66 documentation-consistency tests
 green, 113 planning unit tests green, E2E 44/44 with axe-core
 (42 + 2 skips without it), Omega2 packs re-verified VERIFY OK

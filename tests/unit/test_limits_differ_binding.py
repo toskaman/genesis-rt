@@ -10,9 +10,10 @@ Wave 11 §5: bound logs carry the oracle probe plan (below/at/
 reference/above the bound limit) and the binding carries the machine
 kind. A bound log in the old single-probe shape is malformed and
 fails closed (truncation must never pass); kinds without oracle
-support (e.g. industrial_cell: no reference vectors, no C
-conformance, no native campaign) fail closed as UNSUPPORTED instead
-of earning a vacuous PASS.
+support (robotic_arm_virtual) fail closed as UNSUPPORTED instead
+of earning a vacuous PASS. industrial_cell gained oracle support in
+T10 (shared guard sources, live native campaign): a correct cell log
+passes, a lying cell guard still fails.
 """
 import importlib.util
 
@@ -105,12 +106,33 @@ AMR = {"machine_id": "amr-demo-01",
        "ir_sha256": "11" * 32, "linear_limit_mps": 1.2}
 
 
-def test_bound_unsupported_cell_kind_fails_closed(qt):
-    # industrial_cell has no oracle support (no reference vectors, no
-    # C conformance, no native campaign), so a bound cell log must
-    # fail closed as UNSUPPORTED -- a PASS here would be vacuous.
+ARM = {"machine_id": "arm-demo-01", "machine_kind": "robotic_arm_virtual",
+       "ir_sha256": "22" * 32, "linear_limit_mps": 1.2}
+
+
+def test_bound_cell_kind_passes_with_correct_probes(qt):
+    # T10: industrial_cell compiles the shared guard_policy.c; its probe
+    # verdicts are predicted exactly like the AMR guard's.
     body = _body("guard: machine=cell-demo-01 limits linear=1.200 angular=1.000 freshness=50ms")
+    assert qt._matrix_check("limits_differ", body, 0, CELL)["passed"] is True
+
+
+def test_bound_cell_lying_guard_still_fails(qt):
+    lying = list(_PLAN12_SLOT1)
+    lying[1] = _probe("1.200", "ALLOW", "OK")  # at-limit must DENY (f32)
+    body = _body("guard: machine=cell-demo-01 limits linear=1.200 angular=1.000 freshness=50ms",
+                 slot1=lying)
     assert qt._matrix_check("limits_differ", body, 0, CELL)["passed"] is False
+
+
+def test_bound_cell_banner_must_match_bound_machine(qt):
+    body = _body("guard: machine=amr-demo-01 limits linear=1.200 angular=1.000 freshness=50ms")
+    assert qt._matrix_check("limits_differ", body, 0, CELL)["passed"] is False
+
+
+def test_bound_unsupported_arm_kind_fails_closed(qt):
+    body = _body("guard: machine=arm-demo-01 limits linear=1.200 angular=1.000 freshness=50ms")
+    assert qt._matrix_check("limits_differ", body, 0, ARM)["passed"] is False
 
 
 def test_bound_amr_banner_passes(qt):

@@ -1,0 +1,13 @@
+$ cd /tmp/genesis; slay genesis_guard 2>/dev/null; sudo -n slay genesis_status 2>/dev/null; sleep 1; rm -f guard-estop.log; ./genesis_guard > guard-estop.log 2>&1 & GPID=$!; sleep 2; sudo -n ./genesis_status /tmp/genesis-status-node > status-estop.log 2>&1 & sleep 1; echo ---ESTOP-PROBE---; ./genesis_faultinject probe estop; echo ---STATUS-ESTOP---; cat /tmp/genesis-status-node; echo STATUS_EXIT=$?; echo ---OPERATOR-RESET---; kill -s USR1 $GPID; sleep 1; echo ---RESET-PROBE---; ./genesis_faultinject probe state 0 2; ./genesis_faultinject probe 0.4 3; grep 'operator reset armed' guard-estop.log; slay genesis_guard; sudo -n slay genesis_status
+---ESTOP-PROBE---
+PROBE linear=0.500 estop=1 decision=DENY reason=ESTOP state=3
+---STATUS-ESTOP---
+state=3 allows=0 denies=1 last_reason=ESTOP last_seq=0 dropped=0 fwd_ok=0 fwd_fail=0 (device unreachable)
+STATUS_EXIT=0
+---OPERATOR-RESET---
+---RESET-PROBE---
+PROBE state=0 decision=DENY reason=BAD_TRANSITION state=3
+PROBE linear=0.400 estop=0 decision=ALLOW reason=OK state=1
+guard: operator reset armed (SIGUSR1)
+
+[exit=1]

@@ -9,9 +9,9 @@ current evidence.
 
 ## Test counts
 
-- Collected total: **1611** (`facts.TESTS_WITH_SDK`; SDK-run skips are
+- Collected total: **1629** (`facts.TESTS_WITH_SDK`; SDK-run skips are
   per-machine — the 2 axe scans skip without `node_modules/axe-core`).
-- SDK-free (10 Nov 2026 + OMEGA7 + video-wire): **1605 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
+- SDK-free (12 Nov 2026 T10, host CI lane): **1623 passed + 6 honest skips** (3 QNX-build + 2 SDK-only
   codelab + 1 real-build target op).
 - Adversarial passport suite: **24** (`facts.ADVERSARIAL_TESTS`).
 - Planning eval: **28/28** (`facts.PLANNING_EVAL_CASES`, the 28-case
@@ -26,10 +26,10 @@ current evidence.
   (all 44 also run SDK-free — no E2E test is SDK-gated). On a machine
   without `axe-core` in `node_modules` the 2 axe scans **skip**
   visibly — that is the "2 skipped" in bare Windows + SDK runs
-  (bare SDK run without axe: 1609 passed + 2 skipped of 1611
+  (bare SDK run without axe: 1627 passed + 2 skipped of 1629
   expected — the OMEGA4 no-axe run measured 1346 + 2 of 1348,
   and the +28 OMEGA5, +19 TITAN V3, +36 OMEGA6, +56 OMEGA7,
-  +35 stale-control and +1 video-wire tests are axe-independent; the previous 1337-tree run needed one retry after a
+  +35 stale-control, +1 video-wire and +18 T10 tests are axe-independent; the previous 1337-tree run needed one retry after a
   transient Playwright `networkidle` E2E timeout that passed in
   isolation — no browser-served file changed, so not a regression).
 - Vocabulary: *collected* = found by pytest; *passed*/*skipped* = outcome
@@ -76,6 +76,19 @@ Verify: `python -m pytest tests/ -q`
   legacy `evidence/qnx8-x86_64-verified-b22cea1/`.
 
 Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
+
+- `evidence/qnx8-x86_64-t10-cell-causal-live/` — T10 (12 Nov 2026):
+  first native pack for the **industrial cell** (the flagship
+  incident's own machine), op-33c56ec417a4, 16/16 on QNX 8.0 QEMU,
+  sealed PASS, `qnx_verified=True`, replay matched, 1000 perf
+  samples. Same trust level (hash-only, UNSIGNED).
+- `evidence/t10-causal-live-dossier/` — the flagship causal dossier
+  grounded LIVE by that single op (`causal-repro --target live`,
+  234 s wall, n=1, TCG). H-estop SUPPORTED with `estop_target`
+  passed natively and its transcript hash-bound to the pack; 4 of 6
+  hypotheses have a native check (all passed), 2 are host-only.
+  Verify: `python evidence/t10-causal-live-dossier/verify_causal.py`
+  → exit 0; a forged verdict or transcript → exit 2.
 
 ## Supported platforms
 
@@ -229,12 +242,18 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
   Explorer, change-impact analysis, release-decision explanation,
   native before/after comparison, IPC execution timeline
   (`evidence/ipc-timeline/`), engineering dossier ZIP export.
-- Causal failure engine (branch `titan/omega7-causal-engine`,
-  unmerged): incident intake → ranked hypotheses → host + native
+- Causal failure engine (merged via PR #19): incident intake → ranked hypotheses → host + native
   experiments → sealed causal dossier → K1 fix proof
   (`causal-repro` / `causal-fix`, `POST /causal/dossiers`, Judge
   stage H). Deterministic only (no LLM); native grounding
   archived-by-default with explicit archived/live labels; live
-  path implemented but not executed here; H-stalebin host check
-  unwired; dossier UNSIGNED. Flagship estop incident measured:
-  5.5 s incident-to-proof, n=1, host, archived grounding.
+  path EXECUTED on QNX 8.0 QEMU in T10 (12 Nov 2026: one hermetic
+  `full` op per incident on the incident's own machine, per-check
+  grounding read from the target record, transcript hashes
+  re-checked by `verify_dossier`; see the T10 packs above);
+  H-stalebin host check unwired; dossier UNSIGNED. Flagship estop
+  incident measured: 5.5 s incident-to-proof, n=1, host, archived
+  grounding; 234 s with live native grounding (n=1, TCG).
+  Native oracle covers `industrial_cell` since T10 (shared guard
+  sources pinned by `tests/unit/test_cell_oracle_support.py`);
+  `robotic_arm_virtual` stays fail-closed.

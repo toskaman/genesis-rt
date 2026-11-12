@@ -249,11 +249,28 @@ def _cmd_causal_repro(args: argparse.Namespace) -> int:
         REPO_ROOT / "artifacts" / "runs"
     dossiers_dir = Path(args.dossiers_dir) if args.dossiers_dir else \
         REPO_ROOT / "artifacts" / "dossiers"
+    live_params: dict[str, Any] = {}
+    if args.target == "live":
+        if not args.image_dir:
+            print("invalid: --target live needs --image-dir "
+                  "(the QSTI QEMU image directory)")
+            return 2
+        live_params = {"image_dir": args.image_dir, "accel": args.accel}
+        if args.cpu:
+            live_params["cpu"] = args.cpu
+        if args.ssh_port:
+            live_params["ssh_port"] = args.ssh_port
+        if args.extra_src:
+            live_params["extra_src"] = list(args.extra_src)
+        if args.build_set:
+            live_params["build_set"] = args.build_set
     try:
         dossier = reproduce(args.incident, runs_dir, dossiers_dir,
                             target=args.target,
                             machine_ir=args.machine_ir,
-                            only=args.hypotheses)
+                            only=args.hypotheses,
+                            live_params=live_params,
+                            live_timeout_s=args.live_timeout)
     except (IRValidationError, OSError, ValueError) as exc:
         print(f"invalid: {exc}")
         return 2
@@ -266,8 +283,17 @@ def _cmd_causal_repro(args: argparse.Namespace) -> int:
         print(f"causal: {dossier['incident']['incident_id']}  "
               f"winner={causal['winning_hypothesis'] or '-'}  "
               f"conclusive={causal['conclusive']}")
+        grounds = {e["hypothesis_id"]: e.get("native_grounding", {})
+                   for e in dossier["experiments"]}
         for hyp in dossier["hypotheses"]:
-            print(f"  {hyp['id']}: {hyp['verdict']}")
+            g = grounds.get(hyp["id"], {})
+            print(f"  {hyp['id']}: {hyp['verdict']}  "
+                  f"native={g.get('mode', '-')}:{g.get('status', '-')}")
+        if dossier.get("native_op"):
+            op = dossier["native_op"]
+            print(f"native op: {op.get('op_id', '-')} {op.get('status')} "
+                  f"qnx_verified={op.get('qnx_verified')} "
+                  f"({op.get('op_seconds', '-')} s)")
         print(f"dossier: {dossier['dossier_path']}")
     return 0 if dossier["causality"]["conclusive"] else 1
 
@@ -856,6 +882,24 @@ def build_parser() -> argparse.ArgumentParser:
                     default="archived",
                     help="native grounding: archived Omega2 transcripts "
                          "(default) or a live target op")
+    cr.add_argument("--image-dir", default=None,
+                    help="live: QSTI QEMU image directory")
+    cr.add_argument("--accel", default="auto",
+                    choices=("auto", "whpx", "tcg", "kvm"),
+                    help="live: QEMU accelerator (default auto)")
+    cr.add_argument("--cpu", default=None,
+                    help="live: QEMU -cpu model (e.g. max with tcg)")
+    cr.add_argument("--ssh-port", type=int, default=None,
+                    help="live: forwarded guest SSH port (default 2222)")
+    cr.add_argument("--extra-src", nargs="*", default=None,
+                    help="live: companion binaries staged beside this "
+                         "machine's build (e.g. the v2/conveyor guards "
+                         "the 16-check matrix exercises)")
+    cr.add_argument("--build-set", default=None,
+                    help="live: provenance build-set attributing the "
+                         "companion binaries")
+    cr.add_argument("--live-timeout", type=float, default=1800,
+                    help="live: seconds before the op is cancelled")
     cr.add_argument("--json", action="store_true")
     cr.set_defaults(func=_cmd_causal_repro)
     cf = sub.add_parser("causal-fix",

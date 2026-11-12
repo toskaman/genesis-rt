@@ -4029,7 +4029,12 @@ async function judgeAction(action) {
           '<p class="note">seal <code>' +
           esc(String(dossier.seal).slice(0, 12)) + '…</code> · ' +
           esc(String(dossier.target_mode)) + ' grounding · incident → ' +
-          'proof in ' + esc(dt) + 's on this host</p>';
+          'proof in ' + esc(dt) + 's on this host</p>' +
+          '<p class="note src-label"><span class="tag tag-archived">' +
+          'Archived</span> Same incident grounded live on QNX 8.0 ' +
+          '(QEMU x86_64): one native op, 16/16, qnx_verified — ' +
+          '<code>evidence/t10-causal-live-dossier</code> (verify ' +
+          'offline with <code>verify_causal.py</code>).</p>';
         // Stay on the Judge tab: the verdicts render here (switching
         // away would hide the payoff this action just produced).
         judgeNote('Causal dossier sealed: winner ' + w + ' in ' + dt +
