@@ -15,7 +15,7 @@
 
 Category: **Developer Tooling & Host Tools**.
 Video: `PENDING — FINAL VIDEO DEFERRED BY USER`. Final video production:
-deferred by user. WITHDRAWN 2026-11-10: all historical cuts were removed
+deferred by user. WITHDRAWN 2026-11-12: all historical cuts were removed
 for an owner remake and no video file is shipped
 (see `docs/demo/MEDIA_VALIDATION_W12.md`, historical record;
 `docs/demo/PUBLICATION_HANDOFF_W12.md` ON HOLD). Rules reminder: the

@@ -61,7 +61,7 @@ trace. One convincing proof-driven demo beats twenty speculative features.
   `...-after-rerun/`), 15-link passport chains, tamper control,
   18/18 bit-for-bit `qcc` rebuilds.
 - **Final submission video: DEFERRED BY OWNER.** All cuts WITHDRAWN
-  2026-11-10 for an owner remake — no video file is shipped;
+  2026-11-12 for an owner remake — no video file is shipped;
   see `submission/VIDEO_DEFERRED.md`.
 
 Canonical numbers live in [docs/CLAIMS.md](docs/CLAIMS.md).

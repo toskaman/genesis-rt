@@ -1,6 +1,6 @@
 # Media validation — causal hero + brag cuts (2026-11-10)
 
-> WITHDRAWN 2026-11-10: both validated files were removed from the tree for an
+> WITHDRAWN 2026-11-12: both validated files were removed from the tree for an
 > owner remake. Durations, hashes and pipeline notes below are a dated
 > historical record, not a claim that the files ship.
 

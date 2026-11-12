@@ -13,6 +13,7 @@ or a system Chrome/Edge. CI installs Chromium explicitly.
 from __future__ import annotations
 
 import os
+import re
 import socket
 import threading
 import time
@@ -159,8 +160,16 @@ def test_judge_host_journey_stages_a_to_g(page, tmp_path):
     pg.locator('#judge-out button[data-jaction="judge-open-source"]').click()
     assert pg.locator('button[data-tab="source"][aria-selected="true"]'
                       ).count() == 1
+    # The action navigates away: a persistent return button must offer
+    # the way back to the guided step (OMEGA9 judge-flow fix).
+    back = pg.locator("#judge-back")
+    assert back.is_visible()
+    assert "step software" in back.inner_text()
+    back.click()
+    assert pg.locator('button[data-tab="judge"][aria-selected="true"]'
+                      ).count() == 1
+    assert not back.is_visible()
 
-    pg.locator('button[data-tab="judge"]').click()
     pg.locator('#judge-out button[data-jnav="next"]').click()
     assert "The failure" in _judge_text(pg)
     old = _judge_job_id(pg)
@@ -216,8 +225,9 @@ def test_judge_host_journey_stages_a_to_g(page, tmp_path):
     _shot(pg, tmp_path, "g-release")
 
 
-def test_judge_stage_h_causal_renders_action(page):
-    # Wiring only (no click: the full run executes six pipelines).
+def test_judge_stage_h_causal_full_run_shows_proof_timing(page):
+    # Full archived run: six hypotheses execute, the winner renders with
+    # the measured incident-to-proof time (OMEGA9 winner-lesson #11).
     pg = page
     pg.locator('button[data-tab="judge"]').click()
     pg.wait_for_selector("#judge-out")
@@ -227,7 +237,10 @@ def test_judge_stage_h_causal_renders_action(page):
     action = pg.locator(
         '#judge-out button[data-jaction="judge-run-causal"]')
     assert action.count() == 1
-    assert action.is_enabled()
+    action.click()
+    pg.wait_for_selector('#judge-out :text("H-estop: SUPPORTED")',
+                         timeout=120_000)
+    assert re.search(r"in \d+(\.\d+)?s", _judge_text(pg)), _judge_text(pg)
 
 
 def test_target_tab_empty_state(page):
