@@ -1,6 +1,9 @@
 # Wave 11 final demo: narration + voice handoff
 
-Final visual edit: `docs/demo/genesis-rt-demo-w11.mp4`
+> WITHDRAWN 2026-11-10: the referenced cut was removed for an owner remake.
+> Script, subtitles and voice sources below stay as remake inputs.
+
+Final visual edit (withdrawn): `docs/demo/genesis-rt-demo-w11.mp4`
 (154.6 s, 1920x1080, H.264/yuv420p, 30 fps, silent).
 Timed subtitles: `docs/demo/subtitles-w11.srt` (21 cues).
 

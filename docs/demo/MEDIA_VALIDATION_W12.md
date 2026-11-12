@@ -1,5 +1,9 @@
 # Wave 12 media validation report — voiced final demo
 
+> WITHDRAWN 2026-11-10: the validated file was removed from the tree for an
+> owner remake. Durations, hashes and pipeline notes below are a dated
+> historical record, not a claim that the file ships.
+
 Date: 2026-11-06. Deterministic pipeline, all numbers measured.
 
 ## Final MP4 (submission video)

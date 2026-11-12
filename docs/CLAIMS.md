@@ -188,16 +188,19 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
 ## Video status
 
 - **Status: `DEFERRED_BY_OWNER`; final submission `PENDING_VIDEO`**
-  (`submission/VIDEO_DEFERRED.md`). The entries below describe the
-  historical W12 cut only — it is not the final submission video.
-- Historical cut: `docs/demo/genesis-rt-demo-w12.mp4`
-  (**154.664 s**, 1920x1080 H.264 + AAC voiceover, faststart).
-- Captions: `docs/demo/subtitles-w12.srt` (21 cues, verbatim).
-- Voice source: `docs/demo/voiceover-w12.flac` + `voiceover-w12.txt`
-  (local Piper TTS, deterministic render).
-- Validation: `docs/demo/MEDIA_VALIDATION_W12.md`.
+  (`submission/VIDEO_DEFERRED.md`). **WITHDRAWN 2026-11-10: every video
+  cut (W11, W12, causal hero, brag) was removed from the tree for an
+  owner remake — no `.mp4`/`.webm` is shipped.**
+- Historical records (dated, files withdrawn): `docs/demo/MEDIA_VALIDATION_W12.md`
+  (W12: 154.664 s), `docs/demo/MEDIA_VALIDATION_CAUSAL.md` (hero 64.16 s,
+  brag 20.766667 s + SHA-256), `docs/demo/LEDGER_CAUSAL.md`.
+- Kept remake inputs: `docs/demo/subtitles-w12.srt` (21 cues),
+  `docs/demo/subtitles-causal-hero.srt`, `docs/demo/narration-causal-hero.txt`,
+  `docs/demo/voiceover-w12.flac` + `voiceover-w12.txt` (local Piper TTS),
+  posters, `docs/demo-video-plan.md` (WITHDRAWN banner + executed storyboard).
 - **YouTube publication PENDING** (owner account action) — never
-  claim a public URL until it exists (`PUBLICATION_HANDOFF_W12.md`).
+  claim a public URL until it exists (`PUBLICATION_HANDOFF_W12.md`,
+  `docs/demo/PUBLICATION_HANDOFF_CAUSAL.md`, both ON HOLD).
 
 ## Codelab URLs
 

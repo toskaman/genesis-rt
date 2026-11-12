@@ -20,12 +20,10 @@ ADVERSARIAL_TESTS = 24
 PLANNING_EVAL_CASES = 28
 QCC_VERSION = "12.2.0"
 E2E_BROWSER_TESTS = 44
-VIDEO_FILE = "docs/demo/genesis-rt-demo-w12.mp4"
-VIDEO_DURATION_S = 154.664
-HERO_VIDEO_FILE = "docs/demo/genesis-rt-causal-hero.mp4"
-HERO_VIDEO_DURATION_S = 64.16
-BRAG_VIDEO_FILE = "docs/demo/genesis-rt-brag.mp4"
-BRAG_VIDEO_DURATION_S = 20.766667
+# No video file is shipped: all cuts were withdrawn on 2026-11-10 for an
+# owner remake (see docs/demo-video-plan.md). Historical durations/hashes
+# stay in docs/demo/MEDIA_VALIDATION_*.md as dated records, never as pins.
+VIDEO_WITHDRAWN = "2026-11-10"
 PACK_BEFORE = "evidence/qnx8-x86_64-omega2-before"
 PACK_AFTER = "evidence/qnx8-x86_64-omega2-after"
 

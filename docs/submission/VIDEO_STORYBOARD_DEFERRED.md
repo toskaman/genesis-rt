@@ -7,9 +7,9 @@
 > public to YouTube, and pastes the link into the Devpost
 > form. No third-party music, footage, or images anywhere
 > (all visuals are the owner's terminal + Studio + QEMU
-> console). The historical W12 cut
-> (`docs/demo/genesis-rt-demo-w12.mp4`) predates Studio
-> and is NOT the submission video.
+> console). All produced cuts were WITHDRAWN 2026-11-10
+> for an owner remake; no video file is shipped and no
+> cut is the submission video.
 
 ## Compliance checklist (official rules, re-verified 8 Nov 2026)
 

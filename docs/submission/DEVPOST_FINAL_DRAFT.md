@@ -321,9 +321,8 @@ No outreach sent to date.
   above; SDK path documented).
 - QNX 8.0 evidence + identified files: YES.
 - Video <3:00, public YouTube, device footage:
-  CUTS READY, UPLOAD PENDING OWNER (hero 64.16 s + brag 20.77 s validated —
-  `docs/demo/MEDIA_VALIDATION_CAUSAL.md`; no third-party music in hero cut;
-  owner uploads + pastes URL, see `docs/demo/PUBLICATION_HANDOFF_CAUSAL.md`).
+  WITHDRAWN FOR REMAKE, UPLOAD PENDING OWNER (all cuts removed 2026-11-10,
+  no video file shipped; owner produces + uploads + pastes URL).
 - English materials: YES.
 - Free availability through judging (Jan 29, 2027):
   YES.

@@ -1,5 +1,8 @@
 # Shot → evidence mapping
 
+> WITHDRAWN 2026-11-10: the mapped cut was removed for an owner remake.
+> Mapping below is the provenance record of the withdrawn W12 timeline.
+
 Every demo claim resolves to a file, an op, or a command. Nothing
 on screen is staged.
 
