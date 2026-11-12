@@ -1,0 +1,92 @@
+{
+  "after": {
+    "level": "QNX_COMPILED",
+    "passport": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\inc-estop-cell-01-fix-78f8c2-after\\passport.json",
+    "qnx_verified": false,
+    "reasons": [],
+    "release_eligible": false,
+    "run_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\inc-estop-cell-01-fix-78f8c2-after",
+    "run_id": "inc-estop-cell-01-fix-78f8c2-after",
+    "verdict": "PASS"
+  },
+  "before": {
+    "level": "QNX_COMPILED",
+    "passport": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\inc-estop-cell-01-fix-78f8c2-before\\passport.json",
+    "qnx_verified": false,
+    "reasons": [],
+    "release_eligible": false,
+    "run_dir": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\inc-estop-cell-01-fix-78f8c2-before",
+    "run_id": "inc-estop-cell-01-fix-78f8c2-before",
+    "verdict": "PASS"
+  },
+  "chains_valid": {
+    "after": true,
+    "before": true
+  },
+  "change_id": "inc-estop-cell-01-fix-78f8c2",
+  "compare": {
+    "contract": {
+      "limits_changed": {},
+      "limits_known": true,
+      "machine_changed": false
+    },
+    "generated": {
+      "binaries_changed": [
+        "guard_vector_check.exe"
+      ],
+      "binaries_only_a": [],
+      "binaries_only_b": [],
+      "changed": [],
+      "diffs": {},
+      "only_a": [],
+      "only_b": []
+    },
+    "ir": {
+      "ir_sha256_equal": true,
+      "kind_a": "industrial_cell",
+      "kind_b": "industrial_cell",
+      "machine_a": "cell-demo-01",
+      "machine_b": "cell-demo-01",
+      "scenarios_only_a": [],
+      "scenarios_only_b": []
+    },
+    "measurements": {
+      "changed": {},
+      "only_a": [],
+      "only_b": []
+    },
+    "run_a": "inc-estop-cell-01-fix-78f8c2-before",
+    "run_b": "inc-estop-cell-01-fix-78f8c2-after",
+    "scenarios": {
+      "broken": [],
+      "fixed": [],
+      "status_a": {
+        "cell_estop_during_transfer": "pass"
+      },
+      "status_b": {
+        "cell_estop_during_transfer": "pass"
+      },
+      "status_changes": {}
+    },
+    "verdict": {
+      "a": {
+        "level": "QNX_COMPILED",
+        "release_eligible": false,
+        "verdict": "PASS"
+      },
+      "b": {
+        "level": "QNX_COMPILED",
+        "release_eligible": false,
+        "verdict": "PASS"
+      },
+      "changed": false,
+      "release_changed": false
+    }
+  },
+  "manual_commands": [
+    "genesis-rt demo --ir C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\dossiers\\inc-estop-cell-01\\before-ir.json  # note run id, or re-run with an explicit id",
+    "genesis-rt demo --ir examples/cell-demo/cell-ir.json",
+    "genesis-rt compare C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\inc-estop-cell-01-fix-78f8c2-before C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\artifacts\\runs\\inc-estop-cell-01-fix-78f8c2-after"
+  ],
+  "verdict": "PASS"
+}

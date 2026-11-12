@@ -180,41 +180,40 @@ def test_limitations_e2e_wording_current():
 
 
 def test_video_claim_matches_facts():
-    """Wave 12 §5: current docs pin the voiced submission video."""
-    from genesis_rt import facts
-    assert (ROOT / facts.VIDEO_FILE).is_file()
+    """OMEGA8 purge: no video file shipped; docs say WITHDRAWN + DEFERRED."""
+    assert not list((ROOT / "docs" / "demo").rglob("*.mp4"))
+    assert not list((ROOT / "docs" / "demo").rglob("*.webm"))
     for rel in ("docs/compliance-matrix.md", "docs/demo-video-plan.md",
                 "docs/CLAIMS.md", "docs/devpost-draft.md", "README.md"):
-        assert facts.VIDEO_FILE in _read(rel), rel
-    for rel in ("docs/demo/MEDIA_VALIDATION_W12.md", "docs/CLAIMS.md"):
-        assert str(facts.VIDEO_DURATION_S) in _read(rel), rel
+        assert "WITHDRAWN" in _read(rel), rel
 
 
 def test_causal_video_claims_match_facts():
-    """OMEGA8 video: hero + brag cuts exist and validation pins them."""
+    """OMEGA8 purge: withdrawn cuts keep dated validation records."""
     from genesis_rt import facts
-    for attr in ("HERO_VIDEO_FILE", "BRAG_VIDEO_FILE"):
-        assert (ROOT / getattr(facts, attr)).is_file(), attr
-    validation = _read("docs/demo/MEDIA_VALIDATION_CAUSAL.md")
-    for token in (facts.HERO_VIDEO_FILE, facts.BRAG_VIDEO_FILE,
-                  str(facts.HERO_VIDEO_DURATION_S),
-                  str(facts.BRAG_VIDEO_DURATION_S),
-                  "C5022619C5E82F915482A98EB49CF783061FFEEC113E721D64CB9BF20F4B59DC",
-                  "6548BE78C973F4D1628D841471BEC3A3F1D04B2F871928050431230B29EEB0C2",
-                  "DEFERRED", "PUBLICATION_HANDOFF_CAUSAL.md"):
-        assert token in validation, token
+    assert facts.VIDEO_WITHDRAWN == "2026-11-10"
+    for rel in ("docs/demo/MEDIA_VALIDATION_W12.md",
+                "docs/demo/MEDIA_VALIDATION_CAUSAL.md"):
+        text = _read(rel)
+        assert "WITHDRAWN" in text, rel
+        assert facts.VIDEO_WITHDRAWN in text, rel
+    for token in ("C5022619C5E82F915482A98EB49CF783061FFEEC113E721D64CB9BF20F4B59DC",
+                  "6548BE78C973F4D1628D841471BEC3A3F1D04B2F871928050431230B29EEB0C2"):
+        assert token in _read("docs/demo/MEDIA_VALIDATION_CAUSAL.md"), token
     handoff = _read("docs/demo/PUBLICATION_HANDOFF_CAUSAL.md")
     assert "DEFERRED_BY_OWNER" in handoff
 
 
 def test_no_stale_video_handoff_claims():
-    """Wave 12 §5: edit + voice are done; only upload is pending."""
+    """OMEGA8 purge: plan says withdrawn; no doc claims a shipped cut."""
     matrix = _read("docs/compliance-matrix.md")
     assert "42 s genuine footage" not in matrix
     assert "edit + voice + publication = owner handoff, still pending" not in matrix
     plan = _read("docs/demo-video-plan.md")
     assert "Voice track + final edit +" not in plan
-    assert "genesis-rt-demo-w12.mp4" in plan
+    assert "WITHDRAWN" in plan
+    assert "CUTS READY" not in plan
+    assert "CUTS READY" not in _read("docs/submission/DEVPOST_FINAL_DRAFT.md")
 
 
 def test_readme_covers_flagship_capabilities():
@@ -262,7 +261,7 @@ def test_claims_registry_matches_facts():
                   str(facts.TESTS_SDK_FREE_PASSED),
                   str(facts.ADVERSARIAL_TESTS),
                   facts.PACK_BEFORE, facts.PACK_AFTER,
-                  facts.VIDEO_FILE, "PUBLICATION_HANDOFF_W12.md"):
+                  "PUBLICATION_HANDOFF_W12.md"):
         assert token in text, token
     assert (ROOT / facts.PACK_BEFORE / "verify.py").is_file()
     assert (ROOT / facts.PACK_AFTER / "verify.py").is_file()

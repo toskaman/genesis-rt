@@ -60,9 +60,9 @@ trace. One convincing proof-driven demo beats twenty speculative features.
   (`evidence/qnx8-x86_64-w11-before/`, `...-after/`,
   `...-after-rerun/`), 15-link passport chains, tamper control,
   18/18 bit-for-bit `qcc` rebuilds.
-- **Final submission video: DEFERRED BY OWNER.** The historical cut
-  `docs/demo/genesis-rt-demo-w12.mp4` (154.664 s) predates the current
-  Studio and is **not** the final video; see `submission/VIDEO_DEFERRED.md`.
+- **Final submission video: DEFERRED BY OWNER.** All cuts WITHDRAWN
+  2026-11-10 for an owner remake — no video file is shipped;
+  see `submission/VIDEO_DEFERRED.md`.
 
 Canonical numbers live in [docs/CLAIMS.md](docs/CLAIMS.md).
 

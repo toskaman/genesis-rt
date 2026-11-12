@@ -15,9 +15,10 @@
 
 Category: **Developer Tooling & Host Tools**.
 Video: `PENDING — FINAL VIDEO DEFERRED BY USER`. Final video production:
-deferred by user. A historical cut exists (`docs/demo/genesis-rt-demo-w12.mp4`,
-154.664 s; see `docs/demo/PUBLICATION_HANDOFF_W12.md`) but it predates the
-current Studio and is **not** the submission video. Rules reminder: the
+deferred by user. WITHDRAWN 2026-11-10: all historical cuts were removed
+for an owner remake and no video file is shipped
+(see `docs/demo/MEDIA_VALIDATION_W12.md`, historical record;
+`docs/demo/PUBLICATION_HANDOFF_W12.md` ON HOLD). Rules reminder: the
 final video must show the project running on the intended device (QEMU
 target), be public on YouTube and under 3 minutes.
 Repo: https://github.com/toskaman/genesis-rt

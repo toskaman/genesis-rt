@@ -1,5 +1,8 @@
 # Publication handoff — causal cuts (OWNER-ONLY, DEFERRED)
 
+> ON HOLD — WITHDRAWN 2026-11-10: the cuts were removed for an owner remake.
+> Checklist below resumes when the new cut lands; do not follow it as-is.
+
 The two cuts are produced and validated (`MEDIA_VALIDATION_CAUSAL.md`). The
 following steps are reserved for the owner. Agents must NOT perform them.
 

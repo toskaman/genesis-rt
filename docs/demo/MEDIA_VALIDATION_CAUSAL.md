@@ -1,5 +1,9 @@
 # Media validation — causal hero + brag cuts (2026-11-10)
 
+> WITHDRAWN 2026-11-10: both validated files were removed from the tree for an
+> owner remake. Durations, hashes and pipeline notes below are a dated
+> historical record, not a claim that the files ship.
+
 Two new cuts were produced from real Studio footage (Playwright driving the live
 `genesis_rt` API; the H run executes the real causal endpoint). Upload to YouTube
 and Devpost submission remain OWNER-ONLY and DEFERRED.

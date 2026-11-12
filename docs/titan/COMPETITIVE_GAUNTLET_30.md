@@ -401,8 +401,8 @@ proof, not fixed assertions) into one screen. Backup beat: live tamper
 rejection — edit one byte, watch the chain refuse.
 C. "Same probe, two contracts, opposite verdicts — both proven. Fifteen
 seconds, zero acting."
-D. `docs/jury/BEFORE_AFTER_NATIVE.md`; `docs/demo/genesis-rt-demo-w12.mp4`
-(decision scene + subtitles); `SHOT_EVIDENCE.md` mapping.
+D. `docs/jury/BEFORE_AFTER_NATIVE.md`; withdrawn W12 cut
+(decision scene + subtitles, WITHDRAWN 2026-11-10 for remake); `SHOT_EVIDENCE.md` mapping.
 E. The flip needs the comparison view loaded and narrated; cold, unexplained,
 it reads as "two green screens". The video carries the narration; live demos
 need the speaker to land the one sentence (see Q30).
