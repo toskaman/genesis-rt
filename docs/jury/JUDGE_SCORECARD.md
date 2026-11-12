@@ -4,14 +4,47 @@
 > Current scores are in the first table; everything below the line is
 > historical and kept for traceability.
 
-## Current internal assessment — 10 Nov 2026 (OMEGA7 + wow batch + causal slice, unmerged)
+## Current internal assessment — 12 Nov 2026 (OMEGA9 domination pass)
 
-Causal slice (10 Nov 2026, branch `titan/omega7-causal-engine` —
-unmerged, draft PR pending, no re-assessment of scores below):
+OMEGA9 delta (branch `titan/omega9-domination`, scores held with no
+re-assessment — see red-team below): Judge guided flow is now
+recoverable (sidebar "← Guided demo" return button after actions
+navigate away, E2E-covered); stage H shows the measured
+incident-to-proof time for the run on that host (frontend-measured,
+archived grounding, no live-target claim); clean-venv install path
+exercised end to end (install exit 0, CLI + import + sample tests
+green); demo storyboard refreshed to the current tree with a causal
+swap beat (no recording — video remains owner-owned); security-model
+wording fixed (run/job/leg escapes 409 vs change/incident id escapes
+400); pytest-asyncio warning silenced via config (zero behavior
+change). Winner research (12 inspected QNX/dev-tool awards,
+Mar 2025–Nov 2025) confirms the rooted-keepsake + live-number +
+reproducible-proof positioning; applied lessons are the live timing
+readout and the verified quickstart path. Filing is still blocked on
+the owner video remake (all cuts WITHDRAWN 2026-11-12); human benefit
+still NOT YET MEASURED; live causal path still unexecuted on target.
+
+Red-team 12 Nov 2026 (three lenses, internal): Product/Impact —
+strongest first-place case is the closed incident-to-proof loop with
+replayable evidence; strongest reject case is zero human validation
+plus no submittable video yet. Technical — strongest case is native
+QNX IPC/RM with fail-closed gates and adversarially-tested passports;
+strongest reject case is QEMU-only evidence with hash-only packs and no signer authentication.
+Sponsor/Compliance — Developer Tooling fit is exact and the named-QNX
+bonus surface is demonstrable; the video + filing-day rules re-check
+(agentic fetch 403) remain owner actions. Scores held at 9.5 / 8 /
+5 / 8.5 = 31: judge-flow polish and verified install/demo paths do
+not add native or human evidence, so no criterion moves. No 10/10
+claimed. Final video DEFERRED BY OWNER; submission pending the video.
+
+## Prior assessment — 10 Nov 2026 (causal slice merged via #19, video purged via #22)
+
+Causal slice merged 10 Nov 2026 (PR #19):
 incident → hypotheses → experiments → sealed dossier → K1 fix
 proof; flagship estop 5.5 s incident-to-proof (n=1, host,
 archived grounding); deterministic only; live path unexecuted;
-human benefit still NOT YET MEASURED.
+human benefit still NOT YET MEASURED. All video cuts withdrawn
+12 Nov 2026 (PR #22) for an owner remake.
 
 ## Prior assessment — 10 Nov 2026 (OMEGA7 + wow batch)
 

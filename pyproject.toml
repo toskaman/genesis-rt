@@ -34,6 +34,9 @@ where = ["host"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Silence pytest-asyncio's unset-scope deprecation warning (no asyncio
+# tests exist; this pins the documented future default explicitly).
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 100

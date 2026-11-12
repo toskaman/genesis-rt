@@ -1,6 +1,6 @@
 # Demo video plan (target 2:40–2:55, hard cap < 3:00)
 
-> WITHDRAWN 2026-11-10: every produced cut (W11, W12, causal hero, brag)
+> WITHDRAWN 2026-11-12: every produced cut (W11, W12, causal hero, brag)
 > was removed from the tree for an owner remake. No `.mp4`/`.webm` is
 > shipped. The storyboard below stays as the executed record plus remake
 > input; upload remains an owner handoff (DEFERRED_BY_OWNER).

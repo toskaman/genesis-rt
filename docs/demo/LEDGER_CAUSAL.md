@@ -1,6 +1,6 @@
 # Ledger — GENESIS RT brag run 2026-11-10
 
-> WITHDRAWN 2026-11-10: listed video artifacts were removed from the tree for
+> WITHDRAWN 2026-11-12: listed video artifacts were removed from the tree for
 > an owner remake. This ledger stays as the provenance record of the run.
 
 ## Artifacts

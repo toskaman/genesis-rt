@@ -1,6 +1,6 @@
 # Publication handoff — Wave 12 demo video
 
-> ON HOLD — WITHDRAWN 2026-11-10: the cut was removed for an owner remake.
+> ON HOLD — WITHDRAWN 2026-11-12: the cut was removed for an owner remake.
 > Checklist below resumes when the new cut lands; do not follow it as-is.
 
 Status 2026-11-06: video, captions and thumbnail are ready.

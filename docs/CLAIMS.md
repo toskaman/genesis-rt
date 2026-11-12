@@ -188,7 +188,7 @@ Verify: `python <pack>/verify.py <pack>` → exit 0, `VERIFY OK`.
 ## Video status
 
 - **Status: `DEFERRED_BY_OWNER`; final submission `PENDING_VIDEO`**
-  (`submission/VIDEO_DEFERRED.md`). **WITHDRAWN 2026-11-10: every video
+  (`submission/VIDEO_DEFERRED.md`). **WITHDRAWN 2026-11-12: every video
   cut (W11, W12, causal hero, brag) was removed from the tree for an
   owner remake — no `.mp4`/`.webm` is shipped.**
 - Historical records (dated, files withdrawn): `docs/demo/MEDIA_VALIDATION_W12.md`

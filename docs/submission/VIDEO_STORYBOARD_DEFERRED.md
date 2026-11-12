@@ -7,11 +7,11 @@
 > public to YouTube, and pastes the link into the Devpost
 > form. No third-party music, footage, or images anywhere
 > (all visuals are the owner's terminal + Studio + QEMU
-> console). All produced cuts were WITHDRAWN 2026-11-10
+> console). All produced cuts were WITHDRAWN 2026-11-12
 > for an owner remake; no video file is shipped and no
 > cut is the submission video.
 
-## Compliance checklist (official rules, re-verified 8 Nov 2026)
+## Compliance checklist (official rules, re-verified 12 Nov 2026 via mirrors; direct /rules fetch 403 — owner confirms on filing day)
 
 - [ ] Duration < 3:00 (judges need not watch beyond).
 - [ ] Shows the project running on the intended device:
@@ -21,7 +21,7 @@
 - [ ] English narration or English captions throughout.
 - [ ] No copyrighted third-party material.
 - [ ] Functionality shown matches the repo state
-      (record AFTER the Omega3 merge; state the commit
+      (record on current `main` HEAD; state the commit
       SHA in the description).
 
 ## Timed narrative (2:45 total)
@@ -38,10 +38,19 @@
 | 8 | 2:20–2:35 | Stale-binary rejection | Show the stale control result: v2 contract + v1 binary → 14/16 FAIL on `estop_target` + `v2_transitions`. One line: "the wrong binary cannot pass." |
 | 9 | 2:35–2:45 | Value proposition | Studio release-decision panel: FAIL-CLOSED verdict; closing line: "change-verification and evidence for QNX — replayable by anyone." Title card with repo URL. |
 
+Optional 10 s swap (same runtime): replace beat 5 with the Guided-demo
+stage H causal proof — one click runs six hypotheses, five return
+INCONCLUSIVE, `H-estop: SUPPORTED` seals the dossier. Use the sidebar
+"← Guided demo" return button on camera to show the flow is recoverable.
+
 ## Exact commands used on camera
 
-All commands exist on the current tree (verified 8 Nov
-2026 against `scripts/qnx_target.py` subparsers):
+All commands exist on the current tree (re-verified
+12 Nov 2026: `scripts/run_verified_demo.py` present,
+`qnx_target.py` has `probe`+`identity`, `serve`
+defaults to port 8077, `docs/quickstart-qnx8-qemu.md`
+present). Fastest cold path: `genesis-rt quickstart`
+(bundled cell example) then open Studio.
 
 ```powershell
 $env:PYTHONPATH='host'

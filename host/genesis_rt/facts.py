@@ -20,10 +20,10 @@ ADVERSARIAL_TESTS = 24
 PLANNING_EVAL_CASES = 28
 QCC_VERSION = "12.2.0"
 E2E_BROWSER_TESTS = 44
-# No video file is shipped: all cuts were withdrawn on 2026-11-10 for an
+# No video file is shipped: all cuts were withdrawn on 2026-11-12 for an
 # owner remake (see docs/demo-video-plan.md). Historical durations/hashes
 # stay in docs/demo/MEDIA_VALIDATION_*.md as dated records, never as pins.
-VIDEO_WITHDRAWN = "2026-11-10"
+VIDEO_WITHDRAWN = "2026-11-12"
 PACK_BEFORE = "evidence/qnx8-x86_64-omega2-before"
 PACK_AFTER = "evidence/qnx8-x86_64-omega2-after"
 

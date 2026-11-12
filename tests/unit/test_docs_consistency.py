@@ -191,7 +191,7 @@ def test_video_claim_matches_facts():
 def test_causal_video_claims_match_facts():
     """OMEGA8 purge: withdrawn cuts keep dated validation records."""
     from genesis_rt import facts
-    assert facts.VIDEO_WITHDRAWN == "2026-11-10"
+    assert facts.VIDEO_WITHDRAWN == "2026-11-12"
     for rel in ("docs/demo/MEDIA_VALIDATION_W12.md",
                 "docs/demo/MEDIA_VALIDATION_CAUSAL.md"):
         text = _read(rel)

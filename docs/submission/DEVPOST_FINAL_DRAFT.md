@@ -321,7 +321,7 @@ No outreach sent to date.
   above; SDK path documented).
 - QNX 8.0 evidence + identified files: YES.
 - Video <3:00, public YouTube, device footage:
-  WITHDRAWN FOR REMAKE, UPLOAD PENDING OWNER (all cuts removed 2026-11-10,
+  WITHDRAWN FOR REMAKE, UPLOAD PENDING OWNER (all cuts removed 2026-11-12,
   no video file shipped; owner produces + uploads + pastes URL).
 - English materials: YES.
 - Free availability through judging (Jan 29, 2027):

@@ -15,7 +15,9 @@ NOT assumed secure against the browser (drive-by sites) or malicious inputs.
   (`valid_project_id`) rejected 400 when malformed, before any I/O.
 - **Path containment**: example files must resolve under `examples/`;
   job artifact dirs must resolve under `ARTIFACTS` (`_job_gen_dir`);
-  unknown ids → 404, escapes → 409. No raw filesystem paths accepted.
+  unknown ids → 404; run/job/leg dir escapes → 409
+  (`api.py`: "dir escapes artifacts"); change/incident id escapes → 400
+  ("change/incident id escapes storage"). No raw filesystem paths accepted.
 - **Payload bounds**: scenario count capped (`MAX_SCENARIOS`), scenario ids
   allowlisted (`SCENARIO_IDS`), posted passport text capped at 3 MiB
   (`MAX_PASSPORT_TEXT`), graph inputs size-capped (`GraphTooLarge`).

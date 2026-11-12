@@ -201,6 +201,7 @@ select { min-width:8rem; }
 <button role="tab" aria-selected="false" aria-controls="tab-run" id="tabbtn-run" data-tab="run">CLI commands</button></span>
 </div></nav>
 <div class="side-foot">
+<button type="button" id="judge-back" class="ghost" hidden>← Guided demo</button>
 <div id="live-status" role="status"><p class="note">Probing backend…</p></div>
 <div id="live-context" class="note" aria-live="polite"></div>
 <details class="note"><summary>What needs the backend?</summary>
@@ -2087,6 +2088,9 @@ const TAB_SECTION = { overview: 'Start', judge: 'Start', projects: 'Build',
   evidence: 'Evidence', twin: 'Explore' };
 function switchTab(name, opts) {
   if (!Object.prototype.hasOwnProperty.call(TAB_SECTION, name)) name = 'overview';
+  if (name === 'judge' && typeof judgeDisarmReturn === 'function') {
+    judgeDisarmReturn();
+  }
   const btn = document.getElementById('tabbtn-' + name);
   const sec = document.getElementById('crumb-sec');
   const pg = document.getElementById('crumb-page');
@@ -3923,6 +3927,21 @@ function judgeNote(text) {
   Live.judge.note = text;
   renderJudge();
 }
+// Judge actions navigate to the tab that shows the real result; arm a
+// persistent return button so the guided flow stays recoverable.
+function judgeArmReturn() {
+  const b = el('judge-back');
+  if (!b) return;
+  const st = (typeof Live !== 'undefined' && Live.judge) || { idx: 0 };
+  const stages = (typeof judgeStages === 'function') ? judgeStages() : [];
+  const s = stages[st.idx];
+  b.textContent = '← Guided demo' + (s ? ' (step ' + s.id + ')' : '');
+  b.hidden = false;
+}
+function judgeDisarmReturn() {
+  const b = el('judge-back');
+  if (b) b.hidden = true;
+}
 function judgeGotoDesignerWithExample() {
   switchTab('designer');
   try {
@@ -3994,9 +4013,11 @@ async function judgeAction(action) {
     } else if (action === 'judge-run-causal') {
       judgeNote('Causal proof running: incident to hypotheses to dossier…');
       try {
+        const t0 = performance.now();
         const flag = JSON.parse(await apiText('/causal/flagship'));
         const dossier = await postJson('/causal/dossiers',
           { incident: flag.incident, machine_ir: flag.machine_ir });
+        const dt = ((performance.now() - t0) / 1000).toFixed(1);
         const w = (dossier.causality &&
           dossier.causality.winning_hypothesis) || '-';
         let rows = '';
@@ -4007,11 +4028,12 @@ async function judgeAction(action) {
           '</h4><ul>' + rows + '</ul>' +
           '<p class="note">seal <code>' +
           esc(String(dossier.seal).slice(0, 12)) + '…</code> · ' +
-          esc(String(dossier.target_mode)) + ' grounding</p>';
+          esc(String(dossier.target_mode)) + ' grounding · incident → ' +
+          'proof in ' + esc(dt) + 's on this host</p>';
         // Stay on the Judge tab: the verdicts render here (switching
         // away would hide the payoff this action just produced).
-        judgeNote('Causal dossier sealed: winner ' + w +
-          ' — verdicts above, proof in the response.');
+        judgeNote('Causal dossier sealed: winner ' + w + ' in ' + dt +
+          's — verdicts above, proof in the response.');
       } catch (e) {
         Live.judge.extra = '';
         judgeNote('Causal proof failed: ' + ((e && e.message) || e));
@@ -4019,6 +4041,8 @@ async function judgeAction(action) {
     } else {
       judgeNote('Unknown judge action: ' + action);
     }
+    const sel = document.querySelector('.tabs button[aria-selected="true"]');
+    if (sel && sel.dataset.tab !== 'judge') judgeArmReturn();
   } catch (e) {
     judgeNote('Action failed: ' + ((e && e.message) || e));
   }
@@ -4036,6 +4060,8 @@ function wireJudge() {
     if (!b || b.disabled) return;
     judgeAction(b.dataset.jaction);
   });
+  const back = el('judge-back');
+  if (back) back.addEventListener('click', () => switchTab('judge'));
 }
 
 /* -- boot ---------------- */
