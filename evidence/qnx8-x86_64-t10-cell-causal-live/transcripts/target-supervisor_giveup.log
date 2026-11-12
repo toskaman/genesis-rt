@@ -1,0 +1,5 @@
+$ cd /tmp/genesis; slay genesis_supervisor 2>/dev/null; slay genesis_guard 2>/dev/null; slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; rm -f sup2.log sup-*.log; sleep 1; ./genesis_supervisor > sup2.log 2>&1 & sleep 4; for i in 1 2 3 4; do slay genesis_guard; sleep 6; done; sleep 2; pidin -F %n 2>/dev/null | grep -c genesis || true; grep -c GIVE_UP sup2.log; slay genesis_supervisor 2>/dev/null; slay genesis_guard 2>/dev/null; slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; true
+0
+1
+
+[exit=0]

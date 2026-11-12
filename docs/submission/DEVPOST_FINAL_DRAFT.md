@@ -72,10 +72,10 @@ target over SSH → contract-aware native oracle (expected
 ALLOW / DENY / SAFE_STOP derived from the validated IR,
 not hard-coded) → transcripts sealed into a 15-link
 passport bound to the IR digest and op id → in-op replay
-→ release decision. Host suite: 1611 tests collected
-(10 Nov 2026 owner run, SDK + axe: 1611 passed + 0 skipped,
-0 failures; SDK without axe: 1609 + 2 honest skips;
-SDK-free CI: 1605 + 6 SDK-gated skips).
+→ release decision. Host suite: 1629 tests collected
+(12 Nov 2026 T10 owner run, SDK + axe: 1629 passed + 0 skipped,
+0 failures; SDK without axe: 1627 + 2 honest skips;
+SDK-free CI: 1623 + 6 SDK-gated skips).
 Planning unit tests 113/113 in `tests/unit/test_planning.py`
 (60 inherited + 13 OMEGA5 + 40 OMEGA7 red-green planner
 cases incl. methodology pins; distinct from the 28/28
@@ -123,6 +123,28 @@ prose-grade, no sealed transcript in the packs).
 Historical limits proof (1.2 → 1.6 m/s
 DENY→ALLOW flip, 18/18 bit-for-bit rebuilds) in
 `evidence/qnx8-x86_64-w11-*/` (7 Nov 2026).
+
+## Technical proof: an incident traced to its cause, live on QNX
+
+A cell halts mid-transfer with ESTOP latched
+(`incidents/estop-cell-transfer.json`). One command,
+`genesis-rt causal-repro --target live`, ranks six hypotheses,
+reproduces the incident pattern on the host (H-estop SUPPORTED,
+the other five INCONCLUSIVE with reasons), then grounds the
+mechanisms in ONE hermetic native op: the industrial cell's own
+binaries generated, `qcc`-built, staged and run through the 16-check
+matrix on QNX 8.0 (QEMU x86_64) — 16/16, sealed PASS,
+`qnx_verified=True` (op-33c56ec417a4, 234 s wall, n=1, TCG). The
+`estop_target` transcript (DENY ESTOP state=3 → operator reset →
+ALLOW) is hash-bound into the sealed dossier.
+
+Verify offline, no SDK:
+`python evidence/t10-causal-live-dossier/verify_causal.py`
+(exit 0; a forged verdict or transcript exits 2). The first live run
+failed 15/16 because the oracle refused industrial-cell predictions
+by design; we pinned that the cell compiles the shared guard
+sources, extended the oracle, and reran (red-then-green on target).
+Native checks corroborate mechanisms; they never upgrade a verdict.
 
 ## AI disclosure (read this before scoring Innovation)
 
@@ -252,7 +274,7 @@ PYTHONPATH=host python scripts/run_verified_demo.py
 PYTHONPATH=host python -m genesis_rt.cli serve
 # Studio at http://127.0.0.1:8077/
 python -m pytest tests/ -q
-# 1611 collected; SDK-free CI: 1605 + 6 honest skips
+# 1629 collected; SDK-free CI: 1623 + 6 honest skips
 ```
 
 With an SDK: `python scripts/qnx_env_check.py`, then
@@ -313,7 +335,7 @@ already participates; never buy, automate, or
 incentivize votes; never use multiple accounts.
 No outreach sent to date.
 
-## Rules compliance checklist (re-verified 10 Nov 2026 via hackathon page + mirrors; direct /rules fetch returned 403 — owner confirms on filing)
+## Rules compliance checklist (re-verified 12 Nov 2026: official /rules page read in full in a real browser — dates, requirements, equal-weight criteria and bonus terms unchanged; owner re-checks on filing day)
 
 - Public repo + Apache-2.0 detected: YES.
 - One category (Developer Tooling & Host Tools): YES.

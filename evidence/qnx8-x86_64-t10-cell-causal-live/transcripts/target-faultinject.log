@@ -1,0 +1,27 @@
+$ cd /tmp/genesis; slay genesis_guard 2>/dev/null; rm -f guard.log; ./genesis_guard > guard.log 2>&1 & sleep 3; ./genesis_faultinject; echo FI_EXIT=$?; sleep 1; echo ---GUARD-LOG---; cat guard.log; slay genesis_guard
+PASS nominal            decision=0 reason=0 state=1 (want 0/0/1)
+PASS over_limit         decision=1 reason=8 state=1 (want 1/8/1)
+PASS replay_seq         decision=1 reason=4 state=1 (want 1/4/1)
+PASS overdue            decision=1 reason=5 state=1 (want 1/5/1)
+PASS bad_version        decision=1 reason=2 state=3 (want 1/2/3)
+PASS nan_linear         decision=1 reason=11 state=3 (want 1/11/3)
+PASS bad_magic          decision=1 reason=1 state=3 (want 1/1/3)
+PASS short_frame        decision=1 reason=3 state=3 (want 1/3/3)
+PASS locked_nominal     decision=1 reason=10 state=3 (want 1/10/3)
+faultinject: ALL 9 CHECKS PASS
+FI_EXIT=0
+---GUARD-LOG---
+guard: attached as 'genesis_guard' chid=1
+guard: machine=cell-demo-01 limits linear=1.200 angular=1.000 freshness=50ms
+guard: reset handler installed (SIGUSR1)
+guard: seq=1 decision=ALLOW reason=OK state=1
+guard: seq=2 decision=DENY reason=SPEED_OVER_LIMIT state=1
+guard: seq=1 decision=DENY reason=STALE_SEQ state=1
+guard: seq=3 decision=DENY reason=OVERDUE_DEADLINE state=1
+guard: seq=4 decision=DENY reason=BAD_VERSION state=3
+guard: seq=5 decision=DENY reason=MALFORMED state=3
+guard: seq=6 decision=DENY reason=BAD_MAGIC state=3
+guard: seq=7 decision=DENY reason=BAD_SIZE state=3
+guard: seq=8 decision=DENY reason=BAD_TRANSITION state=3
+
+[exit=1]

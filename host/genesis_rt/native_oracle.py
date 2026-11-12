@@ -28,7 +28,15 @@ EXPECTED_ERROR = "EXPECTED_ERROR"
 INCONCLUSIVE = "INCONCLUSIVE"
 UNSUPPORTED = "UNSUPPORTED"
 
-SUPPORTED_MACHINE_KINDS = ("differential_drive_robot", "conveyor")
+#: Kinds whose generated guard is the shared ``guard_policy.c`` speed
+#: rule. ``industrial_cell`` joined in T10 (12 Nov 2026): codegen emits
+#: the same guard sources for a cell (the config header differs only in
+#: machine id + numeric limits, pinned by
+#: tests/unit/test_cell_oracle_support.py) and a live QNX op observed
+#: the cell guard matching every prediction for its 1.2 m/s contract.
+#: ``robotic_arm_virtual`` stays unsupported (physics quarantine).
+SUPPORTED_MACHINE_KINDS = ("differential_drive_robot", "conveyor",
+                           "industrial_cell")
 
 # IR schema bound for max_linear_speed_mps (examples/amr-demo schema).
 MIN_LIMIT_MPS = 0.0

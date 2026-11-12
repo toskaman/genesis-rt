@@ -1,0 +1,11 @@
+$ cd /tmp/genesis; slay genesis_guard 2>/dev/null; slay genesis_guard_conv 2>/dev/null; slay genesis_guard_v2 2>/dev/null; slay genesis_controller 2>/dev/null; slay genesis_device 2>/dev/null; sleep 1; rm -f device-dcx.log guard-dcx.log ctrl-dcx.log; ./genesis_guard > guard-dcx.log 2>&1 & GPID=$!; ./genesis_device --guard-pid $GPID > device-dcx.log 2>&1 & sleep 2; ./genesis_controller 50 > ctrl-dcx.log 2>&1 & sleep 4; echo BEFORE=$(grep -c APPLY device-dcx.log); echo GBEFORE=$(grep -c decision guard-dcx.log); slay -9 genesis_device; sleep 3; echo AFTER=$(grep -c APPLY device-dcx.log); echo GAFTER=$(grep -c decision guard-dcx.log); echo NONGUARD=$(grep APPLY device-dcx.log | grep -vc "from_pid=$GPID "); echo DALIVE=$(pidin -F %n 2>/dev/null | grep -c genesis_device); echo CALIVE=$(pidin -F %n 2>/dev/null | grep -c genesis_controller); echo GALIVE=$(pidin -F %n 2>/dev/null | grep -c genesis_guard); slay genesis_controller 2>/dev/null; slay genesis_guard 2>/dev/null; true
+BEFORE=81
+GBEFORE=82
+AFTER=82
+GAFTER=144
+NONGUARD=0
+DALIVE=0
+CALIVE=1
+GALIVE=1
+
+[exit=0]

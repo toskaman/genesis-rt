@@ -1,0 +1,256 @@
+{
+  "causality": {
+    "conclusive": true,
+    "verdict_counts": {
+      "INCONCLUSIVE": 5,
+      "SUPPORTED": 1
+    },
+    "winning_hypothesis": "H-estop"
+  },
+  "created_utc": "2026-11-12T14:41:35+00:00",
+  "dossier_version": 1,
+  "experiments": [
+    {
+      "checks_failed": [],
+      "hypothesis_id": "H-estop",
+      "id": "exp-01-H-estop",
+      "native_grounding": {
+        "check_passed": true,
+        "mode": "live",
+        "native_check": "estop_target",
+        "op_id": "op-33c56ec417a4",
+        "op_seconds": 230.1,
+        "passport": "..\\_t10\\target-ops\\op-33c56ec417a4\\passport.json",
+        "qnx_verified": true,
+        "state": "COMPLETED",
+        "status": "present",
+        "target_dir": "..\\_t10\\target-ops\\op-33c56ec417a4\\target",
+        "transcript": "..\\_t10\\target-ops\\op-33c56ec417a4\\target\\target-estop_target.log",
+        "transcript_sha256": "f198726beb485c2e3303a10ca54920f7604ad941339e577b58eaeabbb12a2ec5",
+        "verdict": "PASS",
+        "verified_on_target": true,
+        "workflow": "full"
+      },
+      "note": "",
+      "outcome": "pass",
+      "passport": "..\\_t10\\live-runs3\\inc-estop-cell-01-e01\\passport.json",
+      "run_id": "inc-estop-cell-01-e01",
+      "scenario": "cell_estop_during_transfer",
+      "seed": 1012
+    },
+    {
+      "checks_failed": [],
+      "hypothesis_id": "H-crash",
+      "id": "exp-02-H-crash",
+      "native_grounding": {
+        "check_passed": true,
+        "mode": "live",
+        "native_check": "controller_crash",
+        "op_id": "op-33c56ec417a4",
+        "op_seconds": 230.1,
+        "passport": "..\\_t10\\target-ops\\op-33c56ec417a4\\passport.json",
+        "qnx_verified": true,
+        "state": "COMPLETED",
+        "status": "present",
+        "target_dir": "..\\_t10\\target-ops\\op-33c56ec417a4\\target",
+        "transcript": "..\\_t10\\target-ops\\op-33c56ec417a4\\target\\target-controller_crash.log",
+        "transcript_sha256": "1ad9e5b9af62d0f89c83b91a51e649d6baa129ee9164e32131fb98e303efc918",
+        "verdict": "PASS",
+        "verified_on_target": true,
+        "workflow": "full"
+      },
+      "note": "no host scenario for this machine kind",
+      "outcome": "missing",
+      "passport": "",
+      "run_id": "",
+      "scenario": null,
+      "seed": null
+    },
+    {
+      "checks_failed": [],
+      "hypothesis_id": "H-stalebin",
+      "id": "exp-03-H-stalebin",
+      "native_grounding": {
+        "check_passed": true,
+        "mode": "live",
+        "native_check": "v2_transitions",
+        "op_id": "op-33c56ec417a4",
+        "op_seconds": 230.1,
+        "passport": "..\\_t10\\target-ops\\op-33c56ec417a4\\passport.json",
+        "qnx_verified": true,
+        "state": "COMPLETED",
+        "status": "present",
+        "target_dir": "..\\_t10\\target-ops\\op-33c56ec417a4\\target",
+        "transcript": "..\\_t10\\target-ops\\op-33c56ec417a4\\target\\target-v2_transitions.log",
+        "transcript_sha256": "27dc5a1a137607a2e9a43f26299d6d1671075b9ff8cdf7bcd5fb6f21d11b5115",
+        "verdict": "PASS",
+        "verified_on_target": true,
+        "workflow": "full"
+      },
+      "note": "staged-vs-manifest check not wired in this slice; native grounding only",
+      "outcome": "missing",
+      "passport": "",
+      "run_id": "",
+      "scenario": null,
+      "seed": null
+    },
+    {
+      "checks_failed": [],
+      "hypothesis_id": "H-seq",
+      "id": "exp-04-H-seq",
+      "native_grounding": {
+        "check_passed": true,
+        "mode": "live",
+        "native_check": "faultinject",
+        "op_id": "op-33c56ec417a4",
+        "op_seconds": 230.1,
+        "passport": "..\\_t10\\target-ops\\op-33c56ec417a4\\passport.json",
+        "qnx_verified": true,
+        "state": "COMPLETED",
+        "status": "present",
+        "target_dir": "..\\_t10\\target-ops\\op-33c56ec417a4\\target",
+        "transcript": "..\\_t10\\target-ops\\op-33c56ec417a4\\target\\target-faultinject.log",
+        "transcript_sha256": "0eead61e99c8d3fc59dd6d60633065cdf5ff303533a20b9c60f562a90447ee0b",
+        "verdict": "PASS",
+        "verified_on_target": true,
+        "workflow": "full"
+      },
+      "note": "no host scenario for this machine kind",
+      "outcome": "missing",
+      "passport": "",
+      "run_id": "",
+      "scenario": null,
+      "seed": null
+    },
+    {
+      "checks_failed": [],
+      "hypothesis_id": "H-jam",
+      "id": "exp-05-H-jam",
+      "native_grounding": {
+        "mode": "live",
+        "note": "mechanism has no native injector; host only",
+        "status": "no-native-check"
+      },
+      "note": "",
+      "outcome": "pass",
+      "passport": "..\\_t10\\live-runs3\\inc-estop-cell-01-e05\\passport.json",
+      "run_id": "inc-estop-cell-01-e05",
+      "scenario": "cell_transfer_jam",
+      "seed": 1011
+    },
+    {
+      "checks_failed": [],
+      "hypothesis_id": "H-stale-sensor",
+      "id": "exp-06-H-stale-sensor",
+      "native_grounding": {
+        "mode": "live",
+        "note": "mechanism has no native injector; host only",
+        "status": "no-native-check"
+      },
+      "note": "",
+      "outcome": "pass",
+      "passport": "..\\_t10\\live-runs3\\inc-estop-cell-01-e06\\passport.json",
+      "run_id": "inc-estop-cell-01-e06",
+      "scenario": "cell_stale_presence",
+      "seed": 1013
+    }
+  ],
+  "hypotheses": [
+    {
+      "cause": "emergency-stop interlock propagation",
+      "experiment_id": "exp-01-H-estop",
+      "id": "H-estop",
+      "matched_signals": [
+        "estop",
+        "halt",
+        "state=3"
+      ],
+      "mechanism": "ESTOP input latched by the guard; motion denied until operator reset",
+      "rank": 1,
+      "verdict": "SUPPORTED"
+    },
+    {
+      "cause": "controller/device/guard process crash",
+      "experiment_id": "exp-02-H-crash",
+      "id": "H-crash",
+      "matched_signals": [],
+      "mechanism": "supervised process dies; supervisor respawns or gives up per policy",
+      "rank": 2,
+      "verdict": "INCONCLUSIVE"
+    },
+    {
+      "cause": "staged binary older than the machine contract",
+      "experiment_id": "exp-03-H-stalebin",
+      "id": "H-stalebin",
+      "matched_signals": [],
+      "mechanism": "on-target binaries do not match the staged manifest for the current IR",
+      "rank": 3,
+      "verdict": "INCONCLUSIVE"
+    },
+    {
+      "cause": "IPC sequence failure (replay/overdue/drop)",
+      "experiment_id": "exp-04-H-seq",
+      "id": "H-seq",
+      "matched_signals": [],
+      "mechanism": "guard rejects replayed or overdue sequence numbers; drops break the chain",
+      "rank": 4,
+      "verdict": "INCONCLUSIVE"
+    },
+    {
+      "cause": "conveyor belt jam",
+      "experiment_id": "exp-05-H-jam",
+      "id": "H-jam",
+      "matched_signals": [],
+      "mechanism": "belt mechanics freeze while jammed; transfer never completes",
+      "rank": 5,
+      "verdict": "INCONCLUSIVE"
+    },
+    {
+      "cause": "stale sensor presence observation",
+      "experiment_id": "exp-06-H-stale-sensor",
+      "id": "H-stale-sensor",
+      "matched_signals": [],
+      "mechanism": "presence reading older than the freshness limit gates the transfer",
+      "rank": 6,
+      "verdict": "INCONCLUSIVE"
+    }
+  ],
+  "incident": {
+    "digest": "1d2a59a96bdc087cb39a225e6594595f413688342d0cdcfcdcd7f0fc8c9cee41",
+    "incident_id": "inc-estop-cell-01",
+    "machine_ir": "examples/cell-demo/cell-ir.json",
+    "observed": [
+      {
+        "detail": "transfer halted mid-cycle, operator reports ESTOP state",
+        "kind": "symptom",
+        "source": "operator report"
+      },
+      {
+        "detail": "target-estop_target.log:3 DENY ESTOP state=3",
+        "kind": "transcript_ref",
+        "source": "evidence/qnx8-x86_64-omega2-before"
+      }
+    ],
+    "schema_version": "incident/1",
+    "title": "cell halts mid-transfer, status ESTOP latched"
+  },
+  "machine": {
+    "ir": "..\\_t10\\live-dossiers3\\inc-estop-cell-01\\before-ir.json",
+    "ir_sha256": "8d04eaebfba7cfc7ba740e9f57eab59d94de75d3049d931f501b69ba4b8edd41",
+    "kind": "industrial_cell"
+  },
+  "native_op": {
+    "mode": "live",
+    "op_id": "op-33c56ec417a4",
+    "op_seconds": 230.1,
+    "passport": "..\\_t10\\target-ops\\op-33c56ec417a4\\passport.json",
+    "qnx_verified": true,
+    "state": "COMPLETED",
+    "status": "completed",
+    "target_dir": "..\\_t10\\target-ops\\op-33c56ec417a4\\target",
+    "verdict": "PASS",
+    "workflow": "full"
+  },
+  "seal": "ea65eab69073a81da1f3b41893cc60c046d2cbb0c9bd9a0ad28b463607448970",
+  "target_mode": "live"
+}

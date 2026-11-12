@@ -1,0 +1,16 @@
+{
+  "files": {
+    "genesis_build_gen.mk": "9f06fa665fcc88a671f8f770b7b75403e8be46660b1d497aa0ec2d991628cfe8",
+    "genesis_cell_policy.h": "8e2ade17f0309215866ec36a667b187cefcd5b1b2c1678ca49facc015268c7da",
+    "genesis_config_gen.h": "89d299ca7ade854c83bcf34e8b3186c53ba9a69cf7ee88b862a9c3831dc82ffa"
+  },
+  "generator_version": "0.1.0",
+  "genesis_src": "C:\\Users\\TheBox\\Desktop\\QNX-hackaton\\genesis-rt\\target\\qnx8",
+  "ir_sha256": "73e52055d0173770bf904470f2fa565d95a198495ea386ad526366976776ff9b",
+  "template_version": "1.0",
+  "templates": {
+    "genesis_build_gen.mk.tmpl": "194bb470e3b84eaa214b1a39e0515205ecec3915e5078d173ede09afd827e5f2",
+    "genesis_cell_policy.h.tmpl": "b03a2ad190b9e564775e89364d9ebd40449610eb9305886a3b453ca67a1d904e",
+    "genesis_config_gen.h.tmpl": "1f57435c5144060cdce0b6cb5434941bc0b8182b782e63d7df407bf08c64002e"
+  }
+}

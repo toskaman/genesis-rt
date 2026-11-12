@@ -48,6 +48,15 @@ trace. One convincing proof-driven demo beats twenty speculative features.
   no sealed transcript ships in the packs). Verify offline
   with no SDK:
   `python evidence/qnx8-x86_64-omega2-after/verify.py evidence/qnx8-x86_64-omega2-after`.
+- **Incident → cause, grounded live on QNX (T10, 12 Nov 2026)**:
+  `genesis-rt causal-repro --target live` turned the flagship
+  "cell halts, ESTOP latched" incident into a sealed dossier in one
+  command — host reproduction ranks H-estop SUPPORTED, and one
+  hermetic native op on the cell's own `qcc` binaries passed 16/16
+  on QNX 8.0 (`qnx_verified=True`) with the `estop_target`
+  transcript hash-bound into the dossier (234 s, n=1, QEMU TCG).
+  Verify offline:
+  `python evidence/t10-causal-live-dossier/verify_causal.py`.
 - **Native IPC execution timeline** from real QNX `CLOCK_MONOTONIC`
   timestamps (`evidence/ipc-timeline/`).
 - **CI IR impact bridge** (`scripts/ci_ir_check.py`): changed-IR

@@ -241,6 +241,9 @@ def test_judge_stage_h_causal_full_run_shows_proof_timing(page):
     pg.wait_for_selector('#judge-out :text("H-estop: SUPPORTED")',
                          timeout=120_000)
     assert re.search(r"in \d+(\.\d+)?s", _judge_text(pg)), _judge_text(pg)
+    # T10: the stage names the committed live-QNX grounding of the same
+    # incident (archived record, labeled as such — never faked live).
+    assert "t10-causal-live-dossier" in _judge_text(pg)
 
 
 def test_target_tab_empty_state(page):
