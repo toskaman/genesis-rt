@@ -589,12 +589,16 @@ python scripts/qnx_target.py verify --out artifacts/qemu-boot/target-record.json
 
 /* Plain-language trust summary (TITAN UX). The precise fields stay
  * visible next to it; this only translates them for non-experts. */
-function trustSentence(qnxVerified, releaseEligible) {
+function trustSentence(qnxVerified, releaseEligible, targetRan) {
   const q = qnxVerified === true || qnxVerified === 'true';
   const r = releaseEligible === true || releaseEligible === 'true';
+  // T10: a refused native run (e.g. the stale-binary control) DID execute
+  // on QNX; saying "not executed on the target" there was false.
   let t = q
     ? 'These results come from the generated binaries running on the QNX 8.0 target.'
-    : 'These results were verified on the host. They have not been executed on the QNX target.';
+    : (targetRan
+      ? 'These binaries ran on the QNX 8.0 target, but the native evidence is not complete and passing, so they are not QNX-verified.'
+      : 'These results were verified on the host. They have not been executed on the QNX target.');
   if (releaseEligible !== undefined && releaseEligible !== null) {
     t += r ? ' Every required check passed, so the release gate allows this build.'
            : ' The release gate refuses this build until every required check has passed on its target.';
@@ -1535,7 +1539,8 @@ function renderDecisionHtml(d) {
     (((d.chain_errors || []).length === 0)
       ? '<span class="pass">clean</span>'
       : '<span class="fail">FAILED</span>') + '</p>';
-  h += trustSentence(d.qnx_verified, d.release_eligible);
+  h += trustSentence(d.qnx_verified, d.release_eligible,
+    Number(m.total) > 0);
   h += '<ul>' + (d.why || []).map((w) => '<li>' + esc(w) + '</li>').join('') +
     '</ul>';
   const miss = (d.missing_evidence || []).map((x) => '<code>' + esc(x) +

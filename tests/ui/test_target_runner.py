@@ -203,6 +203,15 @@ def test_decision_renders_verdict_why_and_escapes(tmp_path):
     assert "Release decision" in html
     assert "FAIL" in html and "limits_differ" in html
     assert "<img" not in html and "&lt;img" in html
+    # T10: a refused native run executed on QNX (15/16) must not be
+    # described as host-only; a decision with no matrix still is.
+    assert "ran on the QNX 8.0 target" in html
+    assert "have not been executed on the QNX target" not in html
+    hostonly = dict(decision, matrix={"total": 0, "passed": 0,
+                                      "failed": [], "all_passed": False})
+    (html2,) = _run_js([{"fn": "topdecision", "arg": json.dumps(hostonly)}],
+                       tmp_path)
+    assert "have not been executed on the QNX target" in html2
 
 
 @node
