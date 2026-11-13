@@ -131,9 +131,19 @@ def _print_provenance(passport: dict) -> None:
           f"window={tgt.get('started_utc')}..{tgt.get('finished_utc')}")
 
 
+def _refuse_ambiguous(matches: list[str]) -> None:
+    print(f"error: {len(matches)} passports match; pass one explicitly:",
+          file=sys.stderr)
+    for m in matches[:8]:
+        print(f"  {m}", file=sys.stderr)
+    newest = max(matches, key=lambda m: Path(m).stat().st_mtime)
+    print(f"most recent: {newest}", file=sys.stderr)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Replay-verify an evidence passport")
-    ap.add_argument("passport")
+    ap.add_argument("passport", nargs="+",
+                    help="one passport.json (a glob is fine if it matches one)")
     ap.add_argument("--required", nargs="*", default=None)
     ap.add_argument("--anchor", default=None,
                     help="expected chain-head sha256 (out-of-band trust anchor)")
@@ -144,7 +154,12 @@ def main() -> int:
     ap.add_argument("--require-build-set-replay", action="store_true",
                     help="fail unless every build-set entry is replayed")
     args = ap.parse_args()
-    passport_arg = args.passport
+    if len(args.passport) > 1:
+        # A POSIX shell expanded the documented glob to several runs:
+        # refuse the ambiguity the same way as the unexpanded glob below.
+        _refuse_ambiguous(args.passport)
+        return 2
+    passport_arg = args.passport[0]
     if glob.has_magic(passport_arg):
         matches = sorted(glob.glob(passport_arg))
         if len(matches) == 1:
@@ -154,10 +169,7 @@ def main() -> int:
                   file=sys.stderr)
             return 2
         else:
-            print(f"error: {len(matches)} passports match; pass one explicitly:",
-                  file=sys.stderr)
-            for m in matches[:8]:
-                print(f"  {m}", file=sys.stderr)
+            _refuse_ambiguous(matches)
             return 2
     passport = load_passport(passport_arg)
     errors = verify_chain(passport)
