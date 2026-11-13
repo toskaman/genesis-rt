@@ -221,7 +221,7 @@ Four commands carry the product:
 
 - Host fault results are **simulated**; QNX on-target runs are verified by
   the authors (16/16 matrix) and reproducible with an SDK + QEMU setup
-  ([docs/PROGRESS.md](docs/PROGRESS.md)).
+  ([docs/quickstart-qnx8-qemu.md](docs/quickstart-qnx8-qemu.md)).
 - QEMU timing is for regression comparison, not production guarantees.
 - Prototype only: no functional-safety qualification, simulation-only outputs.
 - Full detail: [docs/limitations-and-safety.md](docs/limitations-and-safety.md).

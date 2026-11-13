@@ -1,6 +1,6 @@
 # Timed demo beats (OMEGA6 F2, rehearsed 9 Nov 2026)
 
-Beats from `../audits/titanv3/demo-story.md`, rehearsed
+Demo beats, rehearsed
 against the BUILT product (real CLI, real browser, real
 pipelines — never mocks). All timings: Windows, Python
 3.14, host-only, this box.
