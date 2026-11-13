@@ -89,6 +89,15 @@ def test_replay_glob_refuses_ambiguous_match(amr_ir, bound_evidence,
     proc = _replay(repo_root, pattern, "--required", *full)
     assert proc.returncode == 2
     assert "pass one explicitly" in proc.stderr
+    assert "most recent:" in proc.stderr
+    # bash expands the glob before the script sees it: same refusal,
+    # not an argparse usage error.
+    paths = [str(tmp_path / tag / "passport.json")
+             for tag in ("run-a", "run-b")]
+    proc = _replay(repo_root, *paths, "--required", *full)
+    assert proc.returncode == 2, proc.stdout + proc.stderr
+    assert "pass one explicitly" in proc.stderr
+    assert "usage:" not in proc.stderr
 
 
 def test_replay_detects_tamper_without_recompute(amr_ir, bound_evidence,

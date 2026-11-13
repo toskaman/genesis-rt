@@ -17,6 +17,8 @@ PYTHONPATH=host python scripts/replay.py artifacts/runs/*/passport.json
 ```
 
 Expect: `verdict: PASS`, `qnx_verified: false`, `chain: valid`, `gate: PASS`.
+If you already ran other commands, several runs exist and the replay
+asks for one: pass it the `most recent:` path it prints.
 Open `ui/dashboard.html`, load the passport, and every verdict links to data.
 On Windows PowerShell, prefix the two commands with
 `$env:PYTHONPATH='host';` instead of `PYTHONPATH=host`.
