@@ -31,24 +31,22 @@ def _one(pat: str, text: str, label: str) -> tuple[str, ...]:
 
 
 def test_suite_total_agrees_across_docs():
-    a = _one(r"(\d+) host tests", _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard total")
+    a = _one(r"(\d+) host tests", _read("docs/jury/CRITERIA_EVIDENCE.md"), "scorecard total")
     b = _one(r"green, (\d+) tests", _read("docs/jury/REPRODUCE.md"), "reproduce total")
     c = _one(r"Expect green \((\d+) tests", _read("docs/jury/START_HERE.md"), "start-here total")
-    d = _one(r"(\d+)-test host suite", _read("docs/business/COMMERCIAL_VISION.md"), "commercial total")
-    assert a == b == c == d, (a, b, c, d)
+    assert a == b == c, (a, b, c)
 
 
 def test_sdk_free_counts_agree_across_docs():
-    a = _one(r"SDK-free: (\d+) \+ (\d+) honest skips", _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard sdk-free")
+    a = _one(r"SDK-free: (\d+) \+ (\d+) honest skips", _read("docs/jury/CRITERIA_EVIDENCE.md"), "scorecard sdk-free")
     b = _one(r"SDK-free [^:]*: (\d+) \+ (\d+) honest skips", _read("docs/jury/REPRODUCE.md"), "reproduce sdk-free")
     c = _one(r"SDK-free[^:]*: (\d+) passed \+ (\d+) honest skips", _read("docs/jury/START_HERE.md"), "start-here sdk-free")
-    d = _one(r"SDK-free: (\d+) passed \+ (\d+) honest skips", _read("docs/business/COMMERCIAL_VISION.md"), "commercial sdk-free")
-    assert a == b == c == d, (a, b, c, d)
+    assert a == b == c, (a, b, c)
 
 
 def test_matrix_claim_matches_provenance_pin():
     assert len(EXPECTED_TARGET_CHECKS) == 16
-    for rel in ("README.md", "docs/jury/JUDGE_SCORECARD.md", "docs/limitations-and-safety.md"):
+    for rel in ("README.md", "docs/jury/CRITERIA_EVIDENCE.md", "docs/limitations-and-safety.md"):
         assert "16/16" in _read(rel) or "16-step" in _read(rel), rel
 
 
@@ -65,7 +63,7 @@ def test_fault_campaign_counts_match_examples():
 
 def test_planning_eval_count_matches_dataset():
     claimed = _one(r"(\d+)-case planning eval at (\d+)/(\d+)",
-                   _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard eval")
+                   _read("docs/jury/CRITERIA_EVIDENCE.md"), "scorecard eval")
     cases = json.loads((ROOT / "evals" / "planning_eval.json").read_text(encoding="utf-8"))["cases"]
     assert claimed == (str(len(cases)),) * 3 == ("28", "28", "28"), (claimed, len(cases))
 
@@ -75,7 +73,7 @@ def test_limitations_match_judge_mode_implementation():
     Studio ships a guided Judge tab (or vice versa)."""
     studio = _read("ui/studio.html")
     lim = _read("docs/jury/KNOWN_LIMITATIONS.md")
-    score = _read("docs/jury/JUDGE_SCORECARD.md")
+    score = _read("docs/jury/CRITERIA_EVIDENCE.md")
     assert "function judgeStages()" in studio
     assert "No guided Judge Mode yet" not in score
     assert "no guided Judge Mode yet" not in lim
@@ -135,7 +133,7 @@ def test_pilot_kit_covers_wave10_checklist():
 
 
 def test_adversarial_count_matches_collected():
-    claimed = _one(r"(\d+)-test adversarial", _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard adversarial")
+    claimed = _one(r"(\d+)-test adversarial", _read("docs/jury/CRITERIA_EVIDENCE.md"), "scorecard adversarial")
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", "tests/unit/test_passport_adversarial.py",
          "-o", "addopts=", "--collect-only", "-q", "-p", "no:warnings"],
@@ -147,14 +145,14 @@ def test_adversarial_count_matches_collected():
 
 def test_docs_match_facts_source_of_truth():
     from genesis_rt import facts
-    total = _one(r"(\d+) host tests", _read("docs/jury/JUDGE_SCORECARD.md"),
+    total = _one(r"(\d+) host tests", _read("docs/jury/CRITERIA_EVIDENCE.md"),
                  "scorecard total")
     assert total == (str(facts.TESTS_WITH_SDK),), total
     adv = _one(r"(\d+)-test adversarial",
-               _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard adversarial")
+               _read("docs/jury/CRITERIA_EVIDENCE.md"), "scorecard adversarial")
     assert adv == (str(facts.ADVERSARIAL_TESTS),), adv
     free = _one(r"SDK-free: (\d+) \+ (\d+) honest skips",
-                _read("docs/jury/JUDGE_SCORECARD.md"), "scorecard sdk-free")
+                _read("docs/jury/CRITERIA_EVIDENCE.md"), "scorecard sdk-free")
     assert free == (str(facts.TESTS_SDK_FREE_PASSED),
                     str(facts.TESTS_SDK_FREE_SKIPS)), free
 
@@ -321,7 +319,7 @@ def test_qnx_workflow_does_not_overclaim_target_run():
 def test_video_status_deferred_everywhere():
     """TITAN: no current-facing doc may present the W12 cut as final."""
     for rel in ("README.md", "docs/CLAIMS.md", "docs/compliance-matrix.md",
-                "docs/devpost-draft.md", "docs/jury/JUDGE_SCORECARD.md"):
+                "docs/devpost-draft.md", "docs/jury/CRITERIA_EVIDENCE.md"):
         text = _read(rel)
         assert re.search(r"DEFERRED", text), rel
     assert "- **Submission video**:" not in _read("README.md")
@@ -550,7 +548,7 @@ def test_human_impact_not_upgraded_without_records():
     real = [p for p in real if not p.stem.startswith(
         ("fixture", "example", "test", "sample"))]
     if not real:
-        score = _read("docs/jury/JUDGE_SCORECARD.md")
+        score = _read("docs/jury/CRITERIA_EVIDENCE.md")
         assert "HUMAN USER BENEFIT NOT YET MEASURED" in score
 
 
@@ -560,8 +558,7 @@ def test_no_positive_hardware_signer_or_a11y_overclaims():
     a completed screen-reader pass (denials are fine)."""
     docs = ("README.md", "docs/CLAIMS.md",
             "docs/submission/DEVPOST_FINAL_DRAFT.md",
-            "docs/jury/JUDGE_SCORECARD.md",
-            "docs/business/COMMERCIAL_VISION.md",
+            "docs/jury/CRITERIA_EVIDENCE.md",
             "docs/jury/KNOWN_LIMITATIONS.md")
     denial = ("no ", "not ", "without", "unsigned", "hash-only",
               "never", "non-", "none ", "unmeasured", "neither")
@@ -742,7 +739,7 @@ def test_final_draft_limitations_names_latest_blind():
 def test_scorecard_current_section_keeps_ai_residuals():
     """Omega5 sec 6.5: the scorecard's current (first) section must
     carry the latest AI residuals, not just the headline scores."""
-    text = _read("docs/jury/JUDGE_SCORECARD.md")
+    text = _read("docs/jury/CRITERIA_EVIDENCE.md")
     current = text.split("\n---\n", 1)[0]
     assert "unsafe accepts" in current, \
         "current scorecard section omits unsafe accepts"

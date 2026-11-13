@@ -54,35 +54,38 @@ trace. One convincing proof-driven demo beats twenty speculative features.
 
 ## What's proven
 
-- **Contract-aware native verification (current source)**: the
-  Omega2 BEFORE/AFTER pair
-  (`evidence/qnx8-x86_64-omega2-before/`,
-  `evidence/qnx8-x86_64-omega2-after/`) verifies one valid
-  requirement change natively twice — AMR v1 → v2 guarded
-  safe-stop transitions, 16/16 PASS sealed on both contracts,
-  and a stale control failing 14/16 exactly on the changed
-  behavior (operator-recorded negative control — prose-grade,
-  no sealed transcript ships in the packs). Verify offline
-  with no SDK:
+Each item is a file you can re-check yourself. Canonical numbers live
+in [docs/CLAIMS.md](docs/CLAIMS.md); the four judging criteria are
+mapped to files in
+[docs/jury/CRITERIA_EVIDENCE.md](docs/jury/CRITERIA_EVIDENCE.md).
+
+- **Contract-aware native verification**: one requirement change — a
+  mobile robot gains guarded safe-stop transitions (contract v1 → v2)
+  — verified natively on QNX 8.0 twice. 16/16 PASS sealed on both
+  contracts, and a stale control failing 14/16 exactly on the changed
+  behavior (operator-recorded negative control — prose-grade, no
+  sealed transcript ships in the packs). Packs:
+  `evidence/qnx8-x86_64-omega2-before/`,
+  `evidence/qnx8-x86_64-omega2-after/`. Verify offline with no SDK:
   `python evidence/qnx8-x86_64-omega2-after/verify.py evidence/qnx8-x86_64-omega2-after`.
-- **Incident → cause, grounded live on QNX (T10, 12 Nov 2026)**:
-  `genesis-rt causal-repro --target live` turned the flagship
-  "cell halts, ESTOP latched" incident into a sealed dossier in one
-  command — host reproduction ranks H-estop SUPPORTED, and one
-  hermetic native op on the cell's own `qcc` binaries passed 16/16
-  on QNX 8.0 (`qnx_verified=True`) with the `estop_target`
+- **Incident → cause, grounded live on QNX** (12 Nov 2026):
+  `genesis-rt causal-repro --target live` turned a "cell halts,
+  ESTOP latched" incident into a sealed dossier in one command. The
+  host reproduction ranks the emergency-stop hypothesis first, and
+  one hermetic native run on the cell's own `qcc` binaries passed
+  16/16 on QNX 8.0 (`qnx_verified=True`), its `estop_target`
   transcript hash-bound into the dossier (234 s, n=1, QEMU TCG).
   Verify offline:
   `python evidence/t10-causal-live-dossier/verify_causal.py`.
 - **Native IPC execution timeline** from real QNX `CLOCK_MONOTONIC`
   timestamps (`evidence/ipc-timeline/`).
-- **CI IR impact bridge** (`scripts/ci_ir_check.py`): changed-IR
-  validation and impact reports on every push/PR.
+- **Contract changes checked in CI** (`scripts/ci_ir_check.py`):
+  validation and an impact report on every push and pull request.
 - **Professional review dossier**: one-click ZIP export (report +
   raw data + offline verify) from any target operation.
-- **Historical proof** (7 Nov 2026, superseded for current claims):
-  limit change 1.2 → 1.6 m/s flipping the 1.5 m/s probe
-  DENY → ALLOW, three BEFORE/AFTER packs
+- **Earlier proof** (7 Nov 2026, superseded for current claims): a
+  speed limit raised from 1.2 to 1.6 m/s flips the 1.5 m/s probe
+  from DENY to ALLOW; three BEFORE/AFTER packs
   (`evidence/qnx8-x86_64-w11-before/`, `...-after/`,
   `...-after-rerun/`), 15-link passport chains, tamper control,
   18/18 bit-for-bit `qcc` rebuilds.
@@ -90,23 +93,25 @@ trace. One convincing proof-driven demo beats twenty speculative features.
   2026-11-12 for an owner remake — no video file is shipped;
   see `submission/VIDEO_DEFERRED.md`.
 
-Canonical numbers live in [docs/CLAIMS.md](docs/CLAIMS.md).
-
 ## AI planner: measured, not marketed
 
-Latest blind holdout **v10** (184 cases, 48 valid + 136 reject,
-agent-authored against contract v1.3 + failure classes only, frozen
-before the v1.4 code): offline **159/184**, Qwen 2.5 7B and Llama
-3.1 8B **165/184** each — **15 unsafe accepts of 136** reject cases
-(same 15 deterministic-layer cases on all providers), **0 wrong-kind
-accepts**, 29 model consults per model against 26 expected (0 missing,
-3 unexpected, each explained). v9/v10 unsafe rates are NOT comparable
-(harder instrument). A consultation audit
-(`docs/audits/OMEGA5_CONSULTATION_AUDIT.md`) pins the v7/v8
-expectation mismatches, and the harness now enforces
-`expect_consult` per case. The model proposes; the deterministic
-validator decides. Full per-case raws: `evals/results/2026-11-10-omega7-v10/`;
-report: [docs/audits/OMEGA7_AI_EVALUATION.md](docs/audits/OMEGA7_AI_EVALUATION.md).
+Free text can be turned into a machine contract by a local model, but
+the model only proposes: the same deterministic validator decides,
+and anything it cannot prove safe is rejected.
+
+Latest blind holdout (184 cases: 48 valid, 136 that must be
+rejected; written by an AI agent from the contract and its failure
+classes only, frozen before the code they test): offline rules
+**159/184**, Qwen 2.5 7B and Llama 3.1 8B **165/184** each. **15
+unsafe accepts of 136** reject cases — the same 15 on every provider,
+all in the deterministic layer — and **0 wrong-kind accepts**. Each
+model was consulted 29 times against 26 expected (0 missing, 3
+unexpected, each explained). Results across holdout versions are not
+comparable (each one is a harder instrument).
+
+Per-case raw results: `evals/results/2026-11-10-omega7-v10/`;
+report: [docs/audits/OMEGA7_AI_EVALUATION.md](docs/audits/OMEGA7_AI_EVALUATION.md);
+consultation audit: `docs/audits/OMEGA5_CONSULTATION_AUDIT.md`.
 
 ## Architecture
 
@@ -170,6 +175,18 @@ records QNX steps as `blocked`, never as passed).
 
 ## Commands
 
+Four commands carry the product:
+
+| Command | What it does |
+|---|---|
+| `genesis-rt demo` | full pipeline → evidence passport + gate verdict |
+| `genesis-rt verify-change --before A --after B` | BEFORE/AFTER in one step → `verdict.json` card |
+| `genesis-rt causal-repro --incident FILE` | incident → hypotheses → sealed causal dossier |
+| `genesis-rt demo-break` | seal → mutate → STALE refusal in seconds |
+
+<details>
+<summary>All other commands</summary>
+
 | Command | What it does |
 |---|---|
 | `genesis-rt validate <ir>` | strict Machine IR validation |
@@ -177,11 +194,7 @@ records QNX steps as `blocked`, never as passed).
 | `genesis-rt generate <ir> --out <dir>` | deterministic QNX C build files |
 | `genesis-rt simulate <ir> [--scenario id]` | nominal (or named) scenario for AMR / conveyor / cell, v1 or v2 |
 | `genesis-rt faults <ir>` | declared fault campaign with oracles (AMR 8, conveyor 5, cell 4) |
-| `genesis-rt demo` | full pipeline → evidence passport + gate verdict |
-| `genesis-rt verify-change --before A --after B` | BEFORE/AFTER in one step → `verdict.json` card |
-| `genesis-rt causal-repro --incident FILE` | incident → hypotheses → sealed causal dossier |
-| `genesis-rt causal-fix --dossier DIR --after-ir FILE` | K1 fix proof appended + dossier resealed |
-| `genesis-rt demo-break` | seal → mutate → STALE refusal in seconds |
+| `genesis-rt causal-fix --dossier DIR --after-ir FILE` | fix proof appended + dossier resealed |
 | `genesis-rt quickstart [--example cell]` | validate + run + card in one command |
 | `genesis-rt watch <ir> [--once]` | re-validate on every save, 1-line verdict |
 | `genesis-rt new --kind cell --id ID --out FILE` | first Machine IR from an example, validated |
@@ -189,6 +202,8 @@ records QNX steps as `blocked`, never as passed).
 | `genesis-rt external-check` | stale-binary check of a build dir vs its manifest |
 | `genesis-rt check-env` | probe for QNX SDK toolchain |
 | `genesis-rt serve` | local web API (needs `api` extra) |
+
+</details>
 
 ## QNX evidence for judges
 

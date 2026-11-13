@@ -177,6 +177,6 @@ evidence packs), and no external user study yet. Full list:
 - Codelabs: `docs/codelab/README.md`, `docs/codelab/ADVANCED-QNX.md`,
   `docs/codelab/EXTERNAL-BUILD.md`
 - Readiness report: `docs/audits/OMEGA2_RELEASE_READINESS.md`
-  (current; historical: `docs/release/TITAN_FINAL_READINESS.md`)
+  (current)
 - State: `main` post-PR-#11 (Omega2 merged 8 Nov 2026); no release
   while the final video is deferred by the owner

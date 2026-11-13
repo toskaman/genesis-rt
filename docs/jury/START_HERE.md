@@ -53,7 +53,7 @@ SDK-only tests skip). The full total above additionally needs
 - `COMPLIANCE.md` — rules checklist, license decision, original-work note.
 - `DEMO_WALKTHROUGH.md` — the three demo paths with exact outputs.
 - `WHY_QNX.md` / `WHY_GENESIS_RT.md` — the two one-page pitches.
-- `JUDGE_SCORECARD.md` — internal self-assessment with evidence links.
+- `CRITERIA_EVIDENCE.md` — the four judging criteria, each mapped to files and commands.
 
 ## 4. QNX-native substance (no SDK needed to inspect)
 

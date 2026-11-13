@@ -89,8 +89,7 @@ Honest reading: incumbents win on qualification, scale,
 and depth in their lane; GENESIS RT's edge is the integrated
 contract→native-target→replay loop at zero license cost
 (Apache-2.0, `LICENSE`), aimed at the prototype/validation
-loop rather than the certified stack (consistent with
-`COMMERCIAL_VISION.md` §4). GENESIS RT builds on top of the
+loop rather than the certified stack. GENESIS RT builds on top of the
 QNX Tool Suite (same `qcc` toolchain, same targets) — it is
 positioned as complementary, not as a replacement for mature
 certification platforms.
