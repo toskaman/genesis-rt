@@ -6,12 +6,29 @@ GENESIS RT generates inspectable evidence about the behavior of
 the code — a requirement change goes in, a verdict anyone can
 re-verify offline comes out.
 
-> **30-second cold start** (no SDK, no QNX target) — product-time budget:
-> `pip install -e .` (one-time setup, unmeasured) →
-> `genesis-rt validate examples/cell-demo/cell-ir.json` →
-> `genesis-rt demo --ir examples/cell-demo/cell-ir.json`
-> (PASS verdict + offline passport in ~2 s of product runtime after setup;
-> install/clone/first-boot excluded — see `docs/jury/REPRODUCE.md`).
+**In plain words:** you describe a machine (a mobile robot, a conveyor,
+a robot cell) in one JSON file. GENESIS RT generates its QNX 8.0
+controller in C, runs it, breaks it on purpose with injected faults,
+and seals what happened into a file a reviewer can re-check on their
+own laptop — no SDK and no trust in the author required. Change one
+requirement and it shows which behavior changed, and it refuses a
+binary that was not rebuilt.
+
+**Try it in 30 seconds** (Python ≥ 3.12; no QNX SDK, no target):
+
+```sh
+git clone https://github.com/toskaman/genesis-rt.git && cd genesis-rt
+pip install -e .
+genesis-rt demo --ir examples/cell-demo/cell-ir.json      # 4 fault scenarios -> verdict: PASS + passport
+genesis-rt demo-break                                      # tamper with a sealed binary -> STALE, refused
+python evidence/t10-causal-live-dossier/verify_causal.py   # re-check a real QNX 8.0 run offline -> VERIFY OK
+```
+
+Each command returns in about a second of product runtime (clean
+Linux clone, Python 3.13, 13 Nov 2026: `demo` 0.4 s; clone and
+install excluded — see `docs/jury/REPRODUCE.md`). Without an SDK the
+demo reports `qnx_verified: False`, never a QNX pass; the native QNX
+runs are the sealed packs under `evidence/`.
 
 [![host-ci](https://github.com/toskaman/genesis-rt/actions/workflows/host-ci.yml/badge.svg)](https://github.com/toskaman/genesis-rt/actions/workflows/host-ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -82,8 +99,8 @@ agent-authored against contract v1.3 + failure classes only, frozen
 before the v1.4 code): offline **159/184**, Qwen 2.5 7B and Llama
 3.1 8B **165/184** each — **15 unsafe accepts of 136** reject cases
 (same 15 deterministic-layer cases on all providers), **0 wrong-kind
-accepts**, 29 of 26 expected model consults per model (0 missing,
-3 explained mismatches). v9/v10 unsafe rates are NOT comparable
+accepts**, 29 model consults per model against 26 expected (0 missing,
+3 unexpected, each explained). v9/v10 unsafe rates are NOT comparable
 (harder instrument). A consultation audit
 (`docs/audits/OMEGA5_CONSULTATION_AUDIT.md`) pins the v7/v8
 expectation mismatches, and the harness now enforces
@@ -129,6 +146,13 @@ python scripts/replay.py artifacts/runs/*/passport.json
 
 (With several runs present, pass the exact passport path the demo
 printed instead of the glob.)
+
+Expect green. How many tests run depends on what is installed, and
+every skip names its reason: `.[dev]` alone runs everything except
+the real-browser lane (clean Linux clone, Python 3.13, 13 Nov 2026:
+1577 passed, 14 skipped); the full pinned total needs
+`pip install -e '.[dev,e2e]'` plus `python -m playwright install chromium`,
+as CI does. A missing QNX SDK is a skip, never a QNX pass.
 
 Then start the live workbench (`genesis-rt serve`) and open
 http://127.0.0.1:8077/ — Studio Live: projects with
@@ -192,12 +216,10 @@ records QNX steps as `blocked`, never as passed).
 **Is this original work?** Yes — created during the hackathon entry period for
 this submission; see [docs/jury/COMPLIANCE.md](docs/jury/COMPLIANCE.md).
 
-**Why Apache-2.0?** The project brief asked to match the OpenBridge license if
-possible. The referenced OpenBridge project uses PolyForm Strict 1.0.0, which
-is not an open-source license and would violate the Devpost requirement for a
-public open-source repository — so Apache-2.0 (OSI-approved, GitHub-detectable,
-also the license the OpenBridge design system converges to) was chosen instead.
-Details in [docs/jury/COMPLIANCE.md](docs/jury/COMPLIANCE.md).
+**Why Apache-2.0?** The hackathon requires a public repository under an
+open-source license that the hosting site detects. Apache-2.0 is
+OSI-approved, shows in this repository's About box, and carries a patent
+grant. Details in [docs/jury/COMPLIANCE.md](docs/jury/COMPLIANCE.md).
 
 **Does the gate ever pass without tests?** No — `no-test => no-pass` is tested
 (`tests/unit/test_evidence_gate.py`): missing, skipped, crashed or tampered

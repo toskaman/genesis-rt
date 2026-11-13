@@ -35,6 +35,14 @@ real (7 for the cell, 9 staged on target: bound set +
 `genesis_guard_conv` + `genesis_guard_v2`); without one it reports
 an honest skip — never a QNX pass.
 
+What you will see depends on what you installed (clean Linux clone,
+Python 3.13, 13 Nov 2026): with only `pytest pyyaml` from step 1,
+modules that need an optional extra skip with their reason — 1397
+passed, 33 skipped, 0 failed; with `pip install -e '.[dev]'`, 1577
+passed, 14 skipped, 0 failed (only the real-browser lane and the
+SDK-only tests skip). The full total above additionally needs
+`pip install -e '.[e2e]'` and `python -m playwright install chromium`.
+
 ## 3. What to read next
 
 - `GLOSSARY.md` — one-page plain-language vocabulary (start here

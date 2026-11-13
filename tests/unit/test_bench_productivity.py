@@ -78,6 +78,10 @@ def _ref(name, *args):
 def test_ref_validator_is_competent(amr_ir_path, tmp_path):
     """F5: the validate reference uses a stock engine and must DETECT
     the unknown-key fault — no strawman baseline."""
+    pytest.importorskip(
+        "jsonschema",
+        reason="jsonschema not installed (stock reference engine; "
+               "in the dev extra)")
     from genesis_rt.bench_productivity import REPO_ROOT
     assert (REPO_ROOT / "scripts" / "bench_ref"
             / "amr.schema.json").is_file()
