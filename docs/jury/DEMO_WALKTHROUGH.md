@@ -55,7 +55,7 @@ commands, so the guard denies everything:
 PYTHONPATH=host python -m genesis_rt.cli demo --ir examples/cell-demo/cell-ir-broken.json
 # verdict: FAIL  level: NONE  (3 scenarios fail)
 PYTHONPATH=host python -m genesis_rt.cli demo --ir examples/cell-demo/cell-ir.json
-# verdict: PASS  level: QNX_COMPILED
+# verdict: PASS  level: QNX_COMPILED   (with an SDK; without one: level: HOST_TESTED)
 PYTHONPATH=host python -m genesis_rt.cli compare artifacts/runs/<broken> artifacts/runs/<fixed>
 # contract limits changed: max_linear_speed_mps: 0.3 -> 1.2
 # fixed: ['cell_nominal_transfer', 'cell_stale_presence', 'cell_transfer_jam']
